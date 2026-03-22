@@ -6,9 +6,10 @@ import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Roboto } from "next/font/google";
 import { 
-  Home, Lock, MessageSquare, Gamepad2, Settings, 
+  Home, Lock, MessageSquare, Settings, 
   ChevronLeft, ChevronRight, LogOut, Compass,
-  LayoutDashboard, FolderKanban, Users, Inbox, BarChart3, Shield
+  LayoutDashboard, FolderKanban, Users, Inbox, BarChart3, Shield,
+  Globe2 // Novo ícone importado corretamente para a Comunidade
 } from "lucide-react";
 import "./globals.css";
 
@@ -17,6 +18,37 @@ const roboto = Roboto({
   subsets: ['latin'],
   variable: '--font-roboto',
 });
+
+// ==========================================
+// COMPONENTE GLOBAL DE NOTIFICAÇÃO (TOAST) RESTAURADO
+// ==========================================
+export const triggerToast = (message: string) => {
+  const event = new CustomEvent("showToast", { detail: message });
+  window.dispatchEvent(event);
+};
+
+function GlobalToast() {
+  const [toast, setToast] = useState<{ message: string; visible: boolean }>({ message: "", visible: false });
+
+  useEffect(() => {
+    const handleToast = (e: Event) => {
+      const customEvent = e as CustomEvent;
+      setToast({ message: customEvent.detail, visible: true });
+      setTimeout(() => setToast({ message: "", visible: false }), 3000);
+    };
+    window.addEventListener("showToast", handleToast);
+    return () => window.removeEventListener("showToast", handleToast);
+  }, []);
+
+  if (!toast.visible) return null;
+
+  return (
+    <div className="fixed bottom-8 right-8 z-[9999] bg-white/90 backdrop-blur-xl border border-[var(--color-atelier-terracota)]/30 text-[var(--color-atelier-grafite)] px-6 py-4 rounded-2xl shadow-[0_20px_40px_rgba(173,111,64,0.15)] animate-[fadeInUp_0.3s_ease-out] flex items-center gap-3">
+      <div className="w-2 h-2 rounded-full bg-[var(--color-atelier-terracota)] animate-pulse"></div>
+      <span className="font-roboto text-[13px] font-bold tracking-wide">{toast.message}</span>
+    </div>
+  );
+}
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -34,9 +66,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   useEffect(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem("atelier_token") : null;
     const role = typeof window !== 'undefined' ? localStorage.getItem("atelier_role") : null;
-    document.title = "Atelier"
+    document.title = "Atelier";
 
-    // 1. O Exterminador de Cache: Tem token mas não tem papel? Sessão corrompida! Destrói e joga pro login.
     if (token && !role) {
       localStorage.removeItem("atelier_token");
       localStorage.removeItem("atelier_role");
@@ -44,19 +75,16 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       return;
     }
 
-    // 2. Não está logado e tenta acessar área interna
     if (!token && !isLoginPage) {
       router.replace('/login');
       return;
     } 
     
-    // 3. Está logado e tenta acessar o Login
     if (token && isLoginPage && role) {
       router.replace(role === 'client' ? '/' : '/admin');
       return;
     } 
     
-    // 4. Fluxo Normal e Autorizado
     if (token && role) {
       setUserRole(role);
       
@@ -75,9 +103,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   // Função de Desconectar
   const handleLogout = () => {
-    localStorage.removeItem("atelier_token");
-    localStorage.removeItem("atelier_role");
-    router.replace('/login');
+    triggerToast("A encerrar sessão com segurança...");
+    setTimeout(() => {
+      localStorage.removeItem("atelier_token");
+      localStorage.removeItem("atelier_role");
+      router.replace('/login');
+    }, 1000);
   };
 
   // Ecrã de Carregamento Imersivo
@@ -87,7 +118,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <body className="bg-[var(--color-atelier-creme)] min-h-screen flex flex-col items-center justify-center overflow-hidden relative">
           <div className="absolute w-[600px] h-[600px] bg-[var(--color-atelier-rose)]/10 blur-[120px] rounded-full animate-pulse"></div>
           <div className="relative z-10 flex flex-col items-center">
-             <img src="/images/Símbolo Rosa.png" alt="Atelier Logo" className="w-16 h-16 object-contain drop-shadow-lg mb-6 animate-bounce" style={{ animationDuration: '2s' }} />
+             <img src="/images/simbolo-rosa.png" alt="Atelier Logo" className="w-16 h-16 object-contain drop-shadow-lg mb-6 animate-bounce" style={{ animationDuration: '2s' }} />
              <div className="w-32 h-[2px] bg-black/5 rounded-full overflow-hidden">
                <div className="w-full h-full bg-[var(--color-atelier-terracota)] animate-[slideRight_1.2s_ease-in-out_infinite]" style={{ transformOrigin: 'left' }}></div>
              </div>
@@ -106,6 +137,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR" className={roboto.variable}>
       <body className="bg-[var(--color-atelier-creme)] text-[var(--color-atelier-grafite)] font-roboto h-screen w-screen overflow-hidden flex relative selection:bg-[var(--color-atelier-terracota)] selection:text-white">
         
+        {/* INJEÇÃO DO TOAST GLOBAL */}
+        <GlobalToast />
+
         {/* Luzes de Fundo da Dashboard */}
         {!isLoginPage && (
           <>
@@ -127,7 +161,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className={`p-8 flex items-center h-32 shrink-0 ${isCollapsed ? 'justify-center' : 'justify-start gap-4'}`}>
               <div className="w-12 h-12 shrink-0 drop-shadow-xl relative group cursor-pointer">
                 <div className="absolute inset-0 bg-[var(--color-atelier-terracota)]/20 rounded-full blur-md group-hover:scale-150 transition-transform duration-500 opacity-0 group-hover:opacity-100"></div>
-                <img src="/images/Símbolo Rosa.png" alt="Atelier" className="w-full h-full object-contain relative z-10" />
+                <img src="/images/simbolo-rosa.png" alt="Atelier" className="w-full h-full object-contain relative z-10" />
               </div>
               
               {!isCollapsed && (
@@ -156,13 +190,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               )}
               
               <nav className="flex flex-col gap-2">
-                {/* MENU DO CLIENTE */}
+                {/* MENU DO CLIENTE (Restaurado e Corrigido) */}
                 {!isTeamMember && (
                   <>
                     <NavItem href="/" icon={<Home size={22} strokeWidth={1.5} />} label="Início" collapsed={isCollapsed} active={pathname === '/'} />
                     <NavItem href="/cofre" icon={<Lock size={22} strokeWidth={1.5} />} label="O Cofre" collapsed={isCollapsed} active={pathname === '/cofre'} />
+                    <NavItem href="/canais" icon={<MessageSquare size={22} strokeWidth={1.5} />} label="Canais (Slack)" collapsed={isCollapsed} active={pathname === '/canais'} />
                     <NavItem href="/referencias" icon={<Compass size={22} strokeWidth={1.5} />} label="Referências" collapsed={isCollapsed} active={pathname === '/referencias'} />
-                    <NavItem href="/gamificacao" icon={<Gamepad2 size={22} strokeWidth={1.5} />} label="Conquistas" collapsed={isCollapsed} active={pathname === '/gamificacao'} />
+                    <NavItem href="/comunidade" icon={<Globe2 size={22} strokeWidth={1.5} />} label="Comunidade & EXP" collapsed={isCollapsed} active={pathname === '/comunidade'} />
                   </>
                 )}
 
@@ -185,7 +220,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             {/* PERFIL */}
             <div className="p-6 border-t border-[var(--color-atelier-grafite)]/10 flex flex-col gap-3 shrink-0">
               {!isCollapsed && (
-                <div className="flex items-center gap-3 mb-2 p-2 rounded-2xl bg-white/50 border border-white shadow-sm cursor-pointer hover:bg-white transition-colors">
+                <div 
+                  className="flex items-center gap-3 mb-2 p-2 rounded-2xl bg-white/50 border border-white shadow-sm cursor-pointer hover:bg-white transition-colors"
+                  onClick={() => router.push('/configuracoes')}
+                >
                   <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm shrink-0 border border-white/50 flex items-center justify-center bg-[var(--color-atelier-grafite)] text-white">
                     {isTeamMember ? <Shield size={18} /> : <img src="https://ui-avatars.com/api/?name=Cliente&background=ad6f40&color=fbf4e4" alt="Avatar" className="w-full h-full object-cover" />}
                   </div>
@@ -201,7 +239,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               )}
 
               <div className="flex flex-col gap-1">
-                <NavItem href="/configuracoes" icon={<Settings size={22} strokeWidth={1.5} />} label="Ajustes" collapsed={isCollapsed} active={pathname === '/configuracoes'} />
+                <NavItem href="/configuracoes" icon={<Settings size={22} strokeWidth={1.5} />} label="Definições" collapsed={isCollapsed} active={pathname === '/configuracoes'} />
                 <button onClick={handleLogout} className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-start'} gap-4 p-3 rounded-2xl text-[var(--color-atelier-grafite)]/70 hover:bg-red-50 hover:text-red-500 transition-all duration-300 group`}>
                   <LogOut size={22} strokeWidth={1.5} className="group-hover:-translate-x-1 transition-transform" />
                   {!isCollapsed && <span className="font-bold text-[13px]">Desconectar</span>}
