@@ -118,7 +118,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <body className="bg-[var(--color-atelier-creme)] min-h-screen flex flex-col items-center justify-center overflow-hidden relative">
           <div className="absolute w-[600px] h-[600px] bg-[var(--color-atelier-rose)]/10 blur-[120px] rounded-full animate-pulse"></div>
           <div className="relative z-10 flex flex-col items-center">
-             <img src="/images/simbolo-rosa.png" alt="Atelier Logo" className="w-16 h-16 object-contain drop-shadow-lg mb-6 animate-bounce" style={{ animationDuration: '2s' }} />
+             <img src="/images/Símbolo Marrom.png" alt="Atelier Logo" className="w-16 h-16 object-contain drop-shadow-lg mb-6 animate-bounce" style={{ animationDuration: '2s' }} />
              <div className="w-32 h-[2px] bg-black/5 rounded-full overflow-hidden">
                <div className="w-full h-full bg-[var(--color-atelier-terracota)] animate-[slideRight_1.2s_ease-in-out_infinite]" style={{ transformOrigin: 'left' }}></div>
              </div>
@@ -161,7 +161,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <div className={`p-8 flex items-center h-32 shrink-0 ${isCollapsed ? 'justify-center' : 'justify-start gap-4'}`}>
               <div className="w-12 h-12 shrink-0 drop-shadow-xl relative group cursor-pointer">
                 <div className="absolute inset-0 bg-[var(--color-atelier-terracota)]/20 rounded-full blur-md group-hover:scale-150 transition-transform duration-500 opacity-0 group-hover:opacity-100"></div>
-                <img src="/images/simbolo-rosa.png" alt="Atelier" className="w-full h-full object-contain relative z-10" />
+                <img src="/images/Símbolo Marrom.png" alt="Atelier" className="w-full h-full object-contain relative z-10" />
               </div>
               
               {!isCollapsed && (
