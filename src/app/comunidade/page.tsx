@@ -5,7 +5,8 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Globe2, Trophy, Star, Medal, Sparkles, 
-  UploadCloud, Send, Heart, MessageCircle, Share2, Award, ArrowUpRight
+  UploadCloud, Send, Heart, MessageCircle, Share2, Award, ArrowUpRight,
+  MoreVertical // <-- ERRO CORRIGIDO: Ícone importado aqui
 } from "lucide-react";
 
 // Função para disparar os Toasts Globais

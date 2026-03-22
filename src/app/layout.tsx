@@ -20,7 +20,7 @@ const roboto = Roboto({
 });
 
 // ==========================================
-// COMPONENTE GLOBAL DE NOTIFICAÇÃO (TOAST) RESTAURADO
+// COMPONENTE GLOBAL DE NOTIFICAÇÃO (TOAST)
 // ==========================================
 export const triggerToast = (message: string) => {
   const event = new CustomEvent("showToast", { detail: message });
@@ -61,40 +61,36 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   const isLoginPage = pathname === '/login';
 
   // ==========================================
-  // BLINDAGEM DE ROTA (ANTI-CACHE CORROMPIDO)
+  // BLINDAGEM DE ROTA E DEFINIÇÃO DE PAPEL
   // ==========================================
   useEffect(() => {
     const token = typeof window !== 'undefined' ? localStorage.getItem("atelier_token") : null;
     const role = typeof window !== 'undefined' ? localStorage.getItem("atelier_role") : null;
     document.title = "Atelier";
 
-    if (token && !role) {
+    // 1. Sem token/role, expulsa para o Login (a menos que já esteja no login)
+    if ((!token || !role) && !isLoginPage) {
       localStorage.removeItem("atelier_token");
       localStorage.removeItem("atelier_role");
       router.replace('/login');
       return;
     }
 
-    if (!token && !isLoginPage) {
-      router.replace('/login');
-      return;
-    } 
-    
-    if (token && isLoginPage && role) {
-      router.replace(role === 'client' ? '/' : '/admin');
-      return;
-    } 
-    
+    // 2. Se tem token, define o role
     if (token && role) {
       setUserRole(role);
       
-      if (role === 'client' && pathname.startsWith('/admin')) {
-        router.replace('/');
+      // 3. Regras de Redirecionamento Baseadas no Role
+      if (isLoginPage) {
+         router.replace(role === 'client' ? '/' : '/admin');
+      } else if (role === 'client' && pathname.startsWith('/admin')) {
+         router.replace('/');
       } else if ((role === 'admin' || role === 'gestor') && pathname === '/') {
-        router.replace('/admin');
+         router.replace('/admin');
       } else {
-        const timer = setTimeout(() => setIsInitializing(false), 800);
-        return () => clearTimeout(timer);
+         // Permite a navegação normal
+         const timer = setTimeout(() => setIsInitializing(false), 800);
+         return () => clearTimeout(timer);
       }
     } else {
       setIsInitializing(false);
@@ -118,7 +114,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <body className="bg-[var(--color-atelier-creme)] min-h-screen flex flex-col items-center justify-center overflow-hidden relative">
           <div className="absolute w-[600px] h-[600px] bg-[var(--color-atelier-rose)]/10 blur-[120px] rounded-full animate-pulse"></div>
           <div className="relative z-10 flex flex-col items-center">
-             <img src="/images/Símbolo Marrom.png" alt="Atelier Logo" className="w-16 h-16 object-contain drop-shadow-lg mb-6 animate-bounce" style={{ animationDuration: '2s' }} />
+             <img src="/images/Símbolo Marrom.png." alt="Atelier Logo" className="w-16 h-16 object-contain drop-shadow-lg mb-6 animate-bounce" style={{ animationDuration: '2s' }} />
              <div className="w-32 h-[2px] bg-black/5 rounded-full overflow-hidden">
                <div className="w-full h-full bg-[var(--color-atelier-terracota)] animate-[slideRight_1.2s_ease-in-out_infinite]" style={{ transformOrigin: 'left' }}></div>
              </div>
@@ -190,14 +186,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               )}
               
               <nav className="flex flex-col gap-2">
-                {/* MENU DO CLIENTE (Restaurado e Corrigido) */}
+                {/* MENU DO CLIENTE */}
                 {!isTeamMember && (
                   <>
                     <NavItem href="/" icon={<Home size={22} strokeWidth={1.5} />} label="Início" collapsed={isCollapsed} active={pathname === '/'} />
                     <NavItem href="/cofre" icon={<Lock size={22} strokeWidth={1.5} />} label="O Cofre" collapsed={isCollapsed} active={pathname === '/cofre'} />
-                    <NavItem href="/canais" icon={<MessageSquare size={22} strokeWidth={1.5} />} label="Canais (Slack)" collapsed={isCollapsed} active={pathname === '/canais'} />
+                    <NavItem href="/canais" icon={<MessageSquare size={22} strokeWidth={1.5} />} label="Canais" collapsed={isCollapsed} active={pathname === '/canais'} />
                     <NavItem href="/referencias" icon={<Compass size={22} strokeWidth={1.5} />} label="Referências" collapsed={isCollapsed} active={pathname === '/referencias'} />
-                    <NavItem href="/comunidade" icon={<Globe2 size={22} strokeWidth={1.5} />} label="Comunidade & EXP" collapsed={isCollapsed} active={pathname === '/comunidade'} />
+                    <NavItem href="/comunidade" icon={<Globe2 size={22} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
                   </>
                 )}
 
@@ -205,7 +201,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 {isTeamMember && (
                   <>
                     <NavItem href="/admin" icon={<LayoutDashboard size={22} strokeWidth={1.5} />} label="Comando" collapsed={isCollapsed} active={pathname === '/admin'} />
-                    <NavItem href="/admin/projetos" icon={<FolderKanban size={22} strokeWidth={1.5} />} label="Estúdio (Projetos)" collapsed={isCollapsed} active={pathname === '/admin/projetos'} />
+                    <NavItem href="/admin/projetos" icon={<FolderKanban size={22} strokeWidth={1.5} />} label="Estúdio" collapsed={isCollapsed} active={pathname === '/admin/projetos'} />
                     <NavItem href="/admin/clientes" icon={<Users size={22} strokeWidth={1.5} />} label="Base de Clientes" collapsed={isCollapsed} active={pathname === '/admin/clientes'} />
                     <NavItem href="/admin/inbox" icon={<Inbox size={22} strokeWidth={1.5} />} label="Caixa de Entrada" collapsed={isCollapsed} active={pathname === '/admin/inbox'} />
                     
@@ -239,7 +235,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               )}
 
               <div className="flex flex-col gap-1">
-                <NavItem href="/configuracoes" icon={<Settings size={22} strokeWidth={1.5} />} label="Definições" collapsed={isCollapsed} active={pathname === '/configuracoes'} />
+                <NavItem href="/configuracoes" icon={<Settings size={22} strokeWidth={1.5} />} label="Ajustes" collapsed={isCollapsed} active={pathname === '/configuracoes'} />
                 <button onClick={handleLogout} className={`flex items-center ${isCollapsed ? 'justify-center' : 'justify-start'} gap-4 p-3 rounded-2xl text-[var(--color-atelier-grafite)]/70 hover:bg-red-50 hover:text-red-500 transition-all duration-300 group`}>
                   <LogOut size={22} strokeWidth={1.5} className="group-hover:-translate-x-1 transition-transform" />
                   {!isCollapsed && <span className="font-bold text-[13px]">Desconectar</span>}

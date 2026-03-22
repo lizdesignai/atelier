@@ -18,7 +18,7 @@
 @layer base {
   @font-face {
     font-family: 'Elegant';
-    src: url('/fonts/Elegant.ttf') format('truetype'); 
+    src: url('/fonts/Elegant-Regular.ttf') format('truetype'); 
     font-weight: normal;
     font-style: normal;
     font-display: swap;
