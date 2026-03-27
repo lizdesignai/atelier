@@ -131,7 +131,7 @@ export default function LoginPage() {
           {/* O Logo Animado */}
           <div className="relative w-14 h-14 mb-8 flex items-center justify-center">
             <div className="absolute inset-0 bg-[var(--color-atelier-terracota)] blur-xl opacity-20 animate-pulse"></div>
-            <img src="/images/simbolo-rosa.png" alt="Atelier Logo" className="w-full h-full object-contain relative z-10 animate-[pulse_3s_ease-in-out_infinite]" />
+            <img src="/images/Simbolo Rosa.png" alt="Atelier Logo" className="w-full h-full object-contain relative z-10 animate-[pulse_3s_ease-in-out_infinite]" />
           </div>
 
           <div className="text-center mb-10 w-full">
