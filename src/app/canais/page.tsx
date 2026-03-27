@@ -1,52 +1,200 @@
 // src/app/canais/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   MessageSquare, Hash, Send, Paperclip, Image as ImageIcon, 
-  CheckCheck, ShieldCheck, Clock, Info, ArrowRight
+  CheckCheck, ShieldCheck, Clock, Info, ArrowRight, Loader2, FileText
 } from "lucide-react";
+import { supabase } from "../../lib/supabase";
 
 // Função para disparar os Toasts Globais
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
 };
 
-// ==========================================
-// MOCKS DE DADOS (Visão do Cliente)
-// ==========================================
-const MY_CHANNELS = [
-  { id: "ch1_1", name: "avisos-gerais", unread: 0, description: "Comunicados oficiais e atualizações do Atelier." },
-  { id: "ch1_2", name: "aprovacoes-idv", unread: 1, description: "Apresentação de propostas e validações criativas." },
-  { id: "ch1_3", name: "envio-arquivos", unread: 0, description: "Troca de materiais brutos e acessos." },
-];
-
-const MY_MESSAGES: Record<string, any[]> = {
-  "ch1_2": [
-    { id: 1, sender: "Atelier Team", isMe: false, time: "10:32", text: "Olá Igor! Passando para informar que a construção geométrica do símbolo foi finalizada. Pode verificar a proporção na imagem abaixo." },
-    { id: 2, sender: "Atelier Team", isMe: false, time: "10:33", text: "Aplicámos a regra de ouro.", attachment: "https://images.unsplash.com/photo-1626785773985-944d18721bf1?q=80&w=2574&auto=format&fit=crop" },
-    { id: 3, sender: "Você", isMe: true, time: "10:45", avatar: "https://ui-avatars.com/api/?name=Igor+Castro&background=ad6f40&color=fbf4e4", text: "Ficou absolutamente incrível! O contraste da serifa com o símbolo casou perfeitamente. Aprovado para seguirmos para o 3D." }
-  ],
-  "ch1_1": [
-    { id: 4, sender: "Atelier Team", isMe: false, time: "Ontem", text: "Bem-vindo ao seu portal de marca. Toda a nossa comunicação será centralizada por aqui." }
-  ],
-  "ch1_3": []
-};
-
 export default function CanaisClientePage() {
-  const [activeChannelId, setActiveChannelId] = useState(MY_CHANNELS[1].id);
+  // ==========================================
+  // ESTADOS DO SUPABASE E DADOS
+  // ==========================================
+  const [isLoading, setIsLoading] = useState(true);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [projectId, setProjectId] = useState<string | null>(null);
+  
+  const [channels, setChannels] = useState<any[]>([]);
+  const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
+  const [messages, setMessages] = useState<any[]>([]);
   const [messageText, setMessageText] = useState("");
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false); // NOVIDADE
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const activeChannel = MY_CHANNELS.find(ch => ch.id === activeChannelId) || MY_CHANNELS[0];
-  const activeMessages = MY_MESSAGES[activeChannelId] || [];
+  // 1. Busca Inicial (Sessão -> Projeto -> Canais)
+  useEffect(() => {
+    const initClientChat = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      setUserId(session.user.id);
 
-  const handleSendMessage = (e?: React.FormEvent) => {
-    e?.preventDefault();
-    if (!messageText.trim()) return;
-    showToast(`Mensagem enviada para o Atelier no canal #${activeChannel.name}`);
-    setMessageText("");
+      // Busca o projeto ativo DESTE cliente
+      const { data: projectData, error: projectError } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('client_id', session.user.id)
+        .eq('status', 'active')
+        .single();
+
+      if (projectError || !projectData) {
+        setIsLoading(false);
+        return; // Cliente sem projeto ativo
+      }
+
+      setProjectId(projectData.id);
+
+      // Busca os canais públicos deste projeto
+      const { data: channelsData, error: channelsError } = await supabase
+        .from('channels')
+        .select('*')
+        .eq('project_id', projectData.id)
+        .eq('is_private', false)
+        .order('created_at', { ascending: true });
+
+      if (!channelsError && channelsData) {
+        setChannels(channelsData);
+        if (channelsData.length > 0) setActiveChannelId(channelsData[0].id);
+      }
+      
+      setIsLoading(false);
+    };
+
+    initClientChat();
+  }, []);
+
+  // 2. Busca Mensagens do Canal Ativo & Ativa o Realtime
+  useEffect(() => {
+    if (!activeChannelId) {
+      setMessages([]);
+      return;
+    }
+
+    const fetchMessages = async () => {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('*, profiles(nome, avatar_url, role)')
+        .eq('channel_id', activeChannelId)
+        .order('created_at', { ascending: true });
+
+      if (!error && data) setMessages(data);
+      scrollToBottom();
+    };
+
+    fetchMessages();
+
+    // Inscrição em tempo real (Websockets)
+    const channelSubscription = supabase.channel(`public:messages:channel_id=eq.${activeChannelId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `channel_id=eq.${activeChannelId}` }, 
+        (payload) => {
+          fetchMessages(); // Atualiza a lista quando chega nova mensagem
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channelSubscription);
+    };
+  }, [activeChannelId]);
+
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }, 100);
   };
+
+  // ==========================================
+  // AÇÕES
+  // ==========================================
+  const handleSendMessage = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!messageText.trim() || !activeChannelId || !userId) return;
+
+    const textToSend = messageText;
+    setMessageText("");
+    
+    const { error } = await supabase.from('messages').insert({
+      channel_id: activeChannelId,
+      sender_id: userId,
+      text_content: textToSend
+    });
+
+    if (error) {
+      showToast("Erro ao enviar mensagem.");
+      setMessageText(textToSend);
+    } else {
+      scrollToBottom();
+    }
+  };
+
+  // NOVIDADE: UPLOAD DE ANEXOS PARA O CHAT
+  const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeChannelId || !userId) return;
+
+    setIsUploadingAttachment(true);
+    showToast("A enviar anexo para a equipa...");
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${activeChannelId}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage.from('chat_attachments').upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage.from('chat_attachments').getPublicUrl(filePath);
+
+      const { error: dbError } = await supabase.from('messages').insert({
+        channel_id: activeChannelId,
+        sender_id: userId,
+        text_content: messageText.trim() !== "" ? messageText : null, // Envia o texto junto se houver
+        attachment_url: publicUrlData.publicUrl
+      });
+      if (dbError) throw dbError;
+
+      setMessageText("");
+      showToast("Anexo partilhado com sucesso!");
+      scrollToBottom();
+    } catch (error) {
+      console.error(error);
+      showToast("Erro ao partilhar o anexo.");
+    } finally {
+      setIsUploadingAttachment(false);
+      e.target.value = ''; // Reset do input
+    }
+  };
+
+  const formatTime = (dateString: string) => {
+    return new Date(dateString).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+  };
+
+  const activeChannel = channels.find(ch => ch.id === activeChannelId);
+
+  // Ecrã de Loading Geral
+  if (isLoading) {
+    return <div className="flex h-full items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
+  }
+
+  // Ecrã de Sem Projeto
+  if (!projectId) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4 opacity-50">
+        <MessageSquare size={48} className="text-[var(--color-atelier-grafite)]" />
+        <h2 className="font-elegant text-3xl">Sem projetos ativos.</h2>
+        <p className="font-roboto text-sm">O Atelier ainda não ativou a sua Mesa de Trabalho.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1500px] mx-auto relative z-10 pb-6 gap-6">
@@ -92,7 +240,11 @@ export default function CanaisClientePage() {
             </div>
 
             <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-2">
-              {MY_CHANNELS.map(channel => (
+              {channels.length === 0 && (
+                 <div className="px-2 text-[10px] font-roboto text-[var(--color-atelier-grafite)]/40 italic text-center mt-4">Nenhum canal criado ainda.</div>
+              )}
+              
+              {channels.map(channel => (
                 <button 
                   key={channel.id}
                   onClick={() => setActiveChannelId(channel.id)}
@@ -108,12 +260,6 @@ export default function CanaisClientePage() {
                     <Hash size={16} className={activeChannelId === channel.id ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/40'} /> 
                     <span className={`truncate ${activeChannelId === channel.id ? 'font-bold' : ''}`}>{channel.name}</span>
                   </span>
-                  
-                  {channel.unread > 0 && (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[var(--color-atelier-terracota)] text-white shadow-sm shrink-0">
-                      {channel.unread}
-                    </span>
-                  )}
                 </button>
               ))}
             </div>
@@ -142,10 +288,10 @@ export default function CanaisClientePage() {
               </div>
               <div className="flex flex-col">
                 <span className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none mb-1">
-                  {activeChannel.name}
+                  {activeChannel?.name || "Aguardando canais"}
                 </span>
                 <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50">
-                  {activeChannel.description}
+                  Comunicação direta com a equipa Atelier.
                 </p>
               </div>
             </div>
@@ -154,7 +300,13 @@ export default function CanaisClientePage() {
           {/* Área de Rolagem das Mensagens */}
           <div className="flex-1 overflow-y-auto custom-scrollbar px-8 py-8 flex flex-col gap-6 bg-gradient-to-b from-transparent to-white/30">
             
-            {activeMessages.length === 0 ? (
+            {!activeChannel ? (
+               <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50">
+                 <MessageSquare size={40} className="mb-4 text-[var(--color-atelier-terracota)]" />
+                 <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Aguardando Início.</h3>
+                 <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 max-w-sm">O Atelier abrirá canais de comunicação conforme a evolução do projeto.</p>
+               </div>
+            ) : messages.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50">
                 <MessageSquare size={40} className="mb-4 text-[var(--color-atelier-terracota)]" />
                 <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Este canal está silencioso.</h3>
@@ -169,76 +321,94 @@ export default function CanaisClientePage() {
             )}
 
             <AnimatePresence mode="popLayout">
-              {activeMessages.map((msg, index) => (
-                <motion.div 
-                  initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * index }}
-                  key={msg.id} 
-                  className={`flex gap-4 max-w-[85%] ${msg.isMe ? 'self-end flex-row-reverse' : 'self-start'}`}
-                >
-                  <div className={`w-10 h-10 rounded-full shrink-0 flex items-center justify-center overflow-hidden border-2 shadow-sm ${msg.isMe ? 'border-white bg-[var(--color-atelier-grafite)]' : 'border-[var(--color-atelier-terracota)]/20 bg-white'}`}>
-                    {msg.avatar ? (
-                      <img src={msg.avatar} alt="Avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      <img src="/images/simbolo-rosa.png" className="w-6 h-6 object-contain" alt="Atelier" />
-                    )}
-                  </div>
-
-                  <div className={`flex flex-col ${msg.isMe ? 'items-end' : 'items-start'}`}>
-                    <div className="flex items-center gap-2 mb-1.5 px-1">
-                      <span className={`font-roboto text-[11px] font-bold ${msg.isMe ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]'}`}>{msg.sender}</span>
-                      <span className="font-roboto text-[9px] font-bold text-[var(--color-atelier-grafite)]/40">{msg.time}</span>
+              {messages.map((msg, index) => {
+                const isMe = msg.sender_id === userId;
+                return (
+                  <motion.div 
+                    initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * index }}
+                    key={msg.id} 
+                    className={`flex gap-4 max-w-[85%] ${isMe ? 'self-end flex-row-reverse' : 'self-start'}`}
+                  >
+                    <div className={`w-10 h-10 rounded-full shrink-0 flex items-center justify-center overflow-hidden border-2 shadow-sm ${isMe ? 'border-white bg-[var(--color-atelier-grafite)] text-white' : 'border-[var(--color-atelier-terracota)]/20 bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)]'}`}>
+                      {msg.profiles?.avatar_url ? (
+                        <img src={msg.profiles.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                      ) : (
+                        <span className="font-elegant font-bold">{msg.profiles?.nome?.charAt(0) || "A"}</span>
+                      )}
                     </div>
 
-                    {msg.attachment && (
-                      <div 
-                        onClick={() => showToast("A abrir anexo do Atelier...")}
-                        className="mb-3 rounded-[1.5rem] overflow-hidden border-[4px] border-white shadow-[0_15px_30px_rgba(122,116,112,0.1)] max-w-sm cursor-pointer hover:scale-[1.02] transition-transform"
-                      >
-                        <img src={msg.attachment} alt="Anexo do Design" className="w-full object-cover" />
+                    <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                      <div className="flex items-center gap-2 mb-1.5 px-1">
+                        <span className={`font-roboto text-[11px] font-bold ${isMe ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]'}`}>{isMe ? "Você" : msg.profiles?.nome}</span>
+                        <span className="font-roboto text-[9px] font-bold text-[var(--color-atelier-grafite)]/40">{formatTime(msg.created_at)}</span>
                       </div>
-                    )}
 
-                    <div className={`
-                      px-6 py-4 rounded-[1.5rem] shadow-sm font-roboto text-[14px] leading-relaxed
-                      ${msg.isMe 
-                        ? 'bg-[var(--color-atelier-terracota)] text-white rounded-tr-sm shadow-[0_10px_25px_rgba(173,111,64,0.2)]' 
-                        : 'bg-white border border-[var(--color-atelier-grafite)]/5 text-[var(--color-atelier-grafite)] rounded-tl-sm'
-                      }
-                    `}>
-                      {msg.text}
+                      {msg.attachment_url && (
+                        <div 
+                          onClick={() => window.open(msg.attachment_url, "_blank")}
+                          className="mb-3 rounded-[1.5rem] overflow-hidden border-[4px] border-white shadow-[0_15px_30px_rgba(122,116,112,0.1)] max-w-sm cursor-pointer hover:scale-[1.02] transition-transform"
+                        >
+                          {msg.attachment_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
+                            <img src={msg.attachment_url} alt="Anexo" className="w-full max-h-[300px] object-cover" />
+                          ) : (
+                            <div className="bg-[var(--color-atelier-creme)] px-8 py-6 flex flex-col items-center justify-center gap-2 text-[var(--color-atelier-terracota)]">
+                              <FileText size={32} />
+                              <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-center text-[var(--color-atelier-grafite)]">Ver Documento</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {msg.text_content && (
+                        <div className={`
+                          px-6 py-4 rounded-[1.5rem] shadow-sm font-roboto text-[14px] leading-relaxed
+                          ${isMe 
+                            ? 'bg-[var(--color-atelier-terracota)] text-white rounded-tr-sm shadow-[0_10px_25px_rgba(173,111,64,0.2)]' 
+                            : 'bg-white border border-[var(--color-atelier-grafite)]/5 text-[var(--color-atelier-grafite)] rounded-tl-sm'
+                          }
+                        `}>
+                          {msg.text_content}
+                        </div>
+                      )}
+                      
+                      {isMe && (
+                        <div className="flex items-center gap-1 mt-1 pr-1 text-[var(--color-atelier-terracota)] opacity-80">
+                          <CheckCheck size={12} />
+                          <span className="font-roboto text-[8px] font-bold uppercase tracking-widest">Enviado</span>
+                        </div>
+                      )}
                     </div>
-                    
-                    {msg.isMe && (
-                      <div className="flex items-center gap-1 mt-1 pr-1 text-[var(--color-atelier-terracota)] opacity-80">
-                        <CheckCheck size={12} />
-                        <span className="font-roboto text-[8px] font-bold uppercase tracking-widest">Enviado</span>
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                )
+              })}
             </AnimatePresence>
+            <div ref={messagesEndRef} />
           </div>
 
           {/* O Compositor de Mensagens */}
           <form onSubmit={handleSendMessage} className="p-6 bg-white/80 backdrop-blur-xl border-t border-[var(--color-atelier-grafite)]/5 z-20 shrink-0">
             <div className="bg-white border border-[var(--color-atelier-grafite)]/10 p-2 rounded-[2rem] shadow-[0_10px_30px_rgba(122,116,112,0.05)] flex items-center gap-2 focus-within:border-[var(--color-atelier-terracota)]/40 focus-within:shadow-[0_10px_30px_rgba(173,111,64,0.1)] transition-all">
               
-              <button type="button" onClick={() => showToast("A abrir galeria para anexar imagens...")} className="w-12 h-12 flex items-center justify-center rounded-full text-[var(--color-atelier-grafite)]/40 hover:bg-[var(--color-atelier-creme)] hover:text-[var(--color-atelier-terracota)] transition-colors shrink-0">
-                <ImageIcon size={20} />
-              </button>
-              <button type="button" onClick={() => showToast("A abrir explorador para anexar documentos...")} className="w-12 h-12 flex items-center justify-center rounded-full text-[var(--color-atelier-grafite)]/40 hover:bg-[var(--color-atelier-creme)] hover:text-[var(--color-atelier-terracota)] transition-colors shrink-0">
-                <Paperclip size={20} />
-              </button>
+              <label className={`w-12 h-12 flex items-center justify-center rounded-full shrink-0 transition-colors ${!activeChannelId || isUploadingAttachment ? 'opacity-50 cursor-not-allowed text-[var(--color-atelier-grafite)]/40' : 'cursor-pointer text-[var(--color-atelier-grafite)]/40 hover:bg-[var(--color-atelier-creme)] hover:text-[var(--color-atelier-terracota)]'}`}>
+                <input type="file" accept="image/*" className="hidden" onChange={handleAttachmentUpload} disabled={!activeChannelId || isUploadingAttachment} />
+                {isUploadingAttachment ? <Loader2 size={20} className="animate-spin" /> : <ImageIcon size={20} />}
+              </label>
+              
+              <label className={`w-12 h-12 flex items-center justify-center rounded-full shrink-0 transition-colors ${!activeChannelId || isUploadingAttachment ? 'opacity-50 cursor-not-allowed text-[var(--color-atelier-grafite)]/40' : 'cursor-pointer text-[var(--color-atelier-grafite)]/40 hover:bg-[var(--color-atelier-creme)] hover:text-[var(--color-atelier-terracota)]'}`}>
+                <input type="file" accept=".pdf,.zip,.doc,.docx" className="hidden" onChange={handleAttachmentUpload} disabled={!activeChannelId || isUploadingAttachment} />
+                {isUploadingAttachment ? <Loader2 size={20} className="animate-spin hidden" /> : <Paperclip size={20} />}
+              </label>
 
               <input 
                 type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)}
-                placeholder={`Envie uma mensagem em #${activeChannel.name}...`}
-                className="flex-1 bg-transparent border-none outline-none font-roboto text-[14px] text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 px-2"
+                disabled={!activeChannelId || isUploadingAttachment}
+                placeholder={activeChannelId ? `Envie uma mensagem em #${activeChannel?.name}...` : "Aguarde um canal."}
+                className="flex-1 bg-transparent border-none outline-none font-roboto text-[14px] text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 px-2 disabled:cursor-not-allowed"
               />
 
               <button 
                 type="submit"
+                disabled={!activeChannelId || isUploadingAttachment}
                 className={`
                   w-12 h-12 flex items-center justify-center rounded-full shrink-0 transition-all duration-300 shadow-sm
                   ${messageText.trim() !== "" 

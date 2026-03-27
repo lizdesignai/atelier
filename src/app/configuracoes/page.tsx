@@ -1,12 +1,13 @@
 // src/app/configuracoes/page.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Settings, User, Briefcase, FileText, Camera, 
-  ShieldCheck, Save, Calendar, MapPin, Download, ArrowRight
+  ShieldCheck, Save, Calendar, MapPin, Download, ArrowRight, Loader2
 } from "lucide-react";
+import { supabase } from "../../lib/supabase";
 
 // Função para disparar os Toasts Globais
 const showToast = (message: string) => {
@@ -15,19 +16,71 @@ const showToast = (message: string) => {
 
 export default function ConfiguracoesPage() {
   const [activeTab, setActiveTab] = useState<"perfil" | "empresa" | "contrato">("perfil");
+  const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [userId, setUserId] = useState<string | null>(null);
+  const [userRole, setUserRole] = useState<string>("client");
 
   // Estados do Formulário
-  const [avatar, setAvatar] = useState<string>("https://ui-avatars.com/api/?name=Igor+Castro&background=ad6f40&color=fbf4e4");
+  const [avatar, setAvatar] = useState<string>("https://ui-avatars.com/api/?name=User&background=ad6f40&color=fbf4e4");
   const [formData, setFormData] = useState({
-    nome: "Igor Castro",
-    email: "igor@exemplo.com",
-    aniversario: "1992-08-15",
-    bio: "Fundador da marca de IDV Premium. Focado em luxo e minimalismo.",
-    empresa: "Igor Castro Holdings",
-    nif: "123.456.789-00",
-    endereco: "Av. da Liberdade, 110, Lisboa"
+    nome: "",
+    email: "",
+    aniversario: "",
+    bio: "",
+    empresa: "",
+    nif: "",
+    endereco: ""
   });
+
+  // ==========================================
+  // BUSCA INICIAL DOS DADOS NO SUPABASE (READ)
+  // ==========================================
+  useEffect(() => {
+    const fetchProfileData = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          setUserId(session.user.id);
+          
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
+
+          if (error) throw error;
+
+          if (profile) {
+            setUserRole(profile.role);
+            setFormData({
+              nome: profile.nome || "",
+              email: profile.email || session.user.email || "",
+              aniversario: profile.aniversario || "",
+              bio: profile.bio || "",
+              empresa: profile.empresa || "",
+              nif: profile.nif || "",
+              endereco: profile.endereco || ""
+            });
+            
+            if (profile.avatar_url) {
+              setAvatar(profile.avatar_url);
+            } else if (profile.nome) {
+              setAvatar(`https://ui-avatars.com/api/?name=${encodeURIComponent(profile.nome)}&background=ad6f40&color=fbf4e4`);
+            }
+          }
+        }
+      } catch (error: any) {
+        console.error("Erro ao carregar perfil:", error);
+        showToast("Falha ao sincronizar dados. Atualize a página.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProfileData();
+  }, []);
 
   const handleAvatarUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -35,23 +88,55 @@ export default function ConfiguracoesPage() {
       const reader = new FileReader();
       reader.onloadend = () => {
         setAvatar(reader.result as string);
-        showToast("Foto de perfil atualizada com sucesso!");
+        showToast("Foto atualizada em cache. Guarde para gravar.");
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSave = (e: React.FormEvent) => {
+  // ==========================================
+  // ATUALIZAÇÃO DOS DADOS NO SUPABASE (UPDATE)
+  // ==========================================
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!userId) return;
+
     setIsSaving(true);
     showToast("A sincronizar dados com o CRM do Atelier...");
     
-    // Simula a ida ao Backend
-    setTimeout(() => {
-      setIsSaving(false);
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          nome: formData.nome,
+          aniversario: formData.aniversario || null,
+          bio: formData.bio,
+          empresa: formData.empresa,
+          nif: formData.nif,
+          endereco: formData.endereco,
+          avatar_url: avatar
+        })
+        .eq('id', userId);
+
+      if (error) throw error;
+
       showToast("✨ Definições guardadas e atualizadas no ecossistema.");
-    }, 1500);
+    } catch (error: any) {
+      console.error("Erro ao guardar:", error);
+      showToast("Erro ao guardar: " + error.message);
+    } finally {
+      setIsSaving(false);
+    }
   };
+
+  // Ecrã de Loading Interno da Tela
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-full w-full">
+        <Loader2 className="animate-spin text-[var(--color-atelier-terracota)]" size={32} />
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1200px] mx-auto relative z-10 pb-6 gap-6">
@@ -101,9 +186,9 @@ export default function ConfiguracoesPage() {
               {/* Ornamento Traseiro */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-32 h-32 bg-[var(--color-atelier-terracota)]/10 rounded-full blur-xl group-hover:bg-[var(--color-atelier-terracota)]/20 transition-colors z-0"></div>
             </div>
-            <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">{formData.nome}</h2>
+            <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">{formData.nome || "Novo Cliente"}</h2>
             <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] mt-2">
-              Cliente Premium
+              {userRole === 'admin' ? 'Acesso Designer' : userRole === 'gestor' ? 'Acesso Diretor' : 'Cliente Premium'}
             </span>
           </div>
 
@@ -166,7 +251,8 @@ export default function ConfiguracoesPage() {
                       </div>
                       <div className="flex flex-col gap-2 group/input">
                         <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1">Email Principal</label>
-                        <input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="bg-white/80 border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-5 py-3.5 text-[14px] outline-none shadow-sm" />
+                        <input type="email" value={formData.email} disabled className="bg-[var(--color-atelier-grafite)]/5 border border-transparent rounded-xl px-5 py-3.5 text-[14px] outline-none text-[var(--color-atelier-grafite)]/50 cursor-not-allowed" />
+                        <span className="text-[10px] pl-2 text-[var(--color-atelier-grafite)]/40 font-bold">O e-mail de acesso não pode ser alterado.</span>
                       </div>
                     </div>
 
@@ -179,7 +265,7 @@ export default function ConfiguracoesPage() {
 
                     <div className="flex flex-col gap-2 group/input">
                       <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1">Biografia / Resumo Profissional</label>
-                      <textarea value={formData.bio} onChange={(e) => setFormData({...formData, bio: e.target.value})} className="bg-white/80 border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-5 py-4 text-[14px] min-h-[120px] resize-none outline-none shadow-sm custom-scrollbar" />
+                      <textarea value={formData.bio} onChange={(e) => setFormData({...formData, bio: e.target.value})} className="bg-white/80 border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-5 py-4 text-[14px] min-h-[120px] resize-none outline-none shadow-sm custom-scrollbar" placeholder="Fale-nos um pouco sobre a sua visão de mercado..." />
                     </div>
                   </motion.div>
                 )}
@@ -195,11 +281,11 @@ export default function ConfiguracoesPage() {
                     <div className="grid grid-cols-2 gap-6">
                       <div className="flex flex-col gap-2 group/input">
                         <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1">Nome da Empresa</label>
-                        <input type="text" value={formData.empresa} onChange={(e) => setFormData({...formData, empresa: e.target.value})} className="bg-white/80 border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-5 py-3.5 text-[14px] outline-none shadow-sm" />
+                        <input type="text" value={formData.empresa} onChange={(e) => setFormData({...formData, empresa: e.target.value})} className="bg-white/80 border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-5 py-3.5 text-[14px] outline-none shadow-sm" placeholder="A sua Holding ou Empresa Lda." />
                       </div>
                       <div className="flex flex-col gap-2 group/input">
                         <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1">NIF / CNPJ</label>
-                        <input type="text" value={formData.nif} onChange={(e) => setFormData({...formData, nif: e.target.value})} className="bg-white/80 border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-5 py-3.5 text-[14px] outline-none shadow-sm font-mono" />
+                        <input type="text" value={formData.nif} onChange={(e) => setFormData({...formData, nif: e.target.value})} className="bg-white/80 border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-5 py-3.5 text-[14px] outline-none shadow-sm font-mono" placeholder="000.000.000" />
                       </div>
                     </div>
 
@@ -207,7 +293,7 @@ export default function ConfiguracoesPage() {
                       <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1 flex items-center gap-2">
                         <MapPin size={14} /> Endereço Fiscal Completo
                       </label>
-                      <input type="text" value={formData.endereco} onChange={(e) => setFormData({...formData, endereco: e.target.value})} className="bg-white/80 border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-5 py-3.5 text-[14px] outline-none shadow-sm" />
+                      <input type="text" value={formData.endereco} onChange={(e) => setFormData({...formData, endereco: e.target.value})} className="bg-white/80 border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-5 py-3.5 text-[14px] outline-none shadow-sm" placeholder="Rua, Número, Código Postal, País" />
                     </div>
                   </motion.div>
                 )}
@@ -235,7 +321,7 @@ export default function ConfiguracoesPage() {
                           </div>
                           <button 
                             type="button"
-                            onClick={() => showToast("A transferir cópia do contrato em PDF...")}
+                            onClick={() => showToast("O motor de PDF será ativado na Fase 2...")}
                             className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl flex items-center justify-center gap-2 font-roboto text-[11px] font-bold uppercase tracking-widest hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-sm group-hover:-translate-y-1 duration-300"
                           >
                             <Download size={16} /> Transferir Cópia PDF
