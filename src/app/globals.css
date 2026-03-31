@@ -81,17 +81,6 @@
   100% { opacity: 1; transform: translateY(0); }
 }
 
-/* 4. SCROLLBAR INVISÍVEL E ELEGANTE */
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { 
-  background: rgba(122, 116, 112, 0.15); 
-  border-radius: 10px; 
-}
-::-webkit-scrollbar-thumb:hover { 
-  background: rgba(173, 111, 64, 0.4); 
-}
-
 /* Ocultar barras de rolagem esteticamente, mas permitindo o scroll nas áreas internas */
 .custom-scrollbar::-webkit-scrollbar { width: 4px; }
 .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
