@@ -114,7 +114,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <body className="bg-[var(--color-atelier-creme)] min-h-screen flex flex-col items-center justify-center overflow-hidden relative">
           <div className="absolute w-[600px] h-[600px] bg-[var(--color-atelier-rose)]/10 blur-[120px] rounded-full animate-pulse"></div>
           <div className="relative z-10 flex flex-col items-center">
-             <img src="/images/Símbolo Marrom.png." alt="Atelier Logo" className="w-16 h-16 object-contain drop-shadow-lg mb-6 animate-bounce" style={{ animationDuration: '2s' }} />
+             <img src="/images/Símbolo Rosa.png." alt="Atelier Logo" className="w-16 h-16 object-contain drop-shadow-lg mb-6 animate-bounce" style={{ animationDuration: '2s' }} />
              <div className="w-32 h-[2px] bg-black/5 rounded-full overflow-hidden">
                <div className="w-full h-full bg-[var(--color-atelier-terracota)] animate-[slideRight_1.2s_ease-in-out_infinite]" style={{ transformOrigin: 'left' }}></div>
              </div>

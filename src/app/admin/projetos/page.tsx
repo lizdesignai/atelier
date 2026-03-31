@@ -11,22 +11,9 @@ import {
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 
-// Função para disparar os Toasts
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
 };
-
-// Mock das 6 Direções avaliadas pelo cliente (Será ligado na Fase 4)
-const CLIENT_EVALUATIONS = [
-  {
-    id: 1, title: "Minimalismo Geométrico", img: "https://images.unsplash.com/photo-1600880292089-90a7e086ee3c?q=80&w=600&auto=format&fit=crop", score: 8,
-    answers: { q1: "Muito limpo. Transmite exatamente a tranquilidade que procuro.", q2: "As fontes sem serifa são modernas, mas sinto falta de algo mais quente.", q3: "A paleta neutra é ótima, mas talvez precise de um tom de destaque.", q4: "Adorei as linhas retas." }
-  },
-  {
-    id: 2, title: "Serifa Clássica & Heritage", img: "https://images.unsplash.com/photo-1629019725068-1cb81c4e7df8?q=80&w=600&auto=format&fit=crop", score: 4,
-    answers: { q1: "Achei um pouco antigo demais para o meu negócio atual.", q2: "A serifa é bonita, mas parece muito rígida.", q3: "Muito escura, parece pesada.", q4: "Não usaria texturas rústicas." }
-  }
-];
 
 export default function WorkspaceDesigner() {
   // ==========================================
@@ -36,6 +23,7 @@ export default function WorkspaceDesigner() {
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [isClientMenuOpen, setIsClientMenuOpen] = useState(false);
+  const [isBriefingModalOpen, setIsBriefingModalOpen] = useState(false); // Modal do Briefing
 
   // Busca os projetos ativos da base de dados
   useEffect(() => {
@@ -51,8 +39,8 @@ export default function WorkspaceDesigner() {
         
         if (data && data.length > 0) {
           setDbProjects(data);
-          setActiveProjectId(data[0].id); // Seleciona o primeiro projeto por defeito
-          setDeadlineDate(data[0].deadline || "");
+          setActiveProjectId(data[0].id);
+          setDeadlineDate(data[0].data_limite || "");
         }
       } catch (error) {
         console.error("Erro ao buscar projetos:", error);
@@ -72,7 +60,6 @@ export default function WorkspaceDesigner() {
   const [projectAssets, setProjectAssets] = useState<any[]>([]);
   const [isUploadingAsset, setIsUploadingAsset] = useState(false);
 
-  // Busca os arquivos sempre que o projeto mudar
   useEffect(() => {
     if (!activeProjectId) return;
     const fetchAssets = async () => {
@@ -99,16 +86,10 @@ export default function WorkspaceDesigner() {
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${activeProjectId}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage
-        .from('vault_assets')
-        .upload(filePath, file);
-
+      const { error: uploadError } = await supabase.storage.from('vault_assets').upload(filePath, file);
       if (uploadError) throw uploadError;
 
-      const { data: publicUrlData } = supabase.storage
-        .from('vault_assets')
-        .getPublicUrl(filePath);
-
+      const { data: publicUrlData } = supabase.storage.from('vault_assets').getPublicUrl(filePath);
       const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
       
       const { data: insertedData, error: dbError } = await supabase
@@ -122,10 +103,7 @@ export default function WorkspaceDesigner() {
         .select();
 
       if (dbError) throw dbError;
-
-      if (insertedData) {
-        setProjectAssets([insertedData[0], ...projectAssets]);
-      }
+      if (insertedData) setProjectAssets([insertedData[0], ...projectAssets]);
       showToast("✨ Ficheiro adicionado aos Ativos Finais!");
 
     } catch (error: any) {
@@ -133,6 +111,7 @@ export default function WorkspaceDesigner() {
       showToast("Erro ao fazer upload do ficheiro.");
     } finally {
       setIsUploadingAsset(false);
+      e.target.value = '';
     }
   };
 
@@ -150,13 +129,12 @@ export default function WorkspaceDesigner() {
   };
 
   // ==========================================
-  // MOTOR DE TEMPO (UPDATE DEADLINE NO BANCO)
+  // MOTOR DE TEMPO E FASE DO PROJETO
   // ==========================================
   const [deadlineDate, setDeadlineDate] = useState("");
   const [daysLeft, setDaysLeft] = useState(0);
   const [isForceUnlocked, setIsForceUnlocked] = useState(false);
 
-  // Atualiza os dias restantes sempre que o deadline muda
   useEffect(() => {
     if (!deadlineDate) {
       setDaysLeft(0);
@@ -176,13 +154,27 @@ export default function WorkspaceDesigner() {
     setDeadlineDate(newDate);
     setIsForceUnlocked(false);
     
-    // Grava no Supabase!
     if (activeProjectId) {
-      const { error } = await supabase.from('projects').update({ deadline: newDate }).eq('id', activeProjectId);
+      const { error } = await supabase.from('projects').update({ data_limite: newDate }).eq('id', activeProjectId);
       if (error) {
         showToast("Erro ao guardar o prazo na base de dados.");
       } else {
         showToast(`Prazo gravado: ${newDate.split('-').reverse().join('/')}`);
+        // Atualiza a lista local
+        setDbProjects(dbProjects.map(p => p.id === activeProjectId ? { ...p, data_limite: newDate } : p));
+      }
+    }
+  };
+
+  const handleStageChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const novaFase = e.target.value;
+    if (activeProjectId) {
+      const { error } = await supabase.from('projects').update({ fase: novaFase }).eq('id', activeProjectId);
+      if (error) {
+        showToast("Erro ao alterar fase.");
+      } else {
+        showToast("Fase do projeto atualizada com sucesso!");
+        setDbProjects(dbProjects.map(p => p.id === activeProjectId ? { ...p, fase: novaFase } : p));
       }
     }
   };
@@ -190,22 +182,50 @@ export default function WorkspaceDesigner() {
   const isCofreUnlocked = (daysLeft === 0 && deadlineDate !== "") || isForceUnlocked;
 
   // ==========================================
-  // DIÁRIO DE BORDO (CREATE POST NO BANCO)
+  // DIÁRIO DE BORDO (CREATE POST)
   // ==========================================
   const [postTitle, setPostTitle] = useState("");
   const [postText, setPostText] = useState("");
+  const [postImageFile, setPostImageFile] = useState<File | null>(null);
+  const [postImagePreview, setPostImagePreview] = useState<string | null>(null);
   const [isPosting, setIsPosting] = useState(false);
+
+  const handleDiaryImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setPostImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setPostImagePreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
 
   const handlePostDiary = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeProjectId) return;
 
     setIsPosting(true);
+    showToast("A gravar no Diário...");
     try {
+      let imageUrl = null;
+
+      if (postImageFile) {
+        const fileExt = postImageFile.name.split('.').pop();
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `${activeProjectId}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage.from('community_images').upload(filePath, postImageFile);
+        if (!uploadError) {
+          const { data } = supabase.storage.from('community_images').getPublicUrl(filePath);
+          imageUrl = data.publicUrl;
+        }
+      }
+
       const { error } = await supabase.from('diary_posts').insert({
         project_id: activeProjectId,
         title: postTitle,
-        content: postText
+        content: postText,
+        image_url: imageUrl
       });
 
       if (error) throw error;
@@ -213,6 +233,8 @@ export default function WorkspaceDesigner() {
       showToast(`Diário atualizado para ${currentProject?.profiles?.nome}!`);
       setPostTitle("");
       setPostText("");
+      setPostImageFile(null);
+      setPostImagePreview(null);
     } catch (error) {
       console.error("Erro ao publicar:", error);
       showToast("Erro ao atualizar o diário.");
@@ -222,52 +244,112 @@ export default function WorkspaceDesigner() {
   };
 
   // ==========================================
-  // ESTADOS DO PAINEL DE REFERÊNCIAS
+  // PAINEL DE CURADORIA E REFERÊNCIAS
   // ==========================================
   const [showRefsPanel, setShowRefsPanel] = useState(false);
-  const [newRefTitle, setNewRefTitle] = useState("");
-  const [newRefImage, setNewRefImage] = useState<string | null>(null);
-  const [adminRefs, setAdminRefs] = useState([...CLIENT_EVALUATIONS]);
+  const [clientMoodboard, setClientMoodboard] = useState<string[]>([]);
+  const [adminRefs, setAdminRefs] = useState<any[]>([]);
   const [activeEvalIndex, setActiveEvalIndex] = useState(0);
+  
+  const [newRefTitle, setNewRefTitle] = useState("");
+  const [newRefImageFile, setNewRefImageFile] = useState<File | null>(null);
+  const [newRefImagePreview, setNewRefImagePreview] = useState<string | null>(null);
+  const [isSendingRef, setIsSendingRef] = useState(false);
+
+  // Busca Referências ao abrir a gaveta
+  useEffect(() => {
+    if (!showRefsPanel || !activeProjectId) return;
+    
+    const fetchCuradoria = async () => {
+      // 1. Busca Moodboard do Cliente
+      const { data: strategicData } = await supabase.from('strategic_answers').select('moodboard_urls').eq('project_id', activeProjectId).single();
+      if (strategicData && strategicData.moodboard_urls) setClientMoodboard(strategicData.moodboard_urls);
+      else setClientMoodboard([]);
+
+      // 2. Busca Direções (e os Feedbacks)
+      const { data: directionsData } = await supabase.from('design_directions').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: true });
+      if (directionsData) {
+        setAdminRefs(directionsData);
+        if (directionsData.length > 0) setActiveEvalIndex(directionsData.length - 1); // Mostra a última por defeito
+      } else {
+        setAdminRefs([]);
+      }
+    };
+    fetchCuradoria();
+  }, [showRefsPanel, activeProjectId]);
 
   const handleImageUploadRef = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setNewRefImageFile(file);
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setNewRefImage(reader.result as string);
-      };
+      reader.onloadend = () => setNewRefImagePreview(reader.result as string);
       reader.readAsDataURL(file);
     }
   };
 
-  const handleAddAdminRef = () => {
-    if (!newRefTitle || !newRefImage) {
-      showToast("Por favor, adicione um título e selecione uma imagem.");
+  const handleAddAdminRef = async () => {
+    if (!newRefTitle || !newRefImageFile || !activeProjectId) {
+      showToast("Adicione um título e uma imagem.");
       return;
     }
-    showToast("Nova direção visual enviada para o cliente avaliar.");
-    setAdminRefs([...adminRefs, { 
-      id: Date.now(), 
-      title: newRefTitle, 
-      img: newRefImage, 
-      score: 0,
-      answers: { q1: "Aguardando avaliação...", q2: "Aguardando avaliação...", q3: "Aguardando avaliação...", q4: "Aguardando avaliação..." }
-    }]);
-    setNewRefTitle("");
-    setNewRefImage(null);
+
+    setIsSendingRef(true);
+    showToast("A enviar Direção Visual para o cliente...");
+
+    try {
+      const fileExt = newRefImageFile.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${activeProjectId}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage.from('moodboard').upload(filePath, newRefImageFile);
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage.from('moodboard').getPublicUrl(filePath);
+
+      const { data: newRefData, error: dbError } = await supabase.from('design_directions').insert({
+        project_id: activeProjectId,
+        title: newRefTitle,
+        image_url: publicUrlData.publicUrl
+      }).select();
+
+      if (dbError) throw dbError;
+
+      if (newRefData) {
+        setAdminRefs([...adminRefs, newRefData[0]]);
+        setActiveEvalIndex(adminRefs.length);
+      }
+      
+      showToast("Direção visual enviada com sucesso!");
+      setNewRefTitle("");
+      setNewRefImageFile(null);
+      setNewRefImagePreview(null);
+
+    } catch (error) {
+      console.error(error);
+      showToast("Erro ao enviar Direção Visual.");
+    } finally {
+      setIsSendingRef(false);
+    }
   };
 
-  const removeAdminRef = (id: number) => {
-    setAdminRefs(adminRefs.filter(ref => ref.id !== id));
-    showToast("Direção visual removida.");
-    setActiveEvalIndex(0); 
-  };
+  const removeAdminRef = async (id: string) => {
+    const confirm = window.confirm("Remover esta direção visual permanentemente?");
+    if (!confirm) return;
 
+    try {
+      await supabase.from('design_directions').delete().eq('id', id);
+      setAdminRefs(adminRefs.filter(ref => ref.id !== id));
+      setActiveEvalIndex(0); 
+      showToast("Direção visual removida.");
+    } catch (error) {
+      showToast("Erro ao remover direção.");
+    }
+  };
 
   // Ecrã de Loading Geral ou Empty State
   if (isLoading) {
-    return <div className="flex h-full items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
+    return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
   }
 
   if (!currentProject) {
@@ -283,6 +365,34 @@ export default function WorkspaceDesigner() {
   return (
     <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6">
       
+      {/* ==========================================
+          MODAL DO BRIEFING (IFRAME LIZ DESIGN)
+          ========================================== */}
+      {isBriefingModalOpen && (
+        <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 md:p-10">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-md" onClick={() => setIsBriefingModalOpen(false)}></div>
+          <div className="bg-white/90 backdrop-blur-2xl w-full h-full max-w-5xl rounded-[2.5rem] shadow-2xl relative z-10 flex flex-col overflow-hidden border border-white">
+            <div className="p-4 border-b border-[var(--color-atelier-grafite)]/10 flex justify-between items-center bg-white/50 shrink-0">
+              <div className="flex items-center gap-2">
+                <FileText size={16} className="text-[var(--color-atelier-terracota)]" />
+                <span className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Briefing Oficial do Cliente</span>
+              </div>
+              <button onClick={() => setIsBriefingModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--color-atelier-grafite)]/5 text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            {/* O IFRAME */}
+            <div className="flex-1 w-full bg-[#fbf4e4]">
+              <iframe 
+                src="https://www.lizdesign.com.br/form-briefing.html" 
+                className="w-full h-full border-none"
+                title="Formulário de Briefing Liz Design"
+              ></iframe>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ==========================================
           CABEÇALHO
           ========================================== */}
@@ -320,7 +430,7 @@ export default function WorkspaceDesigner() {
                       key={p.id} 
                       onClick={() => { 
                         setActiveProjectId(p.id); 
-                        setDeadlineDate(p.deadline || "");
+                        setDeadlineDate(p.data_limite || "");
                         setIsClientMenuOpen(false); 
                         showToast(`A carregar mesa de ${p.profiles?.nome}...`); 
                       }}
@@ -345,11 +455,8 @@ export default function WorkspaceDesigner() {
           <button onClick={() => setShowRefsPanel(true)} className="glass-panel px-5 py-2.5 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:text-white hover:bg-[var(--color-atelier-terracota)] hover:border-transparent transition-all flex items-center gap-2 shadow-sm">
             <Compass size={14} /> Curadoria / Referências
           </button>
-          <button onClick={() => showToast("A carregar Briefing Estratégico do cliente...")} className="glass-panel px-5 py-2.5 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:text-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2">
-            <FileText size={14} /> Briefing
-          </button>
-          <button onClick={() => showToast("A abrir definições avançadas do projeto.")} className="glass-panel px-3 py-2.5 rounded-xl text-[var(--color-atelier-grafite)] hover:text-[var(--color-atelier-terracota)] transition-colors">
-            <MoreVertical size={16} />
+          <button onClick={() => setIsBriefingModalOpen(true)} className="glass-panel px-5 py-2.5 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:text-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2">
+            <FileText size={14} /> Ler Briefing
           </button>
         </div>
       </header>
@@ -363,9 +470,9 @@ export default function WorkspaceDesigner() {
         <div className="w-[55%] flex flex-col gap-6 h-full">
           <div className="glass-panel p-8 rounded-[2.5rem] bg-white/60 shrink-0 border border-white">
             <div className="flex justify-between items-center mb-6">
-              <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><Settings2 size={20} className="text-[var(--color-atelier-terracota)]" /> Engenharia do Cofre</h3>
+              <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><Settings2 size={20} className="text-[var(--color-atelier-terracota)]" /> Engenharia do Projeto</h3>
               <div className="flex items-center gap-2">
-                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Status do Cliente:</span>
+                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Status do Cofre:</span>
                 {isCofreUnlocked ? (
                   <span className="flex items-center gap-1 text-[11px] font-bold text-green-600 bg-green-50 px-2 py-1 rounded-md border border-green-200"><Unlock size={12}/> Desbloqueado</span>
                 ) : (
@@ -373,30 +480,51 @@ export default function WorkspaceDesigner() {
                 )}
               </div>
             </div>
-            <div className="flex items-center gap-6">
-              <div className="flex-1 bg-white/50 border border-white p-4 rounded-2xl shadow-sm hover:border-[var(--color-atelier-terracota)]/30 transition-colors group">
-                <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2 mb-3"><Calendar size={14} className="text-[var(--color-atelier-terracota)]" /> Data Limite (Deadline)</label>
-                <div className="flex items-center gap-4">
-                  <input type="date" value={deadlineDate} onChange={(e) => handleDeadlineChange(e.target.value)} className="flex-1 bg-transparent text-[14px] text-[var(--color-atelier-grafite)] outline-none cursor-pointer font-medium" />
+            
+            <div className="flex flex-col gap-4">
+              {/* LÓGICA DE DATAS */}
+              <div className="flex items-center gap-6">
+                <div className="flex-1 bg-white/50 border border-white p-4 rounded-2xl shadow-sm hover:border-[var(--color-atelier-terracota)]/30 transition-colors group">
+                  <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2 mb-3"><Calendar size={14} className="text-[var(--color-atelier-terracota)]" /> Data Limite (Deadline)</label>
+                  <div className="flex items-center gap-4">
+                    <input type="date" value={deadlineDate} onChange={(e) => handleDeadlineChange(e.target.value)} className="flex-1 bg-transparent text-[14px] text-[var(--color-atelier-grafite)] outline-none cursor-pointer font-medium" />
+                  </div>
                 </div>
+                <div className="w-24 h-full flex flex-col items-center justify-center bg-white/60 border border-white rounded-2xl shadow-sm py-4">
+                   <span className="font-elegant text-3xl text-[var(--color-atelier-terracota)] leading-none">{deadlineDate ? daysLeft : "-"}</span>
+                   <span className="font-roboto text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40 mt-1">Dias Restantes</span>
+                </div>
+                <button onClick={() => { setIsForceUnlocked(true); showToast("Cofre desbloqueado manualmente."); }} disabled={isCofreUnlocked} className="h-full px-6 bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] rounded-2xl font-roboto font-bold uppercase tracking-widest text-[10px] hover:bg-[var(--color-atelier-terracota)] transition-all shadow-[0_10px_20px_rgba(122,116,112,0.15)] disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-2">
+                  <Unlock size={16} /> Forçar<br/>Abertura
+                </button>
               </div>
-              <div className="w-24 h-full flex flex-col items-center justify-center bg-white/60 border border-white rounded-2xl shadow-sm">
-                 <span className="font-elegant text-3xl text-[var(--color-atelier-terracota)] leading-none">{deadlineDate ? daysLeft : "-"}</span>
-                 <span className="font-roboto text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40 mt-1">Dias Úteis</span>
+
+              {/* LÓGICA DE FASES (NOVIDADE PARA A LINHA DO TEMPO) */}
+              <div className="flex-1 bg-white/50 border border-white p-4 rounded-2xl shadow-sm hover:border-[var(--color-atelier-terracota)]/30 transition-colors flex items-center gap-4">
+                <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2 w-32 shrink-0">
+                  <Sparkles size={14} className="text-[var(--color-atelier-terracota)]" /> Fase Atual
+                </label>
+                <select 
+                  value={currentProject?.fase || "reuniao"} 
+                  onChange={handleStageChange}
+                  className="flex-1 bg-transparent text-[14px] font-medium text-[var(--color-atelier-terracota)] outline-none cursor-pointer"
+                >
+                  <option value="reuniao">1. Reunião de Alinhamento</option>
+                  <option value="pesquisa">2. Estudo e Pesquisa</option>
+                  <option value="direcionamento">3. Direcionamento Criativo</option>
+                  <option value="processo">4. Processo Criativo IDV</option>
+                  <option value="apresentacao">5. Apresentação Oficial</option>
+                </select>
               </div>
-              <button onClick={() => { setIsForceUnlocked(true); showToast("Cofre desbloqueado manualmente."); }} disabled={isCofreUnlocked} className="h-[82px] px-6 bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] rounded-2xl font-roboto font-bold uppercase tracking-widest text-[10px] hover:bg-[var(--color-atelier-terracota)] transition-all shadow-[0_10px_20px_rgba(122,116,112,0.15)] disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-2">
-                <Unlock size={16} /> Forçar<br/>Abertura
-              </button>
             </div>
           </div>
 
+          {/* PAINEL DE ATIVOS (ARQUIVOS) */}
           <div className="glass-panel p-8 rounded-[2.5rem] bg-white/60 flex-1 flex flex-col min-h-0 border border-white">
             <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2 mb-2"><UploadCloud size={20} className="text-[var(--color-atelier-terracota)]" /> Ativos Finais</h3>
             <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mb-6">Faça o upload dos arquivos que o cliente receberá quando o cofre for aberto.</p>
             
             <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-4 pr-2">
-              
-              {/* NOVIDADE: DROPZONE E UPLOAD PARA STORAGE */}
               <label className="border-2 border-dashed border-[var(--color-atelier-grafite)]/20 bg-white/40 hover:bg-white/80 transition-colors rounded-2xl p-5 flex items-center justify-between group cursor-pointer relative overflow-hidden">
                 <input type="file" onChange={handleAssetUpload} disabled={isUploadingAsset} className="hidden" />
                 <div className="flex items-center gap-4">
@@ -413,7 +541,6 @@ export default function WorkspaceDesigner() {
                 <div className="w-10 h-10 rounded-full bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center group-hover:scale-110 transition-transform"><Plus size={18} /></div>
               </label>
 
-              {/* LISTAGEM DOS ARQUIVOS DO BANCO */}
               <AnimatePresence>
                 {projectAssets.map(asset => (
                   <motion.div 
@@ -447,23 +574,31 @@ export default function WorkspaceDesigner() {
                    Nenhum ficheiro no cofre.
                  </div>
               )}
-
             </div>
           </div>
         </div>
 
-        {/* COLUNA DIREITA: DIÁRIO */}
+        {/* COLUNA DIREITA: DIÁRIO (NOVIDADE: IMAGENS OPCIONAIS) */}
         <div className="flex-1 glass-panel p-8 rounded-[2.5rem] bg-gradient-to-br from-white/90 to-white/50 flex flex-col h-full border-[var(--color-atelier-terracota)]/10 shadow-[0_15px_40px_rgba(173,111,64,0.05)] border border-white">
           <div className="mb-6 pb-4 border-b border-[var(--color-atelier-grafite)]/10">
             <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2 mb-1"><ImageIcon size={20} className="text-[var(--color-atelier-terracota)]" /> Atualizar Diário</h3>
-            <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/60">Poste atualizações visuais na timeline do cliente.</p>
+            <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/60">Poste atualizações na timeline do cliente.</p>
           </div>
           <form onSubmit={handlePostDiary} className="flex-1 flex flex-col min-h-0">
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-5">
-              <div onClick={() => showToast("A abrir galeria...")} className="w-full h-48 rounded-[1.5rem] border-2 border-dashed border-[var(--color-atelier-grafite)]/20 bg-white/40 hover:bg-white/80 transition-all flex flex-col items-center justify-center gap-3 cursor-pointer group">
-                <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-[var(--color-atelier-grafite)]/40 group-hover:text-[var(--color-atelier-terracota)] transition-colors"><UploadCloud size={24} /></div>
-                <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 group-hover:text-[var(--color-atelier-terracota)]">Arraste a Imagem</span>
-              </div>
+              
+              <label className="w-full h-32 rounded-[1.5rem] border-2 border-dashed border-[var(--color-atelier-grafite)]/20 bg-white/40 hover:bg-white/80 transition-all flex flex-col items-center justify-center gap-3 cursor-pointer group relative overflow-hidden">
+                <input type="file" accept="image/*" className="hidden" onChange={handleDiaryImageSelect} />
+                {postImagePreview ? (
+                  <img src={postImagePreview} alt="Preview" className="w-full h-full object-cover absolute inset-0" />
+                ) : (
+                  <>
+                    <div className="w-12 h-12 rounded-full bg-white shadow-sm flex items-center justify-center text-[var(--color-atelier-grafite)]/40 group-hover:text-[var(--color-atelier-terracota)] transition-colors"><UploadCloud size={24} /></div>
+                    <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 group-hover:text-[var(--color-atelier-terracota)]">Adicionar Imagem (Opcional)</span>
+                  </>
+                )}
+              </label>
+
               <div className="flex flex-col gap-2 group/input">
                 <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1">Título da Atualização</label>
                 <input type="text" required value={postTitle} onChange={(e) => setPostTitle(e.target.value)} placeholder="Ex: Construção da Malha Geométrica" className="w-full bg-white/60 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl py-3.5 px-4 text-[14px] outline-none shadow-sm" />
@@ -473,9 +608,9 @@ export default function WorkspaceDesigner() {
                 <textarea required value={postText} onChange={(e) => setPostText(e.target.value)} placeholder="Explique a decisão de design..." className="w-full h-full min-h-[120px] resize-none bg-white/60 border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl py-3.5 px-4 text-[14px] outline-none shadow-sm custom-scrollbar" />
               </div>
             </div>
-            <button type="submit" disabled={isPosting} className="mt-6 w-full bg-[var(--color-atelier-terracota)] text-white h-14 rounded-2xl font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[#8c562e] transition-colors shadow-[0_10px_20px_rgba(173,111,64,0.3)] hover:-translate-y-0.5 flex items-center justify-center gap-2 shrink-0 disabled:opacity-50">
+            <button type="submit" disabled={isPosting || !postText || !postTitle} className="mt-6 w-full bg-[var(--color-atelier-terracota)] text-white h-14 rounded-2xl font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[#8c562e] transition-colors shadow-[0_10px_20px_rgba(173,111,64,0.3)] hover:-translate-y-0.5 flex items-center justify-center gap-2 shrink-0 disabled:opacity-50">
               {isPosting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-              Gravar no Diário (Database)
+              Gravar no Diário do Cliente
             </button>
           </form>
         </div>
@@ -498,7 +633,7 @@ export default function WorkspaceDesigner() {
                 <div>
                   <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-3">Avaliações do Cliente</h2>
                   <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-2">
-                    Projeto: {currentProject?.profiles?.nome} • {adminRefs.length} Direções Enviadas
+                    Projeto: {currentProject?.profiles?.nome} • {adminRefs.length} Direções
                   </p>
                 </div>
                 <div className="flex gap-3">
@@ -509,45 +644,74 @@ export default function WorkspaceDesigner() {
               </div>
 
               <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-8 gap-8">
-                {/* MOODBOARD MOCKADO */}
+                
+                {/* MOODBOARD REAL DO BANCO */}
                 <section className="pb-8 border-b border-[var(--color-atelier-grafite)]/5">
                   <div className="flex items-center gap-2 mb-6 pb-2 border-b border-[var(--color-atelier-grafite)]/5">
                     <ImageIcon size={16} className="text-[var(--color-atelier-terracota)]" />
-                    <h3 className="font-roboto text-[13px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Moodboard do Cliente (Mock)</h3>
+                    <h3 className="font-roboto text-[13px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Moodboard do Cliente</h3>
                   </div>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    <div className="aspect-square rounded-2xl overflow-hidden border-4 border-white shadow-sm group relative"><img src="https://images.unsplash.com/photo-1490481651871-ab68de25d43d?q=80&w=600&auto=format&fit=crop" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" alt="Ref Cliente 1" /></div>
-                  </div>
+                  {clientMoodboard.length === 0 ? (
+                    <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 italic">O cliente ainda não adicionou referências.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {clientMoodboard.map((img, i) => (
+                        <div key={i} className="aspect-square rounded-2xl overflow-hidden border-4 border-white shadow-sm group relative">
+                          <img src={img} onClick={() => window.open(img, "_blank")} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-pointer" alt="Ref Cliente" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </section>
 
+                {/* DIREÇÕES E FEEDBACK REAL */}
                 <section>
                   <div className="flex items-center gap-2 mb-6 pb-2 border-b border-[var(--color-atelier-grafite)]/5">
                     <Sparkles size={16} className="text-[var(--color-atelier-terracota)]" />
-                    <h3 className="font-roboto text-[13px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Avaliações das Direções Enviadas (Mock)</h3>
+                    <h3 className="font-roboto text-[13px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Direções Enviadas e Avaliações</h3>
                   </div>
-                  <div className="flex overflow-x-auto custom-scrollbar gap-3 pb-4 shrink-0">
-                    {adminRefs.map((ref, index) => (
-                      <button key={ref.id} onClick={() => setActiveEvalIndex(index)} className={`shrink-0 w-32 flex flex-col gap-2 p-2 rounded-xl border transition-all cursor-pointer text-left ${activeEvalIndex === index ? 'bg-white border-[var(--color-atelier-terracota)]/40 shadow-sm' : 'bg-transparent border-transparent hover:bg-white/50'}`}>
-                        <div className="w-full h-16 rounded-lg overflow-hidden border border-white shadow-inner"><img src={ref.img} className="w-full h-full object-cover" alt={ref.title} /></div>
-                        <span className={`font-roboto text-[9px] uppercase tracking-widest font-bold truncate w-full ${activeEvalIndex === index ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/50'}`}>{ref.title}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  {adminRefs[activeEvalIndex] && (
-                    <motion.div key={activeEvalIndex} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-6">
-                      <div className="flex gap-6 items-start bg-white/40 p-4 rounded-[2rem] border border-white shadow-sm">
-                        <div className="w-40 h-40 rounded-2xl overflow-hidden border-4 border-white shadow-sm shrink-0"><img src={adminRefs[activeEvalIndex].img} className="w-full h-full object-cover" alt="" /></div>
-                        <div className="flex flex-col pt-2 flex-1 pr-2">
-                          <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] mb-1">{adminRefs[activeEvalIndex].title}</h3>
-                          <div className="flex items-center gap-2 mb-4">
-                            <span className="text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">Nota:</span>
-                            <span className="bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] border border-[var(--color-atelier-terracota)]/20 px-3 py-1 rounded-full text-[12px] font-bold font-roboto">{adminRefs[activeEvalIndex].score}/10</span>
-                          </div>
-                          <button onClick={() => removeAdminRef(adminRefs[activeEvalIndex].id)} className="self-start text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-600 transition-colors flex items-center gap-1"><X size={12} /> Remover Direção</button>
-                        </div>
+                  
+                  {adminRefs.length === 0 ? (
+                    <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 italic mb-6">Nenhuma direção visual enviada ainda.</p>
+                  ) : (
+                    <>
+                      <div className="flex overflow-x-auto custom-scrollbar gap-3 pb-4 shrink-0">
+                        {adminRefs.map((ref, index) => (
+                          <button key={ref.id} onClick={() => setActiveEvalIndex(index)} className={`shrink-0 w-32 flex flex-col gap-2 p-2 rounded-xl border transition-all cursor-pointer text-left ${activeEvalIndex === index ? 'bg-white border-[var(--color-atelier-terracota)]/40 shadow-sm' : 'bg-transparent border-transparent hover:bg-white/50'}`}>
+                            <div className="w-full h-16 rounded-lg overflow-hidden border border-white shadow-inner"><img src={ref.image_url} className="w-full h-full object-cover" alt={ref.title} /></div>
+                            <span className={`font-roboto text-[9px] uppercase tracking-widest font-bold truncate w-full ${activeEvalIndex === index ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/50'}`}>{ref.title}</span>
+                          </button>
+                        ))}
                       </div>
-                    </motion.div>
+
+                      {adminRefs[activeEvalIndex] && (
+                        <motion.div key={activeEvalIndex} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-6">
+                          <div className="flex gap-6 items-start bg-white/40 p-4 rounded-[2rem] border border-white shadow-sm flex-col md:flex-row">
+                            <div className="w-full md:w-40 md:h-40 rounded-2xl overflow-hidden border-4 border-white shadow-sm shrink-0"><img src={adminRefs[activeEvalIndex].image_url} className="w-full h-full object-cover" alt="" /></div>
+                            <div className="flex flex-col pt-2 flex-1 w-full">
+                              <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] mb-1">{adminRefs[activeEvalIndex].title}</h3>
+                              <div className="flex items-center gap-2 mb-4">
+                                <span className="text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">Nota:</span>
+                                <span className={`border px-3 py-1 rounded-full text-[12px] font-bold font-roboto ${adminRefs[activeEvalIndex].score > 0 ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] border-[var(--color-atelier-terracota)]/20' : 'bg-[var(--color-atelier-grafite)]/5 text-[var(--color-atelier-grafite)]/40 border-transparent'}`}>
+                                  {adminRefs[activeEvalIndex].score > 0 ? `${adminRefs[activeEvalIndex].score}/10` : 'Pendente'}
+                                </span>
+                              </div>
+                              
+                              {/* FEEDBACK DO CLIENTE NO ADMIN */}
+                              <div className="flex flex-col gap-3 w-full bg-white/60 p-4 rounded-xl mb-4">
+                                <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50 border-b border-[var(--color-atelier-grafite)]/5 pb-2">Feedback Descritivo</span>
+                                <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]"><strong>Atmosfera:</strong> {adminRefs[activeEvalIndex].feedback?.q1 || "-"}</p>
+                                <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]"><strong>Tipografia:</strong> {adminRefs[activeEvalIndex].feedback?.q2 || "-"}</p>
+                                <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]"><strong>Cores:</strong> {adminRefs[activeEvalIndex].feedback?.q3 || "-"}</p>
+                                <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]"><strong>Elementos:</strong> {adminRefs[activeEvalIndex].feedback?.q4 || "-"}</p>
+                              </div>
+
+                              <button onClick={() => removeAdminRef(adminRefs[activeEvalIndex].id)} className="self-end md:self-start text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-600 transition-colors flex items-center gap-1"><X size={12} /> Apagar Direção</button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </>
                   )}
                 </section>
 
@@ -560,16 +724,18 @@ export default function WorkspaceDesigner() {
                   <div className="bg-[var(--color-atelier-terracota)]/5 p-5 rounded-[1.5rem] border border-[var(--color-atelier-terracota)]/20">
                     <div className="flex flex-col gap-4">
                        <label className="w-full h-32 rounded-xl border-2 border-dashed border-[var(--color-atelier-grafite)]/20 hover:border-[var(--color-atelier-terracota)]/40 bg-white/50 cursor-pointer flex flex-col items-center justify-center transition-colors group relative overflow-hidden shadow-sm">
-                         <input type="file" accept="image/*" className="hidden" onChange={handleImageUploadRef} />
-                         {newRefImage ? (
-                           <><img src={newRefImage} alt="Preview" className="w-full h-full object-cover absolute inset-0" /></>
+                         <input type="file" accept="image/*" className="hidden" onChange={handleImageUploadRef} disabled={isSendingRef} />
+                         {newRefImagePreview ? (
+                           <><img src={newRefImagePreview} alt="Preview" className="w-full h-full object-cover absolute inset-0" /></>
                          ) : (
                            <><UploadCloud size={24} className="text-[var(--color-atelier-grafite)]/40 group-hover:text-[var(--color-atelier-terracota)] mb-2" /><span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 group-hover:text-[var(--color-atelier-terracota)]">Clique para anexar</span></>
                          )}
                        </label>
                        <div className="flex flex-col sm:flex-row gap-3">
-                         <input type="text" value={newRefTitle} onChange={(e) => setNewRefTitle(e.target.value)} placeholder="Título da Direção" className="flex-1 bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm" />
-                         <button onClick={handleAddAdminRef} className="px-6 bg-[var(--color-atelier-grafite)] text-white py-3 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-sm shrink-0">Publicar</button>
+                         <input type="text" value={newRefTitle} onChange={(e) => setNewRefTitle(e.target.value)} disabled={isSendingRef} placeholder="Título da Direção" className="flex-1 bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm disabled:opacity-50" />
+                         <button onClick={handleAddAdminRef} disabled={isSendingRef} className="px-6 bg-[var(--color-atelier-grafite)] text-white py-3 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-sm shrink-0 disabled:opacity-50 flex items-center justify-center">
+                           {isSendingRef ? <Loader2 size={16} className="animate-spin" /> : 'Publicar'}
+                         </button>
                        </div>
                     </div>
                   </div>

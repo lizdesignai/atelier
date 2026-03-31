@@ -5,46 +5,74 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion"; 
 import { 
   Lock, Unlock, Clock, Download, ArrowRight, 
-  Sparkles, Fingerprint, Layers, Eye, HeartHandshake
+  Sparkles, Fingerprint, Layers, Eye, HeartHandshake, Loader2
 } from "lucide-react";
+import { supabase } from "../../lib/supabase"; // AJUSTE O CAMINHO SE NECESSÁRIO
 
 export default function CofrePage() {
-  const [daysLeft, setDaysLeft] = useState(12);
+  const [isLoading, setIsLoading] = useState(true);
+  const [daysLeft, setDaysLeft] = useState<number | '--'>('--');
   const [isUnlocked, setIsUnlocked] = useState(false);
 
-  const progressRatio = Math.max(0, 1 - (daysLeft / 12)); 
+  // Busca a Data Limite do Projeto Real
+  useEffect(() => {
+    const fetchDeadline = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+
+      const { data: project } = await supabase
+        .from('projects')
+        .select('data_limite')
+        .eq('client_id', session.user.id)
+        .eq('status', 'active')
+        .single();
+
+      if (project && project.data_limite) {
+        // Matemática para calcular os dias restantes
+        const today = new Date();
+        const deadline = new Date(project.data_limite);
+        // Zera as horas para comparar apenas os dias
+        today.setHours(0, 0, 0, 0);
+        deadline.setHours(0, 0, 0, 0);
+        
+        const diffTime = deadline.getTime() - today.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+        if (diffDays <= 0) {
+          setDaysLeft(0);
+          setIsUnlocked(true);
+        } else {
+          setDaysLeft(diffDays);
+          setIsUnlocked(false);
+        }
+      } else {
+        // Se não tiver data, fica bloqueado e pausado
+        setDaysLeft('--');
+        setIsUnlocked(false);
+      }
+      setIsLoading(false);
+    };
+
+    fetchDeadline();
+  }, []);
+
+  // Lógica Visual do Cofre Baseada no Tempo
+  // Consideramos 30 dias como o máximo para o cálculo visual de 100% desfocado.
+  const numericDaysLeft = typeof daysLeft === 'number' ? daysLeft : 30;
+  const clampedDays = Math.min(Math.max(numericDaysLeft, 0), 30);
+  const progressRatio = Math.max(0, 1 - (clampedDays / 30)); 
+  
   const currentGrayscale = (1 - progressRatio) * 100;
   const currentBlur = 20 - (progressRatio * 15); 
   const glowOpacity = progressRatio * 0.8; 
 
-  useEffect(() => {
-    if (daysLeft === 0) {
-      setIsUnlocked(true);
-    } else {
-      setIsUnlocked(false);
-    }
-  }, [daysLeft]);
+  if (isLoading) {
+    return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
+  }
 
   return (
-    // Removido o min-h e overflow-hidden para forçar o limite da tela (No Scroll)
     <div className="relative z-10 max-w-[1400px] mx-auto h-[calc(100vh-80px)] flex flex-col overflow-hidden">
       
-      {/* SIMULADOR DE TEMPO (Painel Dev) */}
-      <div className="fixed top-6 right-10 z-50 bg-white/60 backdrop-blur-xl px-5 py-4 rounded-2xl border border-white shadow-[0_15px_40px_rgba(173,111,64,0.15)] flex flex-col gap-3 items-center w-72">
-        <span className="font-roboto text-[9px] uppercase tracking-widest font-black text-[var(--color-atelier-terracota)]">
-          Controle do Tempo (Pico de Dopamina)
-        </span>
-        <input 
-          type="range" min="0" max="12" step="1" value={daysLeft} 
-          onChange={(e) => setDaysLeft(Number(e.target.value))}
-          className="w-full accent-[var(--color-atelier-terracota)] cursor-ew-resize h-1 bg-[var(--color-atelier-grafite)]/10 rounded-full appearance-none"
-        />
-        <div className="flex justify-between w-full font-roboto text-[10px] font-bold text-[var(--color-atelier-grafite)]">
-          <span>Dia 0 (Revelação)</span>
-          <span>{daysLeft} dias</span>
-        </div>
-      </div>
-
       <AnimatePresence mode="wait">
         
         {/* ==========================================
@@ -85,7 +113,7 @@ export default function CofrePage() {
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
                   className="w-28 h-28 rounded-full border border-white/60 bg-white/30 backdrop-blur-xl flex items-center justify-center mb-10 shadow-[0_10px_40px_rgba(173,111,64,0.2)] relative"
                 >
-                  {daysLeft <= 1 && <div className="absolute inset-0 bg-[var(--color-atelier-terracota)]/30 rounded-full animate-ping"></div>}
+                  {typeof daysLeft === 'number' && daysLeft <= 3 && <div className="absolute inset-0 bg-[var(--color-atelier-terracota)]/30 rounded-full animate-ping"></div>}
                   <Lock size={36} strokeWidth={1.5} className="text-[var(--color-atelier-terracota)] drop-shadow-md" />
                 </motion.div>
 
@@ -98,9 +126,11 @@ export default function CofrePage() {
                 </p>
 
                 <div className="flex flex-col items-center gap-2 bg-white/50 backdrop-blur-md border border-white px-10 py-5 rounded-[2rem] shadow-sm">
-                  <span className="font-roboto text-[10px] uppercase tracking-[0.3em] font-bold text-[var(--color-atelier-grafite)]/50">Desbloqueio Oficial em</span>
+                  <span className="font-roboto text-[10px] uppercase tracking-[0.3em] font-bold text-[var(--color-atelier-grafite)]/50">
+                    {daysLeft === '--' ? 'Aguardando Cronograma' : 'Desbloqueio Oficial em'}
+                  </span>
                   <span className="font-elegant text-6xl text-[var(--color-atelier-terracota)] drop-shadow-sm tracking-tighter">
-                    {daysLeft} <span className="text-3xl text-[var(--color-atelier-grafite)]/40 ml-1 tracking-normal font-sans">Dias</span>
+                    {daysLeft} {daysLeft !== '--' && <span className="text-3xl text-[var(--color-atelier-grafite)]/40 ml-1 tracking-normal font-sans">Dias</span>}
                   </span>
                 </div>
 

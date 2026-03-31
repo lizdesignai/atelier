@@ -33,7 +33,11 @@
       radial-gradient(circle at bottom left, rgba(173, 111, 64, 0.1), transparent 40%);
     background-attachment: fixed;
     -webkit-font-smoothing: antialiased;
-    overflow-x: hidden;
+    overflow: hidden; /* Corta barras de rolagem nativas da janela */
+    margin: 0;
+    padding: 0;
+    height: 100vh;
+    width: 100vw;
   }
 }
 
@@ -87,3 +91,8 @@
 ::-webkit-scrollbar-thumb:hover { 
   background: rgba(173, 111, 64, 0.4); 
 }
+
+/* Ocultar barras de rolagem esteticamente, mas permitindo o scroll nas áreas internas */
+.custom-scrollbar::-webkit-scrollbar { width: 4px; }
+.custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(173,111,64,0.3); border-radius: 4px; }

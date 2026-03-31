@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Inbox, Search, Send, Paperclip, Image as ImageIcon, 
   MoreVertical, CheckCheck, Hash, Lock, Plus, 
-  Settings2, Clock, ShieldCheck, ArrowRight, MessageSquare, Loader2, FileText
+  Settings2, Clock, ShieldCheck, ArrowRight, MessageSquare, Loader2, FileText, X
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 
@@ -21,6 +21,8 @@ export default function AdminInboxPage() {
   // ==========================================
   const [isLoading, setIsLoading] = useState(true);
   const [userId, setUserId] = useState<string | null>(null);
+  const [adminProfile, setAdminProfile] = useState<any>(null); // NOVIDADE: Perfil para Chat Instantâneo
+  
   const [clients, setClients] = useState<any[]>([]); // Projetos Ativos
   const [channels, setChannels] = useState<any[]>([]); // Canais do Projeto Selecionado
   const [messages, setMessages] = useState<any[]>([]); // Mensagens do Canal Selecionado
@@ -28,14 +30,26 @@ export default function AdminInboxPage() {
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const [messageText, setMessageText] = useState("");
-  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false); // NOVIDADE: Estado de Upload
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false); 
+  
+  // NOVIDADE: Estados do Modal de Criação de Canal (Missão 1.2)
+  const [isChannelModalOpen, setIsChannelModalOpen] = useState(false);
+  const [newChannelName, setNewChannelName] = useState("");
+  const [isNewChannelPrivate, setIsNewChannelPrivate] = useState(false);
+  const [isCreatingChannel, setIsCreatingChannel] = useState(false);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 1. Busca Utilizador Atual e Lista de Projetos (Clientes)
   useEffect(() => {
     const initInbox = async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (session) setUserId(session.user.id);
+      if (session) {
+        setUserId(session.user.id);
+        // Busca o perfil do Admin para podermos fazer o chat parecer instantâneo
+        const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        setAdminProfile(profile);
+      }
 
       // Busca Projetos Ativos cruzados com os Perfis
       const { data: projectsData, error } = await supabase
@@ -72,6 +86,21 @@ export default function AdminInboxPage() {
     fetchChannels();
   }, [activeProjectId]);
 
+  // Função extraída para poder ser chamada no optimistic UI
+  const fetchMessages = async () => {
+    if (!activeChannelId) return;
+    const { data, error } = await supabase
+      .from('messages')
+      .select('*, profiles(nome, avatar_url, role)')
+      .eq('channel_id', activeChannelId)
+      .order('created_at', { ascending: true });
+
+    if (!error && data) {
+      setMessages(data);
+      scrollToBottom();
+    }
+  };
+
   // 3. Busca Mensagens quando o Canal muda e ativa o Realtime
   useEffect(() => {
     if (!activeChannelId) {
@@ -79,25 +108,16 @@ export default function AdminInboxPage() {
       return;
     }
 
-    const fetchMessages = async () => {
-      const { data, error } = await supabase
-        .from('messages')
-        .select('*, profiles(nome, avatar_url, role)')
-        .eq('channel_id', activeChannelId)
-        .order('created_at', { ascending: true });
-
-      if (!error && data) setMessages(data);
-      scrollToBottom();
-    };
-
     fetchMessages();
 
     // Inscreve-se nas mudanças em tempo real (Novas Mensagens)
     const channelSubscription = supabase.channel(`public:messages:channel_id=eq.${activeChannelId}`)
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `channel_id=eq.${activeChannelId}` }, 
         (payload) => {
-          // Quando chega mensagem nova, recarrega para ter os dados do profile também
-          fetchMessages();
+          // Só busca se a mensagem vier de outra pessoa (evita duplicar o Optimistic UI)
+          if (payload.new.sender_id !== userId) {
+            fetchMessages();
+          }
         }
       )
       .subscribe();
@@ -120,27 +140,31 @@ export default function AdminInboxPage() {
     setActiveProjectId(projectId);
   };
 
-  const handleCreateChannel = async () => {
-    if (!activeProjectId) return;
-    const name = window.prompt("Nome do novo canal (sem espaços, ex: aprovacoes-3d):");
-    if (!name) return;
-    const isPrivate = window.confirm("Este canal é apenas para a equipa? (OK = Privado, Cancelar = Visível para o cliente)");
+  // NOVIDADE: Lógica do Modal em vez de window.prompt
+  const handleCreateChannelSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!activeProjectId || !newChannelName.trim()) return;
 
-    const formattedName = name.toLowerCase().replace(/\s+/g, '-');
+    setIsCreatingChannel(true);
+    const formattedName = newChannelName.toLowerCase().replace(/\s+/g, '-');
     
-    const { data, error } = await supabase.from('channels').insert({
-      project_id: activeProjectId,
-      name: formattedName,
-      is_private: isPrivate
+    const { data, error } = await supabase.from('channels').insert({ 
+      project_id: activeProjectId, 
+      name: formattedName, 
+      is_private: isNewChannelPrivate 
     }).select();
 
     if (!error && data) {
       setChannels([...channels, data[0]]);
       setActiveChannelId(data[0].id);
-      showToast(`Canal #${formattedName} criado com sucesso.`);
+      showToast(`Canal #${formattedName} ativado.`);
+      setIsChannelModalOpen(false);
+      setNewChannelName("");
+      setIsNewChannelPrivate(false);
     } else {
       showToast("Erro ao criar canal.");
     }
+    setIsCreatingChannel(false);
   };
 
   const handleSendMessage = async (e?: React.FormEvent) => {
@@ -148,8 +172,23 @@ export default function AdminInboxPage() {
     if (!messageText.trim() || !activeChannelId || !userId) return;
 
     const textToSend = messageText;
-    setMessageText(""); // Limpa o input visualmente rápido
+    setMessageText(""); 
+
+    // NOVIDADE (Missão 1.3): Optimistic Update
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMessage = {
+      id: tempId,
+      channel_id: activeChannelId,
+      sender_id: userId,
+      text_content: textToSend,
+      created_at: new Date().toISOString(),
+      profiles: adminProfile || { nome: "Você", avatar_url: null }
+    };
     
+    setMessages(prev => [...prev, optimisticMessage]);
+    scrollToBottom();
+    
+    // Grava no banco
     const { error } = await supabase.from('messages').insert({
       channel_id: activeChannelId,
       sender_id: userId,
@@ -158,13 +197,13 @@ export default function AdminInboxPage() {
 
     if (error) {
       showToast("Erro ao enviar mensagem.");
-      setMessageText(textToSend); // Restaura o texto se falhar
+      setMessages(prev => prev.filter(m => m.id !== tempId)); // Remove se falhar
+      setMessageText(textToSend); 
     } else {
-      scrollToBottom();
+      fetchMessages(); // Sincroniza IDs reais silenciosamente
     }
   };
 
-  // NOVIDADE: UPLOAD DE ANEXOS PARA O CHAT
   const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !activeChannelId || !userId) return;
@@ -185,20 +224,21 @@ export default function AdminInboxPage() {
       const { error: dbError } = await supabase.from('messages').insert({
         channel_id: activeChannelId,
         sender_id: userId,
-        text_content: messageText.trim() !== "" ? messageText : null, // Envia o texto junto se houver
+        text_content: messageText.trim() !== "" ? messageText : null,
         attachment_url: publicUrlData.publicUrl
       });
       if (dbError) throw dbError;
 
       setMessageText("");
       showToast("Anexo enviado com sucesso!");
+      fetchMessages();
       scrollToBottom();
     } catch (error) {
       console.error(error);
       showToast("Erro ao enviar o anexo.");
     } finally {
       setIsUploadingAttachment(false);
-      e.target.value = ''; // Reset do input
+      e.target.value = ''; 
     }
   };
 
@@ -217,6 +257,55 @@ export default function AdminInboxPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1500px] mx-auto relative z-10 pb-6 gap-6">
       
+      {/* ==========================================
+          MODAL DE NOVO CANAL (Missão 1.2 Resolvida)
+          ========================================== */}
+      <AnimatePresence>
+        {isChannelModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsChannelModalOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-white/90 backdrop-blur-2xl border border-white p-8 rounded-[2.5rem] shadow-2xl w-full max-w-md relative z-10">
+              <button onClick={() => setIsChannelModalOpen(false)} className="absolute top-6 right-6 text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)]"><X size={20} /></button>
+              
+              <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-2">Novo Tópico</h2>
+              <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mb-6">Crie um canal de comunicação organizado.</p>
+              
+              <form onSubmit={handleCreateChannelSubmit} className="flex flex-col gap-6">
+                <div className="flex flex-col gap-2">
+                  <label className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/60">Nome do Canal</label>
+                  <div className="relative">
+                    <Hash size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-atelier-grafite)]/40" />
+                    <input autoFocus type="text" placeholder="ex: aprovacoes-design" value={newChannelName} onChange={(e) => setNewChannelName(e.target.value)} className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 focus:border-[var(--color-atelier-terracota)] rounded-xl py-3 pl-10 pr-4 text-[14px] text-[var(--color-atelier-grafite)] outline-none shadow-sm" />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3">
+                  <label className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/60">Privacidade</label>
+                  
+                  <div className="flex gap-4">
+                    <label className={`flex-1 flex flex-col p-4 rounded-2xl border cursor-pointer transition-all ${!isNewChannelPrivate ? 'bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)]/30' : 'bg-white border-[var(--color-atelier-grafite)]/10 hover:border-[var(--color-atelier-grafite)]/30'}`}>
+                      <input type="radio" name="privacy" className="hidden" checked={!isNewChannelPrivate} onChange={() => setIsNewChannelPrivate(false)} />
+                      <div className="flex items-center gap-2 mb-1"><MessageSquare size={16} className={!isNewChannelPrivate ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/40'} /><span className={`font-roboto text-[12px] font-bold ${!isNewChannelPrivate ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]'}`}>Cliente</span></div>
+                      <span className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50">Visível para a equipa e para o cliente.</span>
+                    </label>
+
+                    <label className={`flex-1 flex flex-col p-4 rounded-2xl border cursor-pointer transition-all ${isNewChannelPrivate ? 'bg-[var(--color-atelier-grafite)] text-white border-transparent' : 'bg-white border-[var(--color-atelier-grafite)]/10 hover:border-[var(--color-atelier-grafite)]/30'}`}>
+                      <input type="radio" name="privacy" className="hidden" checked={isNewChannelPrivate} onChange={() => setIsNewChannelPrivate(true)} />
+                      <div className="flex items-center gap-2 mb-1"><Lock size={16} className={isNewChannelPrivate ? 'text-white' : 'text-[var(--color-atelier-grafite)]/40'} /><span className={`font-roboto text-[12px] font-bold ${isNewChannelPrivate ? 'text-white' : 'text-[var(--color-atelier-grafite)]'}`}>Privado</span></div>
+                      <span className={`font-roboto text-[10px] ${isNewChannelPrivate ? 'text-white/60' : 'text-[var(--color-atelier-grafite)]/50'}`}>Apenas a equipa Atelier tem acesso.</span>
+                    </label>
+                  </div>
+                </div>
+
+                <button type="submit" disabled={!newChannelName.trim() || isCreatingChannel} className="w-full mt-2 bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-sm disabled:opacity-50 flex justify-center items-center gap-2">
+                  {isCreatingChannel ? <Loader2 size={16} className="animate-spin" /> : "Abrir Canal"}
+                </button>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* ==========================================
           1. CABEÇALHO DO INBOX
           ========================================== */}
@@ -284,11 +373,11 @@ export default function AdminInboxPage() {
                       client.profiles?.nome?.charAt(0) || "C"
                     )}
                   </div>
-                  <div className="flex flex-col">
-                    <span className={`font-roboto text-[13px] ${activeProjectId === client.id ? 'font-bold text-[var(--color-atelier-terracota)]' : 'font-medium text-[var(--color-atelier-grafite)]'}`}>
+                  <div className="flex flex-col overflow-hidden">
+                    <span className={`font-roboto text-[13px] truncate ${activeProjectId === client.id ? 'font-bold text-[var(--color-atelier-terracota)]' : 'font-medium text-[var(--color-atelier-grafite)]'}`}>
                       {client.profiles?.nome}
                     </span>
-                    <span className="font-roboto text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">
+                    <span className="font-roboto text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40 truncate">
                       {client.type}
                     </span>
                   </div>
@@ -302,7 +391,7 @@ export default function AdminInboxPage() {
         <div className="w-[260px] glass-panel rounded-[2.5rem] bg-[var(--color-atelier-grafite)]/5 border border-white shadow-[0_15px_40px_rgba(122,116,112,0.05)] flex flex-col shrink-0 overflow-hidden">
           
           <div className="p-6 border-b border-[var(--color-atelier-grafite)]/5 bg-white/40 shrink-0">
-            <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-tight mb-1">{activeClient?.profiles?.nome || "Selecione..."}</h2>
+            <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-tight mb-1 truncate">{activeClient?.profiles?.nome || "Selecione..."}</h2>
           </div>
 
           <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-6">
@@ -311,7 +400,7 @@ export default function AdminInboxPage() {
             <div className="flex flex-col gap-2">
               <div className="flex justify-between items-center px-2 mb-1">
                 <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Canais do Projeto</span>
-                <button onClick={handleCreateChannel} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] transition-colors"><Plus size={14}/></button>
+                <button onClick={() => setIsChannelModalOpen(true)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] transition-colors"><Plus size={14}/></button>
               </div>
               
               {channels.filter(c => !c.is_private).length === 0 && (
@@ -323,16 +412,16 @@ export default function AdminInboxPage() {
                   key={channel.id}
                   onClick={() => setActiveChannelId(channel.id)}
                   className={`
-                    w-full text-left px-4 py-2.5 rounded-xl font-roboto text-[13px] font-medium flex items-center justify-between transition-all
+                    w-full text-left px-4 py-2.5 rounded-xl font-roboto text-[13px] font-medium flex items-center justify-between transition-all border
                     ${activeChannelId === channel.id 
-                      ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md' 
-                      : 'text-[var(--color-atelier-grafite)]/70 hover:bg-white border border-transparent hover:border-white'
+                      ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md border-[var(--color-atelier-terracota)]' 
+                      : 'bg-transparent text-[var(--color-atelier-grafite)]/70 hover:bg-white border-transparent hover:border-white'
                     }
                   `}
                 >
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-2 truncate pr-2">
                     <Hash size={14} className={activeChannelId === channel.id ? 'text-white/70' : 'text-[var(--color-atelier-terracota)]/60'} /> 
-                    {channel.name}
+                    <span className="truncate">{channel.name}</span>
                   </span>
                 </button>
               ))}
@@ -350,16 +439,16 @@ export default function AdminInboxPage() {
                   key={channel.id}
                   onClick={() => setActiveChannelId(channel.id)}
                   className={`
-                    w-full text-left px-4 py-2.5 rounded-xl font-roboto text-[13px] font-medium flex items-center justify-between transition-all
+                    w-full text-left px-4 py-2.5 rounded-xl font-roboto text-[13px] font-medium flex items-center justify-between transition-all border
                     ${activeChannelId === channel.id 
-                      ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' 
-                      : 'text-[var(--color-atelier-grafite)]/70 hover:bg-white border border-transparent hover:border-white'
+                      ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md border-[var(--color-atelier-grafite)]' 
+                      : 'bg-transparent text-[var(--color-atelier-grafite)]/70 hover:bg-white border-transparent hover:border-white'
                     }
                   `}
                 >
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center gap-2 truncate pr-2">
                     <Lock size={12} className={activeChannelId === channel.id ? 'text-white/70' : 'text-[var(--color-atelier-grafite)]/40'} /> 
-                    {channel.name}
+                    <span className="truncate">{channel.name}</span>
                   </span>
                 </button>
               ))}
@@ -422,7 +511,7 @@ export default function AdminInboxPage() {
                     className={`flex gap-4 max-w-[85%] ${isMe ? 'self-end flex-row-reverse' : 'self-start'}`}
                   >
                     <div className={`w-10 h-10 rounded-full shrink-0 flex items-center justify-center overflow-hidden border-2 shadow-sm ${isMe ? 'border-white bg-[var(--color-atelier-grafite)] text-white' : 'border-[var(--color-atelier-terracota)]/20 bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)]'}`}>
-                      {msg.profiles?.avatar_url ? <img src={msg.profiles.avatar_url} alt="Avatar" className="w-full h-full object-cover" /> : <span className="font-elegant font-bold">{msg.profiles?.nome?.charAt(0)}</span>}
+                      {msg.profiles?.avatar_url ? <img src={msg.profiles.avatar_url} alt="Avatar" className="w-full h-full object-cover" /> : <span className="font-elegant font-bold">{msg.profiles?.nome?.charAt(0) || "A"}</span>}
                     </div>
 
                     <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
@@ -431,7 +520,6 @@ export default function AdminInboxPage() {
                         <span className="font-roboto text-[9px] font-bold text-[var(--color-atelier-grafite)]/40">{formatTime(msg.created_at)}</span>
                       </div>
 
-                      {/* NOVIDADE: RENDERIZAÇÃO DE ANEXOS */}
                       {msg.attachment_url && (
                         <div onClick={() => window.open(msg.attachment_url, "_blank")} className="mb-3 rounded-[1.5rem] overflow-hidden border-[4px] border-white shadow-[0_15px_30px_rgba(122,116,112,0.1)] max-w-sm cursor-pointer hover:scale-[1.02] transition-transform">
                           {msg.attachment_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
@@ -445,7 +533,6 @@ export default function AdminInboxPage() {
                         </div>
                       )}
 
-                      {/* Renderiza o balão de texto apenas se houver texto */}
                       {msg.text_content && (
                         <div className={`
                           px-6 py-4 rounded-[1.5rem] shadow-sm font-roboto text-[14px] leading-relaxed
@@ -468,12 +555,11 @@ export default function AdminInboxPage() {
           <form onSubmit={handleSendMessage} className="p-6 bg-white/80 backdrop-blur-xl border-t border-[var(--color-atelier-grafite)]/5 z-20 shrink-0">
             <div className="bg-white border border-[var(--color-atelier-grafite)]/10 p-2 rounded-[2rem] shadow-[0_10px_30px_rgba(122,116,112,0.05)] flex items-center gap-2 focus-within:border-[var(--color-atelier-terracota)]/40 focus-within:shadow-[0_10px_30px_rgba(173,111,64,0.1)] transition-all">
               
-              {/* NOVIDADE: BOTÕES DE UPLOAD FUNCIONAIS */}
               <label className={`w-12 h-12 flex items-center justify-center rounded-full shrink-0 transition-colors ${!activeChannelId || isUploadingAttachment ? 'opacity-50 cursor-not-allowed text-[var(--color-atelier-grafite)]/40' : 'cursor-pointer text-[var(--color-atelier-grafite)]/40 hover:bg-[var(--color-atelier-creme)] hover:text-[var(--color-atelier-terracota)]'}`}>
                 <input type="file" accept="image/*" className="hidden" onChange={handleAttachmentUpload} disabled={!activeChannelId || isUploadingAttachment} />
                 {isUploadingAttachment ? <Loader2 size={20} className="animate-spin" /> : <ImageIcon size={20} />}
               </label>
-
+              
               <label className={`w-12 h-12 flex items-center justify-center rounded-full shrink-0 transition-colors ${!activeChannelId || isUploadingAttachment ? 'opacity-50 cursor-not-allowed text-[var(--color-atelier-grafite)]/40' : 'cursor-pointer text-[var(--color-atelier-grafite)]/40 hover:bg-[var(--color-atelier-creme)] hover:text-[var(--color-atelier-terracota)]'}`}>
                 <input type="file" accept=".pdf,.zip,.doc,.docx" className="hidden" onChange={handleAttachmentUpload} disabled={!activeChannelId || isUploadingAttachment} />
                 {isUploadingAttachment ? <Loader2 size={20} className="animate-spin hidden" /> : <Paperclip size={20} />}
