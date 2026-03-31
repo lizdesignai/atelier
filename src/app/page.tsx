@@ -513,7 +513,7 @@ export default function Home() {
           <div className="flex items-center gap-3 mb-6">
             <div className="relative w-6 h-6 flex items-center justify-center">
               <div className="absolute inset-0 bg-[var(--color-atelier-terracota)] blur-md opacity-30 animate-pulse"></div>
-              <img src="/images/simbolo-rosa.png" alt="Liz Logo" className="w-full h-full object-contain relative z-10 animate-[pulse_3s_ease-in-out_infinite]" />
+              <img src="/images/Símbolo Rosa.png" alt="Atelier Logo" className="w-full h-full object-contain relative z-10 animate-[pulse_3s_ease-in-out_infinite]" />
             </div>
             <span className="micro-title text-[var(--color-atelier-terracota)] tracking-[0.3em]">
               Fase Atual: {PROJECT_STAGES[currentStageIndex]?.name || 'Aguardando Fundação'}
