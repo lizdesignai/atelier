@@ -161,6 +161,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   };
 
   const isTeamMember = userRole === 'admin' || userRole === 'gestor';
+  
+  // A CHAVE DA METAMORFOSE: Se for cliente e estiver arquivado, esconde a Sidebar
+  const shouldHideSidebar = !isTeamMember && isProjectArchived;
 
   if (isInitializing && !isLoginPage) {
     return (
@@ -200,7 +203,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </>
         )}
 
-        {!isLoginPage && userRole && (
+        {/* SIDEBAR SÓ APARECE SE NÃO FOR LOGIN E NÃO DEVER SER OCULTADA */}
+        {!isLoginPage && userRole && !shouldHideSidebar && (
           <aside 
             className={`
               relative z-50 flex flex-col transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)]
@@ -241,14 +245,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <nav className="flex flex-col gap-2">
                 {!isTeamMember && (
                   <>
-                    {/* AS ABAS OCULTAS SE O PROJETO FOR ARQUIVADO */}
-                    {!isProjectArchived && (
-                      <>
-                        <NavItem href="/" icon={<Home size={22} strokeWidth={1.5} />} label="Início" collapsed={isCollapsed} active={pathname === '/'} />
-                        <NavItem href="/cofre" icon={<Lock size={22} strokeWidth={1.5} />} label="O Cofre" collapsed={isCollapsed} active={pathname === '/cofre'} />
-                        <NavItem href="/referencias" icon={<Compass size={22} strokeWidth={1.5} />} label="Referências" collapsed={isCollapsed} active={pathname === '/referencias'} />
-                      </>
-                    )}
+                    <NavItem href="/" icon={<Home size={22} strokeWidth={1.5} />} label="Início" collapsed={isCollapsed} active={pathname === '/'} />
+                    <NavItem href="/cofre" icon={<Lock size={22} strokeWidth={1.5} />} label="O Cofre" collapsed={isCollapsed} active={pathname === '/cofre'} />
+                    <NavItem href="/referencias" icon={<Compass size={22} strokeWidth={1.5} />} label="Referências" collapsed={isCollapsed} active={pathname === '/referencias'} />
                     <NavItem href="/canais" icon={<MessageSquare size={22} strokeWidth={1.5} />} label="Canais" collapsed={isCollapsed} active={pathname === '/canais'} />
                     <NavItem href="/comunidade" icon={<Globe2 size={22} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
                   </>
@@ -305,8 +304,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </aside>
         )}
 
-        <main className={`flex-1 relative z-10 overflow-hidden flex flex-col ${isLoginPage ? 'p-0' : 'px-6 md:px-12 py-8'}`}>
-          <div className={isLoginPage ? "w-full h-full" : "flex-1 overflow-y-auto custom-scrollbar"}>
+        <main className={`flex-1 relative z-10 overflow-hidden flex flex-col ${isLoginPage || shouldHideSidebar ? 'p-0' : 'px-6 md:px-12 py-8'}`}>
+          <div className={isLoginPage || shouldHideSidebar ? "w-full h-full" : "flex-1 overflow-y-auto custom-scrollbar"}>
             {!isInitializing ? children : null}
           </div>
         </main>
