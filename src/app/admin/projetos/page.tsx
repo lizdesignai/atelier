@@ -7,7 +7,7 @@ import {
   UploadCloud, Clock, Lock, Unlock, 
   Image as ImageIcon, Send, FileText, CheckCircle2,
   MoreVertical, Settings2, Plus, ChevronRight, ChevronDown, Calendar,
-  Compass, X, MessageSquare, Target, Palette, Sparkles, Type, Download, Loader2, Trash2, Link as LinkIcon
+  Compass, X, MessageSquare, Target, Palette, Sparkles, Type, Download, Loader2, Trash2, Link as LinkIcon, Archive
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 
@@ -25,14 +25,14 @@ export default function WorkspaceDesigner() {
   const [isClientMenuOpen, setIsClientMenuOpen] = useState(false);
   const [isBriefingModalOpen, setIsBriefingModalOpen] = useState(false);
 
-  // Busca os projetos ativos da base de dados
+  // Busca os projetos ativos ou entregues da base de dados
   useEffect(() => {
     const fetchActiveProjects = async () => {
       try {
         const { data, error } = await supabase
           .from('projects')
           .select('*, profiles(nome, avatar_url, empresa)')
-          .eq('status', 'active')
+          .in('status', ['active', 'delivered']) // AGORA BUSCA OS ENTREGUES TAMBÉM
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -41,7 +41,7 @@ export default function WorkspaceDesigner() {
           setDbProjects(data);
           setActiveProjectId(data[0].id);
           setDeadlineDate(data[0].data_limite || "");
-          setContractUrl(data[0].contract_url || ""); // Carrega o contrato
+          setContractUrl(data[0].contract_url || ""); 
         }
       } catch (error) {
         console.error("Erro ao buscar projetos:", error);
@@ -140,7 +140,7 @@ export default function WorkspaceDesigner() {
   };
 
   // ==========================================
-  // MOTOR DE TEMPO, FASE E CONTRATO
+  // MOTOR DE TEMPO, FASE E CONTRATO E ENTREGAS
   // ==========================================
   const [deadlineDate, setDeadlineDate] = useState("");
   const [daysLeft, setDaysLeft] = useState(0);
@@ -204,6 +204,59 @@ export default function WorkspaceDesigner() {
     setIsSavingContract(false);
   };
 
+  // ==========================================
+  // NOVO: AÇÕES DE ENCERRAMENTO DE PROJETO
+  // ==========================================
+  const handleMarkAsDelivered = async () => {
+    if (!activeProjectId) return;
+    
+    if (!window.confirm("Deseja marcar este projeto como ENTREGUE? O cliente terá 15 dias de acesso às abas antes delas serem arquivadas.")) return;
+
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({ 
+          status: 'delivered', 
+          delivered_at: new Date().toISOString() 
+        })
+        .eq('id', activeProjectId);
+
+      if (error) throw error;
+
+      showToast("Projeto marcado como Entregue! A contagem regressiva de 15 dias começou.");
+      setDbProjects(dbProjects.map(p => p.id === activeProjectId ? { ...p, status: 'delivered' } : p));
+    } catch (error) {
+      showToast("Erro ao marcar projeto como entregue.");
+      console.error(error);
+    }
+  };
+
+  const handleForceArchive = async () => {
+    if (!activeProjectId) return;
+    
+    if (!window.confirm("ATENÇÃO: O cliente perderá acesso IMEDIATO ao cofre e canais deste projeto, sendo redirecionado para a Comunidade. Deseja prosseguir?")) return;
+
+    try {
+      const { error } = await supabase
+        .from('projects')
+        .update({ status: 'archived' })
+        .eq('id', activeProjectId);
+
+      if (error) throw error;
+
+      showToast("Projeto Arquivado com sucesso! O cliente está agora na fase de Legado.");
+      
+      // Remove da lista de ativos do Admin e seleciona outro (ou vazio)
+      const updatedProjects = dbProjects.filter(p => p.id !== activeProjectId);
+      setDbProjects(updatedProjects);
+      setActiveProjectId(updatedProjects.length > 0 ? updatedProjects[0].id : null);
+
+    } catch (error) {
+      showToast("Erro ao arquivar projeto.");
+      console.error(error);
+    }
+  };
+
   const isCofreUnlocked = (daysLeft === 0 && deadlineDate !== "") || isForceUnlocked;
 
   // ==========================================
@@ -246,16 +299,14 @@ export default function WorkspaceDesigner() {
         }
       }
 
-      // Adicionamos a gravação de quem está postando e a hora via banco de dados
       const { data: { session } } = await supabase.auth.getSession();
 
       const { error } = await supabase.from('diary_posts').insert({
         project_id: activeProjectId,
-        author_id: session?.user?.id, // ID do Designer/Admin
+        author_id: session?.user?.id, 
         title: postTitle,
         content: postText,
         image_url: imageUrl
-        // created_at é gerado automaticamente pelo Supabase
       });
 
       if (error) throw error;
@@ -290,12 +341,10 @@ export default function WorkspaceDesigner() {
     if (!showRefsPanel || !activeProjectId) return;
     
     const fetchCuradoria = async () => {
-      // Moodboard do Cliente
       const { data: strategicData } = await supabase.from('strategic_answers').select('moodboard_urls').eq('project_id', activeProjectId).maybeSingle();
       if (strategicData && strategicData.moodboard_urls) setClientMoodboard(strategicData.moodboard_urls);
       else setClientMoodboard([]);
 
-      // Direções Visuais
       const { data: directionsData } = await supabase.from('design_directions').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: true });
       if (directionsData) {
         setAdminRefs(directionsData);
@@ -436,7 +485,9 @@ export default function WorkspaceDesigner() {
           </div>
           <div className="relative">
             <div className="flex items-center gap-3 mb-1">
-              <span className="bg-green-500/10 text-green-700 px-3 py-1 rounded-full text-[9px] uppercase tracking-widest font-bold border border-green-500/20">Ativo</span>
+              <span className={`px-3 py-1 rounded-full text-[9px] uppercase tracking-widest font-bold border ${currentProject.status === 'delivered' ? 'bg-orange-500/10 text-orange-700 border-orange-500/20' : 'bg-green-500/10 text-green-700 border-green-500/20'}`}>
+                {currentProject.status === 'delivered' ? 'Entregue (Aviso 15 Dias)' : 'Ativo'}
+              </span>
               <span className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">{currentProject.type}</span>
             </div>
             <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setIsClientMenuOpen(!isClientMenuOpen)}>
@@ -453,7 +504,7 @@ export default function WorkspaceDesigner() {
                   initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.2 }}
                   className="absolute top-[110%] left-0 w-[300px] bg-white/90 backdrop-blur-xl border border-white shadow-[0_20px_50px_rgba(122,116,112,0.15)] rounded-2xl overflow-hidden z-50 flex flex-col py-2"
                 >
-                  <div className="px-4 py-2 border-b border-[var(--color-atelier-grafite)]/5 text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">Projetos em Forja</div>
+                  <div className="px-4 py-2 border-b border-[var(--color-atelier-grafite)]/5 text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">Projetos Ativos e Entregues</div>
                   <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
                     {dbProjects.map(p => (
                       <div 
@@ -470,7 +521,7 @@ export default function WorkspaceDesigner() {
                         </div>
                         <div className="flex flex-col truncate">
                           <span className={`font-roboto text-[13px] truncate ${p.id === activeProjectId ? 'font-bold text-[var(--color-atelier-terracota)]' : 'font-medium text-[var(--color-atelier-grafite)]'}`}>{p.profiles?.nome}</span>
-                          <span className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 truncate">{p.type}</span>
+                          <span className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 truncate">{p.status === 'delivered' ? 'Entregue' : p.type}</span>
                         </div>
                       </div>
                     ))}
@@ -499,6 +550,7 @@ export default function WorkspaceDesigner() {
         {/* COLUNA ESQUERDA: COFRE E UPLOAD */}
         <div className="w-[55%] flex flex-col gap-6 h-full">
           <div className="glass-panel p-8 rounded-[2.5rem] bg-white/60 shrink-0 border border-white">
+            
             <div className="flex justify-between items-center mb-6">
               <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><Settings2 size={20} className="text-[var(--color-atelier-terracota)]" /> Engenharia do Projeto</h3>
               <div className="flex items-center gap-2">
@@ -512,7 +564,8 @@ export default function WorkspaceDesigner() {
             </div>
             
             <div className="flex flex-col gap-4">
-              {/* LÓGICA DE DATAS */}
+              
+              {/* LÓGICA DE DATAS E AÇÕES DE ENCERRAMENTO */}
               <div className="flex items-center gap-6">
                 <div className="flex-1 bg-white/50 border border-white p-4 rounded-2xl shadow-sm hover:border-[var(--color-atelier-terracota)]/30 transition-colors group">
                   <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2 mb-3"><Calendar size={14} className="text-[var(--color-atelier-terracota)]" /> Data Limite (Deadline)</label>
@@ -520,16 +573,37 @@ export default function WorkspaceDesigner() {
                     <input type="date" value={deadlineDate} onChange={(e) => handleDeadlineChange(e.target.value)} className="flex-1 bg-transparent text-[14px] text-[var(--color-atelier-grafite)] outline-none cursor-pointer font-medium" />
                   </div>
                 </div>
+
                 <div className="w-24 h-full flex flex-col items-center justify-center bg-white/60 border border-white rounded-2xl shadow-sm py-4">
                    <span className="font-elegant text-3xl text-[var(--color-atelier-terracota)] leading-none">{deadlineDate ? daysLeft : "-"}</span>
                    <span className="font-roboto text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40 mt-1">Dias Restantes</span>
                 </div>
-                <button onClick={() => { setIsForceUnlocked(true); showToast("Cofre desbloqueado manualmente."); }} disabled={isCofreUnlocked} className="h-full px-6 bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] rounded-2xl font-roboto font-bold uppercase tracking-widest text-[10px] hover:bg-[var(--color-atelier-terracota)] transition-all shadow-[0_10px_20px_rgba(122,116,112,0.15)] disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-2">
-                  <Unlock size={16} /> Forçar<br/>Abertura
-                </button>
+
+                {/* PAINEL DE AÇÕES DE ENCERRAMENTO */}
+                <div className="flex flex-col gap-2 h-full">
+                  {currentProject.status !== 'delivered' ? (
+                    <button 
+                      onClick={handleMarkAsDelivered} 
+                      className="flex-1 px-4 bg-green-600 text-white rounded-xl font-roboto font-bold uppercase tracking-widest text-[9px] hover:bg-green-700 transition-all shadow-sm flex flex-col items-center justify-center gap-1"
+                    >
+                      <CheckCircle2 size={14} /> Marcar<br/>Entregue
+                    </button>
+                  ) : (
+                    <button 
+                      onClick={handleForceArchive} 
+                      className="flex-1 px-4 bg-orange-600 text-white rounded-xl font-roboto font-bold uppercase tracking-widest text-[9px] hover:bg-orange-700 transition-all shadow-sm flex flex-col items-center justify-center gap-1"
+                    >
+                      <Archive size={14} /> Forçar<br/>Arquivo
+                    </button>
+                  )}
+                  
+                  <button onClick={() => { setIsForceUnlocked(true); showToast("Cofre desbloqueado manualmente."); }} disabled={isCofreUnlocked} className="flex-1 px-4 bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] rounded-xl font-roboto font-bold uppercase tracking-widest text-[9px] hover:bg-[var(--color-atelier-terracota)] transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex flex-col items-center justify-center gap-1">
+                    <Unlock size={14} /> Forçar<br/>Abertura
+                  </button>
+                </div>
               </div>
 
-              {/* LÓGICA DE FASES & CONTRATO (LADO A LADO) */}
+              {/* LÓGICA DE FASES & CONTRATO */}
               <div className="flex items-center gap-6">
                 <div className="flex-1 bg-white/50 border border-white p-4 rounded-2xl shadow-sm hover:border-[var(--color-atelier-terracota)]/30 transition-colors flex flex-col justify-center gap-2">
                   <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2 w-full shrink-0">

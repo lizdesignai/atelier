@@ -16,7 +16,7 @@ const showToast = (message: string) => {
 };
 
 // ==========================================
-// A RODA DO LEGADO (Catálogo Estrutural Mestre)
+// A RODA DO LEGADO (Catálogo Estrutural)
 // ==========================================
 const ERAS = [
   {
@@ -91,10 +91,10 @@ export default function ComunidadePage() {
       const { data: profileData } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
       if (profileData) {
         setUserProfile(profileData);
-        setExp(profileData.exp || 0); // Define o EXP real vindo do banco
+        setExp(profileData.exp || 0); 
       }
 
-      // 1.2 Missões Completadas (Busca REAL do banco)
+      // 1.2 Missões Completadas
       const { data: userMissions } = await supabase.from('user_missions').select('mission_id').eq('user_id', session.user.id);
       if (userMissions) {
         setCompletedMissions(userMissions.map(m => m.mission_id));
@@ -132,18 +132,20 @@ export default function ComunidadePage() {
   }, []);
 
   // ==========================================
-  // RANKS DINÂMICOS (Baseado no EXP Mestre)
+  // RANKS DINÂMICOS
   // ==========================================
-  const getRankName = (currentExp: number) => {
-    if (currentExp < 1000) return "Visionário";
-    if (currentExp < 3000) return "Vanguardista";
-    return "Titã do Legado";
+  const getRankName = (role: string) => {
+    if (role === 'admin' || role === 'gestor') return "Mentor VRTICE";
+    return "Membro Premium";
   };
+  const rankName = getRankName(userProfile?.role);
 
+  // Cálculos do Progresso Circular
   const currentLevel = Math.floor(exp / 1000) + 1;
   const expInCurrentLevel = exp % 1000;
   const progressPercentage = (expInCurrentLevel / 1000) * 100;
-  const rankName = getRankName(exp);
+  const circleCircumference = 2 * Math.PI * 54; // 54 é o raio do nosso SVG
+  const strokeDashoffset = circleCircumference - (progressPercentage / 100) * circleCircumference;
 
   // ==========================================
   // FUNÇÕES DE PUBLICAÇÃO
@@ -219,7 +221,7 @@ export default function ComunidadePage() {
   };
 
   // ==========================================
-  // FUNÇÕES DE INTERAÇÃO (Aplausos Blindados)
+  // FUNÇÕES DE INTERAÇÃO (Curtidas e Comentários REAIS)
   // ==========================================
   const handleLike = async (postId: string) => {
     if (!userProfile) return;
@@ -231,28 +233,26 @@ export default function ComunidadePage() {
     const isLiking = !post.is_liked_by_me;
     const newLikesCount = isLiking ? (post.likes_count || 0) + 1 : Math.max(0, (post.likes_count || 0) - 1);
 
-    // 1. Atualização Optimista (Atualiza a tela na hora)
-    setPosts(prevPosts => prevPosts.map(p => p.id === postId ? { 
+    // Atualização Optimista na tela
+    setPosts(prev => prev.map(p => p.id === postId ? { 
       ...p, 
       likes_count: newLikesCount,
       is_liked_by_me: isLiking
     } : p));
 
     try {
-      // 2. Grava ou Remove da tabela de histórico de likes
+      // Regista ou remove a curtida
       if (isLiking) {
         await supabase.from('post_likes').insert({ post_id: postId, user_id: userProfile.id });
       } else {
-        await supabase.from('post_likes').delete().eq('post_id', postId).eq('user_id', userProfile.id);
+        await supabase.from('post_likes').delete().match({ post_id: postId, user_id: userProfile.id });
       }
-
-      // 3. FORÇA a atualização da contagem direta no banco de dados (Ignora falha de triggers)
+      
+      // FORÇA a atualização da contagem direto no post (Ignora falhas de Trigger SQL)
       await supabase.from('community_posts').update({ likes_count: newLikesCount }).eq('id', postId);
-
     } catch (error) {
-      console.error("Erro no aplauso:", error);
       showToast("Erro ao processar aplauso. A sincronizar...");
-      fetchCommunityData(); // Reverte caso algo falhe
+      fetchCommunityData(); 
     }
   };
 
@@ -261,7 +261,6 @@ export default function ComunidadePage() {
       setExpandedComments(expandedComments.filter(id => id !== postId));
     } else {
       setExpandedComments([...expandedComments, postId]);
-      // Busca os comentários se a gaveta abrir
       if (!commentsData[postId]) {
         const { data } = await supabase
           .from('post_comments')
@@ -303,33 +302,32 @@ export default function ComunidadePage() {
   };
 
   // ==========================================
-  // EXCLUSÃO BLINDADA (Fim do Bug do Post que Volta)
+  // EXCLUSÃO FORÇADA E BLINDADA
   // ==========================================
-  const handleDeleteRequest = (postId: string) => {
-    setPostToDelete(postId);
-  };
+  const handleDeleteRequest = (postId: string) => setPostToDelete(postId);
 
   const confirmDeletePost = async () => {
     if (!postToDelete) return;
-
+    
+    // Atualização optimista
+    setPosts(prevPosts => prevPosts.filter(p => p.id !== postToDelete));
+    const postIdBackup = postToDelete;
+    setPostToDelete(null); 
+    
     try {
-      // 1. PRIMEIRO: Destruir todas as dependências do post (Força a limpeza manual para evitar conflitos de Foreign Keys)
-      await supabase.from('post_likes').delete().eq('post_id', postToDelete);
-      await supabase.from('post_comments').delete().eq('post_id', postToDelete);
-      await supabase.from('user_missions').delete().eq('post_id', postToDelete);
+      // 1. Limpeza forçada dos dependentes para evitar bloqueio de Foreign Keys
+      await supabase.from('post_likes').delete().eq('post_id', postIdBackup);
+      await supabase.from('post_comments').delete().eq('post_id', postIdBackup);
+      await supabase.from('user_missions').delete().eq('post_id', postIdBackup);
 
-      // 2. DEPOIS: Apagar o post principal
-      const { error } = await supabase.from('community_posts').delete().eq('id', postToDelete);
+      // 2. Só depois, apaga o post em si
+      const { error } = await supabase.from('community_posts').delete().eq('id', postIdBackup);
       if (error) throw error;
 
-      // 3. Atualizar a Interface
-      setPosts(prevPosts => prevPosts.filter(p => p.id !== postToDelete));
       showToast("A publicação foi apagada da comunidade.");
     } catch (error) {
-      showToast("Erro ao apagar publicação.");
-      console.error(error);
-    } finally {
-      setPostToDelete(null);
+      showToast("Erro ao apagar. Recarregando feed...");
+      fetchCommunityData(); 
     }
   };
 
@@ -345,7 +343,7 @@ export default function ComunidadePage() {
   return (
     <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1500px] mx-auto relative z-10 pb-6 gap-6">
       
-      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO (ESTÉTICA ATELIER) */}
+      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
       <AnimatePresence>
         {postToDelete && (
           <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
@@ -390,39 +388,53 @@ export default function ComunidadePage() {
         {/* COLUNA ESQUERDA: PERFIL GAMIFICADO (35%) */}
         <div className="w-[350px] flex flex-col gap-6 h-full shrink-0">
           
-          {/* Cartão de Status (Nível e EXP) */}
+          {/* Cartão de Status c/ ANEL DE PROGRESSO CIRCULAR */}
           <div className="glass-panel p-8 rounded-[2.5rem] bg-gradient-to-br from-[var(--color-atelier-grafite)] to-[#2a2826] text-white shadow-[0_20px_50px_rgba(122,116,112,0.15)] flex flex-col items-center text-center relative overflow-hidden shrink-0">
             <div className="absolute top-[-50px] right-[-50px] w-40 h-40 bg-[var(--color-atelier-terracota)]/20 blur-[40px] rounded-full pointer-events-none"></div>
-            <div className="w-24 h-24 rounded-full border-4 border-white/10 p-1 relative mb-4 shadow-xl">
-              {userProfile?.avatar_url ? (
-                <img src={userProfile.avatar_url} alt="Avatar" className="w-full h-full rounded-full object-cover" />
-              ) : (
-                <div className="w-full h-full rounded-full bg-[var(--color-atelier-terracota)] flex items-center justify-center font-elegant text-4xl">{userProfile?.nome?.charAt(0) || "U"}</div>
-              )}
-              <div className="absolute -bottom-2 -right-2 w-8 h-8 rounded-full bg-[var(--color-atelier-terracota)] border-2 border-[var(--color-atelier-grafite)] flex items-center justify-center font-elegant text-sm text-white shadow-lg">
+            
+            {/* O Anel SVG */}
+            <div className="relative w-32 h-32 flex items-center justify-center mb-4">
+              <svg className="absolute inset-0 w-full h-full transform -rotate-90 drop-shadow-xl" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.1)" strokeWidth="6" />
+                <motion.circle 
+                  cx="60" cy="60" r="54" fill="none" 
+                  stroke="var(--color-atelier-terracota)" 
+                  strokeWidth="6" 
+                  strokeLinecap="round"
+                  initial={{ strokeDasharray: circleCircumference, strokeDashoffset: circleCircumference }}
+                  animate={{ strokeDashoffset: strokeDashoffset }}
+                  transition={{ duration: 1.5, ease: "easeOut", delay: 0.5 }}
+                />
+              </svg>
+              
+              <div className="w-24 h-24 rounded-full relative shadow-inner overflow-hidden p-1 border border-white/10 z-10 bg-[#2a2826]">
+                {userProfile?.avatar_url ? (
+                  <img src={userProfile.avatar_url} alt="Avatar" className="w-full h-full rounded-full object-cover" />
+                ) : (
+                  <div className="w-full h-full rounded-full bg-[var(--color-atelier-terracota)] flex items-center justify-center font-elegant text-4xl">{userProfile?.nome?.charAt(0) || "U"}</div>
+                )}
+              </div>
+              
+              <div className="absolute bottom-0 right-2 w-8 h-8 rounded-full bg-[var(--color-atelier-terracota)] border-2 border-[var(--color-atelier-grafite)] flex items-center justify-center font-elegant text-sm text-white shadow-lg z-20">
                 {currentLevel}
               </div>
             </div>
             
             <h2 className="font-elegant text-2xl mb-1">{userProfile?.nome || "Membro"}</h2>
-            <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] bg-[var(--color-atelier-terracota)]/10 px-3 py-1 rounded-full border border-[var(--color-atelier-terracota)]/20 mb-6">
-              {userProfile?.role === 'admin' ? 'Fundadora (Mentor)' : rankName}
+            <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] bg-[var(--color-atelier-terracota)]/10 px-4 py-1.5 rounded-full border border-[var(--color-atelier-terracota)]/20 mb-2">
+              {rankName}
             </span>
 
-            <div className="w-full flex flex-col gap-2">
+            <div className="w-full flex flex-col gap-2 mt-4">
               <div className="flex justify-between items-end">
                 <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-white/70">Prestígio Comercial</span>
                 <span className="font-roboto text-[12px] font-bold text-[var(--color-atelier-terracota)]">{expInCurrentLevel} / 1000 EXP</span>
               </div>
-              <div className="w-full h-2.5 bg-white/10 rounded-full overflow-hidden shadow-inner">
-                <motion.div initial={{ width: 0 }} animate={{ width: `${progressPercentage}%` }} transition={{ duration: 1, delay: 0.5 }} className="h-full bg-[var(--color-atelier-terracota)] rounded-full relative">
-                  <div className="absolute inset-0 bg-white/20 w-full animate-[slideRight_2s_ease-in-out_infinite]"></div>
-                </motion.div>
-              </div>
+              <p className="font-roboto text-[9px] text-white/40 mt-1">Conclua missões da marca partilhando no mural para evoluir de Rank.</p>
             </div>
           </div>
 
-          {/* A Roda do Legado (Dinâmica com o Banco de Dados) */}
+          {/* A Roda do Legado (Mural de Metas) */}
           <div className="glass-panel p-6 rounded-[2.5rem] bg-white/60 border border-white flex-1 flex flex-col min-h-0 shadow-[0_10px_30px_rgba(122,116,112,0.05)] relative overflow-hidden group/widget">
             <div className="absolute top-0 right-0 w-40 h-40 bg-[var(--color-atelier-terracota)]/5 rounded-full blur-3xl transition-colors duration-700 pointer-events-none z-0"></div>
 
@@ -458,7 +470,6 @@ export default function ComunidadePage() {
               <AnimatePresence mode="wait">
                 <motion.div key={activeEra} variants={{ hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.1 } } }} initial="hidden" animate="show" exit={{ opacity: 0, scale: 0.95, transition: { duration: 0.2 } }} className="flex flex-col gap-3">
                   {activeEraData?.missions.map(mission => {
-                    // VERIFICAÇÃO EXATA NO ARRAY DE MISSÕES COMPLETADAS
                     const isCompleted = completedMissions.includes(mission.id);
 
                     return (
