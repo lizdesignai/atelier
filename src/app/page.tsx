@@ -68,18 +68,33 @@ export default function Home() {
       const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
       if (profile) setClientProfile(profile);
 
-      // 2. Puxa o Projeto Ativo e a sua Fase Atual
-      const { data: project } = await supabase.from('projects').select('*').eq('client_id', session.user.id).eq('status', 'active').single();
+     // 2. Puxa o Projeto Ativo e a sua Fase Atual
+      const { data: project } = await supabase
+        .from('projects')
+        .select('*')
+        .eq('client_id', session.user.id)
+        .eq('status', 'active')
+        .maybeSingle(); 
       
       if (project) {
         setActiveProject(project);
         
         // Verifica se o briefing já foi preenchido
-        const { data: briefing } = await supabase.from('client_briefings').select('is_completed').eq('project_id', project.id).single();
+        const { data: briefing } = await supabase
+          .from('client_briefings')
+          .select('is_completed')
+          .eq('project_id', project.id)
+          .maybeSingle(); 
+
         if (briefing && briefing.is_completed) setHasBriefing(true);
 
-        // 3. Puxa o Diário de Bordo Oficial deste projeto
-        const { data: diaryData } = await supabase.from('diary_posts').select('*').eq('project_id', project.id).order('created_at', { ascending: false });
+        // 3. Puxa o Diário de Bordo Oficial deste projeto COM OS DADOS DO AUTOR
+        const { data: diaryData } = await supabase
+          .from('diary_posts')
+          .select('*, profiles(nome, avatar_url, role)')
+          .eq('project_id', project.id)
+          .order('created_at', { ascending: false });
+          
         if (diaryData) setDiaryPosts(diaryData);
       }
       
@@ -189,7 +204,7 @@ export default function Home() {
     <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-8">
       
       {/* ==========================================
-          MODAL DO BRIEFING NATIVO (NOVIDADE)
+          MODAL DO BRIEFING NATIVO
           ========================================== */}
       <AnimatePresence>
         {isBriefingModalOpen && (
@@ -656,13 +671,37 @@ export default function Home() {
                           <div className="absolute top-3 left-3 z-20 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2">
                             <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-atelier-terracota)]"></span>
                             <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">
-                              {new Date(post.created_at).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' })}
+                              Atualização
                             </span>
                           </div>
                         </div>
                       )}
                       <h4 className="font-elegant text-[22px] text-[var(--color-atelier-grafite)] mb-2 leading-tight group-hover:text-[var(--color-atelier-terracota)] transition-colors">{post.title}</h4>
                       <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/70 leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                      
+                      {/* ASSINATURA DA POSTAGEM (AUTOR E HORA EXATA) */}
+                      <div className="mt-4 flex items-center justify-between border-t border-[var(--color-atelier-grafite)]/5 pt-4">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-[var(--color-atelier-terracota)]/10 overflow-hidden flex items-center justify-center text-[var(--color-atelier-terracota)] shrink-0 border border-[var(--color-atelier-terracota)]/20">
+                            {post.profiles?.avatar_url ? (
+                              <img src={post.profiles.avatar_url} alt={post.profiles.nome} className="w-full h-full object-cover" />
+                            ) : (
+                              <span className="font-elegant text-xs">{post.profiles?.nome?.charAt(0) || "A"}</span>
+                            )}
+                          </div>
+                          <div className="flex flex-col">
+                            <span className="font-roboto text-[10px] font-bold text-[var(--color-atelier-grafite)] leading-none">{post.profiles?.nome || "Equipa Atelier"}</span>
+                            <span className="font-roboto text-[8px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-0.5">{post.profiles?.role === 'admin' ? 'Designer' : 'Diretor(a)'}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-[var(--color-atelier-grafite)]/40">
+                          <Clock size={12} />
+                          <span className="font-roboto text-[9px] uppercase tracking-widest font-bold">
+                            {new Date(post.created_at).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' })} às {new Date(post.created_at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                        </div>
+                      </div>
+
                     </div>
                  ))
                )}

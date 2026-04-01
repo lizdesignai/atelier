@@ -26,7 +26,7 @@ export default function CanaisClientePage() {
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [messageText, setMessageText] = useState("");
-  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false); // NOVIDADE
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false); 
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -44,7 +44,7 @@ export default function CanaisClientePage() {
         .select('id')
         .eq('client_id', session.user.id)
         .eq('status', 'active')
-        .single();
+        .maybeSingle(); 
 
       if (projectError || !projectData) {
         setIsLoading(false);
@@ -86,8 +86,10 @@ export default function CanaisClientePage() {
         .eq('channel_id', activeChannelId)
         .order('created_at', { ascending: true });
 
-      if (!error && data) setMessages(data);
-      scrollToBottom();
+      if (!error && data) {
+        setMessages(data);
+        scrollToBottom();
+      }
     };
 
     fetchMessages();
@@ -106,10 +108,20 @@ export default function CanaisClientePage() {
     };
   }, [activeChannelId]);
 
+  // 🛠️ CORREÇÃO CRÍTICA: Rolar a página sem destruir a tela (Forçando o Scroll apenas no Container)
   const scrollToBottom = () => {
     setTimeout(() => {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }, 100);
+      if (messagesEndRef.current) {
+        // Encontra a caixa de mensagens exata e rola O INTERIOR dela, evitando que a janela toda suba
+        const scrollContainer = messagesEndRef.current.closest('.overflow-y-auto');
+        if (scrollContainer) {
+          scrollContainer.scrollTo({
+            top: scrollContainer.scrollHeight,
+            behavior: "smooth"
+          });
+        }
+      }
+    }, 150);
   };
 
   // ==========================================
@@ -136,7 +148,6 @@ export default function CanaisClientePage() {
     }
   };
 
-  // NOVIDADE: UPLOAD DE ANEXOS PARA O CHAT
   const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !activeChannelId || !userId) return;
@@ -180,6 +191,9 @@ export default function CanaisClientePage() {
 
   const activeChannel = channels.find(ch => ch.id === activeChannelId);
 
+  // Link real para agendar reunião
+  const SCHEDULE_LINK = "https://calendly.com/"; 
+
   // Ecrã de Loading Geral
   if (isLoading) {
     return <div className="flex h-full items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
@@ -217,10 +231,10 @@ export default function CanaisClientePage() {
 
         <div className="flex items-center gap-3">
           <button 
-            onClick={() => showToast("A abrir formulário para agendar reunião de alinhamento...")}
-            className="bg-white/60 hover:bg-white hover:border-[var(--color-atelier-terracota)]/30 backdrop-blur-md border border-white px-5 py-2.5 rounded-xl shadow-sm flex items-center gap-2 text-[11px] font-roboto uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)] transition-all cursor-pointer"
+            onClick={() => window.open(SCHEDULE_LINK, "_blank")}
+            className="bg-white/60 hover:bg-white hover:border-[var(--color-atelier-terracota)]/30 backdrop-blur-md border border-white px-5 py-2.5 rounded-xl shadow-sm flex items-center gap-2 text-[11px] font-roboto uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)] transition-all cursor-pointer group"
           >
-            Agendar Reunião <ArrowRight size={14} className="text-[var(--color-atelier-terracota)]" />
+            Agendar Reunião <ArrowRight size={14} className="text-[var(--color-atelier-terracota)] group-hover:translate-x-1 transition-transform" />
           </button>
         </div>
       </header>
@@ -278,7 +292,8 @@ export default function CanaisClientePage() {
         </div>
 
         {/* PAINEL DIREITO: O PALCO DE MENSAGENS (Restante da tela) */}
-        <div className="flex-1 glass-panel rounded-[2.5rem] bg-white/60 border border-white flex flex-col relative overflow-hidden shadow-[0_20px_50px_rgba(122,116,112,0.08)] h-full">
+        {/* 🛠️ CORREÇÃO CRÍTICA: Adicionado `min-h-0` e `min-w-0` para obrigar o flexbox a respeitar o limite de altura da tela */}
+        <div className="flex-1 min-h-0 min-w-0 glass-panel rounded-[2.5rem] bg-white/60 border border-white flex flex-col relative overflow-hidden shadow-[0_20px_50px_rgba(122,116,112,0.08)] h-full">
           
           {/* Cabeçalho do Chat Ativo */}
           <div className="bg-white/80 backdrop-blur-xl border-b border-[var(--color-atelier-grafite)]/5 px-8 py-5 flex justify-between items-center z-20 shrink-0">
@@ -301,39 +316,40 @@ export default function CanaisClientePage() {
           <div className="flex-1 overflow-y-auto custom-scrollbar px-8 py-8 flex flex-col gap-6 bg-gradient-to-b from-transparent to-white/30">
             
             {!activeChannel ? (
-               <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50">
+               <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50 h-full">
                  <MessageSquare size={40} className="mb-4 text-[var(--color-atelier-terracota)]" />
                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Aguardando Início.</h3>
                  <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 max-w-sm">O Atelier abrirá canais de comunicação conforme a evolução do projeto.</p>
                </div>
             ) : messages.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50">
+              <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50 h-full">
                 <MessageSquare size={40} className="mb-4 text-[var(--color-atelier-terracota)]" />
                 <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Este canal está silencioso.</h3>
                 <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 max-w-sm">A equipa do Atelier partilhará as atualizações referentes a este tópico aqui.</p>
               </div>
             ) : (
-              <div className="flex justify-center mb-2">
+              <div className="flex justify-center mb-2 shrink-0">
                 <span className="bg-white border border-[var(--color-atelier-grafite)]/5 px-4 py-1.5 rounded-full font-roboto text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40 shadow-sm">
                   Início da Conversa
                 </span>
               </div>
             )}
 
-            <AnimatePresence mode="popLayout">
+            {/* 🛠️ CORREÇÃO CRÍTICA: Removido `mode="popLayout"` que quebrava o DOM na animação de chat */}
+            <AnimatePresence>
               {messages.map((msg, index) => {
                 const isMe = msg.sender_id === userId;
                 return (
                   <motion.div 
                     initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 * index }}
                     key={msg.id} 
-                    className={`flex gap-4 max-w-[85%] ${isMe ? 'self-end flex-row-reverse' : 'self-start'}`}
+                    className={`flex gap-4 max-w-[85%] shrink-0 ${isMe ? 'self-end flex-row-reverse' : 'self-start'}`}
                   >
                     <div className={`w-10 h-10 rounded-full shrink-0 flex items-center justify-center overflow-hidden border-2 shadow-sm ${isMe ? 'border-white bg-[var(--color-atelier-grafite)] text-white' : 'border-[var(--color-atelier-terracota)]/20 bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)]'}`}>
                       {msg.profiles?.avatar_url ? (
                         <img src={msg.profiles.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                       ) : (
-                        <span className="font-elegant font-bold">{msg.profiles?.nome?.charAt(0) || "A"}</span>
+                        <span className="font-elegant font-bold text-xl">{msg.profiles?.nome?.charAt(0) || "A"}</span>
                       )}
                     </div>
 
@@ -382,7 +398,8 @@ export default function CanaisClientePage() {
                 )
               })}
             </AnimatePresence>
-            <div ref={messagesEndRef} />
+            {/* 🛠️ CORREÇÃO CRÍTICA: A div âncora agora tem altura para evitar que o navegador se perca na rolagem */}
+            <div ref={messagesEndRef} className="shrink-0 h-4 w-full" />
           </div>
 
           {/* O Compositor de Mensagens */}
@@ -408,7 +425,7 @@ export default function CanaisClientePage() {
 
               <button 
                 type="submit"
-                disabled={!activeChannelId || isUploadingAttachment}
+                disabled={!activeChannelId || isUploadingAttachment || messageText.trim() === ""}
                 className={`
                   w-12 h-12 flex items-center justify-center rounded-full shrink-0 transition-all duration-300 shadow-sm
                   ${messageText.trim() !== "" 

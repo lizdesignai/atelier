@@ -75,7 +75,11 @@ export default function AdminDashboard() {
             let visualStatus = 'on_track'; // default
             
             // Verifica se tem briefing
-            const { data: briefing } = await supabase.from('client_briefings').select('is_completed').eq('project_id', project.id).single();
+            const { data: briefing } = await supabase
+              .from('client_briefings')
+              .select('is_completed')
+              .eq('project_id', project.id)
+              .maybeSingle(); //
             if (!briefing || !briefing.is_completed) {
               visualStatus = 'waiting_client';
             } else if (daysLeft !== '--' && parseInt(daysLeft) <= 3) {
