@@ -1,14 +1,15 @@
 // src/app/comunidade/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams } from "next/navigation";
 import { 
   Globe2, Sparkles, Send, Heart, MessageCircle, Share2, 
-  Loader2, ImageIcon, CheckCircle2, AlertCircle, Trash2, X
+  Loader2, ImageIcon, CheckCircle2, AlertCircle, Trash2, X, Users, Lightbulb, Gift
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
+import Link from "next/link";
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -16,33 +17,29 @@ const showToast = (message: string) => {
 
 export default function ComunidadeFeed() {
   const searchParams = useSearchParams();
-  // Se não houver ?grupo= na URL, assume o Mural Global
-  const currentGroup = searchParams.get('grupo') || 'global';
+  const currentGroup = searchParams?.get('grupo') || 'global';
 
-  // ==========================================
-  // ESTADOS GERAIS
-  // ==========================================
   const [isLoading, setIsLoading] = useState(true);
   const [isPublishing, setIsPublishing] = useState(false);
   
   const [userProfile, setUserProfile] = useState<any>(null);
   const [posts, setPosts] = useState<any[]>([]);
   
+  // NOVIDADE: Estado para aniversariantes do dia
+  const [todaysAnniversaries, setTodaysAnniversaries] = useState<any[]>([]);
+  
   const [newPostText, setNewPostText] = useState("");
   const [newPostImagePreview, setNewPostImagePreview] = useState<string | null>(null);
   const [newPostImageFile, setNewPostImageFile] = useState<File | null>(null);
 
   const [postToDelete, setPostToDelete] = useState<string | null>(null);
-
-  // Estados de Comentários
   const [expandedComments, setExpandedComments] = useState<string[]>([]);
   const [commentsData, setCommentsData] = useState<Record<string, any[]>>({});
   const [commentInputs, setCommentInputs] = useState<Record<string, string>>({});
   const [isSubmittingComment, setIsSubmittingComment] = useState<string | null>(null);
 
-  // ==========================================
-  // 1. CARREGA DADOS DO FEED E GRUPO
-  // ==========================================
+  const publisherRef = useRef<HTMLTextAreaElement>(null);
+
   const fetchCommunityData = async () => {
     setIsLoading(true);
     try {
@@ -52,9 +49,8 @@ export default function ComunidadeFeed() {
       const { data: profileData } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
       if (profileData) setUserProfile(profileData);
 
-      // Busca posts filtrando pelo grupo atual (Trata posts antigos sem grupo como 'global')
+      // 1. Busca os Posts do Grupo
       let query = supabase.from('community_posts').select('*, profiles(nome, avatar_url, role, username)').order('created_at', { ascending: false });
-      
       if (currentGroup === 'global') {
         query = query.or('group_slug.eq.global,group_slug.is.null');
       } else {
@@ -64,15 +60,33 @@ export default function ComunidadeFeed() {
       const { data: postsData, error: postsError } = await query;
       if (postsError) throw postsError;
 
+      // 2. Busca Likes
       const { data: myLikes } = await supabase.from('post_likes').select('post_id').eq('user_id', session.user.id);
       const myLikedPostIds = myLikes?.map(like => like.post_id) || [];
 
       if (postsData) {
-        const postsWithLikes = postsData.map(post => ({
-          ...post,
-          is_liked_by_me: myLikedPostIds.includes(post.id)
-        }));
-        setPosts(postsWithLikes);
+        setPosts(postsData.map(post => ({ ...post, is_liked_by_me: myLikedPostIds.includes(post.id) })));
+      }
+
+      // 3. NOVIDADE: Busca Aniversariantes do Dia (Apenas no Mural Global)
+      if (currentGroup === 'global') {
+        const today = new Date();
+        const currentMonth = today.getMonth() + 1;
+        const currentDay = today.getDate();
+
+        // Traz perfis com data de aniversário preenchida
+        const { data: bdays } = await supabase
+          .from('profiles')
+          .select('id, nome, username, avatar_url, anniversary_date')
+          .not('anniversary_date', 'is', null);
+
+        if (bdays) {
+          const celebratingToday = bdays.filter(p => {
+            const date = new Date(p.anniversary_date);
+            return date.getUTCMonth() + 1 === currentMonth && date.getUTCDate() === currentDay;
+          });
+          setTodaysAnniversaries(celebratingToday);
+        }
       }
 
     } catch (error) {
@@ -84,11 +98,16 @@ export default function ComunidadeFeed() {
 
   useEffect(() => {
     fetchCommunityData();
-  }, [currentGroup]); // Recarrega sempre que muda de grupo
+  }, [currentGroup]);
 
-  // ==========================================
-  // FUNÇÕES DE PUBLICAÇÃO NO TOPO
-  // ==========================================
+  // Função para gatilho de "Dar os Parabéns"
+  const handleCongratulate = (username: string) => {
+    setNewPostText(`@${username} parabéns por mais um ano de sucesso e evolução! 🎉 `);
+    if (publisherRef.current) {
+      publisherRef.current.focus();
+    }
+  };
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -126,7 +145,7 @@ export default function ComunidadeFeed() {
           text_content: newPostText,
           image_url: imageUrl,
           status: userProfile.role === 'admin' ? 'approved' : 'pending',
-          group_slug: currentGroup // Associa a postagem ao grupo atual
+          group_slug: currentGroup 
         })
         .select('*, profiles(nome, avatar_url, role, username)');
 
@@ -158,18 +177,16 @@ export default function ComunidadeFeed() {
     }
   };
 
-  // ==========================================
-  // LÓGICA DE INTERAÇÃO E EXCLUSÃO
-  // ==========================================
   const handleLike = async (postId: string) => {
     if (!userProfile) return;
     
     const postIndex = posts.findIndex(p => p.id === postId);
     if (postIndex === -1) return;
     const post = posts[postIndex];
+    
+    // Atualização Otimista
     const isLiking = !post.is_liked_by_me;
     const newLikesCount = isLiking ? (post.likes_count || 0) + 1 : Math.max(0, (post.likes_count || 0) - 1);
-
     setPosts(prev => prev.map(p => p.id === postId ? { ...p, likes_count: newLikesCount, is_liked_by_me: isLiking } : p));
 
     try {
@@ -178,9 +195,9 @@ export default function ComunidadeFeed() {
       } else {
         await supabase.from('post_likes').delete().match({ post_id: postId, user_id: userProfile.id });
       }
-      await supabase.from('community_posts').update({ likes_count: newLikesCount }).eq('id', postId);
+      // O SQL Trigger 'on_post_like' tratará da contagem no banco
     } catch (error) {
-      showToast("Erro ao processar aplauso.");
+      // Reverter em caso de falha
       fetchCommunityData(); 
     }
   };
@@ -218,19 +235,19 @@ export default function ComunidadeFeed() {
 
   const confirmDeletePost = async () => {
     if (!postToDelete) return;
-    setPosts(prev => prev.filter(p => p.id !== postToDelete));
     const idBackup = postToDelete;
+    
+    // Atualização otimista
+    setPosts(prev => prev.filter(p => p.id !== idBackup));
     setPostToDelete(null); 
     
     try {
-      await supabase.from('post_likes').delete().eq('post_id', idBackup);
-      await supabase.from('post_comments').delete().eq('post_id', idBackup);
-      await supabase.from('user_missions').delete().eq('post_id', idBackup);
+      // O CASCADE DELETE no banco fará a limpeza automática dos likes e comentários.
       const { error } = await supabase.from('community_posts').delete().eq('id', idBackup);
       if (error) throw error;
       showToast("A publicação foi apagada da comunidade.");
     } catch (error) {
-      showToast("Erro ao apagar.");
+      showToast("Erro ao apagar. Permissão negada.");
       fetchCommunityData(); 
     }
   };
@@ -241,15 +258,16 @@ export default function ComunidadeFeed() {
   };
 
   const getGroupTitle = () => {
-    if (currentGroup === 'networking') return "Networking & Parcerias";
-    if (currentGroup === 'feedback') return "Feedback & Ideias";
-    return "Mural Global";
+    if (currentGroup === 'networking') return { title: "Networking & Parcerias", icon: <Users size={28} className="text-[var(--color-atelier-terracota)]" /> };
+    if (currentGroup === 'feedback') return { title: "Feedback & Ideias", icon: <Lightbulb size={28} className="text-[var(--color-atelier-terracota)]" /> };
+    return { title: "Mural Global", icon: <Globe2 size={28} className="text-[var(--color-atelier-terracota)]" /> };
   };
+
+  const groupInfo = getGroupTitle();
 
   return (
     <div className="flex flex-col gap-6 w-full animate-[fadeInUp_0.8s_ease-out_both]">
       
-      {/* MODAL DE CONFIRMAÇÃO DE EXCLUSÃO */}
       <AnimatePresence>
         {postToDelete && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
@@ -258,11 +276,11 @@ export default function ComunidadeFeed() {
               <div className="w-16 h-16 rounded-full bg-red-100 text-red-500 flex items-center justify-center mb-4 shadow-inner border border-red-200">
                 <Trash2 size={24} />
               </div>
-              <h2 className="font-elegant text-3xl text-[#5c4b3c] mb-2">Apagar Publicação?</h2>
-              <p className="font-roboto text-[13px] text-[#5c4b3c]/70 mb-8 leading-relaxed">Esta ação é irreversível. A sua partilha será permanentemente removida.</p>
+              <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-2">Apagar Publicação?</h2>
+              <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/70 mb-8 leading-relaxed">Esta ação é irreversível. A sua partilha será permanentemente removida.</p>
               
               <div className="flex w-full gap-3">
-                <button onClick={() => setPostToDelete(null)} className="flex-1 py-3.5 rounded-xl border border-[#8c6e54]/30 font-roboto text-[11px] font-bold uppercase tracking-widest text-[#8c6e54] hover:bg-[#8c6e54]/5 transition-colors">Cancelar</button>
+                <button onClick={() => setPostToDelete(null)} className="flex-1 py-3.5 rounded-xl border border-[var(--color-atelier-terracota)]/30 font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] hover:bg-[var(--color-atelier-terracota)]/5 transition-colors">Cancelar</button>
                 <button onClick={confirmDeletePost} className="flex-1 py-3.5 rounded-xl bg-red-500 text-white font-roboto text-[11px] font-bold uppercase tracking-widest hover:bg-red-600 shadow-md hover:-translate-y-0.5 transition-all">Sim, Apagar</button>
               </div>
             </motion.div>
@@ -270,15 +288,46 @@ export default function ComunidadeFeed() {
         )}
       </AnimatePresence>
 
-      {/* CABEÇALHO DO FEED ATUAL */}
-      <div className="flex items-center gap-3 px-2 mt-4 md:mt-0">
-        <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] leading-none">{getGroupTitle()}</h1>
-        <span className="bg-white/60 text-[var(--color-atelier-terracota)] px-3 py-1 rounded-full border border-white shadow-sm font-roboto text-[9px] uppercase tracking-widest font-bold">
-          {posts.length} Posts
-        </span>
+      <div className="flex items-center justify-between px-2 mt-4 md:mt-0">
+        <div className="flex items-center gap-3">
+          {groupInfo.icon}
+          <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] leading-none">{groupInfo.title}</h1>
+        </div>
       </div>
 
-      {/* O PUBLICADOR (NO TOPO, FRICÇÃO ZERO) */}
+      {/* MOTOR DE CELEBRAÇÃO (BANNER DE ANIVERSÁRIO) */}
+      <AnimatePresence>
+        {todaysAnniversaries.length > 0 && currentGroup === 'global' && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20, scale: 0.95 }} 
+            animate={{ opacity: 1, y: 0, scale: 1 }} 
+            className="bg-gradient-to-r from-[var(--color-atelier-terracota)] to-[var(--color-atelier-rose)] p-1 rounded-[2rem] shadow-lg relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-[url('/noise.png')] opacity-10 mix-blend-overlay"></div>
+            <div className="bg-white/95 backdrop-blur-xl p-6 rounded-[1.8rem] flex flex-col md:flex-row items-center justify-between gap-4 relative z-10 border border-white">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-orange-100 flex items-center justify-center text-orange-500 shadow-inner shrink-0">
+                  <Gift size={24} />
+                </div>
+                <div className="flex flex-col">
+                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-tight">Dia de Celebração! 🎉</h3>
+                  <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/70">
+                    A marca de <span className="font-bold">{todaysAnniversaries[0].nome}</span> completa mais um ciclo de evolução hoje.
+                  </p>
+                </div>
+              </div>
+              <button 
+                onClick={() => handleCongratulate(todaysAnniversaries[0].username || todaysAnniversaries[0].nome)}
+                className="w-full md:w-auto px-6 py-3 rounded-full bg-[var(--color-atelier-terracota)] text-white font-roboto text-[11px] font-bold uppercase tracking-widest hover:bg-[#8c562e] transition-transform hover:-translate-y-0.5 shadow-[0_10px_20px_rgba(173,111,64,0.3)] shrink-0"
+              >
+                Dar os Parabéns
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* O PUBLICADOR */}
       <div className="glass-panel p-5 rounded-[2rem] bg-white/80 border border-white shadow-[0_10px_30px_rgba(122,116,112,0.05)] relative z-20">
         <form onSubmit={handlePublish} className="flex flex-col gap-4">
           <div className="flex gap-4">
@@ -286,10 +335,15 @@ export default function ComunidadeFeed() {
               {userProfile?.avatar_url ? <img src={userProfile.avatar_url} alt="" className="w-full h-full object-cover" /> : userProfile?.nome?.charAt(0)}
             </div>
             <textarea 
+              ref={publisherRef}
               value={newPostText} 
               onChange={(e) => setNewPostText(e.target.value)} 
               disabled={isPublishing} 
-              placeholder={currentGroup === 'networking' ? "O que a sua empresa procura ou oferece hoje?" : "Que vitória a sua marca conquistou hoje?"}
+              placeholder={
+                currentGroup === 'networking' ? "O que a sua empresa procura ou oferece hoje?" : 
+                currentGroup === 'feedback' ? "Precisa de uma opinião? Partilhe a sua ideia..." :
+                "Que vitória a sua marca conquistou hoje?"
+              }
               className="flex-1 bg-transparent border-none outline-none font-roboto text-[15px] text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 resize-none min-h-[60px] pt-2 custom-scrollbar disabled:opacity-50" 
             />
           </div>
@@ -316,7 +370,7 @@ export default function ComunidadeFeed() {
         </form>
       </div>
 
-      {/* A LISTA DE POSTS (O PALCO) */}
+      {/* A LISTA DE POSTS */}
       {isLoading ? (
         <div className="flex justify-center p-10"><Loader2 size={24} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>
       ) : posts.length === 0 ? (
@@ -341,15 +395,18 @@ export default function ComunidadeFeed() {
                   initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} exit={{ opacity: 0, scale: 0.95 }}
                   className={`glass-panel rounded-[2.5rem] flex flex-col shadow-[0_10px_30px_rgba(122,116,112,0.05)] overflow-hidden transition-all border border-white ${isPending ? 'bg-white/40 border-orange-200/50 opacity-90' : 'bg-white/80'}`}
                 >
-                  {/* CABEÇALHO DO POST */}
                   <div className="p-6 pb-4 flex justify-between items-start">
                     <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-full border border-[var(--color-atelier-terracota)]/20 shadow-sm overflow-hidden shrink-0 flex items-center justify-center bg-[var(--color-atelier-grafite)] text-white font-elegant text-xl">
-                        {post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} alt="" className="w-full h-full object-cover" /> : post.profiles?.nome?.charAt(0)}
-                      </div>
+                      <Link href={`/comunidade/perfil/${post.profiles?.username || post.author_id}`}>
+                        <div className="w-12 h-12 rounded-full border border-[var(--color-atelier-terracota)]/20 shadow-sm overflow-hidden shrink-0 flex items-center justify-center bg-[var(--color-atelier-grafite)] text-white font-elegant text-xl hover:scale-105 transition-transform">
+                          {post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} alt="" className="w-full h-full object-cover" /> : post.profiles?.nome?.charAt(0)}
+                        </div>
+                      </Link>
                       <div className="flex flex-col">
                         <span className="font-bold text-[14px] text-[var(--color-atelier-grafite)] flex items-center gap-2">
-                          {post.profiles?.nome || "Membro"}
+                          <Link href={`/comunidade/perfil/${post.profiles?.username || post.author_id}`} className="hover:text-[var(--color-atelier-terracota)] transition-colors">
+                            {post.profiles?.nome || "Membro"}
+                          </Link>
                           {isPending && (
                             <span className="bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-roboto text-[9px] uppercase tracking-widest font-black border border-orange-200 flex items-center gap-1">
                               <AlertCircle size={10} /> Em Análise
@@ -378,23 +435,19 @@ export default function ComunidadeFeed() {
                     </div>
                   </div>
 
-                  {/* CORPO DO POST (TEXTO) */}
                   <div className="px-6 pb-4">
                     <p className="font-roboto text-[14px] leading-relaxed text-[var(--color-atelier-grafite)] whitespace-pre-wrap">
                       {post.text_content}
                     </p>
                   </div>
 
-                  {/* IMAGEM EDGE-TO-EDGE */}
                   {post.image_url && (
-                    <div onDoubleClick={() => handleLike(post.id)} className="w-full bg-black/5 relative cursor-pointer group">
+                    <div onDoubleClick={() => handleLike(post.id)} className="w-full bg-[var(--color-atelier-grafite)]/5 relative cursor-pointer group">
                       <img src={post.image_url} alt="Publicação" className="w-full max-h-[600px] object-cover" />
-                      {/* Coração overlay no double click (estilo instagram) poderia ir aqui, mas mantemos simples */}
                     </div>
                   )}
 
-                  {/* RODAPÉ DO POST (AÇÕES) */}
-                  <div className="p-5 flex items-center justify-between bg-white/40">
+                  <div className="p-5 flex items-center justify-between bg-white/40 border-t border-white/50">
                     <div className="flex gap-1">
                       <button 
                         onClick={() => handleLike(post.id)} 
@@ -412,12 +465,8 @@ export default function ComunidadeFeed() {
                         <MessageCircle size={18} /> Comentar
                       </button>
                     </div>
-                    <button disabled={isPending} onClick={() => showToast("Link copiado para a área de transferência!")} className="p-2 text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] transition-colors disabled:opacity-50 rounded-full hover:bg-[var(--color-atelier-grafite)]/5">
-                      <Share2 size={18} />
-                    </button>
                   </div>
 
-                  {/* GAVETA DE COMENTÁRIOS NATIVA */}
                   <AnimatePresence>
                     {isCommentsOpen && (
                       <motion.div 
@@ -432,9 +481,11 @@ export default function ComunidadeFeed() {
                           ) : (
                             commentsData[post.id]?.map((comment: any) => (
                               <div key={comment.id} className="flex gap-3 items-start">
-                                <div className="w-8 h-8 rounded-full border border-white overflow-hidden shrink-0 flex items-center justify-center bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)] font-elegant text-xs shadow-sm">
-                                  {comment.profiles?.avatar_url ? <img src={comment.profiles.avatar_url} alt="" className="w-full h-full object-cover" /> : comment.profiles?.nome?.charAt(0)}
-                                </div>
+                                <Link href={`/comunidade/perfil/${comment.profiles?.username || comment.user_id}`}>
+                                  <div className="w-8 h-8 rounded-full border border-white overflow-hidden shrink-0 flex items-center justify-center bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)] font-elegant text-xs shadow-sm hover:scale-110 transition-transform">
+                                    {comment.profiles?.avatar_url ? <img src={comment.profiles.avatar_url} alt="" className="w-full h-full object-cover" /> : comment.profiles?.nome?.charAt(0)}
+                                  </div>
+                                </Link>
                                 <div className="flex flex-col flex-1 bg-white/60 p-3.5 rounded-2xl rounded-tl-none border border-white shadow-sm">
                                   <div className="flex items-center justify-between mb-1">
                                     <span className="font-roboto text-[11px] font-bold text-[var(--color-atelier-grafite)]">{comment.profiles?.nome}</span>
