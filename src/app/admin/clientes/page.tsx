@@ -7,11 +7,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Users, Search, Filter, Plus, ArrowRight, 
   Mail, Building, Calendar, MoreVertical, 
-  CheckCircle2, Clock, AlertCircle, X, Edit2, Trash2, Ban, Loader2
+  CheckCircle2, Clock, AlertCircle, X, Edit2, Trash2, Ban, Loader2,
+  DollarSign, Briefcase, CreditCard, RotateCcw, Percent, Sparkles
 } from "lucide-react";
-import { supabase } from "../../../lib/supabase"; // A nossa conexão real ao banco
+import { supabase } from "../../../lib/supabase";
 
-// Função para disparar os Toasts Globais
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
 };
@@ -31,9 +31,78 @@ export default function BaseClientesPage() {
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
-  // Dados do Formulário de Novo Projeto
+  // ==========================================
+  // ESTADOS: CRIAR NOVO PROJETO
+  // ==========================================
   const [selectedClientId, setSelectedClientId] = useState("");
-  const [selectedProjectType, setSelectedProjectType] = useState("Identidade Visual Premium");
+  const [serviceType, setServiceType] = useState<"Identidade Visual" | "Gestão de Instagram">("Identidade Visual");
+  const [projectPackage, setProjectPackage] = useState("Identidade Visual Premium");
+  const [financialValue, setFinancialValue] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState("Transferência Bancária");
+  const [paymentRecurrence, setPaymentRecurrence] = useState("Único");
+  const [paymentSplit, setPaymentSplit] = useState("50/50");
+  const [billingDate, setBillingDate] = useState("");
+
+  // ==========================================
+  // ESTADOS: EDITAR PROJETO FINANCEIRO
+  // ==========================================
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [projectToEdit, setProjectToEdit] = useState<any>(null);
+  const [editFinancialValue, setEditFinancialValue] = useState("");
+  const [editPaymentMethod, setEditPaymentMethod] = useState("");
+  const [editPaymentSplit, setEditPaymentSplit] = useState("");
+  const [editBillingDate, setEditBillingDate] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+
+  // ==========================================
+  // CALCULADORA DE PROGRESSO AUTOMÁTICO (SÊNIOR)
+  // ==========================================
+  const calculateAutomaticProgress = (phase: string, deadline: string | null) => {
+    let baseProgress = 0;
+    
+    // 1. Peso da Fase Atual (Representa 80% do progresso total)
+    switch(phase) {
+      case 'reuniao': baseProgress = 10; break;
+      case 'pesquisa': baseProgress = 30; break;
+      case 'direcionamento': baseProgress = 50; break;
+      case 'processo': baseProgress = 75; break;
+      case 'apresentacao': baseProgress = 90; break;
+      case 'Entregue': 
+      case 'Concluído': baseProgress = 100; break;
+      default: baseProgress = 0;
+    }
+
+    // Se já estiver concluído, retorna 100 direto
+    if (baseProgress === 100) return 100;
+    
+    // 2. Peso do Tempo Restante (Representa 20% do progresso total)
+    // Se não houver deadline, retorna o baseProgress puro.
+    if (!deadline) return baseProgress;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const targetDate = new Date(deadline);
+    targetDate.setHours(0, 0, 0, 0);
+    
+    const diffTime = targetDate.getTime() - today.getTime();
+    const daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    
+    // Assumindo um ciclo médio de projeto de 30 dias para o cálculo
+    const totalCycleDays = 30;
+    let timeProgress = 0;
+
+    if (daysLeft === 0) {
+      timeProgress = 20; // 20% completos (tempo esgotou)
+    } else if (daysLeft >= totalCycleDays) {
+      timeProgress = 0; // Acabou de começar
+    } else {
+      // Regra de 3 inversa: quanto menos dias faltam, maior o progresso no bloco de tempo.
+      timeProgress = Math.round(((totalCycleDays - daysLeft) / totalCycleDays) * 20);
+    }
+
+    // Combina a fase com a pressão de tempo, travado no máximo 99% (100% só na entrega)
+    return Math.min(99, baseProgress + timeProgress);
+  };
 
   // ==========================================
   // BUSCAR PROJETOS E CLIENTES (READ)
@@ -41,16 +110,22 @@ export default function BaseClientesPage() {
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // 1. Busca os projetos cruzados com os perfis
       const { data: projectsData, error: projectsError } = await supabase
         .from('projects')
         .select('*, profiles(nome, empresa, email, avatar_url)')
         .order('created_at', { ascending: false });
 
       if (projectsError) throw projectsError;
-      if (projectsData) setDbProjects(projectsData);
+      
+      // Quando recebemos os projetos, forçamos o cálculo automático para exibição
+      if (projectsData) {
+        const enrichedProjects = projectsData.map(p => ({
+          ...p,
+          calculatedProgress: calculateAutomaticProgress(p.fase || p.phase, p.data_limite)
+        }));
+        setDbProjects(enrichedProjects);
+      }
 
-      // 2. Busca os clientes disponíveis para o Dropdown do Modal
       const { data: clientsData, error: clientsError } = await supabase
         .from('profiles')
         .select('id, nome, email')
@@ -71,6 +146,18 @@ export default function BaseClientesPage() {
     fetchData();
   }, []);
 
+  // Lógica dinâmica para sub-pacotes
+  useEffect(() => {
+    if (serviceType === "Identidade Visual") {
+      setProjectPackage("Identidade Visual Premium");
+      setPaymentRecurrence("Único");
+    } else {
+      setProjectPackage("Gestão Mensal Básica");
+      setPaymentRecurrence("Mensal");
+      setPaymentSplit("100% Antecipado");
+    }
+  }, [serviceType]);
+
   // ==========================================
   // CRIAR NOVO PROJETO (CREATE)
   // ==========================================
@@ -83,27 +170,112 @@ export default function BaseClientesPage() {
 
     setIsSubmitting(true);
     try {
-      const { error } = await supabase.from('projects').insert({
+      const projectPayload = {
         client_id: selectedClientId,
-        type: selectedProjectType,
+        service_type: serviceType,
+        type: projectPackage,
         status: 'active',
         phase: 'Mesa de Trabalho',
-        progress: 0
-      });
+        fase: 'reuniao', // Setup inicial automático
+        progress: 0,
+        financial_value: financialValue ? parseFloat(financialValue) : 0,
+        payment_method: paymentMethod,
+        payment_recurrence: paymentRecurrence,
+        payment_split: paymentSplit,
+        billing_date: billingDate || null,
+      };
 
+      const { error } = await supabase.from('projects').insert(projectPayload);
       if (error) throw error;
 
-      showToast("✨ Novo projeto forjado com sucesso!");
+      showToast("✨ Projeto e contrato forjados com sucesso!");
       setIsNewClientModalOpen(false);
       setSelectedClientId("");
-      fetchData(); // Atualiza a lista na tela
+      setFinancialValue("");
+      setBillingDate("");
+      fetchData();
     } catch (error) {
       console.error("Erro ao criar:", error);
-      showToast("Erro ao criar projeto. Tente novamente.");
+      showToast("Erro ao criar projeto. Verifique as tabelas do banco.");
     } finally {
       setIsSubmitting(false);
     }
   };
+
+  // ==========================================
+  // AÇÕES DO MENU (EDITAR, SUSPENDER, APAGAR)
+  // ==========================================
+  const handleMenuAction = async (action: string, project: any) => {
+    setOpenMenuId(null);
+
+    // ABRIR EDIÇÃO FINANCEIRA (Removemos o progresso daqui, pois agora é automático)
+    if (action === 'Editar') {
+      setProjectToEdit(project);
+      setEditFinancialValue(project.financial_value || "");
+      setEditPaymentMethod(project.payment_method || "Transferência Bancária");
+      setEditPaymentSplit(project.payment_split || "50/50");
+      setEditBillingDate(project.billing_date || "");
+      setIsEditModalOpen(true);
+      return;
+    }
+
+    // SUSPENDER PROJETO
+    if (action === 'Suspender') {
+      const confirm = window.confirm(`Deseja suspender o acesso do cliente ${project.profiles?.nome}? Eles não poderão aceder ao estúdio.`);
+      if (!confirm) return;
+      const { error } = await supabase.from('projects').update({ status: 'archived' }).eq('id', project.id);
+      if (error) showToast("Erro ao suspender projeto.");
+      else { showToast("Projeto suspenso com sucesso."); fetchData(); }
+      return;
+    }
+
+    // REATIVAR PROJETO
+    if (action === 'Reativar') {
+      const confirm = window.confirm(`Deseja reativar o projeto de ${project.profiles?.nome}?`);
+      if (!confirm) return;
+      const { error } = await supabase.from('projects').update({ status: 'active' }).eq('id', project.id);
+      if (error) showToast("Erro ao reativar projeto.");
+      else { showToast("Projeto reativado com sucesso."); fetchData(); }
+      return;
+    }
+
+    // APAGAR CONTRATO
+    if (action === 'Apagar') {
+      const confirm = window.confirm("ATENÇÃO: Deseja apagar este contrato e todos os seus dados permanentemente?");
+      if (!confirm) return;
+      const { error } = await supabase.from('projects').delete().eq('id', project.id);
+      if (error) showToast("Erro ao apagar contrato.");
+      else { showToast("Contrato apagado permanentemente."); fetchData(); }
+      return;
+    }
+  };
+
+  // GRAVAR EDIÇÕES FINANCEIRAS
+  const handleEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!projectToEdit) return;
+
+    setIsEditing(true);
+    try {
+      const { error } = await supabase.from('projects').update({
+        financial_value: editFinancialValue ? parseFloat(editFinancialValue) : 0,
+        payment_method: editPaymentMethod,
+        payment_split: editPaymentSplit,
+        billing_date: editBillingDate || null
+      }).eq('id', projectToEdit.id);
+
+      if (error) throw error;
+      
+      showToast("Dados contratuais atualizados com sucesso!");
+      setIsEditModalOpen(false);
+      fetchData();
+    } catch (error) {
+      showToast("Erro ao atualizar o projeto.");
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
 
   // Filtragem local
   const filteredClients = dbProjects.filter(project => {
@@ -117,32 +289,26 @@ export default function BaseClientesPage() {
     return matchesSearch && matchesStatus;
   });
 
-  const handleManageClient = (clientName: string) => {
-    showToast(`A aceder à Mesa de Trabalho de ${clientName}...`);
+  const handleManageClient = (clientName: string, service: string) => {
+    showToast(`A aceder à área de ${service} de ${clientName}...`);
     router.push('/admin/projetos');
   };
 
-  const handleMenuAction = async (action: string, projectId: string) => {
-    setOpenMenuId(null);
-    if (action === 'Apagar') {
-      const confirm = window.confirm("Tem a certeza que deseja apagar este projeto?");
-      if (!confirm) return;
-      
-      const { error } = await supabase.from('projects').delete().eq('id', projectId);
-      if (error) {
-        showToast("Erro ao apagar projeto.");
-      } else {
-        showToast("Projeto apagado com sucesso.");
-        fetchData();
-      }
-    } else {
-      showToast(`Ação "${action}" em desenvolvimento na Fase 2.`);
-    }
+  const formatDate = (dateString: string) => {
+    if(!dateString) return "Indefinido";
+    return new Date(dateString).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  // Função para formatar a data que vem do banco
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
+  // Nomes amigáveis para as fases
+  const getPhaseName = (phaseCode: string) => {
+    switch(phaseCode) {
+      case 'reuniao': return 'Reunião de Alinhamento';
+      case 'pesquisa': return 'Estudo e Pesquisa';
+      case 'direcionamento': return 'Direcionamento Criativo';
+      case 'processo': return 'Processo Criativo IDV';
+      case 'apresentacao': return 'Apresentação Oficial';
+      default: return phaseCode || 'Início';
+    }
   };
 
   return (
@@ -171,7 +337,7 @@ export default function BaseClientesPage() {
             onClick={() => setIsNewClientModalOpen(true)}
             className="bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] px-6 py-3.5 rounded-full font-roboto font-bold uppercase tracking-widest text-[11px] hover:bg-[var(--color-atelier-terracota)] transition-all duration-300 shadow-[0_10px_20px_rgba(122,116,112,0.2)] hover:shadow-[0_15px_30px_rgba(173,111,64,0.3)] hover:-translate-y-0.5 flex items-center gap-2"
           >
-            <Plus size={16} /> Novo Projeto
+            <Plus size={16} /> Novo Contrato
           </button>
         </div>
 
@@ -191,7 +357,7 @@ export default function BaseClientesPage() {
             <FilterButton label="Todos" active={filterStatus === 'all'} onClick={() => setFilterStatus('all')} />
             <FilterButton label="Em Forja (Ativos)" active={filterStatus === 'active'} onClick={() => setFilterStatus('active')} />
             <FilterButton label="Pendentes" active={filterStatus === 'pending'} onClick={() => setFilterStatus('pending')} />
-            <FilterButton label="Legado (Concluídos)" active={filterStatus === 'completed'} onClick={() => setFilterStatus('completed')} />
+            <FilterButton label="Legado (Concluídos / Suspensos)" active={filterStatus === 'archived'} onClick={() => setFilterStatus('archived')} />
           </div>
         </div>
       </header>
@@ -204,7 +370,7 @@ export default function BaseClientesPage() {
         <div className="grid grid-cols-12 gap-4 px-8 py-5 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 backdrop-blur-md shrink-0">
           <div className="col-span-4 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Identificação</div>
           <div className="col-span-3 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Status & Fase</div>
-          <div className="col-span-3 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Progresso</div>
+          <div className="col-span-3 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Progresso do Serviço</div>
           <div className="col-span-2 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50 text-right">Ação</div>
         </div>
 
@@ -226,7 +392,7 @@ export default function BaseClientesPage() {
                   className="grid grid-cols-12 gap-4 px-4 py-4 rounded-[1.5rem] bg-white/50 border border-transparent hover:border-white hover:bg-white hover:shadow-[0_10px_30px_rgba(173,111,64,0.08)] transition-all items-center group cursor-pointer"
                   onClick={(e) => {
                     if (openMenuId === project.id) return;
-                    handleManageClient(project.profiles?.nome || "Cliente");
+                    handleManageClient(project.profiles?.nome || "Cliente", project.service_type || "Projeto");
                   }}
                 >
                   
@@ -258,31 +424,36 @@ export default function BaseClientesPage() {
                   <div className="col-span-3 flex flex-col justify-center items-start gap-2">
                     {project.status === 'active' && <StatusBadge icon={Clock} text="Em Forja" color="terracota" />}
                     {project.status === 'pending' && <StatusBadge icon={AlertCircle} text="Ação Pendente" color="orange" />}
-                    {project.status === 'completed' && <StatusBadge icon={CheckCircle2} text="Concluído" color="green" />}
+                    {project.status === 'delivered' && <StatusBadge icon={CheckCircle2} text="Entregue" color="green" />}
+                    {project.status === 'archived' && <StatusBadge icon={Ban} text="Suspenso" color="gray" />}
                     
-                    <span className="font-roboto text-[12px] font-bold text-[var(--color-atelier-grafite)]/70">
-                      {project.phase}
+                    <span className="font-roboto text-[12px] font-bold text-[var(--color-atelier-grafite)]/70 truncate w-full pr-4">
+                      {getPhaseName(project.fase || project.phase)}
                     </span>
                   </div>
 
-                  {/* 3. Escopo e Progresso */}
+                  {/* 3. Escopo e Progresso Automático */}
                   <div className="col-span-3 flex flex-col justify-center pr-8">
                     <div className="flex justify-between items-end mb-1.5">
-                      <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">
-                        {project.type}
+                      <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)]/70 truncate mr-2">
+                        {project.service_type || "Identidade Visual"}
                       </span>
-                      <span className="font-roboto text-[12px] font-bold text-[var(--color-atelier-grafite)]">
-                        {project.progress}%
+                      <span className="font-roboto text-[12px] font-bold text-[var(--color-atelier-grafite)] flex items-center gap-1">
+                        {project.status === 'delivered' || project.calculatedProgress === 100 ? (
+                          <><CheckCircle2 size={12} className="text-green-500"/> 100%</>
+                        ) : (
+                          <><Sparkles size={12} className="text-[var(--color-atelier-terracota)] opacity-50"/> {project.calculatedProgress}%</>
+                        )}
                       </span>
                     </div>
                     <div className="h-1.5 w-full bg-black/5 rounded-full overflow-hidden">
                       <div 
-                        className={`h-full rounded-full transition-all duration-1000 ${project.progress === 100 ? 'bg-green-500' : 'bg-gradient-to-r from-[var(--color-atelier-rose)] to-[var(--color-atelier-terracota)]'}`}
-                        style={{ width: `${project.progress}%` }}
+                        className={`h-full rounded-full transition-all duration-1000 ${project.status === 'delivered' || project.calculatedProgress === 100 ? 'bg-green-500' : 'bg-gradient-to-r from-[var(--color-atelier-rose)] to-[var(--color-atelier-terracota)]'}`}
+                        style={{ width: `${project.status === 'delivered' ? 100 : project.calculatedProgress}%` }}
                       ></div>
                     </div>
                     <div className="flex items-center gap-1 mt-2 text-[10px] text-[var(--color-atelier-grafite)]/40 uppercase tracking-widest font-bold">
-                      <Calendar size={10} /> Ingresso: {formatDate(project.created_at)}
+                      <Calendar size={10} /> Entrega Estimada: {formatDate(project.data_limite)}
                     </div>
                   </div>
 
@@ -293,7 +464,7 @@ export default function BaseClientesPage() {
                         e.stopPropagation(); 
                         setOpenMenuId(openMenuId === project.id ? null : project.id);
                       }}
-                      className="w-10 h-10 rounded-xl bg-white border border-white/50 flex items-center justify-center text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] hover:border-[var(--color-atelier-terracota)]/30 transition-all shadow-sm group-hover:bg-white"
+                      className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all shadow-sm ${openMenuId === project.id ? 'bg-[var(--color-atelier-terracota)] text-white border-transparent' : 'bg-white border-white/50 text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] hover:border-[var(--color-atelier-terracota)]/30 group-hover:bg-white'}`}
                     >
                       <MoreVertical size={16} />
                     </button>
@@ -304,18 +475,26 @@ export default function BaseClientesPage() {
                           initial={{ opacity: 0, y: 10, scale: 0.95 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                          className="absolute top-[110%] right-[60px] w-48 bg-white/90 backdrop-blur-xl border border-white shadow-[0_20px_50px_rgba(122,116,112,0.15)] rounded-2xl overflow-hidden z-50 flex flex-col py-2"
+                          className="absolute top-[110%] right-[60px] w-52 bg-white/90 backdrop-blur-xl border border-white shadow-[0_20px_50px_rgba(122,116,112,0.15)] rounded-2xl overflow-hidden z-50 flex flex-col py-2"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <button onClick={() => handleMenuAction('Editar Perfil', project.id)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors w-full text-left">
-                            <Edit2 size={14} /> Editar Dados
+                          <button onClick={() => handleMenuAction('Editar', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors w-full text-left">
+                            <DollarSign size={14} /> Editar Financeiro
                           </button>
-                          <button onClick={() => handleMenuAction('Suspender', project.id)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors w-full text-left">
-                            <Ban size={14} /> Suspender Projeto
-                          </button>
+                          
+                          {project.status === 'archived' ? (
+                            <button onClick={() => handleMenuAction('Reativar', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-blue-600 hover:bg-blue-50 transition-colors w-full text-left">
+                              <RotateCcw size={14} /> Reativar Projeto
+                            </button>
+                          ) : (
+                            <button onClick={() => handleMenuAction('Suspender', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors w-full text-left">
+                              <Ban size={14} /> Suspender Acesso
+                            </button>
+                          )}
+                          
                           <div className="h-px bg-[var(--color-atelier-grafite)]/10 my-1 w-full"></div>
-                          <button onClick={() => handleMenuAction('Apagar', project.id)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-red-500 hover:bg-red-50 transition-colors w-full text-left">
-                            <Trash2 size={14} /> Apagar Registo
+                          <button onClick={() => handleMenuAction('Apagar', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-red-500 hover:bg-red-50 transition-colors w-full text-left">
+                            <Trash2 size={14} /> Apagar Contrato
                           </button>
                         </motion.div>
                       )}
@@ -324,7 +503,7 @@ export default function BaseClientesPage() {
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleManageClient(project.profiles?.nome);
+                        handleManageClient(project.profiles?.nome, project.service_type);
                       }}
                       className="bg-transparent border border-[var(--color-atelier-terracota)]/30 text-[var(--color-atelier-terracota)] px-5 py-2.5 rounded-xl font-roboto font-bold uppercase tracking-widest text-[10px] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm flex items-center gap-2 group-hover:border-transparent"
                     >
@@ -338,8 +517,8 @@ export default function BaseClientesPage() {
               {filteredClients.length === 0 && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center h-40 text-center">
                   <Search size={32} className="text-[var(--color-atelier-grafite)]/20 mb-3" />
-                  <p className="font-elegant text-2xl text-[var(--color-atelier-grafite)]/50">Nenhum projeto encontrado.</p>
-                  <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 mt-1">Crie um novo projeto ou verifique a sua base no Supabase.</p>
+                  <p className="font-elegant text-2xl text-[var(--color-atelier-grafite)]/50">Nenhum contrato encontrado.</p>
+                  <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 mt-1">Registe um novo projeto para gerir a carteira de clientes.</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -348,11 +527,120 @@ export default function BaseClientesPage() {
       </div>
 
       {/* ==========================================
-          3. MODAL DE NOVO PROJETO NO SUPABASE
+          MODAL DE EDIÇÃO (APENAS FINANCEIRO)
+          ========================================== */}
+      <AnimatePresence>
+        {isEditModalOpen && projectToEdit && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsEditModalOpen(false)}
+              className="absolute inset-0 bg-[var(--color-atelier-grafite)]/40 backdrop-blur-sm cursor-pointer"
+            ></motion.div>
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-[600px] max-h-full overflow-hidden bg-[var(--color-atelier-creme)] rounded-[2.5rem] shadow-[0_20px_50px_rgba(122,116,112,0.2)] border border-white flex flex-col"
+            >
+              <div className="p-6 md:p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 backdrop-blur-xl flex justify-between items-start shrink-0 z-10">
+                <div>
+                  <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
+                    <DollarSign size={24} className="text-[var(--color-atelier-terracota)]" /> 
+                    Contrato Financeiro
+                  </h2>
+                  <p className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-2">
+                    Cliente: {projectToEdit.profiles?.nome}
+                  </p>
+                </div>
+                <button onClick={() => setIsEditModalOpen(false)} className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors shadow-sm border border-white/50">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
+                <form id="edit-contract-form" onSubmit={handleEditSubmit} className="flex flex-col gap-8">
+
+                  {/* BLOCO FINANCEIRO */}
+                  <div className="bg-[var(--color-atelier-terracota)]/5 p-6 rounded-3xl border border-[var(--color-atelier-terracota)]/20">
+                    <h3 className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mb-4 flex items-center gap-2">
+                      <CreditCard size={14} /> Ajustar Recebíveis
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                      <div className="flex flex-col gap-2">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Valor Contratual (R$)</label>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-[var(--color-atelier-grafite)]/40">R$</span>
+                          <input 
+                            type="number" required placeholder="0.00"
+                            value={editFinancialValue} onChange={(e) => setEditFinancialValue(e.target.value)}
+                            className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl py-3 pl-10 pr-4 text-[14px] font-bold text-[var(--color-atelier-grafite)] outline-none shadow-sm"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Método</label>
+                        <select 
+                          value={editPaymentMethod} onChange={(e) => setEditPaymentMethod(e.target.value)}
+                          className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)] font-medium cursor-pointer"
+                        >
+                          <option>Transferência Bancária</option>
+                          <option>Pix</option>
+                          <option>Cartão de Crédito (Stripe)</option>
+                          <option>Dinheiro (Internacional)</option>
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Modelo de Pagamento</label>
+                        <select 
+                          value={editPaymentSplit} onChange={(e) => setEditPaymentSplit(e.target.value)}
+                          className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)] font-medium cursor-pointer"
+                        >
+                          <option>50% Entrada / 50% Entrega</option>
+                          <option>30% / 30% / 40%</option>
+                          <option>100% Antecipado</option>
+                          <option>Faturado ao fim do mês</option>
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1 flex items-center gap-1"><Calendar size={10}/> Data de Cobrança</label>
+                        <input 
+                          type="date"
+                          value={editBillingDate} onChange={(e) => setEditBillingDate(e.target.value)}
+                          className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)] font-medium cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                </form>
+              </div>
+
+              <div className="p-6 md:p-8 border-t border-[var(--color-atelier-grafite)]/10 bg-white/40 shrink-0">
+                <button 
+                  type="submit" 
+                  form="edit-contract-form"
+                  disabled={isEditing}
+                  className="w-full bg-[var(--color-atelier-terracota)] text-[var(--color-atelier-creme)] py-4 rounded-2xl font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[#8c562e] transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+                >
+                  {isEditing ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
+                  Salvar Alterações Contratuais
+                </button>
+              </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ==========================================
+          3. FASE 3: MODAL DE NOVO CONTRATO COM FINANCEIRO
           ========================================== */}
       <AnimatePresence>
         {isNewClientModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8">
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               onClick={() => setIsNewClientModalOpen(false)}
@@ -361,59 +649,184 @@ export default function BaseClientesPage() {
             
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-[600px] bg-[var(--color-atelier-creme)] rounded-[2.5rem] shadow-[0_20px_50px_rgba(122,116,112,0.2)] border border-white overflow-hidden flex flex-col"
+              className="relative w-full max-w-[800px] max-h-full overflow-hidden bg-[var(--color-atelier-creme)] rounded-[2.5rem] shadow-[0_20px_50px_rgba(122,116,112,0.2)] border border-white flex flex-col"
             >
-              <div className="p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/40 flex justify-between items-center">
+              <div className="p-6 md:p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 backdrop-blur-xl flex justify-between items-start shrink-0 z-10">
                 <div>
-                  <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Novo Projeto</h2>
-                  <p className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1">Iniciar na forja</p>
+                  <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
+                    <Briefcase size={24} className="text-[var(--color-atelier-terracota)]" /> 
+                    Firmar Novo Contrato
+                  </h2>
+                  <p className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-2">
+                    Alocação de Cliente e Configuração Financeira
+                  </p>
                 </div>
-                <button onClick={() => setIsNewClientModalOpen(false)} className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors shadow-sm">
+                <button onClick={() => setIsNewClientModalOpen(false)} className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors shadow-sm border border-white/50">
                   <X size={18} />
                 </button>
               </div>
 
-              <form onSubmit={handleCreateProject} className="p-8 flex flex-col gap-5">
-                
-                <div className="flex flex-col gap-2">
-                  <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70">Selecionar Cliente</label>
-                  <select 
-                    required 
-                    value={selectedClientId} 
-                    onChange={(e) => setSelectedClientId(e.target.value)}
-                    className="bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)]"
-                  >
-                    <option value="" disabled>-- Selecione um cliente registado --</option>
-                    {availableClients.map(client => (
-                      <option key={client.id} value={client.id}>{client.nome} ({client.email})</option>
-                    ))}
-                  </select>
-                  <span className="text-[10px] text-[var(--color-atelier-terracota)] font-bold px-1">O cliente deve ter criado a sua conta via portal primeiro.</span>
-                </div>
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
+                <form id="new-contract-form" onSubmit={handleCreateProject} className="flex flex-col gap-8">
+                  
+                  {/* BLOCO 1: IDENTIFICAÇÃO DO CLIENTE */}
+                  <div className="bg-white/40 p-6 rounded-3xl border border-white">
+                    <h3 className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] mb-4 flex items-center gap-2">
+                      <Users size={14} className="text-[var(--color-atelier-terracota)]"/> 1. Atribuição de Cliente
+                    </h3>
+                    <div className="flex flex-col gap-2">
+                      <select 
+                        required 
+                        value={selectedClientId} 
+                        onChange={(e) => setSelectedClientId(e.target.value)}
+                        className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm font-bold text-[var(--color-atelier-grafite)] cursor-pointer"
+                      >
+                        <option value="" disabled>-- Selecione um cliente da base --</option>
+                        {availableClients.map(client => (
+                          <option key={client.id} value={client.id}>{client.nome} ({client.email})</option>
+                        ))}
+                      </select>
+                      <span className="text-[10px] text-[var(--color-atelier-grafite)]/40 font-bold px-1 mt-1">O cliente deve possuir conta registada no portal.</span>
+                    </div>
+                  </div>
 
-                <div className="flex flex-col gap-2">
-                  <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70">Tipo de Projeto (Escopo)</label>
-                  <select 
-                    value={selectedProjectType}
-                    onChange={(e) => setSelectedProjectType(e.target.value)}
-                    className="bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)]"
-                  >
-                    <option>Identidade Visual Premium</option>
-                    <option>Rebranding Pleno</option>
-                    <option>Naming + Identidade Visual</option>
-                    <option>Identidade + Web Design</option>
-                  </select>
-                </div>
+                  {/* BLOCO 2: ESCOPO DO SERVIÇO */}
+                  <div className="bg-white/40 p-6 rounded-3xl border border-white">
+                    <h3 className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] mb-4 flex items-center gap-2">
+                      <Sparkles size={14} className="text-[var(--color-atelier-terracota)]"/> 2. Estrutura do Serviço
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                      {/* Serviço Estrito */}
+                      <div className="flex flex-col gap-2">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 pl-1">Área Core</label>
+                        <div className="flex bg-white rounded-xl p-1 shadow-sm border border-transparent">
+                          <button 
+                            type="button"
+                            onClick={() => setServiceType("Identidade Visual")}
+                            className={`flex-1 py-2.5 rounded-lg font-roboto text-[11px] font-bold uppercase tracking-widest transition-all ${serviceType === "Identidade Visual" ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-[var(--color-atelier-grafite)]/5'}`}
+                          >
+                            Identidade Visual
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setServiceType("Gestão de Instagram")}
+                            className={`flex-1 py-2.5 rounded-lg font-roboto text-[11px] font-bold uppercase tracking-widest transition-all ${serviceType === "Gestão de Instagram" ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-[var(--color-atelier-grafite)]/5'}`}
+                          >
+                            Instagram
+                          </button>
+                        </div>
+                      </div>
 
+                      {/* Pacote Dinâmico */}
+                      <div className="flex flex-col gap-2">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 pl-1">Pacote Específico</label>
+                        <select 
+                          value={projectPackage}
+                          onChange={(e) => setProjectPackage(e.target.value)}
+                          className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm font-bold text-[var(--color-atelier-terracota)] cursor-pointer h-full"
+                        >
+                          {serviceType === "Identidade Visual" ? (
+                            <>
+                              <option>Identidade Visual Premium</option>
+                              <option>Rebranding Pleno</option>
+                              <option>Naming + Identidade Visual</option>
+                              <option>Identidade + Web Design</option>
+                            </>
+                          ) : (
+                            <>
+                              <option>Gestão Mensal Básica</option>
+                              <option>Gestão Mensal Pro (Com Tráfego)</option>
+                              <option>Consultoria de Estratégia</option>
+                            </>
+                          )}
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* BLOCO 3: FINANCEIRO */}
+                  <div className="bg-[var(--color-atelier-terracota)]/5 p-6 rounded-3xl border border-[var(--color-atelier-terracota)]/20 relative overflow-hidden">
+                    <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-atelier-terracota)]/10 blur-[40px] rounded-full pointer-events-none"></div>
+                    
+                    <h3 className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mb-4 flex items-center gap-2 relative z-10">
+                      <DollarSign size={14} /> 3. Estrutura Financeira
+                    </h3>
+                    
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 relative z-10">
+                      <div className="flex flex-col gap-2">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Valor Contratual (R$)</label>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-[var(--color-atelier-grafite)]/40">R$</span>
+                          <input 
+                            type="number" required placeholder="0.00"
+                            value={financialValue} onChange={(e) => setFinancialValue(e.target.value)}
+                            className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl py-3 pl-10 pr-4 text-[14px] font-bold text-[var(--color-atelier-grafite)] outline-none shadow-sm"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Método de Pagamento</label>
+                        <select 
+                          value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)}
+                          className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)] font-medium cursor-pointer"
+                        >
+                          <option>Transferência Bancária</option>
+                          <option>Pix</option>
+                          <option>Cartão de Crédito (Stripe)</option>
+                          <option>Dinheiro (Internacional)</option>
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Modelo de Pagamento</label>
+                        <select 
+                          value={paymentSplit} onChange={(e) => setPaymentSplit(e.target.value)}
+                          className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)] font-medium cursor-pointer"
+                        >
+                          {serviceType === "Identidade Visual" ? (
+                            <>
+                              <option>50% Entrada / 50% Entrega</option>
+                              <option>30% / 30% / 40%</option>
+                              <option>100% Antecipado (Desconto)</option>
+                            </>
+                          ) : (
+                            <>
+                              <option>100% Antecipado (Mensal)</option>
+                              <option>Faturado ao fim do mês</option>
+                            </>
+                          )}
+                        </select>
+                      </div>
+
+                      <div className="flex flex-col gap-2">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1 flex items-center gap-1"><Calendar size={10}/> Data de Vencimento Inicial</label>
+                        <input 
+                          type="date" required
+                          value={billingDate} onChange={(e) => setBillingDate(e.target.value)}
+                          className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)] font-medium cursor-pointer"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                </form>
+              </div>
+
+              {/* RODAPÉ DO MODAL (BOTÃO) */}
+              <div className="p-6 md:p-8 border-t border-[var(--color-atelier-grafite)]/10 bg-white/40 shrink-0">
                 <button 
                   type="submit" 
-                  disabled={isSubmitting}
-                  className="mt-4 w-full bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] py-4 rounded-2xl font-roboto font-bold uppercase tracking-widest text-[12px] hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-sm disabled:opacity-50 flex items-center justify-center gap-2"
+                  form="new-contract-form"
+                  disabled={isSubmitting || !selectedClientId}
+                  className="w-full bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] py-4 rounded-2xl font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all shadow-[0_10px_20px_rgba(122,116,112,0.15)] disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-2"
                 >
-                  {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : null}
-                  Iniciar Novo Projeto
+                  {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
+                  Validar e Forjar Contrato
                 </button>
-              </form>
+              </div>
+
             </motion.div>
           </div>
         )}
@@ -432,10 +845,10 @@ function FilterButton({ label, active, onClick }: { label: string, active: boole
     <button 
       onClick={onClick}
       className={`
-        px-5 py-2 rounded-xl font-roboto font-bold uppercase tracking-widest text-[10px] transition-all whitespace-nowrap
+        px-5 py-2.5 rounded-xl font-roboto font-bold uppercase tracking-widest text-[10px] transition-all whitespace-nowrap
         ${active 
-          ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md' 
-          : 'bg-transparent text-[var(--color-atelier-grafite)]/60 hover:bg-white hover:text-[var(--color-atelier-grafite)]'
+          ? 'bg-[var(--color-atelier-terracota)] text-white shadow-[0_4px_10px_rgba(173,111,64,0.3)]' 
+          : 'bg-transparent text-[var(--color-atelier-grafite)]/60 hover:bg-white hover:text-[var(--color-atelier-grafite)] border border-transparent hover:border-white'
         }
       `}
     >
@@ -444,11 +857,12 @@ function FilterButton({ label, active, onClick }: { label: string, active: boole
   );
 }
 
-function StatusBadge({ icon: Icon, text, color }: { icon: any, text: string, color: 'terracota' | 'orange' | 'green' }) {
+function StatusBadge({ icon: Icon, text, color }: { icon: any, text: string, color: 'terracota' | 'orange' | 'green' | 'gray' }) {
   const colorStyles = {
     terracota: 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] border-[var(--color-atelier-terracota)]/20',
     orange: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
     green: 'bg-green-500/10 text-green-700 border-green-500/20',
+    gray: 'bg-gray-500/10 text-gray-700 border-gray-500/20',
   };
 
   return (

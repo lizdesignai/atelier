@@ -22,7 +22,8 @@ const STAGE_MAP: Record<string, string> = {
   'pesquisa': 'Pesquisa & Estratégia',
   'direcionamento': 'Direcionamento Criativo',
   'processo': 'Processo Criativo IDV',
-  'apresentacao': 'Preparação Final'
+  'apresentacao': 'Preparação Final',
+  'entrega': 'Ajustes e Fechamento de arquivos'
 };
 
 export default function AdminDashboard() {
