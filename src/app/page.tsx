@@ -18,7 +18,7 @@ const PROJECT_STAGES = [
   { id: 3, name: "Direcionamento Criativo", dbValue: "direcionamento" },
   { id: 4, name: "Processo Criativo IDV", dbValue: "processo" },
   { id: 5, name: "Apresentação Oficial", dbValue: "apresentacao" },
-  { id: 5, name: "Ajustes e Fechamento", dbValue: "ajustes" }
+  { id: 6, name: "Ajustes e Fechamento", dbValue: "ajustes" }
 ];
 
 export default function Home() {

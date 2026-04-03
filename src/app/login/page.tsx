@@ -28,13 +28,23 @@ export default function LoginPage() {
     
     setIsAuthenticating(true);
     
+    // 1. LIMPEZA DE DADOS (Correção do erro "Email invalid" devido a espaços)
+    const cleanEmail = email.trim();
+    
     try {
+      // 2. GARANTIR SESSÃO LIMPA (Protegido contra "Failed to fetch" silenciosamente)
+      try {
+        await supabase.auth.signOut();
+      } catch (e) {
+        // Ignora silenciosamente, apenas garante que tenta limpar a sessão anterior.
+      }
+
       if (isLoginMode) {
         // ==========================================
         // FLUXO DE LOGIN (SIGN IN)
         // ==========================================
         const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-          email,
+          email: cleanEmail,
           password,
         });
 
@@ -70,11 +80,11 @@ export default function LoginPage() {
 
         // Macete Dev: Se o email tiver 'admin' ou 'gestor', ganha o cargo. Senão, 'client'.
         let newRole = 'client';
-        if (email.includes('admin')) newRole = 'admin';
-        if (email.includes('gestor')) newRole = 'gestor';
+        if (cleanEmail.includes('admin')) newRole = 'admin';
+        if (cleanEmail.includes('gestor')) newRole = 'gestor';
 
         const { data: authData, error: authError } = await supabase.auth.signUp({
-          email,
+          email: cleanEmail,
           password,
           options: {
             data: {
