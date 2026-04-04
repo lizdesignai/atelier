@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lock, Fingerprint, ShieldCheck, Mail, KeyRound, UserPlus, User } from "lucide-react";
+import { Lock, Fingerprint, ShieldCheck, Mail, KeyRound, UserPlus, User, Building2, Package } from "lucide-react";
 import { supabase } from "../../lib/supabase"; // Conexão com o Supabase
 
 // Função para disparar os Toasts Globais
@@ -18,6 +18,8 @@ export default function LoginPage() {
   // Estados do Formulário
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [nome, setNome] = useState("");
+  const [empresa, setEmpresa] = useState("");
+  const [servico, setServico] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -72,8 +74,8 @@ export default function LoginPage() {
         // ==========================================
         // FLUXO DE CRIAÇÃO DE CONTA (SIGN UP)
         // ==========================================
-        if (!nome) {
-          showToast("O nome é obrigatório para o registo.");
+        if (!nome || !empresa || !servico) {
+          showToast("Todos os campos são obrigatórios para forjar a chave.");
           setIsAuthenticating(false);
           return;
         }
@@ -82,6 +84,7 @@ export default function LoginPage() {
         let newRole = 'client';
         if (cleanEmail.includes('admin')) newRole = 'admin';
         if (cleanEmail.includes('gestor')) newRole = 'gestor';
+        if (cleanEmail.includes('colab')) newRole = 'colaborador';
 
         const { data: authData, error: authError } = await supabase.auth.signUp({
           email: cleanEmail,
@@ -89,6 +92,7 @@ export default function LoginPage() {
           options: {
             data: {
               nome: nome,
+              empresa: empresa, // Salva a empresa no metadata
               role: newRole
             }
           }
@@ -96,7 +100,24 @@ export default function LoginPage() {
 
         if (authError) throw authError;
 
-        showToast("Chave forjada com sucesso! Faça login para entrar.");
+        // Se o registro for de um cliente normal (não admin/gestor), cria o projeto automaticamente
+        if (newRole === 'client' && authData.user) {
+          const { error: projectError } = await supabase.from('projects').insert({
+            client_id: authData.user.id,
+            name: `Projeto ${empresa}`,
+            type: servico,
+            status: 'active',
+            brand_health_score: 100, // Score inicial perfeito
+            current_focus: 'Diagnóstico Estratégico Iniciado'
+          });
+          
+          if (projectError) {
+             console.error("Erro ao gerar projeto automático:", projectError);
+             // Não jogamos throw aqui para não interromper o feedback de sucesso de criação de conta
+          }
+        }
+
+        showToast("Chave forjada e ecossistema ativado! Faça login para entrar.");
         setIsLoginMode(true); // Volta para a tela de login
       }
     } catch (error: any) {
@@ -167,17 +188,47 @@ export default function LoginPage() {
             <AnimatePresence mode="popLayout">
               {!isLoginMode && (
                 <motion.div 
-                  initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }}
-                  className="relative group/input"
+                  initial={{ opacity: 0, height: 0, overflow: 'hidden' }} 
+                  animate={{ opacity: 1, height: "auto", overflow: 'visible' }} 
+                  exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
+                  transition={{ duration: 0.3 }}
+                  className="flex flex-col gap-5"
                 >
-                  <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors">
-                    <User size={18} strokeWidth={1.5} />
+                  <div className="relative group/input">
+                    <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors">
+                      <User size={18} strokeWidth={1.5} />
+                    </div>
+                    <input 
+                      type="text" required={!isLoginMode} value={nome} onChange={(e) => setNome(e.target.value)}
+                      placeholder="O seu Nome" 
+                      className="w-full bg-white/60 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-full py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 outline-none transition-all shadow-sm focus:shadow-[0_10px_20px_rgba(173,111,64,0.08)]"
+                    />
                   </div>
-                  <input 
-                    type="text" required={!isLoginMode} value={nome} onChange={(e) => setNome(e.target.value)}
-                    placeholder="O seu Nome" 
-                    className="w-full bg-white/60 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-full py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 outline-none transition-all shadow-sm focus:shadow-[0_10px_20px_rgba(173,111,64,0.08)]"
-                  />
+
+                  <div className="relative group/input">
+                    <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors">
+                      <Building2 size={18} strokeWidth={1.5} />
+                    </div>
+                    <input 
+                      type="text" required={!isLoginMode} value={empresa} onChange={(e) => setEmpresa(e.target.value)}
+                      placeholder="Nome da Marca/Empresa" 
+                      className="w-full bg-white/60 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-full py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 outline-none transition-all shadow-sm focus:shadow-[0_10px_20px_rgba(173,111,64,0.08)]"
+                    />
+                  </div>
+
+                  <div className="relative group/input">
+                    <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors z-10">
+                      <Package size={18} strokeWidth={1.5} />
+                    </div>
+                    <select 
+                      required={!isLoginMode} value={servico} onChange={(e) => setServico(e.target.value)}
+                      className={`w-full bg-white/60 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-full py-4 pl-14 pr-6 text-[14px] outline-none transition-all shadow-sm focus:shadow-[0_10px_20px_rgba(173,111,64,0.08)] appearance-none cursor-pointer ${servico ? 'text-[var(--color-atelier-grafite)]' : 'text-[var(--color-atelier-grafite)]/40'}`}
+                    >
+                      <option value="" disabled>Qual serviço foi contratado?</option>
+                      <option value="Identidade Visual">Identidade Visual</option>
+                      <option value="Gestão de Instagram">Gestão de Instagram</option>
+                    </select>
+                  </div>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -214,7 +265,11 @@ export default function LoginPage() {
               
               <button 
                 type="button" 
-                onClick={() => setIsLoginMode(!isLoginMode)}
+                onClick={() => {
+                  setIsLoginMode(!isLoginMode);
+                  // Reseta os campos ao alternar modos para evitar envios errados
+                  setNome(""); setEmpresa(""); setServico("");
+                }}
                 className="text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-grafite)] transition-colors"
               >
                 {isLoginMode ? "Criar Conta?" : "Já tem chave?"}

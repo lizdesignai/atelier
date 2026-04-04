@@ -10,7 +10,7 @@ import {
   Home, Lock, MessageSquare, Settings, 
   ChevronLeft, ChevronRight, LogOut, Compass,
   LayoutDashboard, FolderKanban, Users, Inbox, BarChart3, Shield,
-  Globe2, Camera, CheckCircle2, DollarSign, BrainCircuit, Sparkles
+  Globe2, Camera, CheckCircle2, DollarSign, BrainCircuit, Sparkles, Briefcase
 } from "lucide-react";
 
 interface AppSidebarProps {
@@ -28,7 +28,11 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
 
   const pathname = usePathname();
   const router = useRouter();
-  const isTeamMember = userRole === 'admin' || userRole === 'gestor';
+  
+  // HIERARQUIA DE ACESSO (Alteração Cirúrgica)
+  const isTeamMember = ['admin', 'gestor', 'colaborador'].includes(userRole);
+  const isManagerOrAdmin = ['admin', 'gestor'].includes(userRole);
+  const isAdminOnly = userRole === 'admin';
 
   useEffect(() => {
     const fetchSidebarData = async () => {
@@ -74,13 +78,14 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
 
         const isInstagram = service === "Gestão de Instagram";
 
+        // BLINDAGEM DE ROTAS (Routing de Segurança)
         if (shouldArchive) {
-          const lockedRoutes = ['/', '/cofre', '/referencias', '/conteudo', '/aprovacoes'];
+          const lockedRoutes = ['/', '/cofre', '/referencias', '/cockpit', '/curadoria', '/cofre-missoes'];
           if (lockedRoutes.includes(pathname)) router.replace('/comunidade');
         } else {
           if (isInstagram && (pathname === '/' || pathname === '/cofre' || pathname === '/referencias')) {
-            router.replace('/conteudo');
-          } else if (!isInstagram && (pathname === '/conteudo' || pathname === '/aprovacoes')) {
+            router.replace('/cockpit');
+          } else if (!isInstagram && (pathname === '/cockpit' || pathname === '/curadoria' || pathname === '/cofre-missoes')) {
             router.replace('/');
           }
         }
@@ -155,12 +160,12 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
           {!isTeamMember && (
             <>
               {clientServiceType === "Gestão de Instagram" ? (
-  <>
-    <NavItem href="/cockpit" icon={<LayoutDashboard size={20} strokeWidth={1.75} />} label="Cockpit" collapsed={isCollapsed} active={pathname === '/cockpit'} />
-    <NavItem href="/brandbook" icon={<Sparkles size={20} strokeWidth={1.75} />} label="Sua Marca" collapsed={isCollapsed} active={pathname === '/brandbook'} />
-    <NavItem href="/curadoria" icon={<CheckCircle2 size={20} strokeWidth={1.75} />} label="Curadoria" collapsed={isCollapsed} active={pathname === '/curadoria'} />
-  </>
-) : (
+                <>
+                  <NavItem href="/cockpit" icon={<LayoutDashboard size={20} strokeWidth={1.75} />} label="Cockpit" collapsed={isCollapsed} active={pathname === '/cockpit'} />
+                  <NavItem href="/brandbook" icon={<Sparkles size={20} strokeWidth={1.75} />} label="Sua Marca" collapsed={isCollapsed} active={pathname === '/brandbook'} />
+                  <NavItem href="/curadoria" icon={<CheckCircle2 size={20} strokeWidth={1.75} />} label="Curadoria" collapsed={isCollapsed} active={pathname === '/curadoria'} />
+                </>
+              ) : (
                 <>
                   <NavItem href="/" icon={<Home size={20} strokeWidth={1.75} />} label="Mesa de Trabalho" collapsed={isCollapsed} active={pathname === '/'} />
                   <NavItem href="/cofre" icon={<Lock size={20} strokeWidth={1.75} />} label="O Cofre" collapsed={isCollapsed} active={pathname === '/cofre'} />
@@ -173,23 +178,30 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
             </>
           )}
 
-          {/* MENU PARA ADMINS */}
+          {/* MENU PARA EQUIPA (Modificado Cirurgicamente) */}
           {isTeamMember && (
             <>
+              {/* Visto por todos (Admin, Gestor, Colaborador) */}
               <NavItem href="/admin" icon={<LayoutDashboard size={20} strokeWidth={1.75} />} label="Comando" collapsed={isCollapsed} active={pathname === '/admin'} />
               <NavItem href="/admin/projetos" icon={<FolderKanban size={20} strokeWidth={1.75} />} label="Estúdio" collapsed={isCollapsed} active={pathname === '/admin/projetos'} />
               <NavItem href="/admin/gerenciamento" icon={<LayoutDashboard size={20} strokeWidth={1.75} />} label="Gerenciamento" collapsed={isCollapsed} active={pathname === '/admin/gerenciamento'} />
-              <NavItem href="/admin/clientes" icon={<Users size={20} strokeWidth={1.75} />} label="Base de Clientes" collapsed={isCollapsed} active={pathname === '/admin/clientes'} />
               <NavItem href="/admin/inbox" icon={<Inbox size={20} strokeWidth={1.75} />} label="Caixa de Entrada" collapsed={isCollapsed} active={pathname === '/admin/inbox'} />
               <NavItem href="/comunidade" icon={<Globe2 size={20} strokeWidth={1.75} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
               
               <div className="h-px bg-[var(--color-atelier-grafite)]/5 my-2 w-full"></div>
               
-              <NavItem href="/admin/financeiro" icon={<DollarSign size={20} strokeWidth={1.75} />} label="Financeiro" collapsed={isCollapsed} active={pathname === '/admin/financeiro'} />
-              <NavItem href="/admin/analytics" icon={<BarChart3 size={20} strokeWidth={1.75} />} label="Analytics" collapsed={isCollapsed} active={pathname === '/admin/analytics'} />
-              
-              {userRole === 'gestor' && (
-                <NavItem href="/admin/metricas" icon={<BarChart3 size={20} strokeWidth={1.75} />} label="Métricas & Saúde" collapsed={isCollapsed} active={pathname === '/admin/metricas'} />
+              {/* Visto apenas por Gestor e Admin */}
+              {isManagerOrAdmin && (
+                <>
+                  <NavItem href="/admin/clientes" icon={<Users size={20} strokeWidth={1.75} />} label="Base de Clientes" collapsed={isCollapsed} active={pathname === '/admin/clientes'} />
+                  <NavItem href="/admin/equipa" icon={<Briefcase size={20} strokeWidth={1.75} />} label="Gestão de Equipa" collapsed={isCollapsed} active={pathname === '/admin/equipa'} />
+                  <NavItem href="/admin/metricas" icon={<BarChart3 size={20} strokeWidth={1.75} />} label="Métricas & Saúde" collapsed={isCollapsed} active={pathname === '/admin/metricas'} />
+                </>
+              )}
+
+              {/* Visto apenas por Admin (O Dono) */}
+              {isAdminOnly && (
+                <NavItem href="/admin/financeiro" icon={<DollarSign size={20} strokeWidth={1.75} />} label="Financeiro" collapsed={isCollapsed} active={pathname === '/admin/financeiro'} />
               )}
             </>
           )}
@@ -217,7 +229,8 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
                   {userProfile?.nome || (isTeamMember ? 'Atelier Team' : 'Cliente')}
                 </span>
                 <span className="font-roboto text-[9px] text-[var(--color-atelier-terracota)] font-bold uppercase tracking-widest truncate">
-                  {isTeamMember ? (userProfile?.cargo || 'Membro da Equipa') : (userProfile?.empresa || 'Cliente Premium')}
+                  {/* Etiqueta dinâmica de cargo adaptada para a nova hierarquia */}
+                  {userRole === 'admin' ? 'Administrador' : userRole === 'gestor' ? 'Gestor de Conta' : userRole === 'colaborador' ? 'Membro da Equipa' : 'Cliente Premium'}
                 </span>
               </div>
             </motion.div>

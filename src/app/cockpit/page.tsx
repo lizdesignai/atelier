@@ -8,13 +8,19 @@ import { supabase } from "../../lib/supabase";
 import { 
   Activity, AlertCircle, ArrowRight, CheckCircle2, 
   Clock, Compass, Sparkles, Loader2, TrendingUp, 
-  Target, Camera, LayoutDashboard, SlidersHorizontal, ChevronRight
+  Target, Camera, LayoutDashboard, SlidersHorizontal, ChevronRight,
+  CalendarDays, MessageSquare, XCircle
 } from "lucide-react";
 import InstagramBriefingModal from "../../components/InstagramBriefingModal";
+
+const showToast = (message: string) => {
+  window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
+};
 
 export default function CockpitPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [clientName, setClientName] = useState("Cliente");
   const [clientId, setClientId] = useState("");
   const [project, setProject] = useState<any>(null);
@@ -29,6 +35,11 @@ export default function CockpitPage() {
   const [briefing, setBriefing] = useState<any>(null);
   const [pendingMissions, setPendingMissions] = useState(0);
   const [pendingDirections, setPendingDirections] = useState(0);
+  
+  // Estado do Planeamento Editorial Mensal
+  const [monthlyPlan, setMonthlyPlan] = useState<any[]>([]);
+  const [feedbackText, setFeedbackText] = useState<{ [key: string]: string }>({});
+  const [activeFeedbackId, setActiveFeedbackId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchCockpitData = async () => {
@@ -66,6 +77,10 @@ export default function CockpitPage() {
             const { data: directions } = await supabase.from('design_directions').select('score').eq('project_id', proj.id);
             const pendingDirs = directions?.filter(d => !d.score || d.score === 0).length || 0;
             setPendingDirections(pendingDirs);
+
+            // 7. Buscar Planeamento Editorial Mensal (Ideias de Posts Pendentes de Texto)
+            const { data: plans } = await supabase.from('content_planning').select('*').eq('project_id', proj.id).in('status', ['pending', 'needs_revision']).order('publish_date', { ascending: true });
+            if (plans) setMonthlyPlan(plans);
           }
         }
       } catch (error) {
@@ -77,6 +92,41 @@ export default function CockpitPage() {
 
     fetchCockpitData();
   }, []);
+
+  // ==========================================
+  // MOTORES DO PLANEAMENTO MENSAL
+  // ==========================================
+  const handleApprovePlan = async (planId: string) => {
+    setIsProcessing(true);
+    try {
+      await supabase.from('content_planning').update({ status: 'approved' }).eq('id', planId);
+      setMonthlyPlan(monthlyPlan.filter(p => p.id !== planId));
+      showToast("Estratégia aprovada! O estúdio iniciará a confeção da arte.");
+    } catch (error) {
+      showToast("Erro ao aprovar a estratégia.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleRejectPlan = async (planId: string) => {
+    const feedback = feedbackText[planId];
+    if (!feedback || feedback.trim() === "") {
+      showToast("Por favor, justifique o ajuste necessário para orientar a equipa.");
+      return;
+    }
+    setIsProcessing(true);
+    try {
+      await supabase.from('content_planning').update({ status: 'rejected', feedback: feedback }).eq('id', planId);
+      setMonthlyPlan(monthlyPlan.filter(p => p.id !== planId));
+      setActiveFeedbackId(null);
+      showToast("Feedback enviado. A estratégia será reformulada.");
+    } catch (error) {
+      showToast("Erro ao enviar feedback.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
 
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Bom dia" : hour < 19 ? "Boa tarde" : "Boa noite";
@@ -103,6 +153,8 @@ export default function CockpitPage() {
     if (briefing) currentPhase = 2;
     if (briefing && pendingDirections === 0 && project.instagram_ai_insight) currentPhase = 3;
     if (pendingCount > 0 || healthScore > 85) currentPhase = 4;
+
+    const pendingPlanCount = monthlyPlan.length;
 
     return (
       <div className="flex flex-col max-w-[1200px] mx-auto w-full gap-8 relative z-10 pb-10 px-4 md:px-0">
@@ -158,11 +210,108 @@ export default function CockpitPage() {
           </div>
         </motion.section>
 
+        {/* =========================================================
+            NOVA SECÇÃO: ESTRATÉGIA EDITORIAL MENSAL (Planeamento)
+            ========================================================= */}
+        {monthlyPlan.length > 0 && (
+          <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass-panel bg-white/70 p-8 md:p-10 rounded-[2.5rem] border border-white shadow-[0_15px_40px_rgba(173,111,64,0.05)]">
+            <div className="flex items-start justify-between border-b border-[var(--color-atelier-grafite)]/10 pb-6 mb-8">
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <CalendarDays size={16} className="text-[var(--color-atelier-terracota)]" />
+                  <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">Estratégia do Mês</span>
+                </div>
+                <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Validação de Copy & Contexto</h2>
+                <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 max-w-2xl leading-relaxed">
+                  Antes de confecionarmos a arte gráfica, validamos a intenção. Aprove os ganchos e as abordagens abaixo para que o estúdio inicie a produção dos ativos visuais.
+                </p>
+              </div>
+              <div className="bg-orange-50 text-orange-600 px-4 py-2 rounded-2xl border border-orange-100 flex flex-col items-center justify-center shadow-inner shrink-0">
+                <span className="font-elegant text-2xl leading-none">{monthlyPlan.length}</span>
+                <span className="font-roboto text-[8px] font-bold uppercase tracking-widest mt-1">Pendentes</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-6">
+              {monthlyPlan.map((plan) => (
+                <div key={plan.id} className="bg-white p-6 md:p-8 rounded-[2rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col md:flex-row gap-8">
+                  
+                  {/* Lado Esquerdo: Dados Estratégicos */}
+                  <div className="w-full md:w-1/3 flex flex-col gap-4 border-b md:border-b-0 md:border-r border-[var(--color-atelier-grafite)]/10 pb-6 md:pb-0 md:pr-6 shrink-0">
+                    <div>
+                      <span className="block font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Data Sugerida</span>
+                      <span className="font-roboto text-[14px] font-medium text-[var(--color-atelier-grafite)]">
+                        {plan.publish_date ? new Date(plan.publish_date).toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'short' }) : "A definir"}
+                      </span>
+                    </div>
+                    <div>
+                      <span className="block font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Pilar (Tilt)</span>
+                      <span className="inline-block bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-widest">
+                        {plan.pillar || "Estratégico"}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Lado Direito: Copy e Ações */}
+                  <div className="flex-1 flex flex-col">
+                    <div className="mb-6">
+                      <h4 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] mb-3 leading-tight">"{plan.hook}"</h4>
+                      <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/70 leading-relaxed whitespace-pre-wrap">
+                        {plan.briefing}
+                      </p>
+                    </div>
+
+                    <div className="mt-auto flex flex-col sm:flex-row gap-3 pt-4 border-t border-[var(--color-atelier-grafite)]/5">
+                      <button 
+                        onClick={() => handleApprovePlan(plan.id)}
+                        disabled={isProcessing}
+                        className="flex-1 bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] py-3 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2 hover:-translate-y-0.5 disabled:opacity-50"
+                      >
+                        <CheckCircle2 size={16} /> Aprovar Ideia
+                      </button>
+                      
+                      <button 
+                        onClick={() => setActiveFeedbackId(activeFeedbackId === plan.id ? null : plan.id)}
+                        className="flex-1 bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)] py-3 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-2"
+                      >
+                        <MessageSquare size={16} /> Solicitar Ajuste
+                      </button>
+                    </div>
+
+                    {/* Área de Input de Feedback (Aparece ao clicar em Solicitar Ajuste) */}
+                    <AnimatePresence>
+                      {activeFeedbackId === plan.id && (
+                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+                          <div className="mt-4 bg-[var(--color-atelier-creme)]/30 p-4 rounded-2xl border border-[var(--color-atelier-grafite)]/10 flex flex-col gap-3">
+                            <textarea 
+                              placeholder="O que devemos ajustar na abordagem deste conteúdo?"
+                              value={feedbackText[plan.id] || ""}
+                              onChange={(e) => setFeedbackText({...feedbackText, [plan.id]: e.target.value})}
+                              className="w-full bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl p-3 text-[12px] text-[var(--color-atelier-grafite)] resize-none h-20 outline-none shadow-sm custom-scrollbar"
+                            />
+                            <div className="flex justify-end gap-2">
+                              <button onClick={() => setActiveFeedbackId(null)} className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 hover:text-red-500 transition-colors">Cancelar</button>
+                              <button onClick={() => handleRejectPlan(plan.id)} disabled={isProcessing || !feedbackText[plan.id]?.trim()} className="px-6 py-2 bg-red-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-600 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2">
+                                <XCircle size={14} /> Recusar e Enviar Ajuste
+                              </button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                  
+                </div>
+              ))}
+            </div>
+          </motion.section>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           
-          {/* MÓDULO DE AÇÃO EXIGIDA (Gargalos) - Ocupa 8 colunas */}
+          {/* MÓDULO DE AÇÃO EXIGIDA (Gargalos) */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className={`md:col-span-8 glass-panel p-8 md:p-10 flex flex-col justify-between relative overflow-hidden transition-all duration-500 rounded-[2.5rem] border shadow-sm
-            ${(!briefing || pendingCount > 0 || pendingDirections > 0 || pendingMissions > 0) ? 'bg-white/90 border-orange-200' : 'bg-white/60 border-white'}
+            ${(!briefing || pendingCount > 0 || pendingDirections > 0 || pendingMissions > 0 || pendingPlanCount > 0) ? 'bg-white/90 border-orange-200' : 'bg-white/60 border-white'}
           `}>
             
             <div className="flex items-start justify-between mb-8">
@@ -171,20 +320,21 @@ export default function CockpitPage() {
                   Ação Requerida do Cliente
                 </span>
                 <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">
-                  {!briefing ? 'Dossiê de Mercado Pendente' : pendingDirections > 0 ? 'Brandbook: Avaliação Pendente' : pendingCount > 0 ? 'Curadoria: Aprovações Pendentes' : pendingMissions > 0 ? 'Cofre: Missões Pendentes' : 'Mesa Limpa. Tudo em Dia.'}
+                  {!briefing ? 'Dossiê de Mercado Pendente' : pendingPlanCount > 0 ? 'Validação de Estratégia Pendente' : pendingDirections > 0 ? 'Brandbook: Avaliação Pendente' : pendingCount > 0 ? 'Curadoria: Aprovações Pendentes' : pendingMissions > 0 ? 'Cofre: Missões Pendentes' : 'Mesa Limpa. Tudo em Dia.'}
                 </h2>
               </div>
               <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-inner
-                ${(!briefing || pendingCount > 0 || pendingDirections > 0 || pendingMissions > 0) ? 'bg-orange-50 text-orange-500 border border-orange-100' : 'bg-green-50 text-green-500 border border-green-100'}
+                ${(!briefing || pendingCount > 0 || pendingDirections > 0 || pendingMissions > 0 || pendingPlanCount > 0) ? 'bg-orange-50 text-orange-500 border border-orange-100' : 'bg-green-50 text-green-500 border border-green-100'}
               `}>
-                {(!briefing || pendingCount > 0 || pendingDirections > 0 || pendingMissions > 0) ? <AlertCircle size={28} /> : <CheckCircle2 size={28} />}
+                {(!briefing || pendingCount > 0 || pendingDirections > 0 || pendingMissions > 0 || pendingPlanCount > 0) ? <AlertCircle size={28} /> : <CheckCircle2 size={28} />}
               </div>
             </div>
 
             <div>
               <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/80 mb-8 leading-relaxed max-w-xl">
                 {!briefing ? 'Para ativarmos o nosso Chief Marketing Officer (IA) e desenharmos o seu Brandbook, precisamos que responda a algumas perguntas estratégicas sobre o seu negócio.' 
-                : pendingDirections > 0 ? `O Diretor de Arte enviou ${pendingDirections} direções visuais. A sua avaliação (Swipe/Rate) vai calibrar a estética final da sua marca.` 
+                : pendingPlanCount > 0 ? `Temos ${pendingPlanCount} ideias de conteúdo aguardando a sua aprovação textual na secção acima. Valide para iniciarmos a criação gráfica.`
+                : pendingDirections > 0 ? `O Diretor de Arte enviou ${pendingDirections} direções visuais. A sua avaliação vai calibrar a estética final da sua marca.` 
                 : pendingCount > 0 ? `O Fluxo de Impacto tem ${pendingCount} conteúdos aguardando a sua validação. A aprovação rápida com "Double Tap" mantém a máquina a rodar.` 
                 : pendingMissions > 0 ? `Temos ${pendingMissions} missões de captura aguardando o envio dos seus materiais crus para o nosso Cofre de Ativos.` 
                 : 'Não há ações exigidas da sua parte neste momento. O nosso estúdio está a produzir a próxima vaga de conteúdo.'}
@@ -194,23 +344,31 @@ export default function CockpitPage() {
                 <button onClick={() => setIsBriefingModalOpen(true)} className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] shadow-md hover:-translate-y-0.5">
                   Preencher Dossiê Agora <ArrowRight size={16} />
                 </button>
-              ) : pendingDirections > 0 || pendingCount > 0 ? (
+              ) : pendingPlanCount > 0 ? (
+                <button onClick={() => window.scrollTo({ top: 400, behavior: 'smooth' })} className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
+                  Revisar Estratégia <ArrowRight size={16} />
+                </button>
+              ) : pendingDirections > 0 ? (
+                <button onClick={() => router.push('/cofre-missoes')} className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
+                  Acessar Brandbook <ArrowRight size={16} />
+                </button>
+              ) : pendingCount > 0 ? (
                 <button onClick={() => router.push('/curadoria')} className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
-                  Acessar Mesa de Curadoria <ArrowRight size={16} />
+                  Acessar Fluxo de Impacto <ArrowRight size={16} />
                 </button>
               ) : pendingMissions > 0 ? (
                 <button onClick={() => router.push('/cofre-missoes')} className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-orange-500 text-white hover:bg-orange-600 shadow-md hover:-translate-y-0.5">
                   Abrir Cofre de Missões <ArrowRight size={16} />
                 </button>
               ) : (
-                <button onClick={() => router.push('/oraculo')} className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)]">
-                  Visualizar Analytics (Oráculo) <ArrowRight size={16} />
+                <button disabled className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/40 cursor-not-allowed">
+                  Monitorando Ativos <CheckCircle2 size={16} />
                 </button>
               )}
             </div>
           </motion.div>
 
-          {/* ACESSOS RÁPIDOS (Menu de Luxo) - Ocupa 4 colunas */}
+          {/* ACESSOS RÁPIDOS */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="md:col-span-4 flex flex-col gap-4">
             <button onClick={() => router.push('/curadoria')} className="flex-1 glass-panel bg-white/70 hover:bg-white p-6 rounded-[2rem] border border-[var(--color-atelier-grafite)]/5 flex items-center gap-4 transition-all group shadow-sm hover:shadow-md">
               <div className="w-12 h-12 rounded-xl bg-[var(--color-atelier-terracota)]/10 flex items-center justify-center text-[var(--color-atelier-terracota)] group-hover:scale-110 transition-transform"><LayoutDashboard size={20}/></div>
@@ -229,20 +387,10 @@ export default function CockpitPage() {
               </div>
               <ChevronRight size={20} className="text-[var(--color-atelier-grafite)]/20 group-hover:text-[var(--color-atelier-terracota)] transition-colors"/>
             </button>
-
-            <button onClick={() => router.push('/oraculo')} className="flex-1 glass-panel bg-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)] p-6 rounded-[2rem] border border-transparent flex items-center gap-4 transition-all group shadow-md hover:shadow-lg">
-              <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-white group-hover:scale-110 transition-transform"><Activity size={20}/></div>
-              <div className="text-left flex-1">
-                <span className="block font-elegant text-xl text-white">Oráculo Analytics</span>
-                <span className="block font-roboto text-[10px] text-white/50 uppercase tracking-widest mt-1">Inteligência de Dados</span>
-              </div>
-              <ChevronRight size={20} className="text-white/20 group-hover:text-white transition-colors"/>
-            </button>
           </motion.div>
 
         </div>
 
-        {/* MODAL DE BRIEFING INJETADO */}
         <InstagramBriefingModal 
           isOpen={isBriefingModalOpen} 
           onClose={() => setIsBriefingModalOpen(false)} 
@@ -250,7 +398,7 @@ export default function CockpitPage() {
           clientId={clientId} 
           onSuccess={() => {
             setIsBriefingModalOpen(false);
-            window.location.reload(); // Recarrega para atualizar o Tracker The Forge
+            window.location.reload(); 
           }} 
         />
       </div>
@@ -258,7 +406,7 @@ export default function CockpitPage() {
   }
 
   // ==========================================================================
-  // RENDERIZAÇÃO CONDICIONAL: IDENTIDADE VISUAL (O Original Intocável)
+  // RENDERIZAÇÃO CONDICIONAL: IDENTIDADE VISUAL
   // ==========================================================================
   return (
     <div className="flex flex-col max-w-[1000px] mx-auto w-full gap-8 relative z-10 pb-10 px-4 md:px-0">

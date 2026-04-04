@@ -2,11 +2,13 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
   Lock, Clock, Eye, FileText, CheckCircle2, Loader2, ArrowUpRight
 } from "lucide-react";
 import { supabase } from "../lib/supabase"; 
-import BriefingModal from "../components/BriefingModal"; // Importação do Novo Modal Isolado
+import BriefingModal from "../components/BriefingModal";
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -22,6 +24,8 @@ const PROJECT_STAGES = [
 ];
 
 export default function Home() {
+  const router = useRouter();
+
   // ==========================================
   // ESTADOS DO SUPABASE E LÓGICA DO MOTOR
   // ==========================================
@@ -50,10 +54,19 @@ export default function Home() {
         .from('projects')
         .select('*')
         .eq('client_id', session.user.id)
-        .eq('status', 'active')
+        .in('status', ['active', 'delivered'])
+        .order('created_at', { ascending: false })
+        .limit(1)
         .maybeSingle(); 
       
       if (project) {
+        
+        // REDIRECIONAMENTO DE SEGURANÇA: Se o cliente é de Instagram, chuta para o Cockpit.
+        if (project.type === 'Gestão de Instagram') {
+          router.replace('/cockpit');
+          return;
+        }
+
         setActiveProject(project);
         
         // Verifica se o briefing já foi preenchido
@@ -79,7 +92,7 @@ export default function Home() {
     };
 
     fetchDashboardData();
-  }, []);
+  }, [router]);
 
   // Lógica de Renderização do Cofre (Progresso e Desfoque)
   const currentStageIndex = activeProject?.fase ? PROJECT_STAGES.findIndex(s => s.dbValue === activeProject.fase) : 0;
