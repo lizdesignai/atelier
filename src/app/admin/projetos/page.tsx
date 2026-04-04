@@ -7,12 +7,10 @@ import {
   UploadCloud, Lock, Unlock, 
   Image as ImageIcon, Send, FileText, CheckCircle2,
   Settings2, Plus, ChevronDown, Calendar,
-  Compass, X, Sparkles, Download, Loader2, Trash2, Archive, Eye, RotateCcw
+  Compass, X, Sparkles, Download, Loader2, Trash2, Archive, Eye, RotateCcw, BrainCircuit
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import DiaryModule from "../../../components/admin/DiaryModule";
-import BriefingDocument from "../../../components/admin/BriefingDocument";
-import CuradoriaDocument from "../../../components/admin/CuradoriaDocument";
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -32,10 +30,10 @@ function WorkspaceDesigner() {
     const fetchActiveProjects = async () => {
       try {
         const { data, error } = await supabase
-          .from('projects')
-          .select('*, profiles(nome, avatar_url, empresa)')
-          .in('status', ['active', 'delivered', 'archived'])
-          .order('created_at', { ascending: false });
+  .from('projects')
+  .select('*, profiles(nome, avatar_url, empresa)')
+  .in('status', ['active', 'delivered', 'archived'])
+  .order('created_at', { ascending: false });
 
         if (error) throw error;
         
@@ -62,6 +60,8 @@ function WorkspaceDesigner() {
       if (proj) {
         setDeadlineDate(proj.data_limite || "");
         setContractUrl(proj.contract_url || "");
+        setBriefingAiInsight(proj.briefing_ai_insight || null);
+        setCuradoriaAiInsight(proj.curadoria_ai_insight || null);
       }
     }
   }, [activeProjectId, dbProjects]);
@@ -75,6 +75,12 @@ function WorkspaceDesigner() {
   const [isUploadingContract, setIsUploadingContract] = useState(false);
   
   const [clientBriefing, setClientBriefing] = useState<any>(null);
+  
+  // ESTADOS DE IA & PDF
+  const [briefingAiInsight, setBriefingAiInsight] = useState<string | null>(null);
+  const [curadoriaAiInsight, setCuradoriaAiInsight] = useState<string | null>(null);
+  const [isGeneratingBriefingInsight, setIsGeneratingBriefingInsight] = useState(false);
+  const [isGeneratingCuradoriaInsight, setIsGeneratingCuradoriaInsight] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
 
   useEffect(() => {
@@ -103,7 +109,130 @@ function WorkspaceDesigner() {
     fetchAssetsAndBriefing();
   }, [activeProjectId]);
 
-  // UPLOAD DE ATIVOS FINAIS
+  // ==========================================
+  // MOTORES DE INTELIGÊNCIA ARTIFICIAL
+  // ==========================================
+  const handleGenerateBriefingInsight = async () => {
+    if (!activeProjectId || !clientBriefing) return;
+    setIsGeneratingBriefingInsight(true);
+    showToast("IA CBO: A analisar o briefing detalhadamente...");
+    try {
+      const res = await fetch('/api/insights/briefing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          briefingData: clientBriefing,
+          clientName: currentProject?.profiles?.nome,
+          companyName: currentProject?.profiles?.empresa
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      await supabase.from('projects').update({ briefing_ai_insight: data.insight }).eq('id', activeProjectId);
+      setBriefingAiInsight(data.insight);
+      setDbProjects(prev => prev.map(p => p.id === activeProjectId ? { ...p, briefing_ai_insight: data.insight } : p));
+      showToast("Diagnóstico CBO gerado com sucesso! ✨");
+    } catch (e) {
+      showToast("Erro ao processar insight da IA.");
+    } finally {
+      setIsGeneratingBriefingInsight(false);
+    }
+  };
+
+  const handleGenerateCuradoriaInsight = async () => {
+    if (!activeProjectId || adminRefs.length === 0) return;
+    setIsGeneratingCuradoriaInsight(true);
+    showToast("IA Diretora de Arte: A ler direções visuais...");
+    try {
+      const res = await fetch('/api/insights/curadoria', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminRefs: adminRefs,
+          clientMoodboard: clientMoodboard,
+          clientName: currentProject?.profiles?.nome
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      await supabase.from('projects').update({ curadoria_ai_insight: data.insight }).eq('id', activeProjectId);
+      setCuradoriaAiInsight(data.insight);
+      setDbProjects(prev => prev.map(p => p.id === activeProjectId ? { ...p, curadoria_ai_insight: data.insight } : p));
+      showToast("Análise Visual gerada com sucesso! ✨");
+    } catch (e) {
+      showToast("Erro ao processar insight da IA.");
+    } finally {
+      setIsGeneratingCuradoriaInsight(false);
+    }
+  };
+
+  // ==========================================
+  // MOTORES DE PDF VETORIAL (REACT-PDF/RENDERER)
+  // ==========================================
+  const handleDownloadBriefingPDF = async () => {
+    if (!clientBriefing) {
+      showToast("Erro: O conteúdo do Briefing ainda não foi carregado.");
+      return;
+    }
+    
+    setIsGeneratingPDF(true);
+    showToast("A forjar Dossiê Vetorial...");
+    
+    try {
+      // Import dinâmico para não quebrar o SSR do Next.js
+      const { pdf } = await import('@react-pdf/renderer');
+      const BriefingPDF = (await import('../../../components/pdf/BriefingPDF')).default;
+      
+      const doc = <BriefingPDF clientBriefing={clientBriefing} projectName={currentProject?.profiles?.nome || 'Cliente'} aiInsight={briefingAiInsight || undefined} />;
+      const blob = await pdf(doc).toBlob();
+      
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Dossie_Estrategico_${currentProject?.profiles?.nome || 'Cliente'}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      showToast("Dossiê exportado com sucesso!");
+    } catch (error) {
+      console.error("Crash no PDF:", error);
+      showToast("Erro crítico ao gerar o arquivo vetorial.");
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  const handleDownloadCuradoriaPDF = async () => {
+    if (adminRefs.length === 0) return;
+    setIsGeneratingCuradoriaPDF(true);
+    showToast("A compilar a Curadoria em PDF Vetorial...");
+    try {
+      const { pdf } = await import('@react-pdf/renderer');
+      const CuradoriaPDF = (await import('../../../components/pdf/CuradoriaPDF')).default;
+      
+      const doc = <CuradoriaPDF adminRefs={adminRefs} projectName={currentProject?.profiles?.nome || 'Cliente'} aiInsight={curadoriaAiInsight || undefined} />;
+      const blob = await pdf(doc).toBlob();
+      
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Curadoria_${currentProject?.profiles?.nome || 'Cliente'}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      showToast("Curadoria exportada com sucesso.");
+    } catch (error) {
+      console.error(error);
+      showToast("Erro ao gerar PDF da Curadoria.");
+    } finally {
+      setIsGeneratingCuradoriaPDF(false);
+    }
+  };
+
+
+  // UPLOAD DE ATIVOS FINAIS E CONTRATO (Inalterados)
   const handleAssetUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !activeProjectId) return;
@@ -158,7 +287,6 @@ function WorkspaceDesigner() {
     }
   };
 
-  // UPLOAD DINÂMICO DE CONTRATO
   const handleContractUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !activeProjectId) return;
@@ -188,38 +316,6 @@ function WorkspaceDesigner() {
     } finally {
       setIsUploadingContract(false);
       e.target.value = ''; 
-    }
-  };
-
-  // MOTOR DE PDF DO BRIEFING
-  const handleDownloadBriefingPDF = async () => {
-    const element = document.getElementById('pdf-briefing-render-clean');
-    
-    if (!element || !clientBriefing) {
-      showToast("Erro: O conteúdo do Briefing ainda não foi carregado.");
-      return;
-    }
-    
-    setIsGeneratingPDF(true);
-    showToast("Gerando Briefing...");
-    
-    try {
-      const html2pdf = (await import('html2pdf.js')).default;
-      const opt = {
-        margin: 10,
-        filename: `Briefing_${currentProject?.profiles?.nome || 'Cliente'}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff', logging: false },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-
-      await html2pdf().set(opt as any).from(element).save();
-      showToast("Briefing exportado com sucesso!");
-    } catch (error) {
-      console.error("Crash no PDF:", error);
-      showToast("Erro crítico ao gerar o arquivo.");
-    } finally {
-      setIsGeneratingPDF(false);
     }
   };
 
@@ -446,32 +542,6 @@ function WorkspaceDesigner() {
     }
   };
 
-  // MOTOR PDF PARA CURADORIA
-  const handleDownloadCuradoriaPDF = async () => {
-    const element = document.getElementById('pdf-curadoria-render-clean');
-    if (!element) return;
-    setIsGeneratingCuradoriaPDF(true);
-    showToast("A compilar a Curadoria em PDF...");
-    try {
-      const html2pdf = (await import('html2pdf.js')).default;
-      const opt = {
-        margin: 10,
-        filename: `Curadoria_${currentProject?.profiles?.nome || 'Cliente'}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-      };
-
-      await html2pdf().set(opt as any).from(element).save();
-      showToast("Curadoria exportada com sucesso.");
-    } catch (error) {
-      console.error(error);
-      showToast("Erro ao gerar PDF da Curadoria.");
-    } finally {
-      setIsGeneratingCuradoriaPDF(false);
-    }
-  };
-
   if (isLoading) {
     return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
   }
@@ -505,9 +575,16 @@ function WorkspaceDesigner() {
                   <span className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Dossiê Estratégico do Cliente</span>
                 </div>
                 <div className="flex items-center gap-3">
-                  <button onClick={handleDownloadBriefingPDF} disabled={isGeneratingPDF || !clientBriefing} className="bg-[var(--color-atelier-grafite)] text-white px-4 py-2 rounded-full flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-atelier-terracota)] transition-colors disabled:opacity-50">
-                    {isGeneratingPDF ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Baixar PDF
+                  
+                  {/* NOVO: BOTÃO DE CÉREBRO DA IA */}
+                  <button onClick={handleGenerateBriefingInsight} disabled={isGeneratingBriefingInsight || !clientBriefing} className="bg-white border border-[var(--color-atelier-terracota)]/40 text-[var(--color-atelier-terracota)] px-4 py-2 rounded-full flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm disabled:opacity-50">
+                    {isGeneratingBriefingInsight ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Gerar IA (CBO)
                   </button>
+
+                  <button onClick={handleDownloadBriefingPDF} disabled={isGeneratingPDF || !clientBriefing} className="bg-[var(--color-atelier-grafite)] text-white px-4 py-2 rounded-full flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-md disabled:opacity-50">
+                    {isGeneratingPDF ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Baixar PDF Vetorial
+                  </button>
+                  
                   <button onClick={() => setIsBriefingModalOpen(false)} className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--color-atelier-grafite)]/5 text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-colors">
                     <X size={16} />
                   </button>
@@ -525,6 +602,18 @@ function WorkspaceDesigner() {
                       <h2 className="font-roboto text-lg text-[var(--color-atelier-terracota)] uppercase tracking-widest font-bold">{currentProject.profiles?.nome}</h2>
                       <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/50 mt-2">Documento Confidencial de Identidade Visual</p>
                     </div>
+
+                    {/* Exibição em Tempo Real do Insight da IA */}
+                    {briefingAiInsight && (
+                      <div className="mb-10 bg-[var(--color-atelier-creme)] p-6 rounded-2xl border-l-4 border-[var(--color-atelier-terracota)]">
+                        <h3 className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] mb-4 flex items-center gap-2">
+                          <Sparkles size={14}/> Diagnóstico de Marca (CBO AI)
+                        </h3>
+                        <div className="font-roboto text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed whitespace-pre-wrap">
+                           {briefingAiInsight}
+                        </div>
+                      </div>
+                    )}
 
                     <div className="flex flex-col gap-10">
                       <div>
@@ -878,9 +967,16 @@ function WorkspaceDesigner() {
                   </p>
                 </div>
                 <div className="flex gap-3">
+
+                  {/* NOVO: BOTÃO DE CÉREBRO DA IA DA CURADORIA */}
+                  <button onClick={handleGenerateCuradoriaInsight} disabled={isGeneratingCuradoriaInsight || adminRefs.length === 0} className="bg-white border border-[var(--color-atelier-terracota)]/40 text-[var(--color-atelier-terracota)] px-4 py-2 rounded-xl flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:border-[var(--color-atelier-terracota)] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-colors shadow-sm disabled:opacity-50">
+                    {isGeneratingCuradoriaInsight ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Gerar IA Diretor
+                  </button>
+
                   <button onClick={handleDownloadCuradoriaPDF} disabled={isGeneratingCuradoriaPDF || adminRefs.length === 0} className="bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] px-4 py-2 rounded-xl flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:border-[var(--color-atelier-terracota)] transition-colors shadow-sm disabled:opacity-50">
                     {isGeneratingCuradoriaPDF ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Baixar PDF Curadoria
                   </button>
+
                   <button onClick={() => setShowRefsPanel(false)} className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-red-500 transition-all shadow-sm border border-white">
                     <X size={18} />
                   </button>
@@ -888,6 +984,19 @@ function WorkspaceDesigner() {
               </div>
 
               <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-8 gap-8 relative">
+                
+                {/* Exibição em Tempo Real do Insight da IA da Curadoria */}
+                {curadoriaAiInsight && (
+                  <div className="mb-4 bg-white/60 p-6 rounded-2xl border-l-4 border-[var(--color-atelier-terracota)] shadow-sm">
+                    <h3 className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] mb-4 flex items-center gap-2">
+                      <Sparkles size={14}/> Análise Semiótica (Direção de Arte)
+                    </h3>
+                    <div className="font-roboto text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed whitespace-pre-wrap">
+                        {curadoriaAiInsight}
+                    </div>
+                  </div>
+                )}
+
                 <section className="pb-8 border-b border-[var(--color-atelier-grafite)]/5">
                   <div className="flex items-center gap-2 mb-6 pb-2 border-b border-[var(--color-atelier-grafite)]/5">
                     <ImageIcon size={16} className="text-[var(--color-atelier-terracota)]" />
@@ -1012,20 +1121,6 @@ function WorkspaceDesigner() {
           </div>
         )}
       </AnimatePresence>
-
-      {/* ==========================================
-          SANDBOX DE RENDERIZAÇÃO ESTÁTICA (PDF)
-          ========================================== */}
-      <div style={{ position: 'absolute', left: '-9999px', top: '-9999px' }}>
-        <BriefingDocument 
-          clientBriefing={clientBriefing} 
-          projectName={currentProject?.profiles?.nome || 'Cliente Atelier'} 
-        />
-        <CuradoriaDocument 
-          adminRefs={adminRefs} 
-          projectName={currentProject?.profiles?.nome || 'Cliente Atelier'} 
-        />
-      </div>
 
     </div>
   );
