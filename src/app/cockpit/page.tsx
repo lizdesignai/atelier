@@ -3,66 +3,73 @@
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
 import { 
   Activity, AlertCircle, ArrowRight, CheckCircle2, 
-  Clock, Compass, Sparkles, Loader2, TrendingUp
+  Clock, Compass, Sparkles, Loader2, TrendingUp, 
+  Target, Camera, LayoutDashboard, SlidersHorizontal, ChevronRight
 } from "lucide-react";
+import InstagramBriefingModal from "../../components/InstagramBriefingModal";
 
 export default function CockpitPage() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [clientName, setClientName] = useState("Cliente");
+  const [clientId, setClientId] = useState("");
+  const [project, setProject] = useState<any>(null);
+
+  // Estados IDV (Originais)
   const [pendingCount, setPendingCount] = useState(0);
   const [healthScore, setHealthScore] = useState(85);
   const [currentFocus, setCurrentFocus] = useState("A alinhar estratégia visual");
+
+  // Estados Instagram OS (Novos)
+  const [isBriefingModalOpen, setIsBriefingModalOpen] = useState(false);
+  const [briefing, setBriefing] = useState<any>(null);
+  const [pendingMissions, setPendingMissions] = useState(0);
+  const [pendingDirections, setPendingDirections] = useState(0);
 
   useEffect(() => {
     const fetchCockpitData = async () => {
       try {
         const { data: { session }, error: sessionError } = await supabase.auth.getSession();
         if (sessionError || !session) throw new Error("Sessão não encontrada.");
+        setClientId(session.user.id);
 
-        // 1. Buscar Nome do Cliente (com fallback seguro)
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('nome')
-          .eq('id', session.user.id)
-          .single();
-        
-        if (profile?.nome) {
-          setClientName(profile.nome.split(' ')[0]);
+        // 1. Buscar Perfil
+        const { data: profile } = await supabase.from('profiles').select('nome').eq('id', session.user.id).single();
+        if (profile?.nome) setClientName(profile.nome.split(' ')[0]);
+
+        // 2. Buscar Projeto Ativo
+        const { data: proj } = await supabase.from('projects').select('*').eq('client_id', session.user.id).in('status', ['active', 'delivered']).order('created_at', { ascending: false }).limit(1).single();
+        setProject(proj);
+
+        if (proj) {
+          setHealthScore(proj.brand_health_score ?? 85);
+          setCurrentFocus(proj.current_focus || "Liz está a analisar a sua audiência...");
+
+          // 3. Buscar Dados de Gargalo (Posts Pendentes)
+          const { count: postsCount } = await supabase.from('social_posts').select('*', { count: 'exact', head: true }).eq('project_id', proj.id).in('status', ['pending_approval', 'needs_revision']);
+          setPendingCount(postsCount || 0);
+
+          if (proj.type === 'Gestão de Instagram') {
+            // 4. Buscar Briefing de Instagram
+            const { data: brief } = await supabase.from('instagram_briefings').select('*').eq('project_id', proj.id).maybeSingle();
+            setBriefing(brief);
+
+            // 5. Buscar Missões Pendentes
+            const { count: missionsCount } = await supabase.from('asset_missions').select('*', { count: 'exact', head: true }).eq('project_id', proj.id).eq('status', 'pending');
+            setPendingMissions(missionsCount || 0);
+
+            // 6. Buscar Direções do Brandbook Pendentes de Avaliação
+            const { data: directions } = await supabase.from('design_directions').select('score').eq('project_id', proj.id);
+            const pendingDirs = directions?.filter(d => !d.score || d.score === 0).length || 0;
+            setPendingDirections(pendingDirs);
+          }
         }
-
-        // 2. Buscar Dados do Projeto (Saúde e Foco)
-        const { data: project } = await supabase
-          .from('projects')
-          .select('brand_health_score, current_focus')
-          .eq('client_id', session.user.id)
-          .in('status', ['active', 'delivered'])
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
-        if (project) {
-          setHealthScore(project.brand_health_score ?? 85);
-          setCurrentFocus(project.current_focus || "A desenhar novas peças criativas");
-        }
-
-        // 3. Buscar Gargalo (Contagem rigorosa de aprovações pendentes)
-        const { count, error: countError } = await supabase
-          .from('social_posts')
-          .select('*', { count: 'exact', head: true })
-          .eq('client_id', session.user.id)
-          .eq('status', 'pending_approval');
-
-        if (!countError) {
-          setPendingCount(count || 0);
-        }
-
       } catch (error) {
-        console.error("Erro Crítico ao carregar o Cockpit:", error);
+        console.error("Erro ao carregar o Cockpit:", error);
       } finally {
         setIsLoading(false);
       }
@@ -74,18 +81,188 @@ export default function CockpitPage() {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Bom dia" : hour < 19 ? "Boa tarde" : "Boa noite";
 
-  if (isLoading) {
+  if (isLoading) return <div className="flex h-[calc(100vh-100px)] w-full items-center justify-center"><Loader2 className="animate-spin text-[var(--color-atelier-terracota)]" size={32} /></div>;
+
+  if (!project) {
     return (
-      <div className="flex h-[calc(100vh-100px)] w-full items-center justify-center">
-        <Loader2 className="animate-spin text-[var(--color-atelier-terracota)]" size={32} />
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)] gap-4 opacity-50">
+        <Compass size={48} className="text-[var(--color-atelier-grafite)]" />
+        <h2 className="font-elegant text-3xl">Nenhum projeto ativo.</h2>
+        <p className="font-roboto text-sm">Aguarde o Atelier iniciar a sua mesa de trabalho.</p>
       </div>
     );
   }
 
+  // ==========================================================================
+  // RENDERIZAÇÃO CONDICIONAL: INSTAGRAM OS (A Nova Experiência de Luxo)
+  // ==========================================================================
+  if (project.type === 'Gestão de Instagram') {
+    
+    // Cálculo do 'The Forge' (Progresso)
+    let currentPhase = 1;
+    if (briefing) currentPhase = 2;
+    if (briefing && pendingDirections === 0 && project.instagram_ai_insight) currentPhase = 3;
+    if (pendingCount > 0 || healthScore > 85) currentPhase = 4;
+
+    return (
+      <div className="flex flex-col max-w-[1200px] mx-auto w-full gap-8 relative z-10 pb-10 px-4 md:px-0">
+        
+        {/* CABEÇALHO E TRANSPARÊNCIA */}
+        <header className="animate-[fadeInUp_0.5s_ease-out] flex flex-col md:flex-row md:items-end justify-between gap-4 mt-6">
+          <div>
+            <div className="flex items-center gap-2 mb-2">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
+              <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/60">
+                {currentFocus}
+              </span>
+            </div>
+            <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] leading-tight tracking-tight">
+              {greeting}, <span className="text-[var(--color-atelier-terracota)] italic">{clientName}.</span>
+            </h1>
+            <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-3 max-w-lg leading-relaxed">
+              Bem-vindo ao seu painel de controle executivo. Aqui transformamos estética em dados e conteúdo em equity para a sua marca.
+            </p>
+          </div>
+        </header>
+
+        {/* THE FORGE (Painel de Fundição / Tracker de Etapas) */}
+        <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-panel bg-white/70 p-8 md:p-10 rounded-[2.5rem] border border-white shadow-[0_15px_40px_rgba(173,111,64,0.05)] relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-atelier-terracota)]/5 rounded-full blur-3xl"></div>
+          
+          <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-8 relative z-10">The Forge <span className="text-[var(--color-atelier-grafite)]/40 text-xl">/ Tracker de Evolução</span></h2>
+          
+          <div className="flex flex-col md:flex-row justify-between relative gap-8 md:gap-0 z-10">
+            <div className="hidden md:block absolute top-8 left-16 right-16 h-1 bg-[var(--color-atelier-grafite)]/5 z-0 rounded-full"></div>
+            <div className="hidden md:block absolute top-8 left-16 h-1 bg-gradient-to-r from-[var(--color-atelier-terracota)] to-orange-400 z-0 transition-all duration-1000 rounded-full shadow-sm" style={{ width: `${(currentPhase - 1) * 33}%` }}></div>
+            
+            {[
+              { step: 1, title: 'Diagnóstico', desc: 'Dossiê de Mercado', icon: <Target size={18}/> },
+              { step: 2, title: 'Aura Visual', desc: 'Brandbook', icon: <SlidersHorizontal size={18}/> },
+              { step: 3, title: 'Confecção', desc: 'Fluxo de Impacto', icon: <LayoutDashboard size={18}/> },
+              { step: 4, title: 'Governança', desc: 'Oráculo Analytics', icon: <Activity size={18}/> },
+            ].map((phase, idx) => (
+              <div key={idx} className="relative z-10 flex flex-col items-center gap-4 group">
+                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-700 shadow-sm
+                  ${currentPhase > phase.step ? 'bg-[var(--color-atelier-terracota)] text-white border-none scale-105' 
+                  : currentPhase === phase.step ? 'bg-white border-2 border-[var(--color-atelier-terracota)] text-[var(--color-atelier-terracota)] ring-4 ring-[var(--color-atelier-terracota)]/10 scale-110' 
+                  : 'bg-white/50 border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/30'}
+                `}>
+                  {currentPhase > phase.step ? <CheckCircle2 size={24} /> : phase.icon}
+                </div>
+                <div className="text-center">
+                  <span className={`block font-roboto text-[12px] font-bold uppercase tracking-widest transition-colors ${currentPhase >= phase.step ? 'text-[var(--color-atelier-grafite)]' : 'text-[var(--color-atelier-grafite)]/40'}`}>{phase.title}</span>
+                  <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 mt-1">{phase.desc}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </motion.section>
+
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
+          
+          {/* MÓDULO DE AÇÃO EXIGIDA (Gargalos) - Ocupa 8 colunas */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className={`md:col-span-8 glass-panel p-8 md:p-10 flex flex-col justify-between relative overflow-hidden transition-all duration-500 rounded-[2.5rem] border shadow-sm
+            ${(!briefing || pendingCount > 0 || pendingDirections > 0 || pendingMissions > 0) ? 'bg-white/90 border-orange-200' : 'bg-white/60 border-white'}
+          `}>
+            
+            <div className="flex items-start justify-between mb-8">
+              <div>
+                <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2 block">
+                  Ação Requerida do Cliente
+                </span>
+                <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">
+                  {!briefing ? 'Dossiê de Mercado Pendente' : pendingDirections > 0 ? 'Brandbook: Avaliação Pendente' : pendingCount > 0 ? 'Curadoria: Aprovações Pendentes' : pendingMissions > 0 ? 'Cofre: Missões Pendentes' : 'Mesa Limpa. Tudo em Dia.'}
+                </h2>
+              </div>
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-inner
+                ${(!briefing || pendingCount > 0 || pendingDirections > 0 || pendingMissions > 0) ? 'bg-orange-50 text-orange-500 border border-orange-100' : 'bg-green-50 text-green-500 border border-green-100'}
+              `}>
+                {(!briefing || pendingCount > 0 || pendingDirections > 0 || pendingMissions > 0) ? <AlertCircle size={28} /> : <CheckCircle2 size={28} />}
+              </div>
+            </div>
+
+            <div>
+              <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/80 mb-8 leading-relaxed max-w-xl">
+                {!briefing ? 'Para ativarmos o nosso Chief Marketing Officer (IA) e desenharmos o seu Brandbook, precisamos que responda a algumas perguntas estratégicas sobre o seu negócio.' 
+                : pendingDirections > 0 ? `O Diretor de Arte enviou ${pendingDirections} direções visuais. A sua avaliação (Swipe/Rate) vai calibrar a estética final da sua marca.` 
+                : pendingCount > 0 ? `O Fluxo de Impacto tem ${pendingCount} conteúdos aguardando a sua validação. A aprovação rápida com "Double Tap" mantém a máquina a rodar.` 
+                : pendingMissions > 0 ? `Temos ${pendingMissions} missões de captura aguardando o envio dos seus materiais crus para o nosso Cofre de Ativos.` 
+                : 'Não há ações exigidas da sua parte neste momento. O nosso estúdio está a produzir a próxima vaga de conteúdo.'}
+              </p>
+
+              {!briefing ? (
+                <button onClick={() => setIsBriefingModalOpen(true)} className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] shadow-md hover:-translate-y-0.5">
+                  Preencher Dossiê Agora <ArrowRight size={16} />
+                </button>
+              ) : pendingDirections > 0 || pendingCount > 0 ? (
+                <button onClick={() => router.push('/curadoria')} className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
+                  Acessar Mesa de Curadoria <ArrowRight size={16} />
+                </button>
+              ) : pendingMissions > 0 ? (
+                <button onClick={() => router.push('/cofre-missoes')} className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-orange-500 text-white hover:bg-orange-600 shadow-md hover:-translate-y-0.5">
+                  Abrir Cofre de Missões <ArrowRight size={16} />
+                </button>
+              ) : (
+                <button onClick={() => router.push('/oraculo')} className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)]">
+                  Visualizar Analytics (Oráculo) <ArrowRight size={16} />
+                </button>
+              )}
+            </div>
+          </motion.div>
+
+          {/* ACESSOS RÁPIDOS (Menu de Luxo) - Ocupa 4 colunas */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="md:col-span-4 flex flex-col gap-4">
+            <button onClick={() => router.push('/curadoria')} className="flex-1 glass-panel bg-white/70 hover:bg-white p-6 rounded-[2rem] border border-[var(--color-atelier-grafite)]/5 flex items-center gap-4 transition-all group shadow-sm hover:shadow-md">
+              <div className="w-12 h-12 rounded-xl bg-[var(--color-atelier-terracota)]/10 flex items-center justify-center text-[var(--color-atelier-terracota)] group-hover:scale-110 transition-transform"><LayoutDashboard size={20}/></div>
+              <div className="text-left flex-1">
+                <span className="block font-elegant text-xl text-[var(--color-atelier-grafite)]">Brandbook & Curadoria</span>
+                <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest mt-1">Aprovação de Fluxo</span>
+              </div>
+              <ChevronRight size={20} className="text-[var(--color-atelier-grafite)]/20 group-hover:text-[var(--color-atelier-terracota)] transition-colors"/>
+            </button>
+            
+            <button onClick={() => router.push('/cofre-missoes')} className="flex-1 glass-panel bg-white/70 hover:bg-white p-6 rounded-[2rem] border border-[var(--color-atelier-grafite)]/5 flex items-center gap-4 transition-all group shadow-sm hover:shadow-md">
+              <div className="w-12 h-12 rounded-xl bg-[var(--color-atelier-grafite)]/5 flex items-center justify-center text-[var(--color-atelier-grafite)] group-hover:scale-110 transition-transform"><Camera size={20}/></div>
+              <div className="text-left flex-1">
+                <span className="block font-elegant text-xl text-[var(--color-atelier-grafite)]">Cofre de Missões</span>
+                <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest mt-1">Envio de Material Cru</span>
+              </div>
+              <ChevronRight size={20} className="text-[var(--color-atelier-grafite)]/20 group-hover:text-[var(--color-atelier-terracota)] transition-colors"/>
+            </button>
+
+            <button onClick={() => router.push('/oraculo')} className="flex-1 glass-panel bg-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)] p-6 rounded-[2rem] border border-transparent flex items-center gap-4 transition-all group shadow-md hover:shadow-lg">
+              <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center text-white group-hover:scale-110 transition-transform"><Activity size={20}/></div>
+              <div className="text-left flex-1">
+                <span className="block font-elegant text-xl text-white">Oráculo Analytics</span>
+                <span className="block font-roboto text-[10px] text-white/50 uppercase tracking-widest mt-1">Inteligência de Dados</span>
+              </div>
+              <ChevronRight size={20} className="text-white/20 group-hover:text-white transition-colors"/>
+            </button>
+          </motion.div>
+
+        </div>
+
+        {/* MODAL DE BRIEFING INJETADO */}
+        <InstagramBriefingModal 
+          isOpen={isBriefingModalOpen} 
+          onClose={() => setIsBriefingModalOpen(false)} 
+          projectId={project.id} 
+          clientId={clientId} 
+          onSuccess={() => {
+            setIsBriefingModalOpen(false);
+            window.location.reload(); // Recarrega para atualizar o Tracker The Forge
+          }} 
+        />
+      </div>
+    );
+  }
+
+  // ==========================================================================
+  // RENDERIZAÇÃO CONDICIONAL: IDENTIDADE VISUAL (O Original Intocável)
+  // ==========================================================================
   return (
     <div className="flex flex-col max-w-[1000px] mx-auto w-full gap-8 relative z-10 pb-10 px-4 md:px-0">
       
-      {/* CABEÇALHO EXECUTIVO */}
       <header className="animate-[fadeInUp_0.5s_ease-out] flex flex-col md:flex-row md:items-end justify-between gap-4 mt-6">
         <div>
           <div className="flex items-center gap-2 mb-2">
@@ -103,16 +280,11 @@ export default function CockpitPage() {
         </div>
       </header>
 
-      {/* GRID DO COCKPIT */}
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-[fadeInUp_0.6s_ease-out]">
         
-        {/* 1. MÓDULO DE AÇÃO EXIGIDA (O Gargalo) */}
-        <motion.div 
-          whileHover={{ y: -4 }}
-          className={`md:col-span-8 glass-panel p-8 md:p-10 flex flex-col justify-between relative overflow-hidden transition-all duration-500 rounded-[2rem] border
+        <motion.div whileHover={{ y: -4 }} className={`md:col-span-8 glass-panel p-8 md:p-10 flex flex-col justify-between relative overflow-hidden transition-all duration-500 rounded-[2rem] border
             ${pendingCount > 0 ? 'bg-white/90 border-orange-200 shadow-[0_15px_40px_rgba(249,115,22,0.08)]' : 'bg-white/60 border-white/40 shadow-sm'}
-          `}
-        >
+          `}>
           {pendingCount > 0 && <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>}
           
           <div className="flex items-start justify-between mb-8">
@@ -138,25 +310,18 @@ export default function CockpitPage() {
                 : 'Não há publicações a aguardar a sua aprovação neste momento. O estúdio está a produzir as próximas peças.'}
             </p>
 
-            <button 
-              onClick={() => router.push('/curadoria')}
-              className={`px-6 py-3.5 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all outline-none
+            <button onClick={() => router.push('/curadoria')} className={`px-6 py-3.5 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all outline-none
                 ${pendingCount > 0 
                   ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-md hover:shadow-lg hover:-translate-y-0.5' 
                   : 'bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)]'}
-              `}
-            >
+              `}>
               {pendingCount > 0 ? 'Revisar Conteúdo Agora' : 'Ver Histórico de Curadoria'}
               <ArrowRight size={16} />
             </button>
           </div>
         </motion.div>
 
-        {/* 2. ATELIER PULSE (Saúde da Marca) */}
-        <motion.div 
-          whileHover={{ y: -4 }}
-          className="md:col-span-4 glass-panel p-8 flex flex-col justify-between bg-white/70 relative overflow-hidden rounded-[2rem] border border-white/50 shadow-sm"
-        >
+        <motion.div whileHover={{ y: -4 }} className="md:col-span-4 glass-panel p-8 flex flex-col justify-between bg-white/70 relative overflow-hidden rounded-[2rem] border border-white/50 shadow-sm">
           <div className="absolute -right-6 -top-6 w-32 h-32 bg-[var(--color-atelier-terracota)]/10 rounded-full blur-2xl"></div>
           
           <div>
@@ -193,11 +358,7 @@ export default function CockpitPage() {
           </div>
         </motion.div>
 
-        {/* 3. PRÓXIMOS PASSOS (Transparência Operacional) */}
-        <motion.div 
-          whileHover={{ y: -2 }}
-          className="md:col-span-12 glass-panel p-6 md:p-8 bg-white/60 flex flex-col md:flex-row items-start md:items-center gap-6 justify-between border-l-4 border-l-[var(--color-atelier-grafite)] rounded-r-[2rem] rounded-l-lg shadow-sm"
-        >
+        <motion.div whileHover={{ y: -2 }} className="md:col-span-12 glass-panel p-6 md:p-8 bg-white/60 flex flex-col md:flex-row items-start md:items-center gap-6 justify-between border-l-4 border-l-[var(--color-atelier-grafite)] rounded-r-[2rem] rounded-l-lg shadow-sm">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 rounded-full bg-[var(--color-atelier-grafite)]/5 flex items-center justify-center shrink-0 border border-[var(--color-atelier-grafite)]/10">
               <Clock size={20} className="text-[var(--color-atelier-grafite)]" />

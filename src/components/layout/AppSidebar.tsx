@@ -10,7 +10,7 @@ import {
   Home, Lock, MessageSquare, Settings, 
   ChevronLeft, ChevronRight, LogOut, Compass,
   LayoutDashboard, FolderKanban, Users, Inbox, BarChart3, Shield,
-  Globe2, Camera, CheckCircle2, DollarSign, BrainCircuit
+  Globe2, Camera, CheckCircle2, DollarSign, BrainCircuit, Sparkles
 } from "lucide-react";
 
 interface AppSidebarProps {
@@ -157,9 +157,8 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               {clientServiceType === "Gestão de Instagram" ? (
   <>
     <NavItem href="/cockpit" icon={<LayoutDashboard size={20} strokeWidth={1.75} />} label="Cockpit" collapsed={isCollapsed} active={pathname === '/cockpit'} />
+    <NavItem href="/brandbook" icon={<Sparkles size={20} strokeWidth={1.75} />} label="Sua Marca" collapsed={isCollapsed} active={pathname === '/brandbook'} />
     <NavItem href="/curadoria" icon={<CheckCircle2 size={20} strokeWidth={1.75} />} label="Curadoria" collapsed={isCollapsed} active={pathname === '/curadoria'} />
-    <NavItem href="/cofre-missoes" icon={<Camera size={20} strokeWidth={1.75} />} label="Cofre de Ativos" collapsed={isCollapsed} active={pathname === '/cofre-missoes'} />
-    <NavItem href="/oraculo" icon={<BrainCircuit size={20} strokeWidth={1.75} />} label="O Oráculo" collapsed={isCollapsed} active={pathname === '/oraculo'} />
   </>
 ) : (
                 <>
