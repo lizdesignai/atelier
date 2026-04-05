@@ -17,6 +17,7 @@ interface SocialPost {
   caption: string;
   publish_date: string;
   status: string;
+  project_id: string;
 }
 
 interface Pin {
@@ -59,14 +60,31 @@ export default function CuradoriaPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      // Buscar perfil para o Mockup do Instagram
+      // 1. Buscar perfil para o Mockup do Instagram
       const { data: profile } = await supabase.from('profiles').select('nome, avatar_url').eq('id', session.user.id).single();
       if (profile) setClientProfile(profile);
 
+      // 2. Buscar Projeto Ativo do Cliente (Garante a ancoragem correta dos posts)
+      const { data: project } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('client_id', session.user.id)
+        .in('status', ['active', 'delivered'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (!project) {
+        setPosts([]);
+        setIsLoading(false);
+        return;
+      }
+
+      // 3. Buscar Posts pelo project_id (A Abordagem mais Segura)
       const { data, error } = await supabase
         .from('social_posts')
         .select('*')
-        .eq('client_id', session.user.id)
+        .eq('project_id', project.id)
         .in('status', ['pending_approval', 'needs_revision'])
         .order('created_at', { ascending: true });
 
@@ -77,7 +95,7 @@ export default function CuradoriaPage() {
         fetchPins(data[0].id);
       }
     } catch (error) {
-      console.error("Erro ao carregar posts:", error);
+      console.error("Erro ao carregar curadoria:", error);
     } finally {
       setIsLoading(false);
     }
@@ -137,7 +155,7 @@ export default function CuradoriaPage() {
       setNewPinCoords(null);
       setNewPinText("");
       setIsPinMode(false);
-      showToast("Ajuste marcado com sucesso.");
+      showToast("Ajuste visual marcado e enviado para a equipa.");
     } catch (error) {
       showToast("Erro ao salvar ajuste.");
     } finally {
@@ -162,7 +180,7 @@ export default function CuradoriaPage() {
       if (currentIndex >= newPosts.length) {
         setCurrentIndex(Math.max(0, newPosts.length - 1));
       }
-      showToast(status === 'approved' ? "Conteúdo Aprovado! ✨" : "Conteúdo Recusado.");
+      showToast(status === 'approved' ? "Conteúdo Aprovado para Agendamento! ✨" : "Arte Recusada.");
     } catch (error) {
       showToast("Erro ao processar ação.");
     } finally {
@@ -171,7 +189,7 @@ export default function CuradoriaPage() {
   };
 
   const handleDoubleTap = () => {
-    if (isPinMode) return; // Não aprova se estiver tentando pinar
+    if (isPinMode) return; 
     setShowHeart(true);
     setTimeout(() => {
       setShowHeart(false);
@@ -188,7 +206,7 @@ export default function CuradoriaPage() {
       <div className="flex flex-col items-center justify-center h-screen w-full relative z-10 bg-[var(--color-atelier-creme)]">
         <CheckCircle2 size={64} className="text-[var(--color-atelier-terracota)] mb-6 opacity-80" />
         <h2 className="font-elegant text-4xl mb-2 text-[var(--color-atelier-grafite)]">Tudo Aprovado.</h2>
-        <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/50 mb-8">Não há conteúdos pendentes na sua Mesa de Curadoria.</p>
+        <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/50 mb-8 max-w-md text-center">Não há conteúdos pendentes na sua Mesa de Curadoria. O estúdio está a operar na sua máxima eficiência.</p>
         <button onClick={() => router.push('/cockpit')} className="px-8 py-4 bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] rounded-2xl font-roboto text-[11px] uppercase tracking-widest font-bold transition-all flex items-center gap-3 shadow-lg hover:-translate-y-1">
           <ArrowLeft size={16} /> Voltar ao Cockpit
         </button>
@@ -218,7 +236,7 @@ export default function CuradoriaPage() {
         <div className="absolute inset-0 z-0">
           <div className="absolute inset-0 bg-[var(--color-atelier-grafite)]/80 z-10 mix-blend-multiply"></div>
           <div className="absolute inset-0 backdrop-blur-3xl z-20 bg-[var(--color-atelier-creme)]/60"></div>
-          <img src={currentPost.image_url} className="w-full h-full object-cover scale-110 opacity-40 blur-2xl" alt="bg" />
+          {currentPost?.image_url && <img src={currentPost.image_url} className="w-full h-full object-cover scale-110 opacity-40 blur-2xl" alt="bg" />}
         </div>
 
         {/* Header Desktop Imersivo */}
@@ -263,13 +281,15 @@ export default function CuradoriaPage() {
               onClick={handleImageClick}
               onDoubleClick={handleDoubleTap}
             >
-              <img 
-                ref={imageRef}
-                src={currentPost.image_url} 
-                alt="Conteúdo" 
-                className="w-full h-full object-cover"
-                draggable={false}
-              />
+              {currentPost?.image_url && (
+                <img 
+                  ref={imageRef}
+                  src={currentPost.image_url} 
+                  alt="Conteúdo" 
+                  className="w-full h-full object-cover"
+                  draggable={false}
+                />
+              )}
 
               {/* Animação do Coração (Double Tap) */}
               <AnimatePresence>
@@ -328,15 +348,15 @@ export default function CuradoriaPage() {
             </div>
 
             {/* Ações Inferiores Mockup */}
-            <div className="bg-white flex flex-col px-4 pt-3 pb-6 flex-1 border-t border-gray-50">
-               <div className="flex items-center gap-4 mb-2">
+            <div className="bg-white flex flex-col px-4 pt-3 pb-6 flex-1 border-t border-gray-50 overflow-y-auto custom-scrollbar">
+               <div className="flex items-center gap-4 mb-2 shrink-0">
                  <Heart size={22} className="text-black" />
                  <MessageSquare size={22} className="text-black" />
                  <Send size={22} className="text-black" />
                </div>
-               <p className="text-[11px] text-black leading-relaxed line-clamp-3">
+               <p className="text-[12px] text-black leading-relaxed whitespace-pre-wrap pb-2">
                  <span className="font-bold mr-1">{clientProfile?.nome || 'sua_marca'}</span>
-                 {currentPost.caption}
+                 {currentPost?.caption || "Sem texto associado."}
                </p>
             </div>
 
@@ -344,23 +364,25 @@ export default function CuradoriaPage() {
         </div>
 
         {/* STORYLINE INFINITO (Timeline Cinematográfica) */}
-        <div className="h-32 w-full bg-white/40 backdrop-blur-xl border-t border-[var(--color-atelier-grafite)]/10 z-30 shrink-0 flex items-center px-6 overflow-x-auto custom-scrollbar gap-4">
-          <div className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 shrink-0 mr-4 w-24 text-right">
-            Timeline de Edição
+        {posts.length > 1 && (
+          <div className="h-32 w-full bg-white/40 backdrop-blur-xl border-t border-[var(--color-atelier-grafite)]/10 z-30 shrink-0 flex items-center px-6 overflow-x-auto custom-scrollbar gap-4">
+            <div className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 shrink-0 mr-4 w-24 text-right">
+              Timeline de Edição
+            </div>
+            {posts.map((post, idx) => (
+              <button 
+                key={post.id} 
+                onClick={() => setCurrentIndex(idx)}
+                className={`h-20 w-16 shrink-0 rounded-xl overflow-hidden transition-all duration-300 relative
+                  ${currentIndex === idx ? 'border-2 border-[var(--color-atelier-terracota)] scale-110 shadow-lg' : 'border border-transparent opacity-60 hover:opacity-100'}
+                `}
+              >
+                <img src={post.image_url} className="w-full h-full object-cover" alt="Thumb" />
+                {post.status === 'needs_revision' && <div className="absolute top-1 right-1 w-2 h-2 bg-orange-500 rounded-full"></div>}
+              </button>
+            ))}
           </div>
-          {posts.map((post, idx) => (
-            <button 
-              key={post.id} 
-              onClick={() => setCurrentIndex(idx)}
-              className={`h-20 w-16 shrink-0 rounded-xl overflow-hidden transition-all duration-300 relative
-                ${currentIndex === idx ? 'border-2 border-[var(--color-atelier-terracota)] scale-110 shadow-lg' : 'border border-transparent opacity-60 hover:opacity-100'}
-              `}
-            >
-              <img src={post.image_url} className="w-full h-full object-cover" alt="Thumb" />
-              {post.status === 'needs_revision' && <div className="absolute top-1 right-1 w-2 h-2 bg-orange-500 rounded-full"></div>}
-            </button>
-          ))}
-        </div>
+        )}
       </div>
 
       {/* BARRA LATERAL DIREITA - THE INSPECTOR */}
@@ -377,21 +399,21 @@ export default function CuradoriaPage() {
 
           <div className="mb-8 bg-[var(--color-atelier-creme)]/30 p-6 rounded-3xl border border-[var(--color-atelier-grafite)]/5">
             <span className="text-[var(--color-atelier-grafite)]/40 text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 mb-3">
-              <MessageSquare size={14} /> Estratégia de Copywriting
+              <MessageSquare size={14} /> Legenda / Copywriting
             </span>
-            <p className="text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed whitespace-pre-wrap font-medium">
-              {currentPost.caption || "Sem texto de legenda para esta publicação."}
+            <p className="text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed whitespace-pre-wrap font-medium max-h-48 overflow-y-auto custom-scrollbar pr-2">
+              {currentPost?.caption || "Sem texto de legenda para esta publicação."}
             </p>
           </div>
 
-          {currentPost.publish_date && (
+          {currentPost?.publish_date && (
             <div className="mb-8 flex items-center gap-4 bg-white p-5 rounded-3xl border border-[var(--color-atelier-grafite)]/5 shadow-[0_5px_15px_rgba(0,0,0,0.02)]">
               <div className="w-12 h-12 rounded-2xl bg-[var(--color-atelier-grafite)]/5 flex items-center justify-center text-[var(--color-atelier-grafite)]/50">
                 <Clock size={20} />
               </div>
               <div>
-                <span className="text-[var(--color-atelier-grafite)]/40 text-[10px] font-bold uppercase tracking-widest block mb-0.5">Data de Publicação</span>
-                <span className="text-[14px] text-[var(--color-atelier-grafite)] font-bold">{new Date(currentPost.publish_date).toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })}</span>
+                <span className="text-[var(--color-atelier-grafite)]/40 text-[10px] font-bold uppercase tracking-widest block mb-0.5">Data Sugerida</span>
+                <span className="text-[14px] text-[var(--color-atelier-grafite)] font-bold">{new Date(currentPost.publish_date).toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
               </div>
             </div>
           )}
@@ -424,7 +446,7 @@ export default function CuradoriaPage() {
             className="w-full bg-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)] text-white py-5 rounded-2xl text-[12px] font-bold uppercase tracking-widest transition-all shadow-lg hover:shadow-xl flex items-center justify-center gap-2 hover:-translate-y-0.5 disabled:opacity-50"
           >
             {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />} 
-            Aprovar para Publicação
+            Aprovar Arte & Legenda
           </button>
           
           <div className="flex gap-3">
@@ -445,7 +467,7 @@ export default function CuradoriaPage() {
               disabled={isProcessing}
               className="flex-1 bg-red-50/50 border border-red-100 text-red-500 hover:bg-red-500 hover:text-white py-4 rounded-2xl text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
             >
-              <XCircle size={16} /> Recusar Estratégia
+              <XCircle size={16} /> Recusar Totalmente
             </button>
           </div>
         </div>
