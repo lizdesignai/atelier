@@ -128,7 +128,13 @@ export default function BrandbookLaboratory() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const { data: projData } = await supabase.from('projects').select('*').eq('client_id', session.user.id).eq('type', 'Gestão de Instagram').order('created_at', { ascending: false }).limit(1).single();
+      const { data: projData } = await supabase.from('projects')
+        .select('*')
+        .eq('client_id', session.user.id)
+        .or('service_type.eq.Gestão de Instagram,type.ilike.%Instagram%')
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
       
       if (projData) {
         setProject(projData);
@@ -257,7 +263,7 @@ export default function BrandbookLaboratory() {
       const fileName = `synapse_${Date.now()}.${fileExt}`;
       const filePath = `${project.client_id}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage.from('moodboard').upload(filePath, file);
+      const { error: uploadError } = await supabase.storage.from('moodboard').upload(filePath, file, { upsert: true });
       if (uploadError) throw uploadError;
 
       const { data } = supabase.storage.from('moodboard').getPublicUrl(filePath);
@@ -340,12 +346,10 @@ export default function BrandbookLaboratory() {
     }
   };
 
-  if (isLoading) return <div className="flex h-full flex-1 w-full items-center justify-center min-h-[60vh]"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
-
   // Adicione esta linha para calcular a soma em tempo real
-const totalTilt = tilt.technical + tilt.culture + tilt.status + tilt.community;
+  const totalTilt = tilt.technical + tilt.culture + tilt.status + tilt.community;
 
-if (isLoading) return <div className="flex h-screen w-full items-center justify-center">...</div>;
+  if (isLoading) return <div className="flex h-[calc(100vh-100px)] w-full items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   return (
     <div className="flex flex-col h-full flex-1 w-full relative z-10 overflow-hidden text-[var(--color-atelier-grafite)]">

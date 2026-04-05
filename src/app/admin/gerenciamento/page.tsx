@@ -748,7 +748,7 @@ function GerenciamentoInstagram() {
         const { data, error } = await supabase
           .from('projects')
           .select('*, profiles(nome, avatar_url, empresa)')
-          .eq('type', 'Gestão de Instagram')
+          .or('service_type.eq.Gestão de Instagram,type.ilike.%Instagram%')
           .in('status', ['active', 'delivered', 'archived'])
           .order('created_at', { ascending: false });
 
