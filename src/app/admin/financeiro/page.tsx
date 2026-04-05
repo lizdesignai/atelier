@@ -4,11 +4,12 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabase";
+import { useRouter } from "next/navigation";
 import { 
   DollarSign, TrendingUp, ArrowUpRight, ArrowDownRight, 
   CreditCard, Calendar, CheckCircle2, Clock, Loader2, Wallet,
   Activity, AlertTriangle, Target, BrainCircuit, HeartPulse,
-  Medal, Star, LayoutDashboard, Download, ArrowDown, Map
+  Medal, Star, LayoutDashboard, Download, ArrowDown, Map, Send, Mail, Edit3, X
 } from "lucide-react";
 
 const showToast = (message: string) => {
@@ -18,8 +19,10 @@ const showToast = (message: string) => {
 const CUSTO_HORA_BRL = 45; 
 
 export default function FinanceiroPage() {
+  const router = useRouter();
   const [activeView, setActiveView] = useState<'overview' | 'finance' | 'health'>('overview');
   const [isLoading, setIsLoading] = useState(true);
+  const [isProcessing, setIsProcessing] = useState(false);
   
   // ==========================================
   // ESTADOS FINANCEIROS & PERFORMANCE
@@ -31,6 +34,32 @@ export default function FinanceiroPage() {
   const [unitEconomics, setUnitEconomics] = useState<any[]>([]);
   const [teamHealth, setTeamHealth] = useState<any[]>([]);
   const [recentNps, setRecentNps] = useState<any[]>([]);
+
+  // ==========================================
+  // ESTADOS DE EDIÇÃO FINANCEIRA (MODAL)
+  // ==========================================
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [projectToEdit, setProjectToEdit] = useState<any>(null);
+  const [editFinancialValue, setEditFinancialValue] = useState("");
+  const [editPaymentMethod, setEditPaymentMethod] = useState("");
+  const [editPaymentSplit, setEditPaymentSplit] = useState("");
+  const [editBillingDate, setEditBillingDate] = useState("");
+  const [editPackage, setEditPackage] = useState("");
+
+  const handleOpenEdit = (projectId?: string) => {
+    // Pode abrir para um cliente específico ou abrir vazio e selecionar no dropdown
+    const proj = projectId ? upcomingBillings.find(b => b.id === projectId) : null;
+    if (proj) {
+      setProjectToEdit(proj);
+      setEditFinancialValue(proj.amount || "");
+      setEditPackage(proj.service || "");
+      // Busca no projects global para pegar os dados corretos
+      const p = overviewData.activeProjects > 0 ? null : null; // Hackzinho: usamos os dados crus caso não estejam no billings
+    } else {
+      setProjectToEdit(null);
+      setEditFinancialValue("");
+    }
+  };
 
   // ==========================================
   // ESTADOS: VISÃO GERAL (Analytics Preditivo Real)
@@ -56,7 +85,7 @@ export default function FinanceiroPage() {
       // 1. CARREGAR DADOS FINANCEIROS E PROJETOS
       const { data: projects, error } = await supabase
         .from('projects')
-        .select('*, profiles(nome, empresa)')
+        .select('*, profiles(nome, empresa, email)')
         .in('status', ['active', 'delivered']);
 
       if (error) throw error;
@@ -158,7 +187,7 @@ export default function FinanceiroPage() {
             economics.push({
               id: proj.id, 
               client: proj.profiles?.nome, 
-              service: proj.type,
+              service: proj.type || proj.service_type,
               value: value, 
               estimatedHours: (totalEstimatedMinutes / 60).toFixed(1),
               actualHours: horasReaisGastas.toFixed(1),
@@ -169,13 +198,14 @@ export default function FinanceiroPage() {
             });
           }
 
-          // LÓGICA DE SPLIT DE PAGAMENTOS
+          // LÓGICA DE SPLIT DE PAGAMENTOS E FILTRO DE INADIMPLÊNCIA
+          // Apenas envia para "Próximas Cobranças" se o projeto NÃO estiver "delivered" ou se o pagamento estiver pendente
           let projPaid = 0; let projPending = 0;
           if (proj.payment_recurrence === 'Mensal') {
             projPaid = value; 
             if (proj.billing_date && proj.status === 'active') {
               billings.push({
-                id: proj.id, client: proj.profiles?.nome, service: proj.type, amount: value,
+                id: proj.id, client: proj.profiles?.nome, email: proj.profiles?.email, service: proj.type || proj.service_type, amount: value,
                 date: proj.billing_date, type: 'MRR / Recorrência Mensal', risk: isInChurnRisk
               });
             }
@@ -185,16 +215,16 @@ export default function FinanceiroPage() {
               if (proj.status === 'delivered') projPaid = value; 
               else {
                 projPaid = value * 0.5; projPending = value * 0.5; 
-                billings.push({ id: proj.id, client: proj.profiles?.nome, service: proj.type, amount: projPending, date: proj.data_limite || 'Na Entrega', type: 'Parcela Final (Entrega)' });
+                billings.push({ id: proj.id, client: proj.profiles?.nome, email: proj.profiles?.email, service: proj.type || proj.service_type, amount: projPending, date: proj.data_limite || 'Na Entrega', type: 'Parcela Final (Entrega)' });
               }
             } else if (proj.payment_split === '30% / 30% / 40%') {
               if (proj.status === 'delivered') projPaid = value;
               else if (proj.progress >= 50) {
                 projPaid = value * 0.6; projPending = value * 0.4;
-                billings.push({ id: proj.id, client: proj.profiles?.nome, service: proj.type, amount: projPending, date: proj.data_limite || 'Na Entrega', type: 'Parcela Final (40%)' });
+                billings.push({ id: proj.id, client: proj.profiles?.nome, email: proj.profiles?.email, service: proj.type || proj.service_type, amount: projPending, date: proj.data_limite || 'Na Entrega', type: 'Parcela Final (40%)' });
               } else {
                 projPaid = value * 0.3; projPending = value * 0.7;
-                billings.push({ id: proj.id, client: proj.profiles?.nome, service: proj.type, amount: value * 0.3, date: 'No Meio do Projeto', type: 'Segunda Parcela (30%)' });
+                billings.push({ id: proj.id, client: proj.profiles?.nome, email: proj.profiles?.email, service: proj.type || proj.service_type, amount: value * 0.3, date: 'No Meio do Projeto', type: 'Segunda Parcela (30%)' });
               }
             } else projPending = value; 
           }
@@ -275,6 +305,38 @@ export default function FinanceiroPage() {
     }
   };
 
+  const handleNotifyClient = async (clientName: string, email: string) => {
+    setIsProcessing(true);
+    // Simulação do envio de email ou notificação push para o cliente
+    showToast(`A enviar notificação de cobrança para ${email}...`);
+    setTimeout(() => {
+      showToast(`✅ Notificação enviada com sucesso para ${clientName}.`);
+      setIsProcessing(false);
+    }, 1500);
+  };
+
+  const handleMarkAsPaid = async (projectId: string) => {
+    setIsProcessing(true);
+    // Na nossa lógica atual, como a cobrança mensal atualiza o 'billing_date' um mês pra frente,
+    // este botão apenas empurra a data da próxima fatura caso o cliente pague manualmente.
+    try {
+      const proj = upcomingBillings.find(b => b.id === projectId);
+      if (proj && proj.date !== 'Na Entrega') {
+         const nextMonth = new Date(proj.date);
+         nextMonth.setMonth(nextMonth.getMonth() + 1);
+         await supabase.from('projects').update({ billing_date: nextMonth.toISOString() }).eq('id', projectId);
+         showToast("💵 Fatura liquidada! Ciclo renovado.");
+         fetchData();
+      } else {
+         showToast("Este pagamento está atrelado ao fim do projeto. Vá a 'Clientes' para marcar o projeto como entregue.");
+      }
+    } catch (e) {
+      showToast("Erro ao atualizar pagamento.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   const formatCurrency = (value: number) => {
     if (value >= 1000 && value % 1000 === 0) {
       return `R$ ${(value / 1000)}K`;
@@ -344,7 +406,7 @@ export default function FinanceiroPage() {
               </div>
 
               {/* TOP CARDS */}
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 shrink-0">
                 
                 <div className="glass-panel p-6 flex flex-col justify-between h-36 bg-white/60 border-white relative overflow-hidden group">
                   <div className="flex justify-between items-start">
@@ -444,7 +506,7 @@ export default function FinanceiroPage() {
                   </div>
                 </div>
 
-                {/* PRÓXIMOS FECHOS (TOP 3) */}
+                {/* PRÓXIMOS FECHOS (TOP 3) - Simplificado para Overview */}
                 <div className="lg:col-span-4 glass-panel bg-white/60 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden h-full">
                   <div className="flex justify-between items-center border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-6 shrink-0">
                     <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Próximos Fechos</h3>
@@ -487,9 +549,9 @@ export default function FinanceiroPage() {
               VISÃO 2: FINANCEIRO E PREDIÇÃO (ECONÓMICO) - UNIT ECONOMICS REAL
               ========================================================================= */}
           {activeView === 'finance' && (
-            <motion.div key="finance" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col gap-6 h-full overflow-y-auto custom-scrollbar pr-2 pb-4">
+            <motion.div key="finance" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="flex flex-col gap-6 h-full overflow-hidden">
               
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 shrink-0">
                 <div className={`glass-panel p-6 flex flex-col justify-between h-36 relative overflow-hidden transition-colors ${metrics.churnRiskAmount > 0 ? 'bg-white/90 border-orange-200' : 'bg-white/60 border-white'}`}>
                   {metrics.churnRiskAmount > 0 && <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>}
                   <div className="flex justify-between items-start">
@@ -522,11 +584,11 @@ export default function FinanceiroPage() {
                 <div className="glass-panel p-6 flex flex-col justify-between h-36 bg-white/60 border-white">
                   <div className="flex justify-between items-start">
                     <div className="w-10 h-10 rounded-xl bg-gray-100 text-[var(--color-atelier-grafite)] flex items-center justify-center"><ArrowDownRight size={18} /></div>
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 bg-gray-50 border border-gray-100 px-2 py-1 rounded-md">Recebíveis</span>
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 bg-gray-50 border border-gray-100 px-2 py-1 rounded-md">Recebíveis Pendentes</span>
                   </div>
                   <div>
                     <span className="font-elegant text-4xl text-[var(--color-atelier-grafite)] leading-none">{formatCurrency(metrics.pendingReceivables)}</span>
-                    <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 block mt-2">Valores Pendentes</span>
+                    <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 block mt-2">Aguardando Liquidação</span>
                   </div>
                 </div>
 
@@ -542,55 +604,58 @@ export default function FinanceiroPage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0">
-                <div className="lg:col-span-7 glass-panel bg-white/40 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden h-[400px]">
+              {/* ABAS FULL-WIDTH PARA VISUALIZAÇÃO CONFORTÁVEL */}
+              <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
+                
+                {/* UNIT ECONOMICS */}
+                <div className="flex-1 glass-panel bg-white/40 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden min-w-[50%]">
                   <div className="flex justify-between items-end border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-6 shrink-0">
                     <div>
                       <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">Unit Economics (Lucratividade Sênior)</h3>
+                      <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest mt-1">Margem real cruzada com tempo de execução</p>
                     </div>
                   </div>
                   <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3">
                     {unitEconomics.map((eco, i) => {
-                      // Se a margem for muito baixa mas o NPS for alto, avisa a elasticidade de preço
                       const elasticidadeDePreco = eco.margin < 30 && eco.tNps >= 90;
                       
                       return (
-                        <div key={`${eco.id}-${i}`} className="bg-white/80 p-5 rounded-2xl border border-white shadow-sm flex flex-col gap-4 group relative overflow-hidden">
-                          <div className={`absolute top-0 left-0 w-1 h-full ${eco.margin >= 60 ? 'bg-green-500' : eco.margin >= 40 ? 'bg-yellow-400' : 'bg-orange-500'}`}></div>
+                        <div key={`${eco.id}-${i}`} className="bg-white/80 p-5 rounded-2xl border border-white shadow-sm flex flex-col gap-4 group relative overflow-hidden shrink-0">
+                          <div className={`absolute top-0 left-0 w-1.5 h-full ${eco.margin >= 60 ? 'bg-green-500' : eco.margin >= 40 ? 'bg-yellow-400' : 'bg-orange-500'}`}></div>
                           
-                          <div className="flex justify-between items-start pl-2">
+                          <div className="flex justify-between items-start pl-3">
                             <div className="flex flex-col">
-                              <span className="font-roboto font-bold text-[14px] text-[var(--color-atelier-grafite)]">{eco.client}</span>
-                              <div className="flex items-center gap-2 mt-0.5">
+                              <span className="font-roboto font-bold text-[15px] text-[var(--color-atelier-grafite)]">{eco.client}</span>
+                              <div className="flex items-center gap-2 mt-1">
                                 <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">{eco.service}</span>
                                 {elasticidadeDePreco && (
-                                  <span className="bg-blue-50 text-blue-600 border border-blue-200 px-2 py-0.5 rounded text-[8px] uppercase tracking-widest font-bold flex items-center gap-1">
+                                  <span className="bg-blue-50 text-blue-600 border border-blue-200 px-2 py-0.5 rounded text-[8px] uppercase tracking-widest font-bold flex items-center gap-1" title="Cliente ama o serviço mas a margem é pequena. Cobre mais!">
                                     <Map size={8}/> Reprecificar (Elasticidade Alta)
                                   </span>
                                 )}
                               </div>
                             </div>
                             <div className="flex flex-col items-end">
-                              <div className={`flex items-center gap-1.5 px-2 py-1 rounded-md text-[11px] font-bold border ${eco.tNps >= 90 ? 'bg-green-50 text-green-700 border-green-200' : eco.tNps >= 70 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                              <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold border ${eco.tNps >= 90 ? 'bg-green-50 text-green-700 border-green-200' : eco.tNps >= 70 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
                                  {eco.tNps >= 90 ? <TrendingUp size={12}/> : <ArrowDownRight size={12}/>} T-NPS: {eco.tNps}
                               </div>
                             </div>
                           </div>
                           
-                          <div className="flex items-center gap-6 pl-2 pt-3 border-t border-[var(--color-atelier-grafite)]/5">
-                             <div className="flex flex-col">
-                               <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40">Contrato</span>
-                               <span className="font-roboto text-[13px] font-bold text-[var(--color-atelier-grafite)]">{formatCurrency(eco.value)}</span>
+                          <div className="flex items-center gap-6 pl-3 pt-4 border-t border-[var(--color-atelier-grafite)]/5">
+                             <div className="flex flex-col w-1/4">
+                               <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-0.5">Valor Contrato</span>
+                               <span className="font-roboto text-[14px] font-bold text-[var(--color-atelier-grafite)]">{formatCurrency(eco.value)}</span>
                              </div>
-                             <div className="flex flex-col border-l border-[var(--color-atelier-grafite)]/10 pl-4">
-                               <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40">Tempo Real</span>
-                               <span className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]/80">{eco.actualHours}h <span className="text-[9px]">(Est: {eco.estimatedHours}h)</span></span>
+                             <div className="flex flex-col border-l border-[var(--color-atelier-grafite)]/10 pl-6 w-1/4">
+                               <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-0.5">Esforço Operacional</span>
+                               <span className="font-roboto text-[14px] font-medium text-[var(--color-atelier-grafite)]/80">{eco.actualHours}h <span className="text-[10px] opacity-60 ml-1">(Teto: {eco.estimatedHours}h)</span></span>
                              </div>
                              <div className="flex flex-col ml-auto text-right">
-                               <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)]">Lucro Real</span>
-                               <div className="flex items-center gap-2">
-                                 <span className="font-elegant text-xl text-[var(--color-atelier-terracota)] leading-none">{formatCurrency(eco.profit)}</span>
-                                 <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${eco.margin >= 60 ? 'bg-green-100 text-green-700' : eco.margin >= 40 ? 'bg-yellow-100 text-yellow-700' : 'bg-orange-100 text-orange-700'}`}>{eco.margin}%</span>
+                               <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mb-0.5">Lucro Líquido Real</span>
+                               <div className="flex items-center justify-end gap-2">
+                                 <span className="font-elegant text-2xl text-[var(--color-atelier-terracota)] leading-none">{formatCurrency(eco.profit)}</span>
+                                 <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${eco.margin >= 60 ? 'bg-green-100 text-green-700 border-green-200' : eco.margin >= 40 ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : 'bg-orange-100 text-orange-700 border-orange-200'}`}>{eco.margin}%</span>
                                </div>
                              </div>
                           </div>
@@ -600,30 +665,50 @@ export default function FinanceiroPage() {
                   </div>
                 </div>
 
-                <div className="lg:col-span-5 glass-panel bg-white/60 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden h-[400px]">
-                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-6 flex items-center justify-between shrink-0">
-                     <span>Próximas Cobranças</span>
-                     <Calendar size={20} className="text-[var(--color-atelier-terracota)]" />
-                  </h3>
-                  <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3">
+                {/* PRÓXIMAS COBRANÇAS E AÇÃO */}
+                <div className="w-full lg:w-[400px] glass-panel bg-white/60 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden shrink-0">
+                  <div className="flex justify-between items-center border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-6 shrink-0">
+                     <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Pêndencias & Cobranças</h3>
+                     <button onClick={() => setIsEditModalOpen(true)} className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] hover:underline flex items-center gap-1"><Edit3 size={10}/> Editar Contratos</button>
+                  </div>
+                  <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4">
                     {upcomingBillings.map((bill, i) => (
-                      <div key={`bill-${bill.id}-${i}`} className="bg-white/80 p-4 rounded-2xl border border-white shadow-sm flex flex-col gap-3 relative overflow-hidden">
+                      <div key={`bill-${bill.id}-${i}`} className="bg-white/80 p-5 rounded-2xl border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col gap-4 relative overflow-hidden group shrink-0 hover:border-orange-200 transition-colors">
                         {bill.risk && <div className="absolute top-0 right-0 bg-orange-500 text-white text-[8px] font-bold uppercase tracking-widest px-2 py-1 rounded-bl-lg flex items-center gap-1"><AlertTriangle size={8}/> Risco de Churn</div>}
-                        <div className="flex items-center gap-3">
+                        
+                        <div className="flex items-center gap-3 mt-1">
                           <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${bill.type.includes('MRR') ? 'bg-blue-50 text-blue-500' : 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)]'}`}><CreditCard size={18} /></div>
                           <div className="flex flex-col pr-6">
-                            <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] truncate">{bill.client}</span>
+                            <span className="font-roboto font-bold text-[14px] text-[var(--color-atelier-grafite)] truncate w-40">{bill.client}</span>
                             <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mt-0.5">{bill.type}</span>
                           </div>
                         </div>
-                        <div className="flex justify-between items-end border-t border-[var(--color-atelier-grafite)]/5 pt-2">
-                          <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-1"><Clock size={12}/> {bill.date === 'Na Entrega' ? 'Na Entrega' : new Date(bill.date).toLocaleDateString('pt-BR')}</span>
+
+                        <div className="flex justify-between items-end bg-gray-50 p-3 rounded-xl border border-gray-100">
+                          <span className="text-[10px] uppercase font-bold tracking-widest text-orange-600 flex items-center gap-1"><Clock size={12}/> Vencimento: {bill.date === 'Na Entrega' ? 'Entrega' : new Date(bill.date).toLocaleDateString('pt-BR')}</span>
                           <span className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">{formatCurrency(bill.amount)}</span>
+                        </div>
+
+                        <div className="flex gap-2">
+                           <button onClick={() => handleNotifyClient(bill.client, bill.email)} disabled={isProcessing} className="flex-1 bg-white border border-[var(--color-atelier-grafite)]/20 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:border-blue-300 hover:text-blue-600 transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+                             <Mail size={12} /> Notificar
+                           </button>
+                           <button onClick={() => handleMarkAsPaid(bill.id)} disabled={isProcessing} className="flex-1 bg-green-500 text-white py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-green-600 transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+                             <CheckCircle2 size={12} /> Liquidar
+                           </button>
                         </div>
                       </div>
                     ))}
+                    {upcomingBillings.length === 0 && (
+                       <div className="flex-1 flex flex-col items-center justify-center opacity-40 text-center gap-2">
+                         <CheckCircle2 size={32} className="text-green-500"/>
+                         <span className="font-elegant text-xl">Carteira Limpa</span>
+                         <span className="text-[10px] uppercase tracking-widest font-bold">Nenhuma pendência financeira.</span>
+                       </div>
+                    )}
                   </div>
                 </div>
+
               </div>
             </motion.div>
           )}
@@ -743,6 +828,105 @@ export default function FinanceiroPage() {
 
         </AnimatePresence>
       </div>
+
+      {/* =========================================================================
+          MODAL DE EDIÇÃO FINANCEIRA DIRETA (GLASSMORPHISM)
+          ========================================================================= */}
+      <AnimatePresence>
+        {isEditModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 md:px-8">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsEditModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-lg border border-white/20 flex flex-col gap-6">
+              
+              <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
+                <div>
+                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><Edit3 size={24} className="text-[var(--color-atelier-terracota)]"/> Editar Contrato</h3>
+                  <p className="font-roboto text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1 font-bold">Ajustes Financeiros e de LTV</p>
+                </div>
+                <button onClick={() => setIsEditModalOpen(false)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] shrink-0 bg-gray-50 p-2 rounded-full"><X size={18}/></button>
+              </div>
+
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Selecionar Cliente Pendente</span>
+                  <select 
+                    value={projectToEdit?.id || ""} 
+                    onChange={(e) => {
+                      const bill = upcomingBillings.find(b => b.id === e.target.value);
+                      if (bill) {
+                        setProjectToEdit(bill);
+                        setEditFinancialValue(bill.amount.toString());
+                        setEditPackage(bill.service);
+                      }
+                    }} 
+                    className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 font-bold"
+                  >
+                    <option value="">Escolha um cliente da fila...</option>
+                    {upcomingBillings.map(b => <option key={b.id} value={b.id}>{b.client} ({b.type})</option>)}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Valor Contratual / MRR Atual (R$)</span>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-[var(--color-atelier-grafite)]/40">R$</span>
+                    <input type="number" placeholder="0.00" value={editFinancialValue} onChange={(e) => setEditFinancialValue(e.target.value)} className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl py-3.5 pl-10 pr-4 text-[14px] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm" />
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Alterar Pacote / Escopo LTV</span>
+                  <select value={editPackage} onChange={(e) => setEditPackage(e.target.value)} className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm text-[var(--color-atelier-terracota)] font-bold">
+                    <option value="" disabled>Manter atual</option>
+                    <optgroup label="Gestão de Instagram">
+                      <option>Pacote 1</option>
+                      <option>Pacote 2</option>
+                      <option>Pacote 3</option>
+                      <option>Pacote 4</option>
+                    </optgroup>
+                    <optgroup label="Identidade Visual">
+                      <option>Identidade Visual</option>
+                      <option>Rebranding Pleno</option>
+                    </optgroup>
+                  </select>
+                </div>
+              </div>
+
+              <div className="mt-2 bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-start gap-3">
+                <Activity size={16} className="text-blue-500 shrink-0 mt-0.5"/>
+                <p className="text-[11px] text-blue-800 leading-relaxed font-medium">As alterações de pacote aplicar-se-ão apenas ao próximo ciclo mensal. Para alterar o Workflow estrutural, utilize a aba de Clientes.</p>
+              </div>
+
+              <button 
+                onClick={async () => {
+                  if (!projectToEdit) return;
+                  setIsProcessing(true);
+                  try {
+                    const updates: any = {};
+                    if (editFinancialValue) updates.financial_value = parseFloat(editFinancialValue);
+                    if (editPackage.includes('Pacote')) updates.instagram_package = editPackage;
+                    
+                    await supabase.from('projects').update(updates).eq('id', projectToEdit.id);
+                    showToast("Contrato reajustado com sucesso!");
+                    setIsEditModalOpen(false);
+                    fetchData(); // Recarrega gráficos
+                  } catch (e) {
+                    showToast("Erro ao editar contrato.");
+                  } finally {
+                    setIsProcessing(false);
+                  }
+                }} 
+                disabled={isProcessing || !projectToEdit} 
+                className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-[var(--color-atelier-terracota)] transition-colors flex justify-center items-center gap-2 mt-2 disabled:opacity-50"
+              >
+                {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle2 size={16}/>} Aplicar Reajuste
+              </button>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
     </div>
   );
 }

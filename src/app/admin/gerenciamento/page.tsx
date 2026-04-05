@@ -8,9 +8,11 @@ import {
   Camera, CheckCircle2, Clock, Send, UploadCloud, 
   BrainCircuit, LayoutDashboard, Target, MapPin, 
   Loader2, Activity, Trash2, ChevronDown, Smartphone, 
-  Download, CalendarDays, Eye, MessageSquare, Sparkles, X
+  Download, CalendarDays, Eye, MessageSquare, Sparkles, X, FileText
 } from "lucide-react";
-import InstagramBriefingModal from "../../../components/InstagramBriefingModal";
+import { pdf } from '@react-pdf/renderer';
+import InstagramBriefingPDF from "../../../components/pdf/InstagramBriefingPDF";
+import BrandbookPDF from "../../../components/pdf/BrandbookPDF";
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -38,14 +40,13 @@ const VOICE_MAP: Record<string, string> = {
 // COMPONENTE INTERNO: O WORKSPACE DE INSTAGRAM ADMIN
 // ============================================================================
 function InstagramWorkspace({ activeProjectId, currentProject }: { activeProjectId: string, currentProject: any }) {
-  const [activeTab, setActiveTab] = useState<'planeamento' | 'posts' | 'missoes' | 'briefing' | 'agente'>('planeamento');
+  const [activeTab, setActiveTab] = useState<'planeamento' | 'posts' | 'briefing_inicial' | 'briefing' | 'agente'>('planeamento');
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [posts, setPosts] = useState<any[]>([]);
-  const [missions, setMissions] = useState<any[]>([]);
   const [pins, setPins] = useState<any[]>([]);
-  const [briefing, setBriefing] = useState<any>(null);
+  const [briefing, setBriefing] = useState<any>(null); // Briefing Inicial
   
   // Novos Estados
   const [monthlyPlan, setMonthlyPlan] = useState<any[]>([]);
@@ -59,12 +60,8 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
 
   // Formulários: Curadoria Visual
   const [newPostImage, setNewPostImage] = useState<File | null>(null);
-  const [selectedPlanId, setSelectedPlanId] = useState<string>(""); // Novo: Vincula a arte à ideia
+  const [selectedPlanId, setSelectedPlanId] = useState<string>(""); 
   const [newPostCaption, setNewPostCaption] = useState("");
-  
-  // Formulários: Missões
-  const [newMissionTitle, setNewMissionTitle] = useState("");
-  const [newMissionDesc, setNewMissionDesc] = useState("");
 
   // Estados: Agente IA
   const [aiPrompt, setAiPrompt] = useState("");
@@ -72,8 +69,8 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
   const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
-    if (activeProjectId) fetchInstagramData();
-  }, [activeProjectId]);
+    if (activeProjectId && currentProject) fetchInstagramData();
+  }, [activeProjectId, currentProject]);
 
   // Se o utilizador selecionar uma ideia aprovada para criar a arte, preenchemos o texto
   useEffect(() => {
@@ -90,11 +87,14 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
   const fetchInstagramData = async () => {
     setIsLoading(true);
     try {
-      const { data: postsData } = await supabase.from('social_posts').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false });
+      // 1. Busca Artes Visuais (Cobre falhas atrelando ao cliente e projeto simultaneamente)
+      const { data: postsData } = await supabase
+        .from('social_posts')
+        .select('*')
+        .or(`project_id.eq.${activeProjectId},client_id.eq.${currentProject?.client_id}`)
+        .order('created_at', { ascending: false });
+        
       if (postsData) setPosts(postsData);
-
-      const { data: missionsData } = await supabase.from('asset_missions').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false });
-      if (missionsData) setMissions(missionsData);
 
       const postIds = postsData?.map(p => p.id) || [];
       if (postIds.length > 0) {
@@ -102,19 +102,28 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
         if (pinsData) setPins(pinsData);
       }
 
-      const { data: briefData } = await supabase.from('instagram_briefings').select('*').eq('project_id', activeProjectId).maybeSingle();
-      if (briefData) setBriefing(briefData);
+      // 2. Busca Briefing Inicial (Focado no Cliente para não dar erro)
+      if (currentProject?.client_id) {
+        const { data: briefData } = await supabase
+          .from('instagram_briefings')
+          .select('*')
+          .eq('client_id', currentProject.client_id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+          
+        if (briefData) setBriefing(briefData);
+      }
 
-      // Dados do Laboratório (DNA da Marca)
+      // 3. Dados do Laboratório e Planeamento Mensal
       const { data: lab } = await supabase.from('brandbook_laboratory').select('*').eq('project_id', activeProjectId).maybeSingle();
       if (lab) setLabData(lab);
 
-      // Planeamento Mensal
       const { data: plans } = await supabase.from('content_planning').select('*').eq('project_id', activeProjectId).order('publish_date', { ascending: true });
       if (plans) setMonthlyPlan(plans);
 
     } catch (error) {
-      console.error("Erro ao carregar dados:", error);
+      console.error("Erro ao carregar dados do Instagram:", error);
     } finally {
       setIsLoading(false);
     }
@@ -163,36 +172,41 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
   // MOTOR 2: CURADORIA DE POSTS (VISUAL)
   // ==========================================
   const handleCreatePost = async () => {
-    if (!newPostImage || !activeProjectId) return;
+    if (!newPostImage || !activeProjectId || !currentProject) {
+      showToast("Selecione uma imagem e garanta que há um cliente ativo.");
+      return;
+    }
     setIsProcessing(true);
     try {
       const fileExt = newPostImage.name.split('.').pop();
       const fileName = `post_${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${currentProject.client_id}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage.from('moodboard').upload(filePath, newPostImage);
+      const { error: uploadError } = await supabase.storage.from('moodboard').upload(filePath, newPostImage, { upsert: true });
       if (uploadError) throw uploadError;
 
       const { data: publicUrlData } = supabase.storage.from('moodboard').getPublicUrl(filePath);
 
-      await supabase.from('social_posts').insert({
+      const { error: dbError } = await supabase.from('social_posts').insert({
         project_id: activeProjectId,
         client_id: currentProject.client_id,
         image_url: publicUrlData.publicUrl,
         caption: newPostCaption,
-        status: 'pending_approval' // Envia para o "Fluxo de Impacto" do cliente
+        status: 'pending_approval' // Garante que cai na fila de espera
       });
 
-      // Se a arte foi vinculada a um planeamento aprovado, podemos marcá-lo como "posted/published" para que ele saia da lista de "pendentes de arte"
+      if (dbError) throw dbError;
+
       if (selectedPlanId) {
         await supabase.from('content_planning').update({ status: 'completed' }).eq('id', selectedPlanId);
       }
 
       showToast("Arte gráfica enviada para a mesa do cliente!");
       setNewPostImage(null); setNewPostCaption(""); setSelectedPlanId("");
-      fetchInstagramData(); // Atualiza tudo
+      fetchInstagramData(); // Atualiza a tela instantaneamente
     } catch (error) {
-      showToast("Erro ao criar post visual.");
+      console.error(error);
+      showToast("Erro ao criar post visual. Verifique as permissões de Bucket.");
     } finally {
       setIsProcessing(false);
     }
@@ -203,44 +217,48 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
     try {
       await supabase.from('social_posts').delete().eq('id', id);
       setPosts(posts.filter(p => p.id !== id));
+      showToast("Arte Removida.");
     } catch (error) {}
   };
 
   // ==========================================
-  // MOTOR 3: COFRE DE MISSÕES
+  // GERAR PDFS (Briefing & Brandbook)
   // ==========================================
-  const handleCreateMission = async () => {
-    if (!newMissionTitle || !activeProjectId) return;
-    setIsProcessing(true);
+  const handleDownloadBriefingPDF = async () => {
+    if (!briefing) return;
+    showToast("A forjar PDF do Briefing...");
     try {
-      await supabase.from('asset_missions').insert({
-        project_id: activeProjectId,
-        client_id: currentProject.client_id,
-        title: newMissionTitle,
-        description: newMissionDesc,
-        status: 'pending'
-      });
-      showToast("Missão enviada ao cliente!");
-      setNewMissionTitle(""); setNewMissionDesc("");
-      fetchInstagramData();
-    } catch (error) {} finally { setIsProcessing(false); }
+      const doc = <InstagramBriefingPDF data={briefing} clientName={currentProject.profiles?.nome} />;
+      const blob = await pdf(doc).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url; link.download = `Briefing_${currentProject.profiles?.nome}.pdf`;
+      link.click();
+    } catch (error) {
+      showToast("Erro ao gerar PDF.");
+    }
   };
 
-  const handleUploadProcessedAsset = async (e: React.ChangeEvent<HTMLInputElement>, missionId: string) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setIsProcessing(true);
-    showToast("A enviar material lapidado...");
+  const handleDownloadBrandbookPDF = async () => {
+    if (!labData) return;
+    showToast("A forjar Dossiê PDF Vetorial...");
     try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `processed_${missionId}_${Date.now()}.${fileExt}`;
-      const filePath = `${currentProject.client_id}/${fileName}`;
-      await supabase.storage.from('vault_assets').upload(filePath, file);
-      const { data: publicUrlData } = supabase.storage.from('vault_assets').getPublicUrl(filePath);
-      await supabase.from('asset_missions').update({ status: 'processed', processed_image_url: publicUrlData.publicUrl }).eq('id', missionId);
-      showToast("Ativo finalizado com sucesso!");
-      fetchInstagramData();
-    } catch (error) {} finally { setIsProcessing(false); e.target.value = ''; }
+      const tiltObj = { 
+        technical: labData.tilt_technical || 0, 
+        culture: labData.tilt_culture || 0, 
+        lifestyle: labData.tilt_status || 0, 
+        community: labData.tilt_community || 0 
+      };
+      
+      const doc = <BrandbookPDF clientName={currentProject.profiles?.nome} tilt={tiltObj as any} semiotics={labData.semiotics_choices} voice={labData.voice_scenarios} synapses={labData.synapses_vault} aiInsight={labData.ai_source_code} />;
+      const blob = await pdf(doc).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url; link.download = `Manual_Operacoes_${currentProject.profiles?.nome}.pdf`;
+      link.click();
+    } catch (error) {
+      showToast("Erro ao gerar PDF do Brandbook.");
+    }
   };
 
   // ==========================================
@@ -295,7 +313,7 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
       } else {
         setTimeout(() => {
           const tom = labData?.voice_scenarios?.price ? VOICE_MAP[labData.voice_scenarios.price] : "Profissional e Elegante";
-          setAiResponse(`**Gancho Estratégico (Hook):**\n"Descubra o segredo por trás do nosso padrão de excelência."\n\n**Copywriting (Baseado no Tom de Voz: ${tom}):**\n${aiPrompt}\n\nA nossa equipa não foca apenas na estética, mas no rigor de cada entrega. (A inteligência artificial irá desenvolver este texto com base nas respostas dadas pelo cliente no Brandbook Vivo, utilizando as inclinações de Autoridade e Cultura definidas na Matriz de Alocação).\n\n**Chamada para Ação (CTA):**\nClique no link da bio para reservar o seu momento connosco.`);
+          setAiResponse(`**Gancho Estratégico (Hook):**\n"Descubra o segredo por trás do nosso padrão de excelência."\n\n**Copywriting (Baseado no Tom de Voz: ${tom}):**\n${aiPrompt}\n\nA nossa equipa não foca apenas na estética, mas no rigor de cada entrega.\n\n**Chamada para Ação (CTA):**\nClique no link da bio para reservar o seu momento connosco.`);
           setIsGenerating(false);
           showToast("Conteúdo forjado com sucesso!");
         }, 1500);
@@ -306,8 +324,9 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
     }
   };
 
-  // Ideias Aprovadas pelo cliente que precisam de Arte Gráfica
   const approvedPlans = monthlyPlan.filter(plan => plan.status === 'approved');
+  // Filtro abrangente de posts visuais da curadoria (Exclui apenas o que foi rejeitado por completo)
+  const visiblePosts = posts.filter(p => p.status !== 'rejected');
 
   if (isLoading) return <div className="flex h-64 items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
@@ -320,7 +339,7 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
           { id: 'planeamento', label: 'Estratégia Mensal', icon: <CalendarDays size={16} /> },
           { id: 'agente', label: 'Agente IA (Copiloto)', icon: <BrainCircuit size={16} /> },
           { id: 'posts', label: 'Fluxo de Arte Visual', icon: <LayoutDashboard size={16} /> },
-          { id: 'missoes', label: 'Cofre de Missões', icon: <Camera size={16} /> },
+          { id: 'briefing_inicial', label: 'Briefing Inicial', icon: <FileText size={16} /> },
           { id: 'briefing', label: 'DNA da Marca (Lab)', icon: <Target size={16} /> },
         ].map(tab => (
           <button 
@@ -433,7 +452,7 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
           )}
 
           {/* =======================================
-              NOVA ABA: AGENTE IA (CRIADOR DE CONTEÚDO)
+              ABA 2: AGENTE IA (CRIADOR DE CONTEÚDO)
               ======================================= */}
           {activeTab === 'agente' && (
             <motion.div key="agente" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col md:flex-row gap-6 h-full min-h-0">
@@ -450,7 +469,7 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
                  
                  <div className="flex-1 flex flex-col min-h-0">
                    <textarea
-                     placeholder="Ex: Quero um post para sexta-feira sobre os bastidores da nossa operação logística, focando na agilidade e no cuidado com os pacotes..."
+                     placeholder="Ex: Quero um post para sexta-feira sobre os bastidores da nossa operação logística..."
                      value={aiPrompt} onChange={(e) => setAiPrompt(e.target.value)}
                      className="w-full flex-1 bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] resize-none outline-none focus:border-[var(--color-atelier-terracota)]/50 custom-scrollbar shadow-inner"
                    />
@@ -534,7 +553,7 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
               </div>
 
               <div className="w-full md:w-2/3 flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-2 pb-4">
-                {posts.filter(p => ['pending_approval', 'needs_revision', 'approved'].includes(p.status)).map(post => {
+                {visiblePosts.map(post => {
                   const postPins = pins.filter(pin => pin.post_id === post.id);
                   return (
                     <div key={post.id} className="glass-panel bg-white/70 p-6 rounded-[2.5rem] flex flex-col md:flex-row gap-6 border border-white shadow-sm relative group shrink-0">
@@ -573,11 +592,11 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
                     </div>
                   );
                 })}
-                {posts.filter(p => ['pending_approval', 'needs_revision', 'approved'].includes(p.status)).length === 0 && (
+                {visiblePosts.length === 0 && (
                   <div className="glass-panel bg-white/40 border border-white p-10 rounded-[2.5rem] flex flex-col items-center justify-center text-center h-[300px] shadow-sm shrink-0">
                     <CheckCircle2 size={48} className="text-[var(--color-atelier-terracota)]/30 mb-4" />
                     <p className="font-elegant text-3xl text-[var(--color-atelier-grafite)]/50">Fluxo Vazio</p>
-                    <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/40 mt-2">O cliente não possui artes gráficas em aprovação no momento.</p>
+                    <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/40 mt-2">Nenhuma arte gráfica aguardando aprovação ou em revisão.</p>
                   </div>
                 )}
               </div>
@@ -585,59 +604,62 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
           )}
 
           {/* =======================================
-              ABA 4: COFRE DE MISSÕES
+              ABA 4: BRIEFING INICIAL DO CLIENTE
               ======================================= */}
-          {activeTab === 'missoes' && (
-            <motion.div key="missoes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col gap-8 pb-10 h-full overflow-y-auto custom-scrollbar pr-2">
-              <div className="glass-panel bg-white/80 p-8 rounded-[2.5rem] border border-white shadow-[0_15px_40px_rgba(173,111,64,0.05)] flex flex-col md:flex-row gap-6 items-center shrink-0">
-                <div className="flex-1 w-full flex flex-col gap-4">
-                  <input type="text" placeholder="Título da Missão (Ex: Bastidores da Produção)" value={newMissionTitle} onChange={(e) => setNewMissionTitle(e.target.value)} className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 focus:border-[var(--color-atelier-terracota)]/50 rounded-xl px-4 py-3 font-elegant text-2xl text-[var(--color-atelier-grafite)] outline-none shadow-sm" />
-                  <input type="text" placeholder="Instruções claras para o cliente (ângulo, luz, formato)..." value={newMissionDesc} onChange={(e) => setNewMissionDesc(e.target.value)} className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 focus:border-[var(--color-atelier-terracota)]/50 rounded-xl px-4 py-3 font-roboto text-[13px] text-[var(--color-atelier-grafite)] outline-none shadow-sm" />
-                </div>
-                <button onClick={handleCreateMission} disabled={isProcessing || !newMissionTitle} className="w-full md:w-auto px-10 py-4 h-[110px] bg-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)] text-white rounded-2xl text-[11px] font-bold uppercase tracking-widest transition-all flex flex-col items-center justify-center gap-2 disabled:opacity-50 shrink-0 shadow-md">
-                  {isProcessing ? <Loader2 size={24} className="animate-spin" /> : <Send size={24} />} <span>Disparar<br/>Missão</span>
-                </button>
-              </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {missions.map(mission => (
-                  <div key={mission.id} className="glass-panel bg-white/70 p-6 md:p-8 rounded-[2.5rem] flex flex-col border border-white shadow-sm relative overflow-hidden group">
-                    <div className="flex justify-between items-start mb-4">
-                      <h4 className="font-elegant text-xl text-[var(--color-atelier-grafite)] pr-4">{mission.title}</h4>
-                      <span className={`px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest shrink-0 border
-                        ${mission.status === 'pending' ? 'bg-orange-50 border-orange-200 text-orange-600' : mission.status === 'uploaded' ? 'bg-blue-50 border-blue-200 text-blue-600' : 'bg-green-50 border-green-200 text-green-600'}
-                      `}>
-                        {mission.status === 'pending' ? 'Aguardando' : mission.status === 'uploaded' ? 'Requer Lapidação' : 'Finalizado'}
-                      </span>
-                    </div>
-                    <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/70 mb-4">{mission.description}</p>
-                    
-                    {mission.status === 'uploaded' && (
-                      <div className="mt-auto bg-blue-50/50 p-4 rounded-xl border border-blue-100 flex items-center justify-between gap-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-lg overflow-hidden border border-blue-200 shadow-sm cursor-pointer hover:scale-105 transition-transform" onClick={() => window.open(mission.raw_image_url, "_blank")}>
-                             <img src={mission.raw_image_url} alt="Cru" className="w-full h-full object-cover" />
-                          </div>
-                          <span className="text-[10px] font-bold uppercase tracking-widest text-blue-800">Cru Recebido</span>
-                        </div>
-                        <label className="bg-blue-600 text-white px-4 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest cursor-pointer hover:bg-blue-700 transition-all shadow-md flex items-center gap-2">
-                          <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => handleUploadProcessedAsset(e, mission.id)} disabled={isProcessing} />
-                          {isProcessing ? <Loader2 size={12} className="animate-spin"/> : <UploadCloud size={12} />} Enviar Arte
-                        </label>
-                      </div>
-                    )}
-                    
-                    {mission.status === 'processed' && (
-                      <div className="mt-auto bg-green-50/50 p-4 rounded-xl border border-green-100 flex items-center justify-between">
-                        <div className="flex gap-2">
-                           <div className="w-10 h-10 rounded-lg overflow-hidden border border-green-200 opacity-60"><img src={mission.raw_image_url} alt="Cru" className="w-full h-full object-cover" /></div>
-                           <div className="w-10 h-10 rounded-lg overflow-hidden border-2 border-[var(--color-atelier-terracota)] shadow-md"><img src={mission.processed_image_url} alt="Lapidado" className="w-full h-full object-cover" /></div>
-                        </div>
-                        <CheckCircle2 size={20} className="text-green-500" />
-                      </div>
-                    )}
-                  </div>
-                ))}
+          {activeTab === 'briefing_inicial' && (
+            <motion.div key="briefing_inicial" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col h-full overflow-hidden">
+              <div className="glass-panel bg-white/80 p-8 rounded-[2.5rem] border border-white shadow-sm flex flex-col h-full relative overflow-hidden">
+                 
+                 <div className="flex justify-between items-center border-b border-[var(--color-atelier-grafite)]/10 pb-6 mb-6 shrink-0">
+                   <div>
+                     <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Briefing de Operação</h2>
+                     <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest mt-1">Dados submetidos na entrada do projeto.</p>
+                   </div>
+                   <button onClick={handleDownloadBriefingPDF} disabled={!briefing} className="bg-[var(--color-atelier-grafite)] text-white px-6 py-3 rounded-2xl text-[10px] font-bold uppercase tracking-widest hover:bg-[var(--color-atelier-terracota)] transition-all flex items-center gap-2 shadow-md disabled:opacity-50 hover:-translate-y-0.5">
+                     <Download size={14}/> PDF do Briefing
+                   </button>
+                 </div>
+
+                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-4">
+                   {!briefing ? (
+                     <div className="flex flex-col items-center justify-center h-full opacity-40">
+                       <FileText size={48} className="mb-4 text-[var(--color-atelier-grafite)]" />
+                       <p className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Briefing Ausente</p>
+                       <p className="font-roboto text-[12px] text-center mt-2 max-w-sm">O cliente ainda não preencheu o formulário de briefing inicial na sua plataforma.</p>
+                     </div>
+                   ) : (
+                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                       
+                       <div className="flex flex-col gap-6">
+                         <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 shadow-sm">
+                           <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Visão do Negócio</span>
+                           <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap">{briefing.business_vision || "Não preenchido."}</p>
+                         </div>
+                         <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 shadow-sm">
+                           <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Público-Alvo</span>
+                           <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap">{briefing.target_audience || "Não preenchido."}</p>
+                         </div>
+                       </div>
+
+                       <div className="flex flex-col gap-6">
+                         <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 shadow-sm">
+                           <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Concorrentes</span>
+                           <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap">{briefing.competitors || "Não preenchido."}</p>
+                         </div>
+                         <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 shadow-sm">
+                           <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Diferencial (Unique Value)</span>
+                           <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap">{briefing.unique_value || "Não preenchido."}</p>
+                         </div>
+                         <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 shadow-sm">
+                           <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Referências e Estilo</span>
+                           <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap">{briefing.references || "Não preenchido."}</p>
+                         </div>
+                       </div>
+
+                     </div>
+                   )}
+                 </div>
+
               </div>
             </motion.div>
           )}
@@ -648,14 +670,19 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
           {activeTab === 'briefing' && (
             <motion.div key="briefing" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col gap-6 pb-10 h-full overflow-y-auto custom-scrollbar pr-2">
               
-              <div className="flex justify-between items-center bg-white/70 p-6 md:p-8 rounded-[2.5rem] border border-white shadow-sm shrink-0">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white/70 p-6 md:p-8 rounded-[2.5rem] border border-white shadow-sm shrink-0 gap-4">
                  <div>
                    <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Brandbook / Código-Fonte</h2>
                    <p className="font-roboto text-xs text-[var(--color-atelier-grafite)]/50 mt-1 uppercase tracking-widest font-bold">Os dados do Laboratório de Expressão do Cliente.</p>
                  </div>
-                 <button onClick={handleGenerateSourceCode} disabled={isProcessing || !labData} className="px-6 py-4 bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] rounded-xl font-roboto text-[10px] uppercase tracking-widest font-bold flex items-center gap-2 shadow-md disabled:opacity-50">
-                   {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={16} />} Compilar Código CMO IA
-                 </button>
+                 <div className="flex gap-2 w-full md:w-auto">
+                   <button onClick={handleGenerateSourceCode} disabled={isProcessing || !labData} className="flex-1 md:flex-none px-5 py-3.5 bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] rounded-2xl font-roboto text-[10px] uppercase tracking-widest font-bold flex items-center justify-center gap-2 shadow-md disabled:opacity-50">
+                     {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={16} />} Compilar IA
+                   </button>
+                   <button onClick={handleDownloadBrandbookPDF} disabled={!labData} className="flex-1 md:flex-none px-5 py-3.5 bg-white border border-[var(--color-atelier-terracota)]/30 text-[var(--color-atelier-terracota)] hover:bg-[var(--color-atelier-terracota)] hover:text-white rounded-2xl font-roboto text-[10px] uppercase tracking-widest font-bold flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 transition-colors">
+                     <Download size={14} /> Brandbook
+                   </button>
+                 </div>
               </div>
 
               {labData?.ai_source_code && (

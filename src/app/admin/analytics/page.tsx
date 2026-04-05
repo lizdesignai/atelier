@@ -16,77 +16,76 @@ const showToast = (message: string) => {
 };
 
 // ============================================================================
-// 1. DICIONÁRIOS E PIPELINES (MACROESTRATÉGIA)
+// 1. DICIONÁRIOS E PIPELINES UNITARIZADOS (BACKWARD SCHEDULING UNITÁRIO)
 // ============================================================================
 const TASK_TYPES_IDV = [
   { id: 'setup', label: 'Administrativo & Contratos' },
   { id: 'reuniao', label: 'Reuniões & Apresentações' },
-  { id: 'copy', label: 'Pesquisa & Estratégia (Semiótica)' },
-  { id: 'design', label: 'Design Gráfico & Direção Visual' }
+  { id: 'copy', label: 'Pesquisa & Estratégia' },
+  { id: 'design', label: 'Design & Direção Visual' }
 ];
 
 const TASK_TYPES_IG = [
-  { id: 'setup', label: 'Gestão, Publicação & Relatórios' },
-  { id: 'reuniao', label: 'Reuniões de Alinhamento' },
-  { id: 'copy', label: 'Copywriting & Planejamento' },
-  { id: 'design', label: 'Design Gráfico (Estáticos/Carrosséis)' },
-  { id: 'video', label: 'Captação & Edição de Vídeo' }
+  { id: 'setup', label: 'Gestão & Relatórios' },
+  { id: 'reuniao', label: 'Reuniões' },
+  { id: 'copy', label: 'Copywriting' },
+  { id: 'design', label: 'Design Gráfico' },
+  { id: 'video', label: 'Edição de Vídeo' }
 ];
 
-// Backward Scheduling Base: daysOffset indica a ordem cronológica do dia 0 ao dia N.
 const IDV_PIPELINE = [
-  { stage: "Kickoff & Briefing", type: "setup", title: "Formulário de cadastro & Contrato", daysOffset: 0, estTime: 30 },
-  { stage: "Kickoff & Briefing", type: "setup", title: "Pagamento", daysOffset: 1, estTime: 15 },
-  { stage: "Kickoff & Briefing", type: "reuniao", title: "Reunião de briefing", daysOffset: 2, estTime: 60 },
+  { stage: "Kickoff", type: "setup", title: "Formulário de cadastro & Contrato", daysOffset: 0, estTime: 30 },
+  { stage: "Kickoff", type: "setup", title: "Pagamento", daysOffset: 1, estTime: 15 },
+  { stage: "Kickoff", type: "reuniao", title: "Reunião de briefing", daysOffset: 2, estTime: 60 },
   { stage: "Imersão", type: "copy", title: "Moodboard & Semiótica Visual", daysOffset: 5, estTime: 180 },
-  { stage: "Imersão", type: "setup", title: "Envio de Direcionamento Criativo", daysOffset: 6, estTime: 30 },
-  { stage: "Design Sprint", type: "design", title: "Laboratório de Logotipo / Vetorização", daysOffset: 9, estTime: 240 },
-  { stage: "Design Sprint", type: "design", title: "Tipografia, Cores e Colaterais", daysOffset: 12, estTime: 180 },
-  { stage: "Apresentação", type: "design", title: "Montagem dos Mockups", daysOffset: 14, estTime: 120 },
-  { stage: "Apresentação", type: "design", title: "Montagem do Brandbook Final", daysOffset: 16, estTime: 180 },
-  { stage: "Apresentação", type: "reuniao", title: "Reunião de Apresentação", daysOffset: 17, estTime: 60 },
-  { stage: "Handover", type: "design", title: "Ajustes Finos e Fechamento de Arquivos", daysOffset: 18, estTime: 90 },
+  { stage: "Design", type: "design", title: "Laboratório de Logotipo", daysOffset: 9, estTime: 240 },
+  { stage: "Design", type: "design", title: "Tipografia e Cores", daysOffset: 12, estTime: 180 },
+  { stage: "Apresentação", type: "design", title: "Montagem do Brandbook", daysOffset: 16, estTime: 180 },
   { stage: "Handover", type: "setup", title: "Envio do Drive e Conclusão", daysOffset: 18, estTime: 30 }
 ];
 
 const IG_SETUP = [
-  { stage: "Setup & Onboarding", type: "setup", title: "Assinatura do contrato & Pagamento", daysOffset: 0, estTime: 30 },
-  { stage: "Setup & Onboarding", type: "reuniao", title: "Reunião de briefing", daysOffset: 2, estTime: 60 },
-  { stage: "Estratégia Mensal", type: "copy", title: "Criação de Estratégia e Copy (Mês)", daysOffset: 5, estTime: 180 },
-  { stage: "Estratégia Mensal", type: "setup", title: "Validação do Cliente (Gargalo de Aprovação)", daysOffset: 7, estTime: 30 },
-  { stage: "Direção Visual", type: "design", title: "Alinhamento Visual (Identidade do Feed)", daysOffset: 9, estTime: 120 },
+  { stage: "Setup", type: "setup", title: "Assinatura & Onboarding", daysOffset: 0, estTime: 30 },
+  { stage: "Estratégia", type: "copy", title: "Criação de Estratégia e Copy (Mês)", daysOffset: 5, estTime: 180 },
 ];
 
-const IG_PACKAGES: Record<string, any[]> = {
-  "Pacote 1": [
-    { stage: "Produção de Ativos", type: "video", title: "Design de Criativos / Edição de Vídeo (6 Peças)", daysOffset: 15, estTime: 360 },
-    { stage: "Governança", type: "setup", title: "Aprovação Final do Cliente", daysOffset: 20, estTime: 30 },
-    { stage: "Governança", type: "setup", title: "Agendamento e Monitoramento", daysOffset: 22, estTime: 60 }
-  ],
-  "Pacote 2": [
-    { stage: "Produção de Ativos", type: "design", title: "Design de 4 Cards/Carrosséis", daysOffset: 15, estTime: 240 },
-    { stage: "Governança", type: "setup", title: "Aprovação Final e Agendamento", daysOffset: 20, estTime: 60 }
-  ],
-  "Pacote 3": [
-    { stage: "Produção de Ativos", type: "design", title: "Design Gráfico & Edição (8 Posts)", daysOffset: 15, estTime: 480 },
-    { stage: "Governança", type: "setup", title: "Aprovação, Agendamento e Monitoramento", daysOffset: 20, estTime: 90 },
-    { stage: "Governança", type: "setup", title: "Geração de Relatório de Resultados (MRR)", daysOffset: 28, estTime: 60 }
-  ],
-  "Pacote 4": [
-    { stage: "Produção de Ativos", type: "design", title: "Design Gráfico & Edição (12 Posts)", daysOffset: 14, estTime: 720 },
-    { stage: "Produção Contínua", type: "copy", title: "Roteirização Diária de Stories", daysOffset: 18, estTime: 300 },
-    { stage: "Governança", type: "setup", title: "Agendamento Sistêmico Global", daysOffset: 22, estTime: 90 },
-    { stage: "Governança", type: "setup", title: "Análise de Dados e Relatório Tático", daysOffset: 28, estTime: 90 }
-  ]
+// Lógica de Unitarização: Transformamos pacotes em listas explícitas de tarefas para distribuição no mês
+const generateUnitaryIG = (packageName: string) => {
+  const units: any[] = [];
+  const counts: Record<string, {type: string, qty: number}> = {
+    "Pacote 1": { type: "video", qty: 6 },
+    "Pacote 2": { type: "design", qty: 4 },
+    "Pacote 3": { type: "design", qty: 8 },
+    "Pacote 4": { type: "design", qty: 12 }
+  };
+
+  const config = counts[packageName] || { type: "design", qty: 1 };
+  
+  for (let i = 1; i <= config.qty; i++) {
+    units.push({
+      stage: "Produção Ativa",
+      type: config.type,
+      title: `${config.type === 'video' ? 'Reels/Vídeo' : 'Post/Card'} Unitário #${i} - ${packageName}`,
+      // Distribui as entregas entre o dia 10 e o dia 28 do ciclo
+      daysOffset: Math.floor(10 + (i * (18 / config.qty))),
+      estTime: 60
+    });
+  }
+
+  if (packageName === "Pacote 4") {
+    units.push({ stage: "Produção", type: "copy", title: "Roteirização Diária de Stories", daysOffset: 18, estTime: 300 });
+  }
+  
+  return units;
 };
 
 // ============================================================================
-// 2. FUNÇÕES UTILITÁRIAS GLOBAIS (Blindagem)
+// 2. FUNÇÕES AUXILIARES
 // ============================================================================
 const groupTasksByStage = (projectTasks: any[]) => {
   const stages: Record<string, any[]> = {};
   projectTasks.forEach(t => {
-    const stageName = t.stage || 'Operação Contínua';
+    const stageName = t.stage || 'Geral';
     if (!stages[stageName]) stages[stageName] = [];
     stages[stageName].push(t);
   });
@@ -104,15 +103,13 @@ const isIdvService = (project: any) => {
 export default function AnalyticsPage() {
   const [activeView, setActiveView] = useState<'overview' | 'projects' | 'routing'>('overview');
   const [isLoading, setIsLoading] = useState(true);
-  
-  // Estado Global de Dados
   const [metrics, setMetrics] = useState({ activeProjects: 0, pendingTasks: 0, totalTeam: 0 });
   const [projects, setProjects] = useState<any[]>([]);
   const [team, setTeam] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [routingRules, setRoutingRules] = useState<any[]>([]);
 
-  // Estados de Interação (UI)
+  // Estados de Interface
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [selectedPackageForDeploy, setSelectedPackageForDeploy] = useState<string>("Pacote 1");
   const [editingTask, setEditingTask] = useState<any>(null);
@@ -132,7 +129,8 @@ export default function AnalyticsPage() {
   const fetchOperationalData = async () => {
     setIsLoading(true);
     try {
-      const { data: projData } = await supabase.from('projects').select('*, profiles(nome)').in('status', ['active', 'delivered']).order('created_at', { ascending: false });
+      // Carrega projetos com os perfis dos clientes (para avatares)
+      const { data: projData } = await supabase.from('projects').select('*, profiles(nome, avatar_url)').in('status', ['active', 'delivered']).order('created_at', { ascending: false });
       if (projData) {
         setProjects(projData);
         if (projData.length > 0 && !selectedProjectId) setSelectedProjectId(projData[0].id);
@@ -141,7 +139,8 @@ export default function AnalyticsPage() {
       const { data: teamData } = await supabase.from('profiles').select('id, nome, role, avatar_url, team_performance(exp_points, level_name)').in('role', ['admin', 'gestor', 'colaborador']);
       if (teamData) setTeam(teamData);
 
-      const { data: tasksData } = await supabase.from('tasks').select('*, projects(profiles(nome), type, service_type), profiles!assigned_to(nome, avatar_url)').order('deadline', { ascending: true });
+      // Carrega tarefas com perfis dos colaboradores (para avatares)
+      const { data: tasksData } = await supabase.from('tasks').select('*, projects(profiles(nome, avatar_url), type, service_type), profiles!assigned_to(nome, avatar_url)').order('deadline', { ascending: true });
       if (tasksData) setTasks(tasksData);
 
       const { data: rulesData } = await supabase.from('routing_rules').select('*');
@@ -160,7 +159,6 @@ export default function AnalyticsPage() {
     }
   };
 
-  // Finalizar tarefa diretamente pelo botão Check
   const handleCompleteTask = async (taskId: string) => {
     try {
       const { error } = await supabase.from('tasks').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', taskId);
@@ -172,7 +170,6 @@ export default function AnalyticsPage() {
     }
   };
 
-  // Injetar Demanda Pontual (Ad-Hoc)
   const handleAddAdHocDemand = async () => {
     if (!adHocDemand.title || !adHocDemand.assigneeId || !selectedProjectId) {
       showToast("Preencha título e colaborador."); return;
@@ -186,7 +183,7 @@ export default function AnalyticsPage() {
         urgency: adHocDemand.urgency,
         status: 'pending',
         stage: 'Demanda Pontual',
-        deadline: new Date(Date.now() + 86400000).toISOString() // Default 24h
+        deadline: new Date(Date.now() + 86400000).toISOString()
       });
       if (error) throw error;
       showToast("🔥 Demanda injetada na fila do colaborador!");
@@ -199,13 +196,13 @@ export default function AnalyticsPage() {
     }
   };
 
-  // Auto Deploy e Backward Scheduling com Lógica de Renovação
   const handleAutoDeploy = async (project: any) => {
     setIsProcessing(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       const isIdv = isIdvService(project);
       const hasPreviousTasks = tasks.some(t => t.project_id === project.id);
+      const currentPackage = project.instagram_package || selectedPackageForDeploy;
       
       let pipeline = [];
       if (isIdv) {
@@ -215,17 +212,26 @@ export default function AnalyticsPage() {
         }
         pipeline = IDV_PIPELINE;
       } else {
-        const pacoteValido = project.instagram_package || selectedPackageForDeploy;
-        const packageTasks = IG_PACKAGES[pacoteValido] || [];
-        // Se já existirem tarefas neste projeto (já passou pelo mês 1), pula o Onboarding
+        const packageTasks = generateUnitaryIG(currentPackage);
         pipeline = hasPreviousTasks ? packageTasks : [...IG_SETUP, ...packageTasks];
       }
 
       const projRules = routingRules.filter(r => r.project_id === project.id);
       const maxOffset = pipeline.length > 0 ? Math.max(...pipeline.map(t => t.daysOffset)) : 0;
       
-      let finalDeadline = project.data_limite ? new Date(project.data_limite) : new Date();
-      if (!project.data_limite) finalDeadline.setDate(finalDeadline.getDate() + 30);
+      // Inteligência de Recorrência (Empurra a data de entrega base)
+      let finalDeadline = new Date();
+      if (isIdv && project.data_limite) {
+        finalDeadline = new Date(project.data_limite);
+      } else if (!isIdv && project.billing_date) {
+        finalDeadline = new Date(project.billing_date);
+        if (hasPreviousTasks) {
+          // Renovação Mensal: Avança o cronômetro base 1 mês à frente
+          finalDeadline.setMonth(finalDeadline.getMonth() + 1);
+        }
+      } else {
+        finalDeadline.setDate(finalDeadline.getDate() + 30);
+      }
 
       const insertData = pipeline.map((t) => {
         const daysToSubtract = maxOffset - t.daysOffset;
@@ -253,21 +259,24 @@ export default function AnalyticsPage() {
         if (error) throw error;
       }
       
-      if (!isIdv && !project.instagram_package) {
-        await supabase.from('projects').update({ instagram_package: selectedPackageForDeploy }).eq('id', project.id);
+      // Atualiza os metadados do projeto (O Pacote atual e a Nova Data de Ciclo)
+      const projUpdates: any = {};
+      if (!isIdv && !project.instagram_package) projUpdates.instagram_package = currentPackage;
+      if (!isIdv && hasPreviousTasks && project.billing_date) projUpdates.billing_date = finalDeadline.toISOString();
+
+      if (Object.keys(projUpdates).length > 0) {
+        await supabase.from('projects').update(projUpdates).eq('id', project.id);
       }
 
-      showToast(hasPreviousTasks ? "🔄 Ciclo Mensal Renovado! Novas tarefas na fila." : "🚀 Pipeline e Prazos calculados com sucesso!");
+      showToast(hasPreviousTasks ? "🔄 Ciclo Mensal Renovado! Produção unitária disparada." : "🚀 Pipeline Instanciado com Sucesso!");
       fetchOperationalData();
     } catch (error) {
-      console.error(error);
       showToast("Erro no Deploy do Pipeline.");
     } finally {
       setIsProcessing(false);
     }
   };
 
-  // Salvar Regra de Routing
   const handleSaveRule = async () => {
     if (!routeConfig.projectId || !routeConfig.taskType || !routeConfig.assigneeId) {
       showToast("Preencha todos os campos da regra."); return;
@@ -281,7 +290,7 @@ export default function AnalyticsPage() {
       }, { onConflict: 'project_id, task_type' });
 
       if (error) throw error;
-      showToast("🎯 Regra de Roteamento configurada!");
+      showToast("🎯 Regra de Roteamento estabelecida!");
       fetchOperationalData(); 
     } catch (error) {
       showToast("Erro ao salvar regra.");
@@ -324,14 +333,18 @@ export default function AnalyticsPage() {
     }
   };
 
-  // Filtros UI
-  const activeTasks = tasks.filter(t => t.status !== 'completed');
+// ============================================================================
+  // FILTROS UI E DERIVAÇÕES DE ESTADO
+  // ============================================================================
+  const activeTasksForQueue = tasks.filter(t => t.status !== 'completed');
+  const activeTasks = activeTasksForQueue; // Garante o funcionamento do Modal de Performance
   const activeProjectsList = projects.filter(p => p.status === 'active');
   const selectedProj = projects.find(p => p.id === selectedProjectId);
   
-  // Condicional de Dicionário baseada no projeto selecionado na regra
-  const routeProjObj = projects.find(p => p.id === routeConfig.projectId);
+  // Condicional de Dicionário baseada no projeto selecionado na regra (Motor de Routing)
+  const routeProjObj = projects.find(p => p.id === routeConfig.projectId); // <--- A LINHA RESTAURADA
   const currentTaskTypes = isIdvService(routeProjObj) ? TASK_TYPES_IDV : TASK_TYPES_IG;
+  
   const liveTasks = tasks.filter(t => t.status === 'in_progress');
 
   if (isLoading) return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
@@ -346,29 +359,29 @@ export default function AnalyticsPage() {
             <span className="bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] w-8 h-8 rounded-xl flex items-center justify-center">
               <BrainCircuit size={16} className="text-[var(--color-atelier-terracota)]" />
             </span>
-            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Gestão de Produção</span>
+            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Engenharia Operacional</span>
           </div>
           <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Oráculo & <span className="text-[var(--color-atelier-terracota)] italic">Analytics.</span></h1>
         </div>
         
         <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0">
-           <button onClick={() => setActiveView('overview')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'overview' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)]'}`}>Dashboard</button>
-           <button onClick={() => setActiveView('projects')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'projects' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)]'}`}>Visão de Projetos</button>
-           <button onClick={() => setActiveView('routing')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'routing' ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)]'}`}>Roteamento</button>
+           <button onClick={() => setActiveView('overview')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'overview' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Dashboard</button>
+           <button onClick={() => setActiveView('projects')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'projects' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Visão de Projetos</button>
+           <button onClick={() => setActiveView('routing')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'routing' ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Motor de Routing</button>
         </div>
       </header>
 
-      {/* WIDGET: LIVE EXECUTION (Global - Mostra quem está a trabalhar AGORA) */}
+      {/* WIDGET: LIVE EXECUTION */}
       {liveTasks.length > 0 && activeView !== 'routing' && (
         <div className="shrink-0 bg-[var(--color-atelier-grafite)] text-white p-4 rounded-2xl flex items-center gap-4 overflow-x-auto custom-scrollbar shadow-lg animate-[fadeIn_0.5s_ease-out]">
           <div className="flex items-center gap-2 shrink-0 border-r border-white/20 pr-4">
-             <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse shadow-[0_0_8px_rgba(74,222,128,0.8)]"></div>
+             <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
              <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-white/70">Executando Agora</span>
           </div>
           {liveTasks.map(t => (
             <div key={t.id} className="flex items-center gap-3 bg-white/10 px-4 py-2 rounded-xl shrink-0">
-               <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center overflow-hidden shrink-0 border border-white/30 text-[8px] font-bold">
-                 {t.profiles?.avatar_url ? <img src={t.profiles.avatar_url} className="w-full h-full object-cover"/> : t.profiles?.nome?.charAt(0)}
+               <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center overflow-hidden shrink-0 border border-white/30">
+                 {t.profiles?.avatar_url ? <img src={t.profiles.avatar_url} className="w-full h-full object-cover"/> : <UserCircle2 size={12}/>}
                </div>
                <div className="flex flex-col">
                  <span className="font-roboto text-[11px] font-bold">{t.profiles?.nome}</span>
@@ -383,13 +396,11 @@ export default function AnalyticsPage() {
       <div className="flex-1 min-h-0 relative">
         <AnimatePresence mode="wait">
 
-          {/* =========================================================================
-              ABA 1: OVERVIEW (O Dashboard da Agência)
-              ========================================================================= */}
+          {/* DASHBOARD OVERVIEW */}
           {activeView === 'overview' && (
             <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-6 h-full min-h-0">
               
-              {/* KPIs COMPACTOS (Exclusivos do Dashboard) */}
+              {/* KPIs COMPACTOS */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
                 <div className="bg-white/60 p-4 rounded-2xl border border-white flex items-center gap-4 shadow-sm">
                   <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0"><FolderKanban size={18} /></div>
@@ -402,55 +413,60 @@ export default function AnalyticsPage() {
                   <div className="w-10 h-10 rounded-xl bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center shrink-0"><Target size={18} /></div>
                   <div className="flex flex-col">
                     <span className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">{metrics.pendingTasks}</span>
-                    <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-0.5">Missões no JTBD</span>
+                    <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-0.5">Missões Pendentes</span>
                   </div>
                 </div>
                 <div className="bg-white/60 p-4 rounded-2xl border border-white flex items-center gap-4 shadow-sm">
                   <div className="w-10 h-10 rounded-xl bg-green-500/10 text-green-600 flex items-center justify-center shrink-0"><Users size={18} /></div>
                   <div className="flex flex-col">
                     <span className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">{metrics.totalTeam}</span>
-                    <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-0.5">Membros da Equipa</span>
+                    <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-0.5">Força de Equipa</span>
                   </div>
                 </div>
               </div>
 
-              {/* AS TRÊS COLUNAS: FILA, PROJETOS, EQUIPA */}
               <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
                 
                 {/* COLUNA 1: FILA GERAL */}
-                <div className="w-full lg:w-1/3 glass-panel bg-white/40 p-6 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden h-full">
+                <div className="w-full lg:w-1/3 glass-panel bg-white/40 p-6 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden h-full min-h-0">
                   <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-4 shrink-0 flex justify-between items-center">
                     <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Fila de Missões</h3>
-                    <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-[9px] font-bold uppercase tracking-widest">{activeTasks.length} Pendentes</span>
+                    <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-[9px] font-bold uppercase tracking-widest">{activeTasksForQueue.length} Pendentes</span>
                   </div>
                   <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3">
-                    {tasks.slice(0, 50).map(task => {
+                    {activeTasksForQueue.map(task => {
                       const isDelayed = task.status !== 'completed' && new Date(task.deadline) < new Date();
                       return (
-                        <div key={task.id} onClick={() => setEditingTask(task)} className={`p-4 rounded-xl border flex flex-col gap-2 shadow-sm transition-all cursor-pointer group
-                          ${task.status === 'completed' ? 'bg-gray-50 border-gray-200 opacity-60' : 'bg-white border-[var(--color-atelier-grafite)]/10 hover:border-[var(--color-atelier-terracota)]/40'}
-                        `}>
-                          <div className="flex justify-between items-start">
-                            <span className={`font-roboto font-bold text-[12px] line-clamp-2 ${task.status === 'completed' ? 'line-through' : ''}`}>{task.title}</span>
-                            {task.urgency && task.status !== 'completed' && <Flame size={12} className="text-orange-500 shrink-0"/>}
-                          </div>
-                          <div className="flex justify-between items-center mt-1 border-t border-[var(--color-atelier-grafite)]/5 pt-2">
-                            <div className="flex items-center gap-1.5">
-                              <div className="w-4 h-4 rounded-full bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)] border border-[var(--color-atelier-terracota)]/20 flex items-center justify-center text-[8px] font-bold overflow-hidden">
-                                {task.profiles?.avatar_url ? <img src={task.profiles.avatar_url} className="w-full h-full object-cover"/> : task.profiles?.nome?.charAt(0) || "?"}
+                        <div key={task.id} className="bg-white/80 p-4 rounded-2xl border border-[var(--color-atelier-grafite)]/5 flex flex-col group hover:border-[var(--color-atelier-terracota)]/30 transition-all shadow-sm">
+                          <div className="flex items-center gap-4 flex-1">
+                            <div className="w-10 h-10 rounded-xl overflow-hidden border border-gray-100 shrink-0 bg-gray-50 flex items-center justify-center shadow-inner">
+                              {task.projects?.profiles?.avatar_url ? <img src={task.projects.profiles.avatar_url} className="w-full h-full object-cover" /> : <span className="font-elegant text-lg text-[var(--color-atelier-terracota)]">{task.projects?.profiles?.nome?.charAt(0)}</span>}
+                            </div>
+                            <div className="flex flex-col cursor-pointer flex-1" onClick={() => setEditingTask(task)}>
+                              <div className="flex justify-between items-start">
+                                <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors leading-tight pr-2">{task.title}</span>
+                                {task.urgency && <Flame size={12} className="text-orange-500 shrink-0 mt-0.5"/>}
                               </div>
-                              <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">{task.projects?.profiles?.nome?.split(" ")[0]}</span>
-                            </div>
-                            <div className="flex items-center gap-3">
-                              <span className={`text-[9px] font-bold uppercase tracking-widest ${isDelayed ? 'text-red-500' : 'text-[var(--color-atelier-terracota)]'}`}>
-                                {task.status === 'completed' ? 'Feito' : new Date(task.deadline).toLocaleDateString('pt-BR')}
+                              <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-1 truncate">
+                                {task.projects?.profiles?.nome} • {new Date(task.deadline).toLocaleDateString('pt-BR')}
                               </span>
-                              {task.status !== 'completed' && (
-                                <button onClick={(e) => { e.stopPropagation(); handleCompleteTask(task.id); }} className="w-6 h-6 rounded-full bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-500 hover:text-white transition-all shadow-sm border border-green-200" title="Finalizar Tarefa">
-                                  <Check size={12} strokeWidth={3} />
-                                </button>
-                              )}
                             </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between mt-3 pt-3 border-t border-[var(--color-atelier-grafite)]/5">
+                            <div className="flex items-center gap-2">
+                              <div className="w-6 h-6 rounded-full overflow-hidden border border-white shadow-sm bg-gray-100 flex items-center justify-center shrink-0">
+                                {task.profiles?.avatar_url ? <img src={task.profiles.avatar_url} className="w-full h-full object-cover"/> : <UserCircle2 size={12} className="text-gray-300"/>}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="text-[8px] uppercase font-bold text-[var(--color-atelier-grafite)]/30">Executor</span>
+                                <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)]/80 leading-none">{task.profiles?.nome?.split(" ")[0] || "Livre"}</span>
+                              </div>
+                            </div>
+                            
+                            <button onClick={(e) => { e.stopPropagation(); handleCompleteTask(task.id); }} className="w-8 h-8 rounded-full bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-500 hover:text-white transition-all shadow-sm border border-green-200" title="Finalizar Tarefa">
+                              <Check size={14} strokeWidth={3} />
+                            </button>
                           </div>
                         </div>
                       )
@@ -459,7 +475,7 @@ export default function AnalyticsPage() {
                 </div>
 
                 {/* COLUNA 2: ANDAMENTO REAL DOS PROJETOS */}
-                <div className="w-full lg:w-1/3 glass-panel bg-white/60 p-6 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden h-full">
+                <div className="w-full lg:w-1/3 glass-panel bg-white/60 p-6 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden h-full min-h-0">
                   <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-4 shrink-0 flex justify-between items-center">
                     <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Progressão Real</h3>
                     <Activity size={18} className="text-[var(--color-atelier-terracota)]"/>
@@ -474,10 +490,15 @@ export default function AnalyticsPage() {
 
                       return (
                         <div key={proj.id} onClick={() => { setSelectedProjectId(proj.id); setActiveView('projects'); }} className="bg-white p-4 rounded-xl border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col gap-3 cursor-pointer hover:shadow-md transition-all group">
-                          <div className="flex justify-between items-center">
-                            <div className="flex flex-col">
-                              <span className="font-roboto font-bold text-[14px] text-[var(--color-atelier-grafite)]">{proj.profiles?.nome}</span>
-                              <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">{isIdvService(proj) ? 'Identidade Visual' : 'Instagram'}</span>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-8 h-8 rounded-lg overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0">
+                                {proj.profiles?.avatar_url ? <img src={proj.profiles.avatar_url} className="w-full h-full object-cover"/> : <span className="font-elegant text-sm text-[var(--color-atelier-terracota)]">{proj.profiles?.nome?.charAt(0)}</span>}
+                              </div>
+                              <div className="flex flex-col">
+                                <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] truncate max-w-[150px]">{proj.profiles?.nome}</span>
+                                <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">{isIdvService(proj) ? 'IDV' : 'Instagram'}</span>
+                              </div>
                             </div>
                             {total === 0 ? <AlertTriangle size={14} className="text-orange-500" /> : isDelayed && <AlertTriangle size={14} className="text-red-500" />}
                           </div>
@@ -497,28 +518,28 @@ export default function AnalyticsPage() {
                 </div>
 
                 {/* COLUNA 3: CARGA DA EQUIPA E XP */}
-                <div className="w-full lg:w-1/3 glass-panel bg-[var(--color-atelier-creme)]/50 p-6 flex flex-col rounded-[2.5rem] border border-[var(--color-atelier-terracota)]/20 shadow-sm overflow-hidden h-full">
+                <div className="w-full lg:w-1/3 glass-panel bg-[var(--color-atelier-creme)]/50 p-6 flex flex-col rounded-[2.5rem] border border-[var(--color-atelier-terracota)]/20 shadow-sm overflow-hidden h-full min-h-0">
                   <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-4 shrink-0 flex justify-between items-center">
                     <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Alocação de Esforço</h3>
                     <Users size={18} className="text-[var(--color-atelier-terracota)]"/>
                   </div>
                   <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3">
                     {team.map(member => {
-                      const memberTasks = activeTasks.filter(t => t.assigned_to === member.id);
+                      const memberTasks = activeTasksForQueue.filter(t => t.assigned_to === member.id);
                       const estHours = (memberTasks.reduce((acc, t) => acc + (t.estimated_time || 0), 0) / 60).toFixed(1);
                       return (
                         <div key={member.id} onClick={() => setSelectedCollab(member)} className="bg-white p-4 rounded-xl border border-white shadow-sm flex items-center justify-between cursor-pointer hover:border-[var(--color-atelier-terracota)]/40 transition-all group">
                           <div className="flex items-center gap-3 w-3/4">
-                            <div className="w-10 h-10 rounded-xl overflow-hidden border border-[var(--color-atelier-terracota)]/20 shadow-inner shrink-0 bg-[var(--color-atelier-creme)] flex items-center justify-center text-[var(--color-atelier-terracota)] font-elegant">
-                              {member.avatar_url ? <img src={member.avatar_url} className="w-full h-full object-cover"/> : member.nome.charAt(0)}
+                            <div className="w-10 h-10 rounded-xl overflow-hidden border border-[var(--color-atelier-terracota)]/20 shadow-inner shrink-0 bg-white flex items-center justify-center">
+                              {member.avatar_url ? <img src={member.avatar_url} className="w-full h-full object-cover"/> : <UserCircle2 className="text-gray-200" />}
                             </div>
                             <div className="flex flex-col overflow-hidden">
                               <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors truncate">{member.nome}</span>
-                              <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-0.5 truncate">{memberTasks.length} Tarefas Filadas</span>
+                              <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-0.5">{memberTasks.length} Ativas</span>
                             </div>
                           </div>
-                          <div className="flex flex-col items-end text-right pl-2 border-l border-[var(--color-atelier-grafite)]/5 shrink-0">
-                            <span className="text-[10px] font-bold uppercase tracking-widest text-orange-500 flex flex-col items-center"><Clock size={10} className="mb-0.5"/> ~{estHours}h</span>
+                          <div className="text-right pl-2 border-l border-[var(--color-atelier-grafite)]/5 shrink-0">
+                            <span className="text-[10px] font-bold text-orange-500">~{estHours}h</span>
                           </div>
                         </div>
                       )
@@ -529,20 +550,25 @@ export default function AnalyticsPage() {
             </motion.div>
           )}
 
-          {/* =========================================================================
-              ABA 2: VISÃO DE PROJETOS E AD-HOC
-              ========================================================================= */}
+          {/* VISÃO DE PROJETOS E DEMANDA AD-HOC */}
           {activeView === 'projects' && (
-            <motion.div key="projects" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex gap-6 h-full overflow-hidden">
+            <motion.div key="projects" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col lg:flex-row gap-6 h-full overflow-hidden">
               
               {/* LISTA LATERAL DE PROJETOS */}
-              <div className="w-[320px] glass-panel bg-white/40 p-5 rounded-[2rem] border border-white shadow-sm flex flex-col h-[300px] lg:h-full shrink-0">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-4 px-2 block border-b border-[var(--color-atelier-grafite)]/10 pb-4">Escolha o Projeto</span>
+              <div className="w-full lg:w-[320px] glass-panel bg-white/40 p-5 rounded-[2rem] border border-white shadow-sm flex flex-col h-[300px] lg:h-full shrink-0">
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-4 px-2 block border-b border-[var(--color-atelier-grafite)]/10 pb-4">Carteira Ativa</span>
                 <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-1">
                   {activeProjectsList.map(p => (
                     <button key={p.id} onClick={() => setSelectedProjectId(p.id)} className={`p-4 rounded-xl text-left transition-all border ${selectedProjectId === p.id ? 'bg-white border-[var(--color-atelier-terracota)]/30 shadow-md' : 'border-transparent hover:bg-white/50'}`}>
-                      <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] block truncate">{p.profiles?.nome}</span>
-                      <span className="text-[9px] uppercase font-bold text-[var(--color-atelier-terracota)]">{isIdvService(p) ? 'IDV' : 'IG'}</span>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-lg overflow-hidden border border-gray-100 shrink-0">
+                           {p.profiles?.avatar_url ? <img src={p.profiles.avatar_url} className="w-full h-full object-cover"/> : <div className="bg-gray-50 w-full h-full flex items-center justify-center font-elegant text-sm text-[var(--color-atelier-terracota)]">{p.profiles?.nome?.charAt(0)}</div>}
+                        </div>
+                        <div className="flex flex-col truncate">
+                          <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] block truncate">{p.profiles?.nome}</span>
+                          <span className="text-[9px] uppercase font-bold text-[var(--color-atelier-terracota)]">{isIdvService(p) ? 'IDV' : 'Instagram'}</span>
+                        </div>
+                      </div>
                     </button>
                   ))}
                 </div>
@@ -555,47 +581,43 @@ export default function AnalyticsPage() {
                 ) : (
                   <>
                     <div className="flex flex-col lg:flex-row justify-between lg:items-start gap-4 mb-6 shrink-0">
-                      <div>
-                        <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">{selectedProj.profiles?.nome}</h2>
-                        <p className="text-[11px] font-bold text-[var(--color-atelier-grafite)]/40 uppercase tracking-widest mt-2">{isIdvService(selectedProj) ? 'Identidade Visual' : `Gestão de Instagram ${selectedProj.instagram_package ? `• ${selectedProj.instagram_package}` : ''}`}</p>
+                      <div className="flex items-center gap-4">
+                        <div className="w-14 h-14 rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
+                          {selectedProj.profiles?.avatar_url ? <img src={selectedProj.profiles.avatar_url} className="w-full h-full object-cover"/> : <div className="bg-gray-50 w-full h-full flex items-center justify-center font-elegant text-2xl text-[var(--color-atelier-terracota)]">{selectedProj.profiles?.nome?.charAt(0)}</div>}
+                        </div>
+                        <div>
+                          <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">{selectedProj.profiles?.nome}</h2>
+                          <p className="text-[11px] font-bold text-[var(--color-atelier-grafite)]/40 uppercase tracking-widest mt-1">{isIdvService(selectedProj) ? 'Identidade Visual' : `Gestão de Instagram ${selectedProj.instagram_package ? `• ${selectedProj.instagram_package}` : ''}`}</p>
+                        </div>
                       </div>
                       
-                      {/* O GATILHO DE DEPLOY E RENOVAÇÃO */}
                       {(!isIdvService(selectedProj) || tasks.filter(t => t.project_id === selectedProj.id).length === 0) && (
-                        <div className="flex items-center gap-3 bg-orange-50 border border-orange-200 p-2 rounded-2xl shadow-sm shrink-0">
-                          {!isIdvService(selectedProj) && tasks.filter(t => t.project_id === selectedProj.id).length === 0 && (
-                            <select value={selectedPackageForDeploy} onChange={(e) => setSelectedPackageForDeploy(e.target.value)} className="bg-white border border-orange-200 rounded-lg p-2 text-[11px] font-bold uppercase tracking-widest text-orange-700 outline-none">
-                              {Object.keys(IG_PACKAGES).map(pkg => <option key={pkg} value={pkg}>{pkg}</option>)}
-                            </select>
-                          )}
-                          <button onClick={() => handleAutoDeploy(selectedProj)} disabled={isProcessing} className="bg-[var(--color-atelier-terracota)] text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#8c562e] transition-all flex items-center gap-2">
-                            {isProcessing ? <Loader2 size={14} className="animate-spin"/> : <Sparkles size={14}/>} 
-                            {tasks.filter(t => t.project_id === selectedProj.id).length > 0 ? "Renovar Ciclo (Mês)" : "Instanciar Produção"}
-                          </button>
-                        </div>
+                        <button onClick={() => handleAutoDeploy(selectedProj)} disabled={isProcessing} className="bg-[var(--color-atelier-terracota)] text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#8c562e] transition-all flex items-center gap-2">
+                          {isProcessing ? <Loader2 size={14} className="animate-spin"/> : <Sparkles size={14}/>} 
+                          {tasks.filter(t => t.project_id === selectedProj.id).length > 0 ? "Renovar Ciclo Mensal" : "Instanciar Produção"}
+                        </button>
                       )}
                     </div>
 
-                    {/* WIDGET: DEMANDA PONTUAL (Ad-Hoc) */}
+                    {/* WIDGET AD-HOC: DEMANDA PONTUAL */}
                     <div className="bg-[var(--color-atelier-grafite)] p-6 rounded-[2rem] mb-8 flex flex-col md:flex-row items-end gap-4 shadow-xl relative overflow-hidden shrink-0">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
                       <div className="flex flex-col gap-2 flex-1 relative z-10 w-full">
-                        <span className="text-[10px] uppercase font-bold tracking-widest text-white/50 ml-1">Criar Demanda Ad-Hoc</span>
-                        <input type="text" placeholder="O que precisa ser feito fora do fluxo normal?" value={adHocDemand.title} onChange={(e) => setAdHocDemand({...adHocDemand, title: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] transition-colors" />
+                        <span className="text-[10px] uppercase font-bold tracking-widest text-white/50 ml-1">Injetar Demanda Puntual</span>
+                        <input type="text" placeholder="Título da tarefa urgente..." value={adHocDemand.title} onChange={(e) => setAdHocDemand({...adHocDemand, title: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] transition-colors" />
                       </div>
                       <div className="flex flex-col gap-2 w-full md:w-56 relative z-10">
-                        <span className="text-[10px] uppercase font-bold tracking-widest text-white/50 ml-1">Destinar Para</span>
-                        <select value={adHocDemand.assigneeId} onChange={(e) => setAdHocDemand({...adHocDemand, assigneeId: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white text-[12px] outline-none focus:border-[var(--color-atelier-terracota)] transition-colors">
-                          <option value="" className="text-black">Escolher Membro...</option>
+                        <span className="text-[10px] uppercase font-bold tracking-widest text-white/50 ml-1">Para o Executor</span>
+                        <select value={adHocDemand.assigneeId} onChange={(e) => setAdHocDemand({...adHocDemand, assigneeId: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white text-[12px] outline-none">
+                          <option value="" className="text-black">Escolher...</option>
                           {team.map(t => <option key={t.id} value={t.id} className="text-black">{t.nome}</option>)}
                         </select>
                       </div>
-                      <button onClick={handleAddAdHocDemand} disabled={isProcessing || !adHocDemand.title || !adHocDemand.assigneeId} className="bg-[var(--color-atelier-terracota)] text-white w-full md:w-14 h-[46px] rounded-xl flex items-center justify-center hover:bg-white hover:text-[var(--color-atelier-grafite)] transition-all shrink-0 disabled:opacity-50">
+                      <button onClick={handleAddAdHocDemand} disabled={isProcessing || !adHocDemand.title || !adHocDemand.assigneeId} className="bg-[var(--color-atelier-terracota)] text-white w-full md:w-14 h-[46px] rounded-xl flex items-center justify-center hover:bg-white hover:text-[var(--color-atelier-grafite)] transition-all shrink-0">
                         {isProcessing ? <Loader2 className="animate-spin" size={20}/> : <PlusCircle size={20}/>}
                       </button>
                     </div>
 
-                    {/* LISTAGEM DAS TAREFAS AGRUPADAS POR FASE */}
                     <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
                        {Object.keys(groupTasksByStage(tasks.filter(t => t.project_id === selectedProjectId))).map(stage => (
                          <div key={stage} className="mb-6">
@@ -608,7 +630,12 @@ export default function AnalyticsPage() {
                                     <button onClick={() => setEditingTask(task)} className="opacity-0 group-hover:opacity-100 text-[var(--color-atelier-grafite)]/30 hover:text-[var(--color-atelier-terracota)] transition-opacity"><Edit3 size={14}/></button>
                                  </div>
                                  <div className="flex justify-between items-end border-t border-[var(--color-atelier-grafite)]/5 pt-3 mt-1">
-                                   <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">{task.profiles?.nome || "Sem atribuição"}</span>
+                                   <div className="flex items-center gap-2">
+                                      <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-100 border border-white">
+                                        {task.profiles?.avatar_url ? <img src={task.profiles.avatar_url} className="w-full h-full object-cover"/> : <UserCircle2 size={10} className="text-gray-300"/>}
+                                      </div>
+                                      <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">{task.profiles?.nome?.split(" ")[0] || "A definir"}</span>
+                                   </div>
                                    <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)]/40 bg-gray-50 px-2 py-1 rounded-md">{new Date(task.deadline).toLocaleDateString('pt-BR')}</span>
                                  </div>
                                </div>
@@ -623,11 +650,9 @@ export default function AnalyticsPage() {
             </motion.div>
           )}
 
-          {/* =========================================================================
-              ABA 3: MATRIZ DE ROTEAMENTO (MOTOR DE AUTOMATIZAÇÃO)
-              ========================================================================= */}
+          {/* MOTOR DE ROUTING */}
           {activeView === 'routing' && (
-            <motion.div key="routing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-12 gap-6 h-full">
+            <motion.div key="routing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-12 gap-6 h-full min-h-0">
               
               <div className="col-span-4 glass-panel bg-[var(--color-atelier-grafite)] text-white p-8 rounded-[2.5rem] flex flex-col gap-6 shadow-2xl h-fit relative overflow-hidden">
                 <div className="absolute -right-10 -top-10 w-40 h-40 bg-[var(--color-atelier-terracota)]/20 rounded-full blur-3xl pointer-events-none"></div>
@@ -693,7 +718,12 @@ export default function AnalyticsPage() {
                           <div className="flex items-center gap-6 w-full">
                             <div className="flex flex-col w-1/3">
                               <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Cliente</span>
-                              <span className="font-roboto font-bold text-[14px] text-[var(--color-atelier-grafite)] truncate">{proj?.profiles?.nome || "Excluído"}</span>
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-100 border border-gray-200">
+                                  {proj?.profiles?.avatar_url ? <img src={proj.profiles.avatar_url} className="w-full h-full object-cover" /> : <span className="text-[8px] flex items-center justify-center w-full h-full">{proj?.profiles?.nome?.charAt(0)}</span>}
+                                </div>
+                                <span className="font-roboto font-bold text-[14px] text-[var(--color-atelier-grafite)] truncate">{proj?.profiles?.nome || "Excluído"}</span>
+                              </div>
                             </div>
                             <div className="flex flex-col w-1/4">
                               <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Atribuição</span>
@@ -702,7 +732,12 @@ export default function AnalyticsPage() {
                             <ChevronRight size={14} className="text-[var(--color-atelier-grafite)]/20"/>
                             <div className="flex flex-col flex-1">
                               <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Vai para</span>
-                              <span className="font-roboto font-bold text-[14px] text-[var(--color-atelier-terracota)] truncate">{member?.nome || "Desconhecido"}</span>
+                              <div className="flex items-center gap-2">
+                                <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-100 border border-gray-200">
+                                  {member?.avatar_url ? <img src={member.avatar_url} className="w-full h-full object-cover" /> : <UserCircle2 size={12} className="text-gray-300"/>}
+                                </div>
+                                <span className="font-roboto font-bold text-[14px] text-[var(--color-atelier-terracota)] truncate">{member?.nome || "Desconhecido"}</span>
+                              </div>
                             </div>
                           </div>
                           <button onClick={() => handleDeleteRule(rule.id)} className="text-red-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all opacity-0 group-hover:opacity-100 ml-4"><Trash2 size={16}/></button>
@@ -718,7 +753,7 @@ export default function AnalyticsPage() {
         </AnimatePresence>
       </div>
 
-      {/* MODAL DE EDIÇÃO DE TAREFA (Global) */}
+      {/* MODAL DE EDIÇÃO DE TAREFA */}
       <AnimatePresence>
         {editingTask && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
