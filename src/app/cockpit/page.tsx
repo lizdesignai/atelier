@@ -9,7 +9,7 @@ import {
   Activity, AlertCircle, ArrowRight, CheckCircle2, 
   Clock, Compass, Sparkles, Loader2, TrendingUp, 
   Target, Camera, LayoutDashboard, SlidersHorizontal, ChevronRight,
-  CalendarDays, MessageSquare, XCircle
+  CalendarDays, MessageSquare, XCircle, Star
 } from "lucide-react";
 import InstagramBriefingModal from "../../components/InstagramBriefingModal";
 
@@ -41,6 +41,13 @@ export default function CockpitPage() {
   const [feedbackText, setFeedbackText] = useState<{ [key: string]: string }>({});
   const [activeFeedbackId, setActiveFeedbackId] = useState<string | null>(null);
 
+  // ==========================================
+  // ESTADOS T-NPS (Transactional NPS)
+  // ==========================================
+  const [showNpsModal, setShowNpsModal] = useState(false);
+  const [npsScore, setNpsScore] = useState<number | null>(null);
+  const [npsFeedback, setNpsFeedback] = useState("");
+
   useEffect(() => {
     const fetchCockpitData = async () => {
       try {
@@ -64,7 +71,7 @@ export default function CockpitPage() {
           const { count: postsCount } = await supabase.from('social_posts').select('*', { count: 'exact', head: true }).eq('project_id', proj.id).in('status', ['pending_approval', 'needs_revision']);
           setPendingCount(postsCount || 0);
 
-          if (proj.type === 'Gestão de Instagram') {
+          if (proj.type === 'Gestão de Instagram' || proj.service_type === 'Gestão de Instagram') {
             // 4. Buscar Briefing de Instagram
             const { data: brief } = await supabase.from('instagram_briefings').select('*').eq('project_id', proj.id).maybeSingle();
             setBriefing(brief);
@@ -94,19 +101,50 @@ export default function CockpitPage() {
   }, []);
 
   // ==========================================
-  // MOTORES DO PLANEAMENTO MENSAL
+  // MOTORES DO PLANEAMENTO MENSAL E T-NPS
   // ==========================================
   const handleApprovePlan = async (planId: string) => {
     setIsProcessing(true);
     try {
       await supabase.from('content_planning').update({ status: 'approved' }).eq('id', planId);
       setMonthlyPlan(monthlyPlan.filter(p => p.id !== planId));
-      showToast("Estratégia aprovada! O estúdio iniciará a confeção da arte.");
+      
+      // Abre a cortina do T-NPS (Micro-Gatilho de Qualidade)
+      setShowNpsModal(true);
     } catch (error) {
       showToast("Erro ao aprovar a estratégia.");
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleSubmitNps = async () => {
+    if (npsScore === null || !project) return;
+    setIsProcessing(true);
+    try {
+      await supabase.from('t_nps_scores').insert({
+        project_id: project.id,
+        client_id: clientId,
+        score: npsScore,
+        feedback: npsFeedback,
+        // assignee_id fica nulo aqui se não rastrearmos o autor exato do plan, mas a inteligência Sênior do admin irá cruzar isto no JTBD.
+      });
+      showToast("Aprovação e Avaliação registadas com sucesso. O Estúdio avança!");
+      setShowNpsModal(false);
+      setNpsScore(null);
+      setNpsFeedback("");
+    } catch (error) {
+      showToast("Erro ao enviar avaliação.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleSkipNps = () => {
+    showToast("Estratégia aprovada! O estúdio iniciará a confeção da arte.");
+    setShowNpsModal(false);
+    setNpsScore(null);
+    setNpsFeedback("");
   };
 
   const handleRejectPlan = async (planId: string) => {
@@ -146,7 +184,7 @@ export default function CockpitPage() {
   // ==========================================================================
   // RENDERIZAÇÃO CONDICIONAL: INSTAGRAM OS (A Nova Experiência de Luxo)
   // ==========================================================================
-  if (project.type === 'Gestão de Instagram') {
+  if (project.type === 'Gestão de Instagram' || project.service_type === 'Gestão de Instagram') {
     
     // Cálculo do 'The Forge' (Progresso)
     let currentPhase = 1;
@@ -211,7 +249,7 @@ export default function CockpitPage() {
         </motion.section>
 
         {/* =========================================================
-            NOVA SECÇÃO: ESTRATÉGIA EDITORIAL MENSAL (Planeamento)
+            SECÇÃO: ESTRATÉGIA EDITORIAL MENSAL E APROVAÇÃO
             ========================================================= */}
         {monthlyPlan.length > 0 && (
           <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass-panel bg-white/70 p-8 md:p-10 rounded-[2.5rem] border border-white shadow-[0_15px_40px_rgba(173,111,64,0.05)]">
@@ -401,6 +439,60 @@ export default function CockpitPage() {
             window.location.reload(); 
           }} 
         />
+
+        {/* =========================================================================
+            MODAL T-NPS (Micro-Gatilho de Qualidade)
+            ========================================================================= */}
+        <AnimatePresence>
+          {showNpsModal && (
+            <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+              <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-lg border border-white/50 flex flex-col gap-6 text-center">
+                 <div className="mx-auto w-16 h-16 rounded-full bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center mb-2">
+                   <Star size={28} />
+                 </div>
+                 
+                 <div>
+                   <h3 className="font-elegant text-3xl md:text-4xl text-[var(--color-atelier-grafite)] mb-2">Como avalia a entrega?</h3>
+                   <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60">De 0 a 10, quão alinhada esta estratégia está com a visão e os valores da sua marca?</p>
+                 </div>
+                 
+                 <div className="flex justify-between gap-1 md:gap-2 mt-2">
+                    {[0,1,2,3,4,5,6,7,8,9,10].map(num => (
+                      <button 
+                        key={num} 
+                        onClick={() => setNpsScore(num)} 
+                        className={`w-8 h-10 md:w-10 md:h-12 rounded-lg font-bold text-[13px] md:text-[15px] transition-all
+                          ${npsScore === num 
+                            ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md scale-110' 
+                            : 'bg-[var(--color-atelier-grafite)]/5 text-[var(--color-atelier-grafite)]/50 hover:bg-[var(--color-atelier-grafite)]/10 hover:text-[var(--color-atelier-grafite)]'
+                          }`}
+                      >
+                        {num}
+                      </button>
+                    ))}
+                 </div>
+
+                 <textarea 
+                   value={npsFeedback} 
+                   onChange={e => setNpsFeedback(e.target.value)} 
+                   placeholder="Deixe um comentário opcional. O que lhe agradou mais? O que podemos refinar?" 
+                   className="w-full bg-[var(--color-atelier-creme)]/50 border border-transparent rounded-xl p-4 text-[13px] text-[var(--color-atelier-grafite)] resize-none h-24 outline-none focus:border-[var(--color-atelier-terracota)]/40 transition-colors custom-scrollbar mt-2" 
+                 />
+
+                 <div className="flex gap-3 mt-4">
+                   <button onClick={handleSkipNps} className="flex-1 py-3 text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-grafite)] transition-colors">
+                     Pular Avaliação
+                   </button>
+                   <button onClick={handleSubmitNps} disabled={npsScore === null || isProcessing} className="flex-1 bg-[var(--color-atelier-grafite)] text-white py-3.5 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-[var(--color-atelier-terracota)] transition-colors disabled:opacity-50 flex justify-center items-center gap-2">
+                     {isProcessing ? <Loader2 size={16} className="animate-spin"/> : "Enviar Resposta"}
+                   </button>
+                 </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
       </div>
     );
   }

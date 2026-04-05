@@ -103,9 +103,14 @@ export default function ConfiguracoesPage() {
     
     try {
       const fileExt = file.name.split('.').pop();
+      // O nome do arquivo usa a data para forçar a renderização limpa e quebrar o cache, 
+      // mas o upsert garante que não há bugs de sobreposição.
       const fileName = `${userId}_avatar_${Date.now()}.${fileExt}`;
       
-      const { error: uploadError } = await supabase.storage.from('avatars').upload(fileName, file);
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(fileName, file, { upsert: true }); // UPSERT Sênior: Substitui se houver conflito
+
       if (uploadError) throw uploadError;
 
       const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
@@ -114,7 +119,7 @@ export default function ConfiguracoesPage() {
       showToast("Foto alterada! Clique em 'Guardar Definições' para aplicar.");
     } catch (error) {
       console.error(error);
-      showToast("Erro ao fazer upload da imagem.");
+      showToast("Erro ao fazer upload da imagem. Certifique-se que o Bucket existe.");
     }
   };
 
@@ -157,7 +162,7 @@ export default function ConfiguracoesPage() {
     }
   };
 
-  const isTeamMember = userRole === 'admin' || userRole === 'gestor';
+  const isTeamMember = userRole === 'admin' || userRole === 'gestor' || userRole === 'colaborador';
 
   // Ecrã de Loading Interno da Tela
   if (isLoading) {
@@ -169,12 +174,12 @@ export default function ConfiguracoesPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1200px] mx-auto relative z-10 pb-6 gap-6">
+    <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1200px] mx-auto relative z-10 pb-6 gap-6 px-4 md:px-0">
       
       {/* ==========================================
           1. CABEÇALHO
           ========================================== */}
-      <header className="shrink-0 flex flex-col md:flex-row md:items-end justify-between gap-6 animate-[fadeInUp_0.5s_ease-out]">
+      <header className="shrink-0 flex flex-col md:flex-row md:items-end justify-between gap-6 mt-6 animate-[fadeInUp_0.5s_ease-out]">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <span className="bg-white/60 text-[var(--color-atelier-grafite)] px-4 py-1.5 rounded-full flex items-center gap-2 border border-white shadow-sm">
@@ -188,7 +193,7 @@ export default function ConfiguracoesPage() {
         </div>
 
         <div className="flex items-center gap-3">
-          <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/60 max-w-sm text-right">
+          <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/60 max-w-sm text-left md:text-right">
             Faça a gestão dos seus dados pessoais, informações profissionais e consulte a documentação jurídica do seu projeto.
           </p>
         </div>
@@ -197,10 +202,10 @@ export default function ConfiguracoesPage() {
       {/* ==========================================
           2. ESTRUTURA DE NAVEGAÇÃO E FORMULÁRIO
           ========================================== */}
-      <div className="flex gap-8 flex-1 min-h-0 animate-[fadeInUp_0.8s_ease-out_0.2s_both]">
+      <div className="flex flex-col md:flex-row gap-8 flex-1 min-h-0 animate-[fadeInUp_0.8s_ease-out_0.2s_both]">
         
         {/* COLUNA ESQUERDA: MENU E AVATAR (320px) */}
-        <div className="w-[320px] flex flex-col gap-6 shrink-0 h-full">
+        <div className="w-full md:w-[320px] flex flex-col gap-6 shrink-0 h-full">
           
           {/* Editor de Avatar Magnético */}
           <div className="glass-panel p-8 rounded-[2.5rem] bg-white/40 border border-white/60 shadow-[0_15px_40px_rgba(122,116,112,0.05)] flex flex-col items-center justify-center text-center shrink-0">
@@ -265,7 +270,7 @@ export default function ConfiguracoesPage() {
         <div className="flex-1 glass-panel rounded-[2.5rem] bg-white/60 border border-white flex flex-col relative overflow-hidden shadow-[0_20px_50px_rgba(122,116,112,0.08)] h-full">
           
           <form onSubmit={handleSave} className="flex flex-col h-full">
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-10">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10">
               <AnimatePresence mode="wait">
                 
                 {/* ABA: PERFIL */}
@@ -276,7 +281,7 @@ export default function ConfiguracoesPage() {
                       <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/50 mt-1">Como o Atelier se dirige a si e aos seus marcos importantes.</p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                       <div className="flex flex-col gap-2 group/input">
                         <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1">Nome Completo</label>
                         <input type="text" value={formData.nome} onChange={(e) => setFormData({...formData, nome: e.target.value})} className="bg-white/80 border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-5 py-3.5 text-[14px] outline-none shadow-sm" />
@@ -288,7 +293,7 @@ export default function ConfiguracoesPage() {
                       </div>
                     </div>
 
-                    <div className="flex flex-col gap-2 group/input w-1/2 pr-3">
+                    <div className="flex flex-col gap-2 group/input w-full md:w-1/2 md:pr-3">
                       <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1 flex items-center gap-2">
                         <Calendar size={14}/> Data de Aniversário
                       </label>
@@ -312,14 +317,14 @@ export default function ConfiguracoesPage() {
 
                     {isTeamMember ? (
                       // VISÃO DO ADMIN: Apenas o Cargo
-                      <div className="flex flex-col gap-2 group/input w-1/2">
+                      <div className="flex flex-col gap-2 group/input w-full md:w-1/2">
                         <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1">O seu Cargo Oficial</label>
                         <input type="text" value={formData.cargo} onChange={(e) => setFormData({...formData, cargo: e.target.value})} className="bg-white/80 border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-5 py-3.5 text-[14px] outline-none shadow-sm" placeholder="Ex: Lead Designer, Gestora Criativa..." />
                       </div>
                     ) : (
                       // VISÃO DO CLIENTE: Dados da Empresa
                       <>
-                        <div className="grid grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <div className="flex flex-col gap-2 group/input">
                             <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1">Nome da Empresa</label>
                             <input type="text" value={formData.empresa} onChange={(e) => setFormData({...formData, empresa: e.target.value})} className="bg-white/80 border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-5 py-3.5 text-[14px] outline-none shadow-sm" placeholder="A sua Holding ou Empresa Lda." />
@@ -388,7 +393,7 @@ export default function ConfiguracoesPage() {
                   type="submit"
                   disabled={isSaving}
                   className={`
-                    px-8 h-12 rounded-xl font-roboto font-bold uppercase tracking-[0.2em] text-[11px] flex items-center justify-center gap-2 transition-all shadow-sm
+                    px-8 h-12 rounded-xl font-roboto font-bold uppercase tracking-[0.2em] text-[11px] flex items-center justify-center gap-2 transition-all shadow-sm w-full md:w-auto
                     ${isSaving 
                       ? 'bg-transparent border border-[var(--color-atelier-terracota)] text-[var(--color-atelier-terracota)]' 
                       : 'bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] hover:-translate-y-0.5 shadow-[0_10px_20px_rgba(173,111,64,0.3)]'

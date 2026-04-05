@@ -16,6 +16,57 @@ const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
 };
 
+// ============================================================================
+// DICIONÁRIOS DO SISTEMA ZERO-TOUCH & PIPELINES (Espelhado do Analytics)
+// ============================================================================
+const IDV_PIPELINE = [
+  { stage: "Setup & Onboarding", type: "setup", title: "Formulário de cadastro & Contrato", daysOffset: 0, estTime: 30 },
+  { stage: "Setup & Onboarding", type: "setup", title: "Pagamento", daysOffset: 1, estTime: 15 },
+  { stage: "Imersão", type: "reuniao", title: "Reunião de briefing", daysOffset: 2, estTime: 60 },
+  { stage: "Imersão", type: "copy", title: "Formulário de briefing detalhado", daysOffset: 3, estTime: 30 },
+  { stage: "Exploração", type: "design", title: "Estudo da marca, Concorrentes & Moodboard", daysOffset: 5, estTime: 180 },
+  { stage: "Exploração", type: "copy", title: "Envio de Direcionamento Criativo", daysOffset: 6, estTime: 30 },
+  { stage: "Design Sprint", type: "design", title: "Testes de Fontes e Modificações", daysOffset: 8, estTime: 120 },
+  { stage: "Design Sprint", type: "design", title: "Testes de Símbolos & Paletas", daysOffset: 10, estTime: 180 },
+  { stage: "Design Sprint", type: "design", title: "Montagem dos Mockups & Extras", daysOffset: 13, estTime: 240 },
+  { stage: "Apresentação", type: "design", title: "Montagem de Apresentação Final", daysOffset: 15, estTime: 120 },
+  { stage: "Apresentação", type: "reuniao", title: "Reunião de Apresentação", daysOffset: 16, estTime: 60 },
+  { stage: "Handover", type: "design", title: "Fechamento de Arquivos e Envio Drive", daysOffset: 18, estTime: 60 }
+];
+
+const IG_SETUP = [
+  { stage: "Setup Inicial", type: "setup", title: "Assinatura do contrato & Pagamento", daysOffset: 0, estTime: 30 },
+  { stage: "Imersão", type: "reuniao", title: "Reunião de briefing", daysOffset: 2, estTime: 60 },
+  { stage: "Estratégia", type: "copy", title: "Estudo de marca, Persona, Tom de voz", daysOffset: 5, estTime: 180 },
+  { stage: "Estratégia", type: "design", title: "Alinhamento Visual (Estilo do Feed)", daysOffset: 7, estTime: 120 },
+];
+
+const IG_PACKAGES: Record<string, any[]> = {
+  "Pacote 1": [
+    { stage: "Copywriting", type: "copy", title: "Roteirização de 6 Vídeos", daysOffset: 10, estTime: 120 },
+    ...Array.from({length: 6}).map((_, i) => ({ stage: "Produção de Vídeo", type: "video", title: `Edição de Vídeo ${i+1} + Capa`, daysOffset: 12 + i, estTime: 60 })),
+    { stage: "Aprovação", type: "setup", title: "Aprovação do Cliente & Agendamento", daysOffset: 18, estTime: 45 }
+  ],
+  "Pacote 2": [
+    { stage: "Copywriting", type: "copy", title: "Revisão de Texto enviado pelo Cliente", daysOffset: 10, estTime: 30 },
+    ...Array.from({length: 4}).map((_, i) => ({ stage: "Design Gráfico", type: "design", title: `Design de Post/Carrossel ${i+1}`, daysOffset: 12 + i, estTime: 60 })),
+    { stage: "Aprovação", type: "setup", title: "Aprovação & Agendamento", daysOffset: 16, estTime: 45 }
+  ],
+  "Pacote 3": [
+    { stage: "Estratégia", type: "copy", title: "Calendário Editorial de Conteúdos", daysOffset: 10, estTime: 90 },
+    ...Array.from({length: 8}).map((_, i) => ({ stage: "Produção de Arte", type: "design", title: `Design & Copy: Post ${i+1}`, daysOffset: 12 + (i * 0.5), estTime: 60 })),
+    { stage: "Aprovação", type: "setup", title: "Agendamento Sistêmico", daysOffset: 18, estTime: 60 },
+    { stage: "Relatório", type: "setup", title: "Geração de Relatório Mensal", daysOffset: 30, estTime: 60 }
+  ],
+  "Pacote 4": [
+    { stage: "Estratégia", type: "copy", title: "Calendário Editorial & Organização de Perfil", daysOffset: 10, estTime: 120 },
+    { stage: "Estratégia", type: "setup", title: "Análise de Perfil", daysOffset: 12, estTime: 60 },
+    ...Array.from({length: 12}).map((_, i) => ({ stage: "Produção de Arte", type: "design", title: `Design & Copy: Post ${i+1}`, daysOffset: 13 + (i * 0.5), estTime: 60 })),
+    { stage: "Produção Contínua", type: "copy", title: "Criação de Roteiros Diários de Stories", daysOffset: 20, estTime: 180 },
+    { stage: "Relatório", type: "setup", title: "Relatório Mensal Profundo", daysOffset: 30, estTime: 90 }
+  ]
+};
+
 export default function BaseClientesPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
@@ -55,56 +106,6 @@ export default function BaseClientesPage() {
   const [isEditing, setIsEditing] = useState(false);
 
   // ==========================================
-  // CALCULADORA DE PROGRESSO AUTOMÁTICO (SÊNIOR)
-  // ==========================================
-  const calculateAutomaticProgress = (phase: string, deadline: string | null) => {
-    let baseProgress = 0;
-    
-    // 1. Peso da Fase Atual (Representa 80% do progresso total)
-    switch(phase) {
-      case 'reuniao': baseProgress = 10; break;
-      case 'pesquisa': baseProgress = 30; break;
-      case 'direcionamento': baseProgress = 50; break;
-      case 'processo': baseProgress = 75; break;
-      case 'apresentacao': baseProgress = 90; break;
-      case 'Entregue': 
-      case 'Concluído': baseProgress = 100; break;
-      default: baseProgress = 0;
-    }
-
-    // Se já estiver concluído, retorna 100 direto
-    if (baseProgress === 100) return 100;
-    
-    // 2. Peso do Tempo Restante (Representa 20% do progresso total)
-    // Se não houver deadline, retorna o baseProgress puro.
-    if (!deadline) return baseProgress;
-
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const targetDate = new Date(deadline);
-    targetDate.setHours(0, 0, 0, 0);
-    
-    const diffTime = targetDate.getTime() - today.getTime();
-    const daysLeft = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
-    
-    // Assumindo um ciclo médio de projeto de 30 dias para o cálculo
-    const totalCycleDays = 30;
-    let timeProgress = 0;
-
-    if (daysLeft === 0) {
-      timeProgress = 20; // 20% completos (tempo esgotou)
-    } else if (daysLeft >= totalCycleDays) {
-      timeProgress = 0; // Acabou de começar
-    } else {
-      // Regra de 3 inversa: quanto menos dias faltam, maior o progresso no bloco de tempo.
-      timeProgress = Math.round(((totalCycleDays - daysLeft) / totalCycleDays) * 20);
-    }
-
-    // Combina a fase com a pressão de tempo, travado no máximo 99% (100% só na entrega)
-    return Math.min(99, baseProgress + timeProgress);
-  };
-
-  // ==========================================
   // BUSCAR PROJETOS E CLIENTES (READ)
   // ==========================================
   const fetchData = async () => {
@@ -117,12 +118,18 @@ export default function BaseClientesPage() {
 
       if (projectsError) throw projectsError;
       
-      // Quando recebemos os projetos, forçamos o cálculo automático para exibição
+      // Busca as tasks para calcular o progresso real (Matemática Preditiva)
+      const { data: tasksData } = await supabase.from('tasks').select('project_id, status');
+
       if (projectsData) {
-        const enrichedProjects = projectsData.map(p => ({
-          ...p,
-          calculatedProgress: calculateAutomaticProgress(p.fase || p.phase, p.data_limite)
-        }));
+        const enrichedProjects = projectsData.map(p => {
+          const pTasks = tasksData?.filter(t => t.project_id === p.id) || [];
+          const totalTasks = pTasks.length;
+          const completedTasks = pTasks.filter(t => t.status === 'completed').length;
+          const progress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+
+          return { ...p, calculatedProgress: progress };
+        });
         setDbProjects(enrichedProjects);
       }
 
@@ -152,15 +159,15 @@ export default function BaseClientesPage() {
       setProjectPackage("Identidade Visual Premium");
       setPaymentRecurrence("Único");
     } else {
-      setProjectPackage("Gestão Mensal Básica");
+      setProjectPackage("Pacote 1");
       setPaymentRecurrence("Mensal");
       setPaymentSplit("100% Antecipado");
     }
   }, [serviceType]);
 
-  // ==========================================
-  // CRIAR NOVO PROJETO (CREATE)
-  // ==========================================
+  // ============================================================================
+  // CRIAR PROJETO E AUTO-DEPLOY DE PIPELINE (Zero-Touch)
+  // ============================================================================
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedClientId) {
@@ -170,25 +177,65 @@ export default function BaseClientesPage() {
 
     setIsSubmitting(true);
     try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      // 1. CRIA O PROJETO (Contrato)
+      // Ajuste Cirúrgico: Remoção do "instagram_package" e uso da coluna "type"
       const projectPayload = {
         client_id: selectedClientId,
         service_type: serviceType,
-        type: projectPackage,
+        type: serviceType === 'Gestão de Instagram' ? projectPackage : serviceType, 
         status: 'active',
         phase: 'Mesa de Trabalho',
-        fase: 'reuniao', // Setup inicial automático
+        fase: 'reuniao', 
         progress: 0,
         financial_value: financialValue ? parseFloat(financialValue) : 0,
         payment_method: paymentMethod,
         payment_recurrence: paymentRecurrence,
         payment_split: paymentSplit,
         billing_date: billingDate || null,
+        data_limite: billingDate || null 
       };
 
-      const { error } = await supabase.from('projects').insert(projectPayload);
-      if (error) throw error;
+      const { data: newProject, error: projError } = await supabase.from('projects').insert(projectPayload).select().single();
+      if (projError) throw projError;
+      
+      // 2. SELECIONA O PIPELINE E FAZ O DEPLOY (Backward Scheduling Baseado na Data)
+      let pipeline: any[] = [];
+      if (serviceType === 'Identidade Visual') {
+        pipeline = IDV_PIPELINE;
+      } else {
+        pipeline = [...IG_SETUP, ...(IG_PACKAGES[projectPackage] || [])];
+      }
 
-      showToast("✨ Projeto e contrato forjados com sucesso!");
+      const baseDate = billingDate ? new Date(billingDate) : new Date();
+      // O ciclo inicia 30 dias ANTES da próxima data de faturação se for IG mensal, mas assumimos hoje como D+0 para simplificar a criação.
+      const today = new Date();
+
+      const tasksToInsert = pipeline.map((t) => {
+        const targetDate = new Date(today);
+        targetDate.setDate(targetDate.getDate() + t.daysOffset);
+        
+        return {
+          project_id: newProject.id,
+          client_id: selectedClientId,
+          creator_id: session?.user?.id || null,
+          assigned_to: null, 
+          title: t.title,
+          stage: t.stage,
+          task_type: t.type,
+          estimated_time: t.estTime,
+          deadline: targetDate.toISOString(),
+          status: 'pending'
+        };
+      });
+
+      if (tasksToInsert.length > 0) {
+        const { error: tasksError } = await supabase.from('tasks').insert(tasksToInsert);
+        if (tasksError) throw tasksError;
+      }
+
+      showToast("✨ Projeto forjado e Pipeline Instanciado no JTBD!");
       setIsNewClientModalOpen(false);
       setSelectedClientId("");
       setFinancialValue("");
@@ -208,7 +255,6 @@ export default function BaseClientesPage() {
   const handleMenuAction = async (action: string, project: any) => {
     setOpenMenuId(null);
 
-    // ABRIR EDIÇÃO FINANCEIRA (Removemos o progresso daqui, pois agora é automático)
     if (action === 'Editar') {
       setProjectToEdit(project);
       setEditFinancialValue(project.financial_value || "");
@@ -219,7 +265,6 @@ export default function BaseClientesPage() {
       return;
     }
 
-    // SUSPENDER PROJETO
     if (action === 'Suspender') {
       const confirm = window.confirm(`Deseja suspender o acesso do cliente ${project.profiles?.nome}? Eles não poderão aceder ao estúdio.`);
       if (!confirm) return;
@@ -229,7 +274,6 @@ export default function BaseClientesPage() {
       return;
     }
 
-    // REATIVAR PROJETO
     if (action === 'Reativar') {
       const confirm = window.confirm(`Deseja reativar o projeto de ${project.profiles?.nome}?`);
       if (!confirm) return;
@@ -239,9 +283,8 @@ export default function BaseClientesPage() {
       return;
     }
 
-    // APAGAR CONTRATO
     if (action === 'Apagar') {
-      const confirm = window.confirm("ATENÇÃO: Deseja apagar este contrato e todos os seus dados permanentemente?");
+      const confirm = window.confirm("ATENÇÃO: Deseja apagar este contrato e todas as tarefas permanentemente?");
       if (!confirm) return;
       const { error } = await supabase.from('projects').delete().eq('id', project.id);
       if (error) showToast("Erro ao apagar contrato.");
@@ -299,18 +342,6 @@ export default function BaseClientesPage() {
     return new Date(dateString).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
-  // Nomes amigáveis para as fases
-  const getPhaseName = (phaseCode: string) => {
-    switch(phaseCode) {
-      case 'reuniao': return 'Reunião de Alinhamento';
-      case 'pesquisa': return 'Estudo e Pesquisa';
-      case 'direcionamento': return 'Direcionamento Criativo';
-      case 'processo': return 'Processo Criativo IDV';
-      case 'apresentacao': return 'Apresentação Oficial';
-      default: return phaseCode || 'Início';
-    }
-  };
-
   return (
     <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6">
       
@@ -318,13 +349,13 @@ export default function BaseClientesPage() {
           1. CABEÇALHO DO CRM E FILTROS FIXOS
           ========================================== */}
       <header className="shrink-0 flex flex-col gap-6 animate-[fadeInUp_0.5s_ease-out]">
-        <div className="flex justify-between items-end">
+        <div className="flex justify-between items-end mt-6">
           <div>
             <div className="flex items-center gap-2 mb-2">
               <span className="bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] w-8 h-8 rounded-xl flex items-center justify-center">
                 <Users size={16} className="text-[var(--color-atelier-terracota)]" />
               </span>
-              <span className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/60">
+              <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/60">
                 Gestão de Relacionamento
               </span>
             </div>
@@ -369,8 +400,8 @@ export default function BaseClientesPage() {
         
         <div className="grid grid-cols-12 gap-4 px-8 py-5 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 backdrop-blur-md shrink-0">
           <div className="col-span-4 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Identificação</div>
-          <div className="col-span-3 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Status & Fase</div>
-          <div className="col-span-3 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Progresso do Serviço</div>
+          <div className="col-span-3 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Status de Operação</div>
+          <div className="col-span-3 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Progresso Unitário</div>
           <div className="col-span-2 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50 text-right">Ação</div>
         </div>
 
@@ -420,7 +451,7 @@ export default function BaseClientesPage() {
                     </div>
                   </div>
 
-                  {/* 2. Status e Fase */}
+                  {/* 2. Status */}
                   <div className="col-span-3 flex flex-col justify-center items-start gap-2">
                     {project.status === 'active' && <StatusBadge icon={Clock} text="Em Forja" color="terracota" />}
                     {project.status === 'pending' && <StatusBadge icon={AlertCircle} text="Ação Pendente" color="orange" />}
@@ -428,15 +459,15 @@ export default function BaseClientesPage() {
                     {project.status === 'archived' && <StatusBadge icon={Ban} text="Suspenso" color="gray" />}
                     
                     <span className="font-roboto text-[12px] font-bold text-[var(--color-atelier-grafite)]/70 truncate w-full pr-4">
-                      {getPhaseName(project.fase || project.phase)}
+                      {project.instagram_package || project.type}
                     </span>
                   </div>
 
-                  {/* 3. Escopo e Progresso Automático */}
+                  {/* 3. Escopo e Progresso Automático Baseado em Tarefas Unitárias */}
                   <div className="col-span-3 flex flex-col justify-center pr-8">
                     <div className="flex justify-between items-end mb-1.5">
                       <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)]/70 truncate mr-2">
-                        {project.service_type || "Identidade Visual"}
+                        Workflow Progress
                       </span>
                       <span className="font-roboto text-[12px] font-bold text-[var(--color-atelier-grafite)] flex items-center gap-1">
                         {project.status === 'delivered' || project.calculatedProgress === 100 ? (
@@ -453,7 +484,7 @@ export default function BaseClientesPage() {
                       ></div>
                     </div>
                     <div className="flex items-center gap-1 mt-2 text-[10px] text-[var(--color-atelier-grafite)]/40 uppercase tracking-widest font-bold">
-                      <Calendar size={10} /> Entrega Estimada: {formatDate(project.data_limite)}
+                      <Calendar size={10} /> Ciclo (Billing): {formatDate(project.billing_date)}
                     </div>
                   </div>
 
@@ -503,11 +534,11 @@ export default function BaseClientesPage() {
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleManageClient(project.profiles?.nome, project.service_type);
+                        router.push('/admin/analytics');
                       }}
                       className="bg-transparent border border-[var(--color-atelier-terracota)]/30 text-[var(--color-atelier-terracota)] px-5 py-2.5 rounded-xl font-roboto font-bold uppercase tracking-widest text-[10px] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm flex items-center gap-2 group-hover:border-transparent"
                     >
-                      Gerir <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                      JTBD <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
                     </button>
                   </div>
 
@@ -559,8 +590,6 @@ export default function BaseClientesPage() {
 
               <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
                 <form id="edit-contract-form" onSubmit={handleEditSubmit} className="flex flex-col gap-8">
-
-                  {/* BLOCO FINANCEIRO */}
                   <div className="bg-[var(--color-atelier-terracota)]/5 p-6 rounded-3xl border border-[var(--color-atelier-terracota)]/20">
                     <h3 className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mb-4 flex items-center gap-2">
                       <CreditCard size={14} /> Ajustar Recebíveis
@@ -614,7 +643,6 @@ export default function BaseClientesPage() {
                       </div>
                     </div>
                   </div>
-
                 </form>
               </div>
 
@@ -629,14 +657,13 @@ export default function BaseClientesPage() {
                   Salvar Alterações Contratuais
                 </button>
               </div>
-
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
       {/* ==========================================
-          3. FASE 3: MODAL DE NOVO CONTRATO COM FINANCEIRO
+          FASE 3: MODAL DE NOVO CONTRATO (E AUTO-DEPLOY)
           ========================================== */}
       <AnimatePresence>
         {isNewClientModalOpen && (
@@ -658,7 +685,7 @@ export default function BaseClientesPage() {
                     Firmar Novo Contrato
                   </h2>
                   <p className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-2">
-                    Alocação de Cliente e Configuração Financeira
+                    Gera Tarefas (JTBD) automaticamente
                   </p>
                 </div>
                 <button onClick={() => setIsNewClientModalOpen(false)} className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors shadow-sm border border-white/50">
@@ -669,7 +696,6 @@ export default function BaseClientesPage() {
               <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
                 <form id="new-contract-form" onSubmit={handleCreateProject} className="flex flex-col gap-8">
                   
-                  {/* BLOCO 1: IDENTIFICAÇÃO DO CLIENTE */}
                   <div className="bg-white/40 p-6 rounded-3xl border border-white">
                     <h3 className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] mb-4 flex items-center gap-2">
                       <Users size={14} className="text-[var(--color-atelier-terracota)]"/> 1. Atribuição de Cliente
@@ -686,18 +712,15 @@ export default function BaseClientesPage() {
                           <option key={client.id} value={client.id}>{client.nome} ({client.email})</option>
                         ))}
                       </select>
-                      <span className="text-[10px] text-[var(--color-atelier-grafite)]/40 font-bold px-1 mt-1">O cliente deve possuir conta registada no portal.</span>
                     </div>
                   </div>
 
-                  {/* BLOCO 2: ESCOPO DO SERVIÇO */}
                   <div className="bg-white/40 p-6 rounded-3xl border border-white">
                     <h3 className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] mb-4 flex items-center gap-2">
                       <Sparkles size={14} className="text-[var(--color-atelier-terracota)]"/> 2. Estrutura do Serviço
                     </h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      {/* Serviço Estrito */}
                       <div className="flex flex-col gap-2">
                         <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 pl-1">Área Core</label>
                         <div className="flex bg-white rounded-xl p-1 shadow-sm border border-transparent">
@@ -718,7 +741,6 @@ export default function BaseClientesPage() {
                         </div>
                       </div>
 
-                      {/* Pacote Dinâmico */}
                       <div className="flex flex-col gap-2">
                         <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 pl-1">Pacote Específico</label>
                         <select 
@@ -728,16 +750,16 @@ export default function BaseClientesPage() {
                         >
                           {serviceType === "Identidade Visual" ? (
                             <>
-                              <option>Identidade Visual Premium</option>
+                              <option>Identidade Visual</option>
                               <option>Rebranding Pleno</option>
-                              <option>Naming + Identidade Visual</option>
                               <option>Identidade + Web Design</option>
                             </>
                           ) : (
                             <>
-                              <option>Gestão Mensal Básica</option>
-                              <option>Gestão Mensal Pro (Com Tráfego)</option>
-                              <option>Consultoria de Estratégia</option>
+                              <option>Pacote 1</option>
+                              <option>Pacote 2</option>
+                              <option>Pacote 3</option>
+                              <option>Pacote 4</option>
                             </>
                           )}
                         </select>
@@ -745,12 +767,9 @@ export default function BaseClientesPage() {
                     </div>
                   </div>
 
-                  {/* BLOCO 3: FINANCEIRO */}
                   <div className="bg-[var(--color-atelier-terracota)]/5 p-6 rounded-3xl border border-[var(--color-atelier-terracota)]/20 relative overflow-hidden">
-                    <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-atelier-terracota)]/10 blur-[40px] rounded-full pointer-events-none"></div>
-                    
                     <h3 className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mb-4 flex items-center gap-2 relative z-10">
-                      <DollarSign size={14} /> 3. Estrutura Financeira
+                      <DollarSign size={14} /> 3. Financeiro & Ciclo
                     </h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-5 relative z-10">
@@ -801,7 +820,7 @@ export default function BaseClientesPage() {
                       </div>
 
                       <div className="flex flex-col gap-2">
-                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1 flex items-center gap-1"><Calendar size={10}/> Data de Vencimento Inicial</label>
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1 flex items-center gap-1"><Calendar size={10}/> Início do Ciclo (Deadline Base)</label>
                         <input 
                           type="date" required
                           value={billingDate} onChange={(e) => setBillingDate(e.target.value)}
@@ -814,7 +833,6 @@ export default function BaseClientesPage() {
                 </form>
               </div>
 
-              {/* RODAPÉ DO MODAL (BOTÃO) */}
               <div className="p-6 md:p-8 border-t border-[var(--color-atelier-grafite)]/10 bg-white/40 shrink-0">
                 <button 
                   type="submit" 
@@ -823,7 +841,7 @@ export default function BaseClientesPage() {
                   className="w-full bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] py-4 rounded-2xl font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all shadow-[0_10px_20px_rgba(122,116,112,0.15)] disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
-                  Validar e Forjar Contrato
+                  Validar Contrato e Gerar Tarefas (Auto-Deploy)
                 </button>
               </div>
 
@@ -837,7 +855,7 @@ export default function BaseClientesPage() {
 }
 
 // ==========================================
-// COMPONENTES AUXILIARES (Design System)
+// COMPONENTES AUXILIARES
 // ==========================================
 
 function FilterButton({ label, active, onClick }: { label: string, active: boolean, onClick: () => void }) {

@@ -10,7 +10,7 @@ import {
   Home, Lock, MessageSquare, Settings, 
   ChevronLeft, ChevronRight, LogOut, Compass,
   LayoutDashboard, FolderKanban, Users, Inbox, BarChart3, Shield,
-  Globe2, Camera, CheckCircle2, DollarSign, BrainCircuit, Sparkles, Briefcase
+  Globe2, Camera, CheckCircle2, DollarSign, BrainCircuit, Sparkles, Briefcase, Crosshair
 } from "lucide-react";
 
 interface AppSidebarProps {
@@ -182,6 +182,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
           {isTeamMember && (
             <>
               {/* Visto por todos (Admin, Gestor, Colaborador) */}
+              <NavItem href="/admin/jtbd" icon={<Crosshair size={20} strokeWidth={1.75} />} label="Focus (JTBD)" collapsed={isCollapsed} active={pathname === '/admin/jtbd'} />
               <NavItem href="/admin" icon={<LayoutDashboard size={20} strokeWidth={1.75} />} label="Comando" collapsed={isCollapsed} active={pathname === '/admin'} />
               <NavItem href="/admin/projetos" icon={<FolderKanban size={20} strokeWidth={1.75} />} label="Estúdio" collapsed={isCollapsed} active={pathname === '/admin/projetos'} />
               <NavItem href="/admin/gerenciamento" icon={<LayoutDashboard size={20} strokeWidth={1.75} />} label="Gerenciamento" collapsed={isCollapsed} active={pathname === '/admin/gerenciamento'} />
@@ -194,8 +195,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               {isManagerOrAdmin && (
                 <>
                   <NavItem href="/admin/clientes" icon={<Users size={20} strokeWidth={1.75} />} label="Base de Clientes" collapsed={isCollapsed} active={pathname === '/admin/clientes'} />
-                  <NavItem href="/admin/equipa" icon={<Briefcase size={20} strokeWidth={1.75} />} label="Gestão de Equipa" collapsed={isCollapsed} active={pathname === '/admin/equipa'} />
-                  <NavItem href="/admin/metricas" icon={<BarChart3 size={20} strokeWidth={1.75} />} label="Métricas & Saúde" collapsed={isCollapsed} active={pathname === '/admin/metricas'} />
+                  <NavItem href="/admin/analytics" icon={<Briefcase size={20} strokeWidth={1.75} />} label="Analytics" collapsed={isCollapsed} active={pathname === '/admin/analytics'} />
                 </>
               )}
 
