@@ -40,7 +40,7 @@ const VOICE_MAP: Record<string, string> = {
 // ============================================================================
 // COMPONENTE INTERNO: O WORKSPACE DE INSTAGRAM ADMIN
 // ============================================================================
-function InstagramWorkspace({ activeProjectId, currentProject }: { activeProjectId: string, currentProject: any }) {
+export function InstagramWorkspace({ activeProjectId, currentProject }: { activeProjectId: string, currentProject: any }) {
   const [activeTab, setActiveTab] = useState<'planeamento' | 'posts' | 'briefing_inicial' | 'briefing' | 'agente'>('planeamento');
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -781,7 +781,7 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
 // ============================================================================
 // COMPONENTE PRINCIPAL (O HOST DA ROTA ADMIN)
 // ============================================================================
-function GerenciamentoInstagram() {
+export function GerenciamentoInstagram() {
   const [isLoading, setIsLoading] = useState(true);
   const [dbProjects, setDbProjects] = useState<any[]>([]);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);

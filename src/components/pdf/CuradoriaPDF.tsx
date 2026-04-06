@@ -22,7 +22,7 @@ const styles = StyleSheet.create({
   page: {
     backgroundColor: '#fbf4e4',
     padding: 60,
-    paddingBottom: 80,
+    paddingBottom: 80, // Margem de segurança para o rodapé
     fontFamily: 'Roboto',
   },
   coverPage: {
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(122,116,112,0.2)',
     paddingBottom: 20,
-    marginBottom: 40,
+    marginBottom: 30,
   },
   headerTitle: {
     fontFamily: 'Elegant',
@@ -78,6 +78,7 @@ const styles = StyleSheet.create({
     color: '#ad6f40',
   },
 
+  // A Caixa da IA agora com quebra natural de página (Sem wrap={false})
   aiBox: {
     backgroundColor: '#ffffff',
     padding: 30,
@@ -92,7 +93,7 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     color: '#ad6f40',
     fontWeight: 700,
-    marginBottom: 20,
+    marginBottom: 15,
   },
   
   aiH3: {
@@ -100,13 +101,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#1a1a1a',
     marginTop: 20,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   aiP: {
     fontSize: 11,
     lineHeight: 1.6,
     color: '#4a4a4a',
-    marginBottom: 10,
+    marginBottom: 8,
+    textAlign: 'justify',
   },
   aiBullet: {
     fontSize: 11,
@@ -129,20 +131,24 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     marginBottom: 20,
   },
+
+  // Correção Matemática do Grid (Substituição de gap para evitar sobreposição)
   imageGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 15,
-    marginBottom: 20,
+    justifyContent: 'space-between', // Essencial para o React-PDF
+    marginBottom: 10,
   },
   imageWrapper: {
-    width: '48%',
+    width: '48%', // Garante 2 colunas seguras
     height: 200,
     borderRadius: 8,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: '#e5e5e5',
+    marginBottom: 15, // Substitui o gap vertical
   },
+
   feedbackBox: {
     backgroundColor: '#fcfaf8',
     padding: 25,
@@ -176,13 +182,16 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#e5e5e5',
   },
+
+  // Correção Matemática do Grid de Feedback
   feedbackGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 15,
+    justifyContent: 'space-between', // Em vez de gap
   },
   feedbackItem: {
-    width: '48%',
+    width: '48%', // Garante 2 colunas seguras
+    marginBottom: 15,
   },
   feedbackLabel: {
     fontSize: 9,
@@ -224,14 +233,15 @@ interface CuradoriaPDFProps {
 export default function CuradoriaPDF({ adminRefs, projectName, aiInsight }: CuradoriaPDFProps) {
   if (!adminRefs || adminRefs.length === 0) return null;
 
+  // Motor Segregador de Texto (Markdown to PDF elements)
   const renderAiInsight = (text: string) => {
     if (!text) return null;
     const lines = text.split('\n');
     return lines.map((line, index) => {
       const cleanLine = line.trim();
-      if (!cleanLine) return null;
+      if (!cleanLine) return null; // Elimina parágrafos vazios fantasmas
       
-      let textContent = cleanLine.replace(/\*\*/g, '');
+      const textContent = cleanLine.replace(/\*\*/g, ''); // Limpa strongs
 
       if (cleanLine.startsWith('###')) {
         return <Text key={index} style={styles.aiH3}>{textContent.replace('###', '').trim()}</Text>;
@@ -255,37 +265,34 @@ export default function CuradoriaPDF({ adminRefs, projectName, aiInsight }: Cura
         <Text style={styles.coverDate}>{currentDate} • Atelier Liz Design</Text>
       </Page>
 
-      {/* CONTEÚDO PRINCIPAL E AVALIAÇÕES */}
+      {/* CONTEÚDO PRINCIPAL (Paginação Inteligente e Dinâmica) */}
       <Page size="A4" style={styles.page}>
         <View style={styles.header} fixed>
-          <Text style={styles.headerTitle}>Análise Visual</Text>
+          <Text style={styles.headerTitle}>Análise Visual Estratégica</Text>
           <Image src="/images/simbolo-rosa.png" style={{ width: 24, height: 24, opacity: 0.5 }} />
         </View>
 
-        {/* CÉREBRO DA IA DA CURADORIA (Semiótica) */}
+        {/* CÉREBRO DA IA DA CURADORIA (Removido o wrap={false}) */}
         {aiInsight && (
-          <View style={styles.aiBox} wrap={false}>
-            <Text style={styles.aiBoxTitle}>Análise Semiótica (IA Diretor de Arte)</Text>
+          <View style={styles.aiBox}>
+            <Text style={styles.aiBoxTitle}>Análise Semiótica (Direção de Arte)</Text>
             {renderAiInsight(aiInsight)}
           </View>
         )}
-
-        <Text style={{ fontFamily: 'Elegant', fontSize: 18, color: '#1a1a1a', marginBottom: 20 }}>
-          Direções e Avaliações
-        </Text>
 
         {/* ROTAS CRIATIVAS E FEEDBACKS */}
         {adminRefs.map((ref, i) => {
           const images = ref.image_urls && ref.image_urls.length > 0 ? ref.image_urls : (ref.image_url ? [ref.image_url] : []);
           
           return (
+            // Mantido o wrap={false} apenas por rota, para não separar as imagens do seu respectivo feedback
             <View key={i} style={styles.directionContainer} wrap={false}>
               <Text style={styles.directionTitle}>
                 <Text style={{ color: '#ad6f40' }}>{String(i + 1).padStart(2, '0')}. </Text>
                 {ref.title}
               </Text>
               
-              {/* IMAGENS (Grid adaptado para PDF) */}
+              {/* IMAGENS (Grid matemático blindado) */}
               <View style={styles.imageGrid}>
                 {images.map((img: string, idx: number) => (
                   <View key={idx} style={styles.imageWrapper}>
@@ -325,9 +332,9 @@ export default function CuradoriaPDF({ adminRefs, projectName, aiInsight }: Cura
           );
         })}
 
-        {/* RODAPÉ */}
+        {/* RODAPÉ (Repetido em todas as páginas via fixed) */}
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>Atelier Liz Design</Text>
+          <Text style={styles.footerText}>Atelier LizDesign</Text>
           <Text style={styles.footerText}>Relatório de Curadoria</Text>
         </View>
       </Page>

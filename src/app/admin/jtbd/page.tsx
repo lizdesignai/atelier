@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabase";
+import { AtelierPMEngine } from "../../../lib/AtelierPMEngine"; // 🧠 Motor Injetado
 import { 
   PlayCircle, PauseCircle, CheckCircle2, Clock, Flame, 
   Loader2, AlertTriangle, Crosshair, Plus, X, 
@@ -68,14 +69,19 @@ export default function JTBDPage() {
       setTeam(teamData);
 
       const teamIds = teamData.map(t => t.id);
+      
+      // 🧠 ATELIER PM ENGINE: Ordenação pela pontuação calculada pelo motor (WSJF) em vez de apenas urgência
       const { data: tasksData } = await supabase
         .from('tasks')
         .select('*, projects(profiles(nome), type)')
         .in('assigned_to', teamIds)
-        .order('urgency', { ascending: false })
+        .order('priority_score', { ascending: false }) 
         .order('deadline', { ascending: true });
       
       if (tasksData) setAllTasks(tasksData);
+
+      // Gatilho Silencioso: O Motor recalibra a pontuação de todos os cards da mesa deste usuário
+      AtelierPMEngine.prioritizeDailyTriage(profile.id);
 
     } catch (error) {
       showToast("Erro ao carregar o Centro de Operações.");
@@ -88,6 +94,8 @@ export default function JTBDPage() {
   // MOTOR DE TEMPO E ESTADOS
   // ============================================================================
   const updateTaskStatus = async (task: any, newStatus: string) => {
+    if (task.status === newStatus) return; // Evita updates redundantes no Drag & Drop
+    
     try {
       const updates: any = { status: newStatus };
       const now = new Date();
@@ -105,15 +113,40 @@ export default function JTBDPage() {
         updates.completed_at = now.toISOString();
         if (newStatus === 'completed') {
            await processGamification(task, updates.actual_time || task.actual_time);
+           // 🧠 ATELIER PM ENGINE: Desbloqueia a próxima etapa na cadeia de produção (CCPM)
+           await AtelierPMEngine.unlockDependencies(task.id);
         }
       }
+
+      // Atualização Otimista UI
+      setAllTasks(prev => prev.map(t => t.id === task.id ? { ...t, ...updates } : t));
 
       const { error } = await supabase.from('tasks').update(updates).eq('id', task.id);
       if (error) throw error;
 
-      fetchJTBDData(); 
     } catch (error) {
       showToast("Erro ao sincronizar missão.");
+      fetchJTBDData(); // Reverte UI em caso de erro
+    }
+  };
+
+  // ============================================================================
+  // DRAG AND DROP HANDLERS (Nativo HTML5)
+  // ============================================================================
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault(); // Necessário para permitir o drop
+  };
+
+  const handleDrop = (e: React.DragEvent, newStatus: string) => {
+    e.preventDefault();
+    const taskId = e.dataTransfer.getData("taskId");
+    if (!taskId) return;
+    
+    const task = allTasks.find(t => t.id === taskId);
+    if (task && !task.is_blocked) {
+      updateTaskStatus(task, newStatus);
+    } else if (task?.is_blocked) {
+      showToast("Operação bloqueada. Conclua as dependências primeiro.");
     }
   };
 
@@ -155,7 +188,6 @@ export default function JTBDPage() {
           total_tasks_completed: perf.total_tasks_completed + 1
         }).eq('user_id', task.assigned_to);
         
-        // Só mostra o toast se a pessoa que concluiu for a mesma que está a ver a tela
         if (currentUser.id === task.assigned_to) {
           setEarnedExpToast({ show: true, amount: expEarned, msg });
           setTimeout(() => setEarnedExpToast({ show: false, amount: 0, msg: "" }), 4000);
@@ -201,13 +233,11 @@ export default function JTBDPage() {
 
   if (isLoading) return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
-  // Variáveis do Usuário Visualizado (Viewed User)
   const viewedUser = team.find(t => t.id === viewingUserId) || currentUser;
   const viewedUserPerf = viewedUser?.team_performance?.[0] || { exp_points: 0, level_name: 'Aprendiz', total_tasks_completed: 0, avg_tnps: 10 };
   const nextLevelExp = getNextLevelExp(viewedUserPerf.exp_points);
   const expProgress = Math.min((viewedUserPerf.exp_points / nextLevelExp) * 100, 100);
 
-  // Tarefas do Usuário Visualizado
   const displayedTasks = allTasks.filter(t => t.assigned_to === viewingUserId);
   const pendingTasks = displayedTasks.filter(t => t.status === 'pending');
   const inProgressTasks = displayedTasks.filter(t => t.status === 'in_progress');
@@ -257,7 +287,6 @@ export default function JTBDPage() {
         <div className="glass-panel bg-[var(--color-atelier-grafite)] p-8 md:p-10 rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center gap-8 md:gap-12">
           <div className="absolute right-[-10%] top-[-20%] w-[500px] h-[500px] bg-[var(--color-atelier-terracota)]/20 rounded-full blur-[80px] pointer-events-none"></div>
           
-          {/* IDENTIFICAÇÃO E GAMIFICAÇÃO */}
           <div className="flex items-center gap-6 w-full md:w-auto relative z-10">
             <div className="relative">
               {/* Anel de Pulso */}
@@ -345,12 +374,16 @@ export default function JTBDPage() {
       </AnimatePresence>
 
       {/* =========================================================================
-          2. O KANBAN SILENCIOSO (Chão de Fábrica Premium)
+          2. O KANBAN SILENCIOSO (Chão de Fábrica Premium com Drag & Drop HTML5)
           ========================================================================= */}
       <div className="flex-1 flex gap-6 overflow-x-auto custom-scrollbar pb-4 min-h-[550px] animate-[fadeInUp_0.7s_ease-out]">
         
         {/* COLUNA 1: FILA DE ESPERA */}
-        <div className="flex flex-col min-w-[340px] max-w-[340px] bg-white/40 p-5 rounded-[2.5rem] border border-white h-full shadow-sm">
+        <div 
+          className="flex flex-col min-w-[340px] max-w-[340px] bg-white/40 p-5 rounded-[2.5rem] border border-white h-full shadow-sm"
+          onDragOver={handleDragOver}
+          onDrop={(e) => handleDrop(e, 'pending')}
+        >
           <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
             <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
               <Clock size={18} className="text-[var(--color-atelier-grafite)]/40"/> Fila de Espera
@@ -359,12 +392,16 @@ export default function JTBDPage() {
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4">
             {pendingTasks.map(task => <TaskCard key={task.id} task={task} isAdmin={isAdminOrManager} onAction={(newStatus: string) => updateTaskStatus(task, newStatus)} />)}
-            {pendingTasks.length === 0 && <div className="text-center text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/30 mt-10">Fila Vazia</div>}
+            {pendingTasks.length === 0 && <div className="text-center text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/30 mt-10 pointer-events-none">Arraste para cá</div>}
           </div>
         </div>
 
         {/* COLUNA 2: EM FOCO (TIMER ATIVO) */}
-        <div className="flex flex-col min-w-[340px] max-w-[340px] bg-blue-50/70 p-5 rounded-[2.5rem] border border-blue-200 h-full shadow-inner relative overflow-hidden">
+        <div 
+          className="flex flex-col min-w-[340px] max-w-[340px] bg-blue-50/70 p-5 rounded-[2.5rem] border border-blue-200 h-full shadow-inner relative overflow-hidden"
+          onDragOver={handleDragOver}
+          onDrop={(e) => handleDrop(e, 'in_progress')}
+        >
           <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1.5 bg-blue-500 rounded-b-full shadow-[0_0_15px_rgba(59,130,246,0.8)]"></div>
           <div className="absolute top-[-50px] left-[-50px] w-40 h-40 bg-blue-400/10 rounded-full blur-3xl pointer-events-none"></div>
           
@@ -375,9 +412,9 @@ export default function JTBDPage() {
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4 relative z-10">
             {inProgressTasks.length === 0 ? (
-               <div className="h-full flex flex-col items-center justify-center text-center opacity-40">
+               <div className="h-full flex flex-col items-center justify-center text-center opacity-40 pointer-events-none">
                  <PlayCircle size={48} className="mb-4 text-blue-500 opacity-50"/>
-                 <span className="font-roboto text-[11px] uppercase tracking-widest font-bold text-blue-900">Puxe uma missão da fila para iniciar o cronómetro.</span>
+                 <span className="font-roboto text-[11px] uppercase tracking-widest font-bold text-blue-900">Arraste uma missão para iniciar</span>
                </div>
             ) : (
               inProgressTasks.map(task => <TaskCard key={task.id} task={task} isFocus isAdmin={isAdminOrManager} onAction={(newStatus: string) => updateTaskStatus(task, newStatus)} />)
@@ -386,7 +423,11 @@ export default function JTBDPage() {
         </div>
 
         {/* COLUNA 3: AGUARDANDO REVISÃO */}
-        <div className="flex flex-col min-w-[340px] max-w-[340px] bg-orange-50/70 p-5 rounded-[2.5rem] border border-orange-200 h-full shadow-sm relative overflow-hidden">
+        <div 
+          className="flex flex-col min-w-[340px] max-w-[340px] bg-orange-50/70 p-5 rounded-[2.5rem] border border-orange-200 h-full shadow-sm relative overflow-hidden"
+          onDragOver={handleDragOver}
+          onDrop={(e) => handleDrop(e, 'review')}
+        >
           <div className="absolute top-[-50px] right-[-50px] w-40 h-40 bg-orange-400/10 rounded-full blur-3xl pointer-events-none"></div>
           
           <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-orange-200/50 pb-4 relative z-10">
@@ -397,12 +438,16 @@ export default function JTBDPage() {
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4 relative z-10">
             {reviewTasks.map(task => <TaskCard key={task.id} task={task} isReview isAdmin={isAdminOrManager} onAction={(newStatus: string) => updateTaskStatus(task, newStatus)} />)}
-            {reviewTasks.length === 0 && <div className="text-center text-[10px] uppercase font-bold text-orange-900/30 mt-10">Nada a rever</div>}
+            {reviewTasks.length === 0 && <div className="text-center text-[10px] uppercase font-bold text-orange-900/30 mt-10 pointer-events-none">Arraste para cá</div>}
           </div>
         </div>
 
         {/* COLUNA 4: CONCLUÍDOS */}
-        <div className="flex flex-col min-w-[340px] max-w-[340px] bg-white/40 p-5 rounded-[2.5rem] border border-white/60 h-full shadow-sm opacity-80 hover:opacity-100 transition-opacity">
+        <div 
+          className="flex flex-col min-w-[340px] max-w-[340px] bg-white/40 p-5 rounded-[2.5rem] border border-white/60 h-full shadow-sm opacity-80 hover:opacity-100 transition-opacity"
+          onDragOver={handleDragOver}
+          onDrop={(e) => handleDrop(e, 'completed')}
+        >
           <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
             <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
               <CheckCircle2 size={18} className="text-green-500"/> Arsenal (Feitos)
@@ -410,7 +455,7 @@ export default function JTBDPage() {
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4">
             {completedTasks.map(task => <TaskCard key={task.id} task={task} isCompleted isAdmin={isAdminOrManager} onAction={() => {}} />)}
-            {completedTasks.length === 0 && <div className="text-center text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/30 mt-10">Histórico Vazio</div>}
+            {completedTasks.length === 0 && <div className="text-center text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/30 mt-10 pointer-events-none">Arraste para cá</div>}
           </div>
         </div>
 
@@ -472,21 +517,34 @@ export default function JTBDPage() {
 }
 
 // ============================================================================
-// COMPONENTE: CARTÃO DE TAREFA (O Item do Kanban - PREMIUM)
+// COMPONENTE: CARTÃO DE TAREFA (Com suporte a Drag & Drop Native)
 // ============================================================================
 function TaskCard({ task, isFocus, isReview, isCompleted, isAdmin, onAction }: any) {
   const isDelayed = !isCompleted && new Date(task.deadline) < new Date();
   
+  // Opacidade visual para tarefas bloqueadas (esperando o passo anterior)
+  const isBlockedClass = task.is_blocked && !isCompleted ? "opacity-60 cursor-not-allowed grayscale" : "cursor-grab active:cursor-grabbing";
+
   return (
-    <div className={`p-5 rounded-2xl flex flex-col gap-3 group transition-all relative overflow-hidden
-      ${isCompleted ? 'bg-white/40 border border-[var(--color-atelier-grafite)]/10' : 'bg-white border border-[var(--color-atelier-grafite)]/5 shadow-[0_4px_12px_rgba(122,116,112,0.05)] hover:shadow-[0_8px_24px_rgba(122,116,112,0.1)] hover:border-[var(--color-atelier-terracota)]/30'}
-      ${task.urgency && !isCompleted ? 'border-orange-300 ring-1 ring-orange-500/20' : ''}
-    `}>
+    <div 
+      draggable={!task.is_blocked && !isCompleted}
+      onDragStart={(e) => {
+        if (task.is_blocked || isCompleted) {
+          e.preventDefault();
+          return;
+        }
+        e.dataTransfer.setData("taskId", task.id);
+      }}
+      className={`p-5 rounded-2xl flex flex-col gap-3 group transition-all relative overflow-hidden ${isBlockedClass}
+        ${isCompleted ? 'bg-white/40 border border-[var(--color-atelier-grafite)]/10' : 'bg-white border border-[var(--color-atelier-grafite)]/5 shadow-[0_4px_12px_rgba(122,116,112,0.05)] hover:shadow-[0_8px_24px_rgba(122,116,112,0.1)] hover:border-[var(--color-atelier-terracota)]/30'}
+        ${task.urgency && !isCompleted ? 'border-orange-300 ring-1 ring-orange-500/20' : ''}
+      `}
+    >
       {/* Efeitos Visuais (Luzes de Foco e Urgência) */}
       {isFocus && <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)]"></div>}
       {task.urgency && !isCompleted && !isFocus && <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>}
 
-      <div className="flex justify-between items-start">
+      <div className="flex justify-between items-start pointer-events-none">
         <div className="flex flex-col pr-4">
           <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1 flex items-center gap-1">
             {task.projects?.type === 'Identidade Visual' ? <Target size={10}/> : <Activity size={10}/>}
@@ -503,7 +561,7 @@ function TaskCard({ task, isFocus, isReview, isCompleted, isAdmin, onAction }: a
       {!isCompleted && (
         <div className="flex items-center justify-between border-t border-[var(--color-atelier-grafite)]/5 pt-4 mt-2">
           
-          <div className="flex flex-col gap-0.5">
+          <div className="flex flex-col gap-0.5 pointer-events-none">
             <span className={`text-[10px] uppercase font-bold tracking-widest flex items-center gap-1 ${isDelayed ? 'text-red-500' : 'text-[var(--color-atelier-grafite)]/50'}`}>
               <Clock size={12}/> {new Date(task.deadline).toLocaleDateString('pt-BR')}
             </span>
@@ -511,37 +569,42 @@ function TaskCard({ task, isFocus, isReview, isCompleted, isAdmin, onAction }: a
           </div>
 
           <div className="flex items-center gap-2 relative z-10">
-            
-            {/* ESTADO: PENDENTE (Na Fila) */}
-            {task.status === 'pending' && (
-              <button onClick={() => onAction('in_progress')} className="bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm flex items-center gap-2">
-                <PlayCircle size={14} /> Foco
-              </button>
-            )}
-
-            {/* ESTADO: EM FOCO (Timer Rodando) */}
-            {isFocus && (
+            {task.is_blocked ? (
+              <span className="text-[9px] uppercase font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm" title="Aguardando fase anterior">Dependência Pendente</span>
+            ) : (
               <>
-                <button onClick={() => onAction('pending')} className="bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-200 w-9 h-9 rounded-xl flex items-center justify-center transition-colors shadow-sm" title="Pausar Foco">
-                  <PauseCircle size={14} />
-                </button>
-                <button onClick={() => onAction('review')} className="bg-orange-500 border border-orange-600 text-white hover:bg-orange-600 px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_10px_rgba(249,115,22,0.3)] hover:-translate-y-0.5 flex items-center gap-1">
-                  Revisão <ChevronRight size={14}/>
-                </button>
-              </>
-            )}
-
-            {/* ESTADO: EM REVISÃO (Aguardando Admin/Gestor) */}
-            {isReview && (
-              <>
-                {isAdmin ? (
-                  <button onClick={() => onAction('completed')} className="bg-green-500 border border-green-600 text-white hover:bg-green-600 px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_10px_rgba(34,197,94,0.3)] hover:-translate-y-0.5 flex items-center gap-1">
-                    Aprovar <CheckCircle2 size={14}/>
+                {/* ESTADO: PENDENTE */}
+                {task.status === 'pending' && (
+                  <button onClick={() => onAction('in_progress')} className="bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm flex items-center gap-2">
+                    <PlayCircle size={14} /> Foco
                   </button>
-                ) : (
-                  <span className="bg-orange-50 border border-orange-200 text-orange-600 px-3 h-8 rounded-lg flex items-center justify-center text-[9px] font-bold uppercase tracking-widest animate-pulse cursor-not-allowed">
-                    Aguardando
-                  </span>
+                )}
+
+                {/* ESTADO: EM FOCO */}
+                {isFocus && (
+                  <>
+                    <button onClick={() => onAction('pending')} className="bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-200 w-9 h-9 rounded-xl flex items-center justify-center transition-colors shadow-sm" title="Pausar Foco">
+                      <PauseCircle size={14} />
+                    </button>
+                    <button onClick={() => onAction('review')} className="bg-orange-500 border border-orange-600 text-white hover:bg-orange-600 px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_10px_rgba(249,115,22,0.3)] hover:-translate-y-0.5 flex items-center gap-1">
+                      Revisão <ChevronRight size={14}/>
+                    </button>
+                  </>
+                )}
+
+                {/* ESTADO: EM REVISÃO */}
+                {isReview && (
+                  <>
+                    {isAdmin ? (
+                      <button onClick={() => onAction('completed')} className="bg-green-500 border border-green-600 text-white hover:bg-green-600 px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_10px_rgba(34,197,94,0.3)] hover:-translate-y-0.5 flex items-center gap-1">
+                        Aprovar <CheckCircle2 size={14}/>
+                      </button>
+                    ) : (
+                      <span className="bg-orange-50 border border-orange-200 text-orange-600 px-3 h-8 rounded-lg flex items-center justify-center text-[9px] font-bold uppercase tracking-widest animate-pulse cursor-not-allowed">
+                        Aguardando
+                      </span>
+                    )}
+                  </>
                 )}
               </>
             )}
@@ -551,7 +614,7 @@ function TaskCard({ task, isFocus, isReview, isCompleted, isAdmin, onAction }: a
       
       {/* Selo Visual de Concluído */}
       {isCompleted && (
-        <div className="absolute right-[-15px] bottom-[-15px] opacity-10">
+        <div className="absolute right-[-15px] bottom-[-15px] opacity-10 pointer-events-none">
           <CheckCircle2 size={100} className="text-green-500" />
         </div>
       )}

@@ -17,12 +17,12 @@ Font.register({
   ]
 });
 
-// 2. ESTÉTICA EDITORIAL
+// 2. ESTÉTICA EDITORIAL E MOTOR DE LAYOUT
 const styles = StyleSheet.create({
   page: {
     backgroundColor: '#fbf4e4',
     padding: 60,
-    paddingBottom: 80,
+    paddingBottom: 80, // Margem de segurança para o rodapé
     fontFamily: 'Roboto',
   },
   coverPage: {
@@ -70,7 +70,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(122,116,112,0.2)',
     paddingBottom: 20,
-    marginBottom: 40,
+    marginBottom: 30,
   },
   headerTitle: {
     fontFamily: 'Elegant',
@@ -78,6 +78,7 @@ const styles = StyleSheet.create({
     color: '#ad6f40',
   },
 
+  // A Caixa da IA agora permite quebra de página fluida
   aiBox: {
     backgroundColor: '#ffffff',
     padding: 30,
@@ -92,7 +93,7 @@ const styles = StyleSheet.create({
     letterSpacing: 3,
     color: '#ad6f40',
     fontWeight: 700,
-    marginBottom: 20,
+    marginBottom: 15,
   },
   
   aiH3: {
@@ -100,13 +101,14 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: '#1a1a1a',
     marginTop: 20,
-    marginBottom: 10,
+    marginBottom: 8,
   },
   aiP: {
     fontSize: 11,
     lineHeight: 1.6,
     color: '#4a4a4a',
-    marginBottom: 10,
+    marginBottom: 8,
+    textAlign: 'justify',
   },
   aiBullet: {
     fontSize: 11,
@@ -160,19 +162,21 @@ const styles = StyleSheet.create({
     textAlign: 'right',
   },
 
+  // Correção Sênior: Remoção do gap e uso de space-between para evitar quebra do React-PDF
   dataGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 20,
-    marginBottom: 30,
+    justifyContent: 'space-between',
+    marginBottom: 20,
   },
   dataCard: {
-    width: '46%',
+    width: '48%', // Calculado matematicamente para dar margem sem usar gap
     backgroundColor: '#ffffff',
     padding: 20,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: '#f0e6dd',
+    marginBottom: 16,
   },
   dataCardLabel: {
     fontSize: 9,
@@ -270,14 +274,15 @@ interface BrandbookPDFProps {
 
 export default function BrandbookPDF({ clientName, aiInsight, tilt, semiotics = {}, voice = {}, synapses = [] }: BrandbookPDFProps) {
   
+  // Motor de Parse Seguro: Converte Markdown estruturado em blocos React-PDF
   const renderAiInsight = (text: string) => {
     if (!text) return null;
     const lines = text.split('\n');
     return lines.map((line, index) => {
       const cleanLine = line.trim();
-      if (!cleanLine) return null;
+      if (!cleanLine) return null; // Filtra linhas vazias para não gerar espaçamentos mortos
       
-      let textContent = cleanLine.replace(/\*\*/g, '');
+      const textContent = cleanLine.replace(/\*\*/g, ''); // Limpa negritos que quebram o parser básico
 
       if (cleanLine.startsWith('###')) {
         return <Text key={index} style={styles.aiH3}>{textContent.replace('###', '').trim()}</Text>;
@@ -309,7 +314,8 @@ export default function BrandbookPDF({ clientName, aiInsight, tilt, semiotics = 
         </View>
 
         {aiInsight ? (
-          <View style={styles.aiBox} wrap={false}>
+          // Remoção do wrap={false}. O PDF agora criará páginas dinamicamente sem sobrepor texto!
+          <View style={styles.aiBox}>
             <Text style={styles.aiBoxTitle}>Estratégia CMO (Atelier Core)</Text>
             {renderAiInsight(aiInsight)}
           </View>
@@ -452,7 +458,7 @@ export default function BrandbookPDF({ clientName, aiInsight, tilt, semiotics = 
           ))}
 
           <View style={styles.footer} fixed>
-            <Text style={styles.footerText}>Atelier Liz Design</Text>
+            <Text style={styles.footerText}>Atelier LizDesign</Text>
             <Text style={styles.footerText}>Repositório de Ativos</Text>
           </View>
         </Page>

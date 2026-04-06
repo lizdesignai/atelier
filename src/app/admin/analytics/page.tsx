@@ -4,6 +4,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabase";
+import { AtelierPMEngine } from "../../../lib/AtelierPMEngine"; // 🧠 Injeção do Motor PM
 import { 
   Activity, Target, FolderKanban, Clock, Users, 
   Loader2, Sparkles, BrainCircuit, CheckCircle2, 
@@ -16,40 +17,58 @@ const showToast = (message: string) => {
 };
 
 // ============================================================================
-// 1. DICIONÁRIOS E PIPELINES UNITARIZADOS (BACKWARD SCHEDULING UNITÁRIO)
+// 1. DICIONÁRIOS, PIPELINES UNITARIZADOS E COMPETÊNCIAS (TAGS)
 // ============================================================================
 const TASK_TYPES_IDV = [
   { id: 'setup', label: 'Administrativo & Contratos' },
   { id: 'reuniao', label: 'Reuniões & Apresentações' },
   { id: 'copy', label: 'Pesquisa & Estratégia' },
-  { id: 'design', label: 'Design & Direção Visual' }
+  { id: 'design', label: 'Design & Direção Visual' },
+  { id: 'community', label: 'Diário de Bordo & Comunidade' } 
 ];
 
 const TASK_TYPES_IG = [
   { id: 'setup', label: 'Gestão & Relatórios' },
   { id: 'reuniao', label: 'Reuniões' },
   { id: 'copy', label: 'Copywriting' },
+  { id: 'planning', label: 'Planejamento & Aprovação' },
   { id: 'design', label: 'Design Gráfico' },
-  { id: 'video', label: 'Edição de Vídeo' }
+  { id: 'video', label: 'Edição de Vídeo' },
+  { id: 'community', label: 'Moderação da Comunidade' }
+];
+
+const ALL_SKILLS = [
+  { id: 'setup', label: 'Gestão & Contratos' },
+  { id: 'reuniao', label: 'Reuniões & Calls' },
+  { id: 'copy', label: 'Copy & Estratégia' },
+  { id: 'planning', label: 'Planejamento' },
+  { id: 'design', label: 'Design Gráfico' },
+  { id: 'video', label: 'Edição de Vídeo' },
+  { id: 'community', label: 'Comunidade & Diário' }
 ];
 
 const IDV_PIPELINE = [
   { stage: "Kickoff", type: "setup", title: "Formulário de cadastro & Contrato", daysOffset: 0, estTime: 30 },
   { stage: "Kickoff", type: "setup", title: "Pagamento", daysOffset: 1, estTime: 15 },
+  { stage: "Kickoff", type: "setup", title: "Coletar Brandbook/Briefing", daysOffset: 1, estTime: 20 },
   { stage: "Kickoff", type: "reuniao", title: "Reunião de briefing", daysOffset: 2, estTime: 60 },
+  { stage: "Kickoff", type: "community", title: "Postar Kickoff no Diário de Bordo", daysOffset: 2, estTime: 15 },
   { stage: "Imersão", type: "copy", title: "Moodboard & Semiótica Visual", daysOffset: 5, estTime: 180 },
   { stage: "Design", type: "design", title: "Laboratório de Logotipo", daysOffset: 9, estTime: 240 },
   { stage: "Design", type: "design", title: "Tipografia e Cores", daysOffset: 12, estTime: 180 },
   { stage: "Apresentação", type: "design", title: "Montagem do Brandbook", daysOffset: 16, estTime: 180 },
+  { stage: "Apresentação", type: "community", title: "Postar Prévia no Diário de Bordo", daysOffset: 16, estTime: 15 },
   { stage: "Handover", type: "setup", title: "Envio do Drive e Conclusão", daysOffset: 18, estTime: 30 }
 ];
 
 const IG_SETUP = [
   { stage: "Setup", type: "setup", title: "Assinatura & Onboarding", daysOffset: 0, estTime: 30 },
+  { stage: "Setup", type: "setup", title: "Coletar Briefing Base", daysOffset: 1, estTime: 20 },
+  { stage: "Setup", type: "community", title: "Apresentar Cliente no Diário de Bordo", daysOffset: 1, estTime: 15 },
   { stage: "Estratégia", type: "copy", title: "Criação de Estratégia e Copy (Mês)", daysOffset: 5, estTime: 180 },
+  { stage: "Estratégia", type: "planning", title: "Enviar Planejamento para Aprovação", daysOffset: 6, estTime: 30 },
 ];
 
-// Lógica de Unitarização: Transformamos pacotes em listas explícitas de tarefas para distribuição no mês
 const generateUnitaryIG = (packageName: string) => {
   const units: any[] = [];
   const counts: Record<string, {type: string, qty: number}> = {
@@ -66,14 +85,14 @@ const generateUnitaryIG = (packageName: string) => {
       stage: "Produção Ativa",
       type: config.type,
       title: `${config.type === 'video' ? 'Reels/Vídeo' : 'Post/Card'} Unitário #${i} - ${packageName}`,
-      // Distribui as entregas entre o dia 10 e o dia 28 do ciclo
       daysOffset: Math.floor(10 + (i * (18 / config.qty))),
       estTime: 60
     });
   }
 
   if (packageName === "Pacote 4") {
-    units.push({ stage: "Produção", type: "copy", title: "Roteirização Diária de Stories", daysOffset: 18, estTime: 300 });
+    units.push({ stage: "Produção Diária", type: "copy", title: "Roteirização Diária de Stories", daysOffset: 18, estTime: 300 });
+    units.push({ stage: "Gestão Contínua", type: "community", title: "Moderação da Comunidade VIP", daysOffset: 20, estTime: 120 });
   }
   
   return units;
@@ -119,8 +138,8 @@ export default function AnalyticsPage() {
   const [routeConfig, setRouteConfig] = useState({ projectId: "", taskType: "", assigneeId: "" });
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Estado para Demanda Pontual (Aba Projetos)
-  const [adHocDemand, setAdHocDemand] = useState({ title: "", assigneeId: "", urgency: false });
+  // Estado para Demanda Pontual (Ad-Hoc - Expandido com taskType)
+  const [adHocDemand, setAdHocDemand] = useState({ title: "", projectId: "", assigneeId: "", taskType: "", urgency: false });
 
   useEffect(() => {
     fetchOperationalData();
@@ -129,17 +148,17 @@ export default function AnalyticsPage() {
   const fetchOperationalData = async () => {
     setIsLoading(true);
     try {
-      // Carrega projetos com os perfis dos clientes (para avatares)
+      const { data: { session } } = await supabase.auth.getSession();
+      
       const { data: projData } = await supabase.from('projects').select('*, profiles(nome, avatar_url)').in('status', ['active', 'delivered']).order('created_at', { ascending: false });
       if (projData) {
         setProjects(projData);
         if (projData.length > 0 && !selectedProjectId) setSelectedProjectId(projData[0].id);
       }
 
-      const { data: teamData } = await supabase.from('profiles').select('id, nome, role, avatar_url, team_performance(exp_points, level_name)').in('role', ['admin', 'gestor', 'colaborador']);
+      const { data: teamData } = await supabase.from('profiles').select('id, nome, role, avatar_url, skills, team_performance(exp_points, level_name)').in('role', ['admin', 'gestor', 'colaborador']);
       if (teamData) setTeam(teamData);
 
-      // Carrega tarefas com perfis dos colaboradores (para avatares)
       const { data: tasksData } = await supabase.from('tasks').select('*, projects(profiles(nome, avatar_url), type, service_type), profiles!assigned_to(nome, avatar_url)').order('deadline', { ascending: true });
       if (tasksData) setTasks(tasksData);
 
@@ -151,6 +170,13 @@ export default function AnalyticsPage() {
         pendingTasks: tasksData?.filter(t => t.status !== 'completed')?.length || 0,
         totalTeam: teamData?.length || 0
       });
+
+      // 🧠 ATELIER PM ENGINE: Gatilhos Diários de Fundo (Gestão de Risco e Calibração Económica)
+      if (session?.user) {
+        AtelierPMEngine.runDailyRiskMitigation(session.user.id);
+        AtelierPMEngine.calibrateUnitEconomics(session.user.id);
+      }
+
     } catch (error) {
       console.error("Erro no Analytics:", error);
       showToast("Erro ao sincronizar Centro de Operações.");
@@ -171,23 +197,25 @@ export default function AnalyticsPage() {
   };
 
   const handleAddAdHocDemand = async () => {
-    if (!adHocDemand.title || !adHocDemand.assigneeId || !selectedProjectId) {
-      showToast("Preencha título e colaborador."); return;
+    const targetProject = adHocDemand.projectId || selectedProjectId;
+    if (!adHocDemand.title || !adHocDemand.assigneeId || !targetProject) {
+      showToast("Preencha título, colaborador e projeto."); return;
     }
     setIsProcessing(true);
     try {
       const { error } = await supabase.from('tasks').insert({
-        project_id: selectedProjectId,
+        project_id: targetProject,
         assigned_to: adHocDemand.assigneeId,
         title: adHocDemand.title,
         urgency: adHocDemand.urgency,
         status: 'pending',
         stage: 'Demanda Pontual',
+        task_type: adHocDemand.taskType || 'setup',
         deadline: new Date(Date.now() + 86400000).toISOString()
       });
       if (error) throw error;
       showToast("🔥 Demanda injetada na fila do colaborador!");
-      setAdHocDemand({ title: "", assigneeId: "", urgency: false });
+      setAdHocDemand({ title: "", projectId: "", assigneeId: "", taskType: "", urgency: false });
       fetchOperationalData();
     } catch (e) {
       showToast("Erro ao injetar demanda.");
@@ -196,6 +224,7 @@ export default function AnalyticsPage() {
     }
   };
 
+  // 🧠 ATELIER PM ENGINE: Substituição completa pelo Motor de Inteligência
   const handleAutoDeploy = async (project: any) => {
     setIsProcessing(true);
     try {
@@ -217,49 +246,45 @@ export default function AnalyticsPage() {
       }
 
       const projRules = routingRules.filter(r => r.project_id === project.id);
-      const maxOffset = pipeline.length > 0 ? Math.max(...pipeline.map(t => t.daysOffset)) : 0;
       
-      // Inteligência de Recorrência (Empurra a data de entrega base)
       let finalDeadline = new Date();
       if (isIdv && project.data_limite) {
         finalDeadline = new Date(project.data_limite);
       } else if (!isIdv && project.billing_date) {
         finalDeadline = new Date(project.billing_date);
-        if (hasPreviousTasks) {
-          // Renovação Mensal: Avança o cronômetro base 1 mês à frente
-          finalDeadline.setMonth(finalDeadline.getMonth() + 1);
-        }
+        if (hasPreviousTasks) finalDeadline.setMonth(finalDeadline.getMonth() + 1);
       } else {
         finalDeadline.setDate(finalDeadline.getDate() + 30);
       }
 
-      const insertData = pipeline.map((t) => {
-        const daysToSubtract = maxOffset - t.daysOffset;
-        const taskDeadline = new Date(finalDeadline);
-        taskDeadline.setDate(taskDeadline.getDate() - daysToSubtract);
-        
+      // 🧠 PM ENGINE: 1. Load Balancing e Preparação de Dados
+      const insertData = await Promise.all(pipeline.map(async (t) => {
         const rule = projRules.find(r => r.task_type === t.type);
-        const assigneeId = (rule && rule.assignee_id && rule.assignee_id.trim() !== "") ? rule.assignee_id : null;
+        const defaultAssigneeId = (rule && rule.assignee_id && rule.assignee_id.trim() !== "") ? rule.assignee_id : null;
+
+        // O Motor verifica se o responsável padrão aguenta a carga; se não, repassa a tarefa.
+        const optimalAssignee = await AtelierPMEngine.getOptimalAssignee(t.type, defaultAssigneeId, t.estTime);
 
         return {
           project_id: project.id,
           creator_id: session?.user?.id || null,
-          assigned_to: assigneeId,
+          assigned_to: optimalAssignee,
           title: t.title,
           stage: t.stage,
           task_type: t.type,
           estimated_time: t.estTime,
-          deadline: taskDeadline.toISOString(),
           status: 'pending'
         };
-      });
+      }));
 
-      if (insertData.length > 0) {
-        const { error } = await supabase.from('tasks').insert(insertData);
+      // 🧠 PM ENGINE: 2. Smart Scheduling e Injeção de Dependências
+      const scheduledData = AtelierPMEngine.generateSmartSchedule(insertData, new Date(), finalDeadline);
+
+      if (scheduledData.length > 0) {
+        const { error } = await supabase.from('tasks').insert(scheduledData);
         if (error) throw error;
       }
       
-      // Atualiza os metadados do projeto (O Pacote atual e a Nova Data de Ciclo)
       const projUpdates: any = {};
       if (!isIdv && !project.instagram_package) projUpdates.instagram_package = currentPackage;
       if (!isIdv && hasPreviousTasks && project.billing_date) projUpdates.billing_date = finalDeadline.toISOString();
@@ -268,9 +293,10 @@ export default function AnalyticsPage() {
         await supabase.from('projects').update(projUpdates).eq('id', project.id);
       }
 
-      showToast(hasPreviousTasks ? "🔄 Ciclo Mensal Renovado! Produção unitária disparada." : "🚀 Pipeline Instanciado com Sucesso!");
+      showToast(hasPreviousTasks ? "🔄 Ciclo Mensal Renovado! Produção unitária disparada." : "🚀 Pipeline Inteligente Instanciado com Sucesso!");
       fetchOperationalData();
     } catch (error) {
+      console.error(error);
       showToast("Erro no Deploy do Pipeline.");
     } finally {
       setIsProcessing(false);
@@ -333,16 +359,40 @@ export default function AnalyticsPage() {
     }
   };
 
-// ============================================================================
+  // Tagging System: Atualização de Competências do Colaborador
+  const handleToggleSkill = async (collabId: string, skillId: string) => {
+    const collab = team.find(t => t.id === collabId);
+    if (!collab) return;
+    const currentSkills = collab.skills || [];
+    const newSkills = currentSkills.includes(skillId) 
+      ? currentSkills.filter((s: string) => s !== skillId)
+      : [...currentSkills, skillId];
+    
+    // Atualização Otimista
+    setTeam(team.map(t => t.id === collabId ? { ...t, skills: newSkills } : t));
+    if (selectedCollab && selectedCollab.id === collabId) {
+      setSelectedCollab({ ...selectedCollab, skills: newSkills });
+    }
+
+    try {
+      const { error } = await supabase.from('profiles').update({ skills: newSkills }).eq('id', collabId);
+      if (error) throw error;
+      showToast("Competência atualizada no banco de dados.");
+    } catch (e) {
+      showToast("Erro ao atualizar competências.");
+      fetchOperationalData(); // Reverter
+    }
+  };
+
+  // ============================================================================
   // FILTROS UI E DERIVAÇÕES DE ESTADO
   // ============================================================================
   const activeTasksForQueue = tasks.filter(t => t.status !== 'completed');
-  const activeTasks = activeTasksForQueue; // Garante o funcionamento do Modal de Performance
+  const activeTasks = activeTasksForQueue; 
   const activeProjectsList = projects.filter(p => p.status === 'active');
   const selectedProj = projects.find(p => p.id === selectedProjectId);
   
-  // Condicional de Dicionário baseada no projeto selecionado na regra (Motor de Routing)
-  const routeProjObj = projects.find(p => p.id === routeConfig.projectId); // <--- A LINHA RESTAURADA
+  const routeProjObj = projects.find(p => p.id === routeConfig.projectId); 
   const currentTaskTypes = isIdvService(routeProjObj) ? TASK_TYPES_IDV : TASK_TYPES_IG;
   
   const liveTasks = tasks.filter(t => t.status === 'in_progress');
@@ -352,7 +402,6 @@ export default function AnalyticsPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6 px-4 md:px-0">
       
-      {/* HEADER DE COMANDO */}
       <header className="shrink-0 flex flex-col md:flex-row md:items-end justify-between gap-4 mt-6 animate-[fadeInUp_0.5s_ease-out]">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -400,7 +449,6 @@ export default function AnalyticsPage() {
           {activeView === 'overview' && (
             <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-6 h-full min-h-0">
               
-              {/* KPIs COMPACTOS */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
                 <div className="bg-white/60 p-4 rounded-2xl border border-white flex items-center gap-4 shadow-sm">
                   <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0"><FolderKanban size={18} /></div>
@@ -599,20 +647,34 @@ export default function AnalyticsPage() {
                       )}
                     </div>
 
-                    {/* WIDGET AD-HOC: DEMANDA PONTUAL */}
+                    {/* WIDGET AD-HOC: DEMANDA PONTUAL (Com Tipo de Tarefa) */}
                     <div className="bg-[var(--color-atelier-grafite)] p-6 rounded-[2rem] mb-8 flex flex-col md:flex-row items-end gap-4 shadow-xl relative overflow-hidden shrink-0">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
+                      
                       <div className="flex flex-col gap-2 flex-1 relative z-10 w-full">
                         <span className="text-[10px] uppercase font-bold tracking-widest text-white/50 ml-1">Injetar Demanda Puntual</span>
                         <input type="text" placeholder="Título da tarefa urgente..." value={adHocDemand.title} onChange={(e) => setAdHocDemand({...adHocDemand, title: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] transition-colors" />
                       </div>
+                      
+                      <div className="flex flex-col gap-2 w-full md:w-48 relative z-10">
+                        <span className="text-[10px] uppercase font-bold tracking-widest text-white/50 ml-1">Tag (Domínio)</span>
+                        <select value={adHocDemand.taskType} onChange={(e) => setAdHocDemand({...adHocDemand, taskType: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white text-[12px] outline-none">
+                          <option value="" className="text-black">Definir Escopo...</option>
+                          {ALL_SKILLS.map(s => <option key={s.id} value={s.id} className="text-black">{s.label}</option>)}
+                        </select>
+                      </div>
+
                       <div className="flex flex-col gap-2 w-full md:w-56 relative z-10">
                         <span className="text-[10px] uppercase font-bold tracking-widest text-white/50 ml-1">Para o Executor</span>
                         <select value={adHocDemand.assigneeId} onChange={(e) => setAdHocDemand({...adHocDemand, assigneeId: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white text-[12px] outline-none">
                           <option value="" className="text-black">Escolher...</option>
-                          {team.map(t => <option key={t.id} value={t.id} className="text-black">{t.nome}</option>)}
+                          {team.map(t => {
+                            const isRecommended = adHocDemand.taskType && t.skills?.includes(adHocDemand.taskType);
+                            return <option key={t.id} value={t.id} className="text-black">{t.nome} {isRecommended ? '⭐' : ''}</option>
+                          })}
                         </select>
                       </div>
+
                       <button onClick={handleAddAdHocDemand} disabled={isProcessing || !adHocDemand.title || !adHocDemand.assigneeId} className="bg-[var(--color-atelier-terracota)] text-white w-full md:w-14 h-[46px] rounded-xl flex items-center justify-center hover:bg-white hover:text-[var(--color-atelier-grafite)] transition-all shrink-0">
                         {isProcessing ? <Loader2 className="animate-spin" size={20}/> : <PlusCircle size={20}/>}
                       </button>
@@ -650,7 +712,7 @@ export default function AnalyticsPage() {
             </motion.div>
           )}
 
-          {/* MOTOR DE ROUTING */}
+          {/* MOTOR DE ROUTING (Distribuição Preditiva) */}
           {activeView === 'routing' && (
             <motion.div key="routing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-12 gap-6 h-full min-h-0">
               
@@ -685,7 +747,10 @@ export default function AnalyticsPage() {
                     <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-white/60 ml-1">3. A quem vai pertencer?</span>
                     <select value={routeConfig.assigneeId} onChange={(e) => setRouteConfig({...routeConfig, assigneeId: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl p-4 text-[13px] text-white outline-none">
                       <option value="" disabled className="text-black">Responsável Direto...</option>
-                      {team.map(t => <option key={t.id} value={t.id} className="text-black">{t.nome}</option>)}
+                      {team.map(t => {
+                        const isRecommended = routeConfig.taskType && t.skills?.includes(routeConfig.taskType);
+                        return <option key={t.id} value={t.id} className="text-black">{t.nome} {isRecommended ? '⭐' : ''}</option>
+                      })}
                     </select>
                   </div>
                   
@@ -753,7 +818,7 @@ export default function AnalyticsPage() {
         </AnimatePresence>
       </div>
 
-      {/* MODAL DE EDIÇÃO DE TAREFA */}
+      {/* MODAL DE EDIÇÃO DE TAREFA (Com Inteligência Visual de Atribuição) */}
       <AnimatePresence>
         {editingTask && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
@@ -770,7 +835,10 @@ export default function AnalyticsPage() {
                 <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Responsável no JTBD</span>
                 <select value={editingTask.assigned_to || ""} onChange={(e) => setEditingTask({...editingTask, assigned_to: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50">
                   <option value="">Ficar em Fila Neutra</option>
-                  {team.map(t => <option key={t.id} value={t.id}>{t.nome} ({t.role})</option>)}
+                  {team.map(t => {
+                    const isRecommended = editingTask.task_type && t.skills?.includes(editingTask.task_type);
+                    return <option key={t.id} value={t.id}>{t.nome} ({t.role}) {isRecommended ? '⭐' : ''}</option>
+                  })}
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">
@@ -794,7 +862,7 @@ export default function AnalyticsPage() {
         )}
       </AnimatePresence>
 
-      {/* MODAL: RAIO-X DO COLABORADOR */}
+      {/* MODAL: RAIO-X DO COLABORADOR E TAGGING */}
       <AnimatePresence>
         {selectedCollab && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
@@ -879,6 +947,26 @@ export default function AnalyticsPage() {
                   )}
                 </div>
               </div>
+
+              {/* ÁREA DE COMPETÊNCIAS (TAGS) */}
+              <div className="mt-6 pt-6 border-t border-[var(--color-atelier-grafite)]/10 shrink-0">
+                <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-4 flex items-center gap-2"><Target size={14}/> Competências (Tags de Distribuição)</h4>
+                <div className="flex flex-wrap gap-2">
+                  {ALL_SKILLS.map(skill => {
+                    const hasSkill = selectedCollab.skills?.includes(skill.id);
+                    return (
+                      <button 
+                        key={skill.id}
+                        onClick={() => handleToggleSkill(selectedCollab.id, skill.id)}
+                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border shadow-sm ${hasSkill ? 'bg-[var(--color-atelier-terracota)] text-white border-[var(--color-atelier-terracota)]' : 'bg-white border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/60 hover:border-[var(--color-atelier-terracota)]/50'}`}
+                      >
+                        {skill.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
             </motion.div>
           </div>
         )}

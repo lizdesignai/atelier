@@ -185,7 +185,6 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               <NavItem href="/admin/jtbd" icon={<Crosshair size={20} strokeWidth={1.75} />} label="Focus (JTBD)" collapsed={isCollapsed} active={pathname === '/admin/jtbd'} />
               <NavItem href="/admin" icon={<LayoutDashboard size={20} strokeWidth={1.75} />} label="Comando" collapsed={isCollapsed} active={pathname === '/admin'} />
               <NavItem href="/admin/projetos" icon={<FolderKanban size={20} strokeWidth={1.75} />} label="Estúdio" collapsed={isCollapsed} active={pathname === '/admin/projetos'} />
-              <NavItem href="/admin/gerenciamento" icon={<LayoutDashboard size={20} strokeWidth={1.75} />} label="Gerenciamento" collapsed={isCollapsed} active={pathname === '/admin/gerenciamento'} />
               <NavItem href="/admin/inbox" icon={<Inbox size={20} strokeWidth={1.75} />} label="Caixa de Entrada" collapsed={isCollapsed} active={pathname === '/admin/inbox'} />
               <NavItem href="/comunidade" icon={<Globe2 size={20} strokeWidth={1.75} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
               

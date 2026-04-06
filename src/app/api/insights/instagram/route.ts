@@ -1,13 +1,29 @@
 // src/app/api/insights/instagram/route.ts
 import { NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export async function POST(req: Request) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY_BRIEFING || '';
+    const apiKey = process.env.GEMINI_API_KEY_BRIEFING || process.env.GEMINI_API_KEY || '';
+    if (!apiKey) throw new Error('Chave de API do Gemini não configurada no servidor.');
+
     const { briefingData, clientName } = await req.json();
 
-    if (!briefingData) return NextResponse.json({ error: 'Dados não fornecidos.' }, { status: 400 });
+    if (!briefingData) {
+      return NextResponse.json({ error: 'O Dossiê do cliente está vazio.' }, { status: 400 });
+    }
 
+    // 1. Instanciação do SDK com o Modelo Moderno e Robusto
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-2.5-flash',
+      generationConfig: {
+        temperature: 0.7, // Ideal para criatividade estratégica de Marketing
+        responseMimeType: "application/json", // BLINDAGEM: Força o output estruturado
+      }
+    });
+
+    // 2. O Cérebro: Prompt Original Fundido com o Schema JSON
     const systemPrompt = `
       Você é um Chief Marketing Officer (CMO) e Estrategista de Growth de alto nível.
       Analise o "Dossiê de Mercado" do cliente e forje uma "Estratégia de Dominação Digital".
@@ -15,49 +31,46 @@ export async function POST(req: Request) {
       Cliente: ${clientName}
       Respostas do Dossiê: ${JSON.stringify(briefingData)}
 
-      ESTRUTURA DO RELATÓRIO (Markdown):
-      ### 1. Posicionamento de Elite e Brand Equity
-      Como transformar o "Produto Âncora" em um objeto de desejo e como atacar o "Inimigo Comum" de forma elegante.
+      REGRAS DE TOM E ESTILO:
+      - Tom executivo, sofisticado, direto ao ponto. 
+      - Sem introduções genéricas ou jargões de IA.
 
-      ### 2. Funil de Conteúdo e Conversão (Atelier Method)
-      Mapeie o que postar no Topo, Meio e Fundo de Funil baseado na Regra de Pareto citada pelo cliente.
-
-      ### 3. Engenharia de Copywriting e Tom de Voz
-      Baseado na "Persona da Marca", defina 3 regras de escrita para as legendas que gerem autoridade imediata.
-
-      ### 4. Roadmap de 6 Meses (O Endgame)
-      Plano tático para atingir o "Ponto de Chegada" (Objetivo Principal) com métricas de sucesso claras.
-
-      REGRAS: Tom executivo, sofisticado, direto ao ponto. Sem introduções genéricas.
+      Retorne UMA ESTRUTURA JSON EXATA (sem blocos de código markdown \`\`\`json, apenas o objeto puro):
+      {
+        "posicionamento": "Como transformar o 'Produto Âncora' em um objeto de desejo e como atacar o 'Inimigo Comum' de forma elegante.",
+        "funil": "Mapeie o que postar no Topo, Meio e Fundo de Funil baseado na Regra de Pareto citada pelo cliente (Atelier Method).",
+        "copywriting": [
+          "Regra 1 de escrita baseada na Persona da Marca para gerar autoridade.",
+          "Regra 2 de escrita baseada na Persona da Marca para gerar autoridade.",
+          "Regra 3 de escrita baseada na Persona da Marca para gerar autoridade."
+        ],
+        "roadmap": "Plano tático de 6 meses para atingir o 'Ponto de Chegada' (Objetivo Principal) com métricas de sucesso claras."
+      }
     `;
 
-    const payload = {
-      contents: [{ role: "user", parts: [{ text: systemPrompt }] }],
-      generationConfig: { temperature: 0.7, topP: 0.9, maxOutputTokens: 8192 }
-    };
+    console.log(`[IA CMO] A invocar gemini-2.5-flash (Modo JSON) para: ${clientName}...`);
+    const result = await model.generateContent(systemPrompt);
+    const responseText = result.response.text();
 
-    const baseUrl = "https://generativelanguage.googleapis.com/v1beta/models";
-    
-    // Tenta PRO, senão FLASH (Matriz de Fallback Senior)
-    let response = await fetch(`${baseUrl}/gemini-1.5-pro:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
+    // 3. Adapter Pattern: Parse do JSON e conversão para o Markdown Oficial do Frontend
+    const aiData = JSON.parse(responseText);
 
-    if (response.status === 404) {
-      response = await fetch(`${baseUrl}/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    }
+    const finalMarkdown = `### 1. Posicionamento de Elite e Brand Equity
+${aiData.posicionamento}
 
-    const data = await response.json();
-    const aiInsight = data.candidates?.[0]?.content?.parts?.[0]?.text;
+### 2. Funil de Conteúdo e Conversão (Atelier Method)
+${aiData.funil}
 
-    return NextResponse.json({ insight: aiInsight });
+### 3. Engenharia de Copywriting e Tom de Voz
+${aiData.copywriting.map((regra: string) => `- ${regra}`).join('\n')}
+
+### 4. Roadmap de 6 Meses (O Endgame)
+${aiData.roadmap}`;
+
+    return NextResponse.json({ insight: finalMarkdown });
+
   } catch (error: any) {
-    return NextResponse.json({ error: 'Erro ao processar estratégia.' }, { status: 500 });
+    console.error('[IA CMO] Erro Crítico:', error);
+    return NextResponse.json({ error: error.message || 'Falha no processamento da IA.' }, { status: 500 });
   }
 }

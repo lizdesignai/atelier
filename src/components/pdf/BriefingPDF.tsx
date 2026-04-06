@@ -3,10 +3,9 @@ import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
 
 // 1. REGISTO DE FONTES DE LUXO
-// O react-pdf precisa saber onde buscar as fontes para as injetar no arquivo final.
 Font.register({
   family: 'Elegant',
-  src: '/fonts/Elegant-Regular.ttf', // Certifique-se que o arquivo existe na pasta public/fonts/
+  src: '/fonts/Elegant-Regular.ttf', 
 });
 
 Font.register({
@@ -21,9 +20,9 @@ Font.register({
 // 2. FOLHA DE ESTILOS EDITORIAL (A Estética de Revista)
 const styles = StyleSheet.create({
   page: {
-    backgroundColor: '#fbf4e4', // Creme do Atelier
+    backgroundColor: '#fbf4e4', 
     padding: 60,
-    paddingBottom: 80, // Espaço para o rodapé
+    paddingBottom: 80, 
     fontFamily: 'Roboto',
   },
   // --- CAPA ---
@@ -52,7 +51,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 4,
-    color: '#ad6f40', // Terracota
+    color: '#ad6f40', 
     fontWeight: 700,
     textAlign: 'center',
   },
@@ -73,7 +72,7 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(122,116,112,0.2)',
     paddingBottom: 20,
-    marginBottom: 40,
+    marginBottom: 30,
   },
   headerTitle: {
     fontFamily: 'Elegant',
@@ -82,6 +81,7 @@ const styles = StyleSheet.create({
   },
   
   // --- INSIGHTS DA IA ---
+  // Removido o wrap={false} no componente pai para permitir paginação natural
   aiBox: {
     backgroundColor: '#ffffff',
     padding: 30,
@@ -112,6 +112,7 @@ const styles = StyleSheet.create({
     lineHeight: 1.6,
     color: '#4a4a4a',
     marginBottom: 10,
+    textAlign: 'justify',
   },
   aiBullet: {
     fontSize: 11,
@@ -122,9 +123,19 @@ const styles = StyleSheet.create({
   },
 
   // --- DADOS DO CLIENTE ---
+  sectionTitle: {
+    fontFamily: 'Elegant',
+    fontSize: 22,
+    color: '#1a1a1a',
+    marginTop: 10,
+    marginBottom: 20,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(122,116,112,0.1)',
+  },
   qaContainer: {
-    marginBottom: 24,
-    wrap: false, // IMPEDE CORTES! Não quebra a meio da caixa
+    marginBottom: 20,
+    // As perguntas continuam com wrap=false para não cortar uma pergunta a meio
   },
   question: {
     fontSize: 9,
@@ -132,7 +143,7 @@ const styles = StyleSheet.create({
     letterSpacing: 2,
     color: '#ad6f40',
     fontWeight: 700,
-    marginBottom: 8,
+    marginBottom: 6,
   },
   answer: {
     fontSize: 12,
@@ -140,8 +151,8 @@ const styles = StyleSheet.create({
     color: '#1a1a1a',
   },
   imageRef: {
-    marginTop: 15,
-    maxWidth: 300,
+    marginTop: 10,
+    maxWidth: 250,
     borderRadius: 8,
   },
 
@@ -179,9 +190,8 @@ export default function BriefingPDF({ clientBriefing, projectName, aiInsight }: 
     const lines = text.split('\n');
     return lines.map((line, index) => {
       const cleanLine = line.trim();
-      if (!cleanLine) return null;
+      if (!cleanLine) return null; // Filtro de linhas vazias
       
-      // Limpa os asteriscos do negrito para não sujar a leitura
       let textContent = cleanLine.replace(/\*\*/g, '');
 
       if (cleanLine.startsWith('###')) {
@@ -196,49 +206,94 @@ export default function BriefingPDF({ clientBriefing, projectName, aiInsight }: 
 
   const currentDate = new Date().toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
 
+  // Dicionário Limpo para o PDF ficar executivo e não parecer código de banco de dados
+  const DICTIONARY: Record<string, string> = {
+    nome: "Nome do Responsável",
+    whatsapp: "WhatsApp",
+    email: "E-mail de Contato",
+    nome_logo: "Nome a ser utilizado no Logotipo",
+    significado_nome: "Significado da Escolha do Nome",
+    tagline: "Tagline (Subtítulo)",
+    slogan: "Slogan da Empresa",
+    produtos_servicos: "Produtos ou Serviços Oferecidos",
+    motivo_abertura: "Por que a empresa foi aberta?",
+    proposito: "Propósito principal além de lucrar",
+    tempo_mercado: "Tempo de Mercado",
+    emoji: "A Marca em Emojis",
+    musica: "Música que a define",
+    sentimento: "O Sentimento que a marca vende",
+    visao_5_anos: "Visão de Futuro (Em 5 Anos)",
+    genero: "Gênero do Público",
+    classe: "Classe Social Predominante",
+    idade: "Faixa Etária",
+    resumo_publico: "Resumo Comportamental do Público",
+    concorrentes_links: "Concorrentes Principais",
+    diferencial: "Diferencial Competitivo",
+    nao_fazer: "O que definitivamente NÃO fazer",
+    referencias: "Referências Visuais do Cliente",
+    sentimento_marca: "Sentimento Exigido da Marca",
+    missao: "A Missão Oficial",
+    adjetivos_positivos: "Adjetivos Positivos (A Marca É)",
+    top_3_adjetivos: "Top 3 Adjetivos",
+    adjetivos_negativos: "Adjetivos Negativos (A Marca NÃO É)",
+    simbolo: "Pedido de Símbolo Específico",
+    cor_desejada: "Cores Desejadas",
+    cor_nao_desejada: "Cores Bloqueadas (Não usar)",
+    onde_verao: "Onde a Identidade será mais aplicada?",
+    logo_atual: "Sobre o Logotipo Atual",
+    motivo_escolha: "Por que escolheu o Atelier?",
+    ideias_livres: "Ideias Livres e Extensões"
+  };
+
   return (
     <Document>
       {/* PÁGINA 1: CAPA EDITORIAL */}
       <Page size="A4" style={styles.coverPage}>
-        {/* Utilize o caminho completo da sua logo se houver erro ao carregar localmente */}
         <Image src="/images/simbolo-rosa.png" style={styles.coverLogo} />
         <Text style={styles.coverTitle}>Dossiê Estratégico</Text>
         <Text style={styles.coverSubtitle}>{projectName}</Text>
         <Text style={styles.coverDate}>{currentDate} • Atelier Liz Design</Text>
       </Page>
 
-      {/* PÁGINA 2 em diante: CONTEÚDO (Com paginação inteligente) */}
+      {/* PÁGINA 2 em diante: CONTEÚDO */}
       <Page size="A4" style={styles.page}>
         <View style={styles.header} fixed>
-          <Text style={styles.headerTitle}>Fundamentação</Text>
+          <Text style={styles.headerTitle}>Fundamentação Estratégica</Text>
           <Image src="/images/simbolo-rosa.png" style={{ width: 24, height: 24, opacity: 0.5 }} />
         </View>
 
         {/* CÉREBRO DA IA: DIAGNÓSTICO CBO */}
         {aiInsight && (
-          <View style={styles.aiBox} wrap={false}>
-            <Text style={styles.aiBoxTitle}>Diagnóstico de Marca (CBO)</Text>
+          <View style={styles.aiBox}>
+            <Text style={styles.aiBoxTitle}>Diagnóstico de Marca (CBO AI)</Text>
             {renderAiInsight(aiInsight)}
           </View>
         )}
 
-        <Text style={{ fontFamily: 'Elegant', fontSize: 18, color: '#1a1a1a', marginBottom: 20 }}>
-          Sumário do Cliente
-        </Text>
+        <Text style={styles.sectionTitle}>Resumo Operacional do Cliente</Text>
 
-        {/* MAPEAMENTO DO BRIEFING (Protegido contra cortes por 'wrap={false}') */}
+        {/* MAPEAMENTO DO BRIEFING LIMPO */}
         {Object.entries(clientBriefing).map(([key, val]: any, index) => {
-          if (!val || key === 'logo_atual_url') return null;
+          // Ignora campos sistémicos, URLs de imagem ou valores vazios
+          if (!val || key.includes('url') || key.includes('outro') || key === 'id' || key === 'project_id' || key === 'created_at') return null;
+          
+          const niceLabel = DICTIONARY[key] || key.replace(/_/g, ' ');
+          let displayValue = val;
+
+          // Se for um Array (Ex: Adjetivos Positivos)
+          if (Array.isArray(val)) {
+            displayValue = val.join(', ');
+          }
           
           return (
             <View key={index} style={styles.qaContainer} wrap={false}>
-              <Text style={styles.question}>{key.replace(/_/g, ' ')}</Text>
-              <Text style={styles.answer}>{String(val)}</Text>
+              <Text style={styles.question}>{niceLabel}</Text>
+              <Text style={styles.answer}>{String(displayValue)}</Text>
             </View>
           );
         })}
 
-        {/* IMAGEM DE REFERÊNCIA */}
+        {/* IMAGEM DE REFERÊNCIA (Se existir) */}
         {clientBriefing.logo_atual_url && (
           <View style={[styles.qaContainer, { marginTop: 20 }]} wrap={false}>
             <Text style={styles.question}>Referência Visual (Logotipo Anterior)</Text>
@@ -246,10 +301,10 @@ export default function BriefingPDF({ clientBriefing, projectName, aiInsight }: 
           </View>
         )}
 
-        {/* RODAPÉ (Repetido em todas as páginas automaticamente usando o 'fixed') */}
+        {/* RODAPÉ (Repetido em todas as páginas automaticamente) */}
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>Atelier Liz Design</Text>
-          <Text style={styles.footerText}>Página</Text>
+          <Text style={styles.footerText}>Atelier LizDesign</Text>
+          <Text style={styles.footerText}>Documento Confidencial</Text>
         </View>
       </Page>
     </Document>

@@ -1,105 +1,76 @@
-// src/app/api/insights/curadoria/route.ts
+// src/app/api/insights/briefing/route.ts
 import { NextResponse } from 'next/server';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 
 export async function POST(req: Request) {
   try {
-    // 1. Lemos a chave DENTRO da função para evitar bugs de cache do Next.js (Fast Refresh)
-    const apiKey = process.env.GEMINI_API_KEY_CURADORIA || process.env.GEMINI_API_KEY_BRIEFING || '';
-    
-    if (!apiKey) {
-      console.error("ERRO: Nenhuma chave de API encontrada no ambiente.");
-      return NextResponse.json({ error: 'Chave de API não configurada.' }, { status: 500 });
+    const apiKey = process.env.GEMINI_API_KEY_BRIEFING || process.env.GEMINI_API_KEY || '';
+    if (!apiKey) throw new Error('Chave de API do Gemini não configurada no servidor.');
+
+    const { briefingData, clientName } = await req.json();
+
+    if (!briefingData) {
+      return NextResponse.json({ error: 'O Dossiê do cliente está vazio.' }, { status: 400 });
     }
 
-    const { adminRefs, clientName } = await req.json();
-
-    if (!adminRefs || adminRefs.length === 0) {
-      return NextResponse.json({ error: 'Dados de curadoria não fornecidos.' }, { status: 400 });
-    }
-
-    // Preparação dos dados
-    const formattedFeedback = adminRefs.map((ref: any) => `
-      Direção Visual: ${ref.title}
-      Nota do Cliente: ${ref.score}/10
-      Feedback Atmosfera: ${ref.feedback?.q1 || 'Sem comentário'}
-      Feedback Tipografia: ${ref.feedback?.q2 || 'Sem comentário'}
-      Feedback Cores: ${ref.feedback?.q3 || 'Sem comentário'}
-      Feedback Elementos: ${ref.feedback?.q4 || 'Sem comentário'}
-    `).join('\n\n');
-
-    // O CÉREBRO (CCO STANDARD)
-    const systemPrompt = `
-      Você é um Chief Creative Officer (CCO) e Especialista em Semiótica Visual de marcas de alto luxo.
-      Analise as avaliações do cliente sobre as "Direções Visuais" (Moodboards) apresentadas.
-
-      Cliente: ${clientName}
-      Rotas Visuais e Feedbacks: 
-      ${formattedFeedback}
-
-      ESTRUTURA OBRIGATÓRIA DO RELATÓRIO (Em Markdown impecável):
-      ### 1. A Decodificação Semiótica (O Código Oculto)
-      Qual o "DNA Visual" que o cliente procura com base nas maiores notas?
-
-      ### 2. Psicologia da Estética Aprovada
-      Cromatologia e princípios da Gestalt aplicáveis.
-
-      ### 3. O Fosso Estético (Luxo & Exclusividade)
-      Como justificar um ticket premium com estas escolhas.
-
-      ### 4. O Veredito de Direção de Arte
-      3 a 4 regras visuais inegociáveis para a equipa seguir.
-
-      REGRAS: Tom de autoridade, direto, sem introduções de IA.
-    `;
-
-    // 2. O BYPASS SENIOR: Configuração da chamada nativa (REST)
-    const payload = {
-      contents: [{ role: "user", parts: [{ text: systemPrompt }] }],
+    // 1. Instanciação do SDK com o Modelo Moderno
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const model = genAI.getGenerativeModel({ 
+      model: 'gemini-2.5-flash',
       generationConfig: {
-        temperature: 0.65,
-        topP: 0.9,
-        maxOutputTokens: 8192,
+        temperature: 0.7, // Mantido 0.7 conforme o seu original para criatividade de Marketing
+        responseMimeType: "application/json", 
       }
-    };
-
-    // 3. A MATRIZ DE FALLBACK (Tenta o PRO, se falhar, tenta o FLASH)
-    const baseUrl = "https://generativelanguage.googleapis.com/v1beta/models";
-    
-    console.log("A invocar API do Google (Tentativa 1: PRO)...");
-    let response = await fetch(`${baseUrl}/gemini-1.5-pro:generateContent?key=${apiKey}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
     });
 
-    if (response.status === 404) {
-      console.warn("⚠️ Modelo PRO bloqueado ou não encontrado. A acionar fallback para o FLASH...");
-      response = await fetch(`${baseUrl}/gemini-1.5-flash:generateContent?key=${apiKey}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-    }
+    // 2. Prompt Original Fundido com o Schema JSON
+    const systemPrompt = `
+      Você é um Chief Marketing Officer (CMO) e Estrategista de Growth de alto nível.
+      Analise o "Dossiê de Mercado" do cliente e forje uma "Estratégia de Dominação Digital".
 
-    const data = await response.json();
+      Cliente: ${clientName}
+      Respostas do Dossiê: ${JSON.stringify(briefingData)}
 
-    // 4. INTERCEPTAÇÃO DE ERRO REAL DA GOOGLE
-    if (!response.ok) {
-      console.error("🔥 ERRO FATAL DA GOOGLE (SEM FILTROS):", JSON.stringify(data, null, 2));
-      throw new Error(data.error?.message || "Ocorreu um erro nos servidores da Google.");
-    }
+      REGRAS DE TOM E ESTILO:
+      - Tom executivo, sofisticado, direto ao ponto. 
+      - Sem introduções genéricas ou jargões de IA.
 
-    // 5. Extração segura da resposta
-    const aiInsight = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    
-    if (!aiInsight) {
-      throw new Error("A API da Google não devolveu nenhum texto válido.");
-    }
+      Retorne UMA ESTRUTURA JSON EXATA (sem blocos de código markdown \`\`\`json, apenas o objeto puro):
+      {
+        "posicionamento": "Descreva como transformar o 'Produto Âncora' em um objeto de desejo e como atacar o 'Inimigo Comum' de forma elegante.",
+        "funil": "Mapeie o que postar no Topo, Meio e Fundo de Funil baseado na Regra de Pareto citada pelo cliente (Atelier Method).",
+        "copywriting": [
+          "Regra 1 de escrita e tom de voz para gerar autoridade imediata.",
+          "Regra 2 de escrita e tom de voz para gerar autoridade imediata.",
+          "Regra 3 de escrita e tom de voz para gerar autoridade imediata."
+        ],
+        "roadmap": "Plano tático para atingir o 'Ponto de Chegada' (Objetivo Principal) em 6 meses, com métricas de sucesso claras."
+      }
+    `;
 
-    return NextResponse.json({ insight: aiInsight });
+    console.log(`[IA CMO] A invocar gemini-2.5-flash (Modo JSON) para: ${clientName}...`);
+    const result = await model.generateContent(systemPrompt);
+    const responseText = result.response.text();
+
+    // 3. Adapter Pattern: Parse do JSON e conversão para o Markdown que o Frontend espera
+    const aiData = JSON.parse(responseText);
+
+    const finalMarkdown = `### 1. Posicionamento de Elite e Brand Equity
+${aiData.posicionamento}
+
+### 2. Funil de Conteúdo e Conversão (Atelier Method)
+${aiData.funil}
+
+### 3. Engenharia de Copywriting e Tom de Voz
+${aiData.copywriting.map((regra: string) => `- ${regra}`).join('\n')}
+
+### 4. Roadmap de 6 Meses (O Endgame)
+${aiData.roadmap}`;
+
+    return NextResponse.json({ insight: finalMarkdown });
 
   } catch (error: any) {
-    console.error('Erro Crítico na geração de IA (Curadoria):', error);
-    return NextResponse.json({ error: error.message || 'Falha ao processar os insights.' }, { status: 500 });
+    console.error('[IA CMO] Erro Crítico:', error);
+    return NextResponse.json({ error: error.message || 'Falha no processamento da IA.' }, { status: 500 });
   }
 }
