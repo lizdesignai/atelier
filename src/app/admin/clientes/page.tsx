@@ -11,6 +11,7 @@ import {
   DollarSign, Briefcase, CreditCard, RotateCcw, Percent, Sparkles
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
+import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -72,10 +73,13 @@ export default function BaseClientesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all"); 
 
-  // Estados do Supabase
-  const [dbProjects, setDbProjects] = useState<any[]>([]);
+  // 🧠 CONSUMO DIRETO DA MEMÓRIA GLOBAL (Substitui a query lenta de projetos)
+  const { activeProjects, isGlobalLoading, refreshGlobalData } = useGlobalStore();
+
+  // Estados Locais Modificados
+  const [enrichedProjects, setEnrichedProjects] = useState<any[]>([]);
   const [availableClients, setAvailableClients] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLocalLoading, setIsLocalLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Estados dos Modais e Menus
@@ -106,52 +110,44 @@ export default function BaseClientesPage() {
   const [isEditing, setIsEditing] = useState(false);
 
   // ==========================================
-  // BUSCAR PROJETOS E CLIENTES (READ)
+  // BUSCAR DADOS PARALELOS (READ)
   // ==========================================
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      const { data: projectsData, error: projectsError } = await supabase
-        .from('projects')
-        .select('*, profiles(nome, empresa, email, avatar_url)')
-        .order('created_at', { ascending: false });
-
-      if (projectsError) throw projectsError;
-      
-      // Busca as tasks para calcular o progresso real (Matemática Preditiva)
-      const { data: tasksData } = await supabase.from('tasks').select('project_id, status');
-
-      if (projectsData) {
-        const enrichedProjects = projectsData.map(p => {
-          const pTasks = tasksData?.filter(t => t.project_id === p.id) || [];
-          const totalTasks = pTasks.length;
-          const completedTasks = pTasks.filter(t => t.status === 'completed').length;
-          const progress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
-
-          return { ...p, calculatedProgress: progress };
-        });
-        setDbProjects(enrichedProjects);
-      }
-
-      const { data: clientsData, error: clientsError } = await supabase
-        .from('profiles')
-        .select('id, nome, email')
-        .eq('role', 'client');
-
-      if (clientsError) throw clientsError;
-      if (clientsData) setAvailableClients(clientsData);
-
-    } catch (error) {
-      console.error("Erro ao buscar dados:", error);
-      showToast("Erro ao conectar com a base de dados.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (isGlobalLoading) return;
+
+    const fetchLocalData = async () => {
+      setIsLocalLoading(true);
+      try {
+        // Disparamos as tarefas e a lista de clientes em paralelo
+        const [ { data: tasksData }, { data: clientsData } ] = await Promise.all([
+          supabase.from('tasks').select('project_id, status'),
+          supabase.from('profiles').select('id, nome, email').eq('role', 'client')
+        ]);
+
+        if (clientsData) setAvailableClients(clientsData);
+
+        // Enriquece os projetos já vindos da Memória RAM
+        if (activeProjects) {
+          const enriched = activeProjects.map(p => {
+            const pTasks = tasksData?.filter(t => t.project_id === p.id) || [];
+            const totalTasks = pTasks.length;
+            const completedTasks = pTasks.filter(t => t.status === 'completed').length;
+            const progress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
+
+            return { ...p, calculatedProgress: progress };
+          });
+          setEnrichedProjects(enriched);
+        }
+
+      } catch (error) {
+        console.error("Erro local ao buscar dados do CRM:", error);
+      } finally {
+        setIsLocalLoading(false);
+      }
+    };
+
+    fetchLocalData();
+  }, [isGlobalLoading, activeProjects]);
 
   // Lógica dinâmica para sub-pacotes
   useEffect(() => {
@@ -180,7 +176,6 @@ export default function BaseClientesPage() {
       const { data: { session } } = await supabase.auth.getSession();
 
       // 1. CRIA O PROJETO (Contrato)
-      // Ajuste Cirúrgico: Remoção do "instagram_package" e uso da coluna "type"
       const projectPayload = {
         client_id: selectedClientId,
         service_type: serviceType,
@@ -209,7 +204,6 @@ export default function BaseClientesPage() {
       }
 
       const baseDate = billingDate ? new Date(billingDate) : new Date();
-      // O ciclo inicia 30 dias ANTES da próxima data de faturação se for IG mensal, mas assumimos hoje como D+0 para simplificar a criação.
       const today = new Date();
 
       const tasksToInsert = pipeline.map((t) => {
@@ -240,7 +234,9 @@ export default function BaseClientesPage() {
       setSelectedClientId("");
       setFinancialValue("");
       setBillingDate("");
-      fetchData();
+      
+      // 🧠 Aciona a atualização da Memória Global em vez do fetch antigo
+      refreshGlobalData();
     } catch (error) {
       console.error("Erro ao criar:", error);
       showToast("Erro ao criar projeto. Verifique as tabelas do banco.");
@@ -270,7 +266,7 @@ export default function BaseClientesPage() {
       if (!confirm) return;
       const { error } = await supabase.from('projects').update({ status: 'archived' }).eq('id', project.id);
       if (error) showToast("Erro ao suspender projeto.");
-      else { showToast("Projeto suspenso com sucesso."); fetchData(); }
+      else { showToast("Projeto suspenso com sucesso."); refreshGlobalData(); }
       return;
     }
 
@@ -279,7 +275,7 @@ export default function BaseClientesPage() {
       if (!confirm) return;
       const { error } = await supabase.from('projects').update({ status: 'active' }).eq('id', project.id);
       if (error) showToast("Erro ao reativar projeto.");
-      else { showToast("Projeto reativado com sucesso."); fetchData(); }
+      else { showToast("Projeto reativado com sucesso."); refreshGlobalData(); }
       return;
     }
 
@@ -288,7 +284,7 @@ export default function BaseClientesPage() {
       if (!confirm) return;
       const { error } = await supabase.from('projects').delete().eq('id', project.id);
       if (error) showToast("Erro ao apagar contrato.");
-      else { showToast("Contrato apagado permanentemente."); fetchData(); }
+      else { showToast("Contrato apagado permanentemente."); refreshGlobalData(); }
       return;
     }
   };
@@ -311,7 +307,7 @@ export default function BaseClientesPage() {
       
       showToast("Dados contratuais atualizados com sucesso!");
       setIsEditModalOpen(false);
-      fetchData();
+      refreshGlobalData();
     } catch (error) {
       showToast("Erro ao atualizar o projeto.");
     } finally {
@@ -319,9 +315,8 @@ export default function BaseClientesPage() {
     }
   };
 
-
-  // Filtragem local
-  const filteredClients = dbProjects.filter(project => {
+  // Filtragem local otimizada
+  const filteredClients = enrichedProjects.filter(project => {
     const nome = project.profiles?.nome || "";
     const empresa = project.profiles?.empresa || "";
     
@@ -406,7 +401,8 @@ export default function BaseClientesPage() {
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-2 relative">
-          {isLoading ? (
+          {/* Validação de Carregamento Duplo (RAM + Local) */}
+          {isGlobalLoading || isLocalLoading ? (
             <div className="absolute inset-0 flex items-center justify-center">
               <Loader2 className="animate-spin text-[var(--color-atelier-terracota)]" size={32} />
             </div>
@@ -534,7 +530,7 @@ export default function BaseClientesPage() {
                     <button 
                       onClick={(e) => {
                         e.stopPropagation();
-                        router.push('/admin/analytics');
+                        router.push('/admin/projetos');
                       }}
                       className="bg-transparent border border-[var(--color-atelier-terracota)]/30 text-[var(--color-atelier-terracota)] px-5 py-2.5 rounded-xl font-roboto font-bold uppercase tracking-widest text-[10px] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm flex items-center gap-2 group-hover:border-transparent"
                     >

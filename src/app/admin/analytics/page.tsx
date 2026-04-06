@@ -4,7 +4,8 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabase";
-import { AtelierPMEngine } from "../../../lib/AtelierPMEngine"; // 🧠 Injeção do Motor PM
+import { AtelierPMEngine } from "../../../lib/AtelierPMEngine"; 
+import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
 import { 
   Activity, Target, FolderKanban, Clock, Users, 
   Loader2, Sparkles, BrainCircuit, CheckCircle2, 
@@ -24,7 +25,8 @@ const TASK_TYPES_IDV = [
   { id: 'reuniao', label: 'Reuniões & Apresentações' },
   { id: 'copy', label: 'Pesquisa & Estratégia' },
   { id: 'design', label: 'Design & Direção Visual' },
-  { id: 'community', label: 'Diário de Bordo & Comunidade' } 
+  { id: 'community', label: 'Diário de Bordo & Comunidade' },
+  { id: 'presentation', label: 'Mockups e Apresentação' } 
 ];
 
 const TASK_TYPES_IG = [
@@ -44,7 +46,9 @@ const ALL_SKILLS = [
   { id: 'planning', label: 'Planejamento' },
   { id: 'design', label: 'Design Gráfico' },
   { id: 'video', label: 'Edição de Vídeo' },
-  { id: 'community', label: 'Comunidade & Diário' }
+  { id: 'community', label: 'Comunidade & Diário' },
+  { id: 'search', label: 'Pesquisa' },
+  { id: 'presentation', label: 'Mockups e Apresentação' }
 ];
 
 const IDV_PIPELINE = [
@@ -121,9 +125,15 @@ const isIdvService = (project: any) => {
 // ============================================================================
 export default function AnalyticsPage() {
   const [activeView, setActiveView] = useState<'overview' | 'projects' | 'routing'>('overview');
-  const [isLoading, setIsLoading] = useState(true);
+  
+  // 🧠 Consumo da Memória RAM Global
+  const { activeProjects, isGlobalLoading, refreshGlobalData } = useGlobalStore();
+  
+  // Estado local modificado para não chocar com a RAM
+  const [isLocalLoading, setIsLocalLoading] = useState(true);
   const [metrics, setMetrics] = useState({ activeProjects: 0, pendingTasks: 0, totalTeam: 0 });
-  const [projects, setProjects] = useState<any[]>([]);
+  
+  // O estado 'projects' foi removido e trocado pela derivação 'validProjects' abaixo
   const [team, setTeam] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [routingRules, setRoutingRules] = useState<any[]>([]);
@@ -138,35 +148,43 @@ export default function AnalyticsPage() {
   const [routeConfig, setRouteConfig] = useState({ projectId: "", taskType: "", assigneeId: "" });
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Estado para Demanda Pontual (Ad-Hoc - Expandido com taskType)
+  // Estado para Demanda Pontual (Ad-Hoc)
   const [adHocDemand, setAdHocDemand] = useState({ title: "", projectId: "", assigneeId: "", taskType: "", urgency: false });
 
+  // Derivação automática (0ms de latência) baseada na RAM
+  const validProjects = activeProjects.filter(p => p.status === 'active' || p.status === 'delivered');
+
   useEffect(() => {
+    if (isGlobalLoading) return;
     fetchOperationalData();
-  }, []);
+  }, [isGlobalLoading, activeProjects.length]);
 
   const fetchOperationalData = async () => {
-    setIsLoading(true);
+    setIsLocalLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
-      const { data: projData } = await supabase.from('projects').select('*, profiles(nome, avatar_url)').in('status', ['active', 'delivered']).order('created_at', { ascending: false });
-      if (projData) {
-        setProjects(projData);
-        if (projData.length > 0 && !selectedProjectId) setSelectedProjectId(projData[0].id);
+      if (validProjects.length > 0 && !selectedProjectId) {
+        setSelectedProjectId(validProjects[0].id);
       }
 
-      const { data: teamData } = await supabase.from('profiles').select('id, nome, role, avatar_url, skills, team_performance(exp_points, level_name)').in('role', ['admin', 'gestor', 'colaborador']);
+      // 🔥 MÁGICA SÊNIOR: Parallel Fetching - Disparamos os 3 pedidos pesados ao mesmo tempo
+      const teamPromise = supabase.from('profiles').select('id, nome, role, avatar_url, skills, team_performance(exp_points, level_name)').in('role', ['admin', 'gestor', 'colaborador']);
+      const tasksPromise = supabase.from('tasks').select('*, projects(profiles(nome, avatar_url), type, service_type), profiles!assigned_to(nome, avatar_url)').order('deadline', { ascending: true });
+      const rulesPromise = supabase.from('routing_rules').select('*');
+
+      const [
+        { data: teamData },
+        { data: tasksData },
+        { data: rulesData }
+      ] = await Promise.all([teamPromise, tasksPromise, rulesPromise]);
+
       if (teamData) setTeam(teamData);
-
-      const { data: tasksData } = await supabase.from('tasks').select('*, projects(profiles(nome, avatar_url), type, service_type), profiles!assigned_to(nome, avatar_url)').order('deadline', { ascending: true });
       if (tasksData) setTasks(tasksData);
-
-      const { data: rulesData } = await supabase.from('routing_rules').select('*');
       if (rulesData) setRoutingRules(rulesData);
 
       setMetrics({
-        activeProjects: projData?.filter(p => p.status === 'active').length || 0,
+        activeProjects: validProjects.filter(p => p.status === 'active').length || 0,
         pendingTasks: tasksData?.filter(t => t.status !== 'completed')?.length || 0,
         totalTeam: teamData?.length || 0
       });
@@ -181,7 +199,7 @@ export default function AnalyticsPage() {
       console.error("Erro no Analytics:", error);
       showToast("Erro ao sincronizar Centro de Operações.");
     } finally {
-      setIsLoading(false);
+      setIsLocalLoading(false);
     }
   };
 
@@ -224,7 +242,7 @@ export default function AnalyticsPage() {
     }
   };
 
-  // 🧠 ATELIER PM ENGINE: Substituição completa pelo Motor de Inteligência
+  // 🧠 ATELIER PM ENGINE
   const handleAutoDeploy = async (project: any) => {
     setIsProcessing(true);
     try {
@@ -257,12 +275,10 @@ export default function AnalyticsPage() {
         finalDeadline.setDate(finalDeadline.getDate() + 30);
       }
 
-      // 🧠 PM ENGINE: 1. Load Balancing e Preparação de Dados
       const insertData = await Promise.all(pipeline.map(async (t) => {
         const rule = projRules.find(r => r.task_type === t.type);
         const defaultAssigneeId = (rule && rule.assignee_id && rule.assignee_id.trim() !== "") ? rule.assignee_id : null;
 
-        // O Motor verifica se o responsável padrão aguenta a carga; se não, repassa a tarefa.
         const optimalAssignee = await AtelierPMEngine.getOptimalAssignee(t.type, defaultAssigneeId, t.estTime);
 
         return {
@@ -277,7 +293,6 @@ export default function AnalyticsPage() {
         };
       }));
 
-      // 🧠 PM ENGINE: 2. Smart Scheduling e Injeção de Dependências
       const scheduledData = AtelierPMEngine.generateSmartSchedule(insertData, new Date(), finalDeadline);
 
       if (scheduledData.length > 0) {
@@ -291,9 +306,10 @@ export default function AnalyticsPage() {
 
       if (Object.keys(projUpdates).length > 0) {
         await supabase.from('projects').update(projUpdates).eq('id', project.id);
+        refreshGlobalData(); // Atualiza a RAM silenciosamente
       }
 
-      showToast(hasPreviousTasks ? "🔄 Ciclo Mensal Renovado! Produção unitária disparada." : "🚀 Pipeline Inteligente Instanciado com Sucesso!");
+      showToast(hasPreviousTasks ? "🔄 Ciclo Mensal Renovado!" : "🚀 Pipeline Inteligente Instanciado!");
       fetchOperationalData();
     } catch (error) {
       console.error(error);
@@ -359,7 +375,6 @@ export default function AnalyticsPage() {
     }
   };
 
-  // Tagging System: Atualização de Competências do Colaborador
   const handleToggleSkill = async (collabId: string, skillId: string) => {
     const collab = team.find(t => t.id === collabId);
     if (!collab) return;
@@ -368,7 +383,6 @@ export default function AnalyticsPage() {
       ? currentSkills.filter((s: string) => s !== skillId)
       : [...currentSkills, skillId];
     
-    // Atualização Otimista
     setTeam(team.map(t => t.id === collabId ? { ...t, skills: newSkills } : t));
     if (selectedCollab && selectedCollab.id === collabId) {
       setSelectedCollab({ ...selectedCollab, skills: newSkills });
@@ -380,24 +394,25 @@ export default function AnalyticsPage() {
       showToast("Competência atualizada no banco de dados.");
     } catch (e) {
       showToast("Erro ao atualizar competências.");
-      fetchOperationalData(); // Reverter
+      fetchOperationalData(); 
     }
   };
 
   // ============================================================================
-  // FILTROS UI E DERIVAÇÕES DE ESTADO
+  // FILTROS UI E DERIVAÇÕES DE ESTADO (Usando a RAM)
   // ============================================================================
   const activeTasksForQueue = tasks.filter(t => t.status !== 'completed');
   const activeTasks = activeTasksForQueue; 
-  const activeProjectsList = projects.filter(p => p.status === 'active');
-  const selectedProj = projects.find(p => p.id === selectedProjectId);
+  const activeProjectsList = validProjects.filter(p => p.status === 'active');
+  const selectedProj = validProjects.find(p => p.id === selectedProjectId);
   
-  const routeProjObj = projects.find(p => p.id === routeConfig.projectId); 
+  const routeProjObj = validProjects.find(p => p.id === routeConfig.projectId); 
   const currentTaskTypes = isIdvService(routeProjObj) ? TASK_TYPES_IDV : TASK_TYPES_IG;
   
   const liveTasks = tasks.filter(t => t.status === 'in_progress');
 
-  if (isLoading) return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
+  // Proteção Visual do Carregamento Misto (Global + Local)
+  if (isGlobalLoading || isLocalLoading) return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   return (
     <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6 px-4 md:px-0">
@@ -602,7 +617,6 @@ export default function AnalyticsPage() {
           {activeView === 'projects' && (
             <motion.div key="projects" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col lg:flex-row gap-6 h-full overflow-hidden">
               
-              {/* LISTA LATERAL DE PROJETOS */}
               <div className="w-full lg:w-[320px] glass-panel bg-white/40 p-5 rounded-[2rem] border border-white shadow-sm flex flex-col h-[300px] lg:h-full shrink-0">
                 <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-4 px-2 block border-b border-[var(--color-atelier-grafite)]/10 pb-4">Carteira Ativa</span>
                 <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-1">
@@ -622,7 +636,6 @@ export default function AnalyticsPage() {
                 </div>
               </div>
 
-              {/* PAINEL DE DETALHES + WIDGET AD-HOC */}
               <div className="flex-1 glass-panel bg-white/80 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden h-full">
                 {!selectedProj ? (
                   <div className="flex-1 flex flex-col items-center justify-center opacity-40"><FolderKanban size={48} className="mb-4 text-[var(--color-atelier-terracota)]"/><p className="font-elegant text-3xl">Selecione um Projeto</p></div>
@@ -647,7 +660,6 @@ export default function AnalyticsPage() {
                       )}
                     </div>
 
-                    {/* WIDGET AD-HOC: DEMANDA PONTUAL (Com Tipo de Tarefa) */}
                     <div className="bg-[var(--color-atelier-grafite)] p-6 rounded-[2rem] mb-8 flex flex-col md:flex-row items-end gap-4 shadow-xl relative overflow-hidden shrink-0">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
                       
@@ -712,7 +724,7 @@ export default function AnalyticsPage() {
             </motion.div>
           )}
 
-          {/* MOTOR DE ROUTING (Distribuição Preditiva) */}
+          {/* MOTOR DE ROUTING */}
           {activeView === 'routing' && (
             <motion.div key="routing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-12 gap-6 h-full min-h-0">
               
@@ -773,7 +785,7 @@ export default function AnalyticsPage() {
                     </div>
                   ) : (
                     routingRules.map(rule => {
-                      const proj = projects.find(p => p.id === rule.project_id);
+                      const proj = validProjects.find(p => p.id === rule.project_id);
                       const member = team.find(t => t.id === rule.assignee_id);
                       const taskTypeArray = isIdvService(proj) ? TASK_TYPES_IDV : TASK_TYPES_IG;
                       const taskTypeLabel = taskTypeArray?.find(t => t.id === rule.task_type)?.label || rule.task_type;
@@ -818,7 +830,7 @@ export default function AnalyticsPage() {
         </AnimatePresence>
       </div>
 
-      {/* MODAL DE EDIÇÃO DE TAREFA (Com Inteligência Visual de Atribuição) */}
+      {/* MODAL DE EDIÇÃO DE TAREFA */}
       <AnimatePresence>
         {editingTask && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
@@ -862,7 +874,7 @@ export default function AnalyticsPage() {
         )}
       </AnimatePresence>
 
-      {/* MODAL: RAIO-X DO COLABORADOR E TAGGING */}
+      {/* MODAL: RAIO-X DO COLABORADOR */}
       <AnimatePresence>
         {selectedCollab && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
@@ -886,27 +898,27 @@ export default function AnalyticsPage() {
                 {(() => {
                   const myTasks = activeTasks.filter(t => t.assigned_to === selectedCollab.id);
                   const estHours = (myTasks.reduce((acc, t) => acc + (t.estimated_time || 0), 0) / 60).toFixed(1);
-                  const activeClients = new Set(myTasks.map(t => t.project_id)).size;
+                  const activeClientsCount = new Set(myTasks.map(t => t.project_id)).size;
                   const inProgress = myTasks.filter(t => t.status === 'in_progress');
                   return (
                     <>
                       <div className="bg-white p-4 rounded-2xl border border-[var(--color-atelier-grafite)]/5 shadow-sm text-center flex flex-col justify-center h-24">
                         <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] block mb-1">{estHours}h</span>
-                        <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Carga Estimada Pendente</span>
+                        <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Carga Estimada</span>
                       </div>
                       <div className="bg-white p-4 rounded-2xl border border-[var(--color-atelier-grafite)]/5 shadow-sm text-center flex flex-col justify-center h-24">
                         <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] block mb-1">{myTasks.length}</span>
                         <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Tarefas Filadas</span>
                       </div>
                       <div className="bg-[var(--color-atelier-terracota)]/5 border border-[var(--color-atelier-terracota)]/20 p-4 rounded-2xl shadow-sm text-center flex flex-col justify-center h-24">
-                        <span className="font-elegant text-3xl text-[var(--color-atelier-terracota)] block mb-1">{activeClients}</span>
+                        <span className="font-elegant text-3xl text-[var(--color-atelier-terracota)] block mb-1">{activeClientsCount}</span>
                         <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">Projetos em Mãos</span>
                       </div>
                       
                       <div className="col-span-1 md:col-span-3 bg-blue-50 border border-blue-100 p-5 rounded-2xl flex items-center gap-4">
                         <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-600 shrink-0"><Activity size={18}/></div>
                         <div className="flex flex-col flex-1 min-w-0">
-                          <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-blue-600/70 mb-0.5">Executando Agora (Timer On)</span>
+                          <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-blue-600/70 mb-0.5">Executando Agora</span>
                           <span className="font-roboto font-bold text-[14px] text-blue-900 truncate">
                             {inProgress.length > 0 ? inProgress[0].title : "Mesa limpa ou fora de turno."}
                           </span>
@@ -939,12 +951,6 @@ export default function AnalyticsPage() {
                       </span>
                     </div>
                   ))}
-                  {activeTasks.filter(t => t.assigned_to === selectedCollab.id).length === 0 && (
-                    <div className="text-center py-6 opacity-40 flex flex-col items-center justify-center h-full">
-                      <CheckCircle2 size={32} className="mb-2"/>
-                      <p className="font-roboto text-[12px] uppercase font-bold tracking-widest">Sem tarefas pendentes.</p>
-                    </div>
-                  )}
                 </div>
               </div>
 

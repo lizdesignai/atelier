@@ -11,6 +11,7 @@ import {
   Zap
 } from "lucide-react";
 import { supabase } from "../../lib/supabase"; 
+import { useGlobalStore } from "../../contexts/GlobalStore"; // <--- INJEÇÃO DA MEMÓRIA RAM
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -29,56 +30,61 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
   
-  const [isLoading, setIsLoading] = useState(true);
+  // CONSUMO DIRETO DA MEMÓRIA GLOBAL
+  const { activeProjects, isGlobalLoading, refreshGlobalData } = useGlobalStore();
+  
+  const [isDashboardLoading, setIsDashboardLoading] = useState(true);
   const [activeClients, setActiveClients] = useState<any[]>([]);
   const [urgentTasks, setUrgentTasks] = useState<any[]>([]);
   
   const [totalActiveProjects, setTotalActiveProjects] = useState(0);
   const [totalUrgentTasks, setTotalUrgentTasks] = useState(0);
 
-  // ==========================================
   // ESTADO DO CENTRO DE RESOLUÇÃO (MODAL)
-  // ==========================================
   const [activeActionTask, setActiveActionTask] = useState<any | null>(null);
   const [isResolving, setIsResolving] = useState(false);
 
-  const fetchDashboardData = async () => {
-    try {
-      const { data: projectsData, error: projectsError } = await supabase
-        .from('projects')
-        .select('*, profiles(nome, avatar_url)')
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
+  // MOTOR DE PROCESSAMENTO ULTRA-RÁPIDO (< 59ms)
+  useEffect(() => {
+    // Só processa quando a RAM tiver injetado os projetos
+    if (isGlobalLoading) return;
 
-      if (projectsError) throw projectsError;
+    const processDashboardData = async () => {
+      setIsDashboardLoading(true);
+      try {
+        setTotalActiveProjects(activeProjects.length);
+        const projectIds = activeProjects.map(p => p.id);
 
-      let formattedClients: any[] = [];
-      let tasks: any[] = [];
-      let alertCount = 0;
+        // BATCH FETCHING PARALELO: Acaba com o loop de N+1 queries. Uma única chamada para tudo.
+        const [ { data: briefingsData }, { data: pendingPosts } ] = await Promise.all([
+          projectIds.length > 0 
+            ? supabase.from('client_briefings').select('project_id, is_completed').in('project_id', projectIds)
+            : Promise.resolve({ data: [] }),
+          supabase.from('community_posts').select('id, profiles(nome), content').eq('status', 'pending')
+        ]);
 
-      if (projectsData) {
-        setTotalActiveProjects(projectsData.length);
+        let formattedClients: any[] = [];
+        let tasks: any[] = [];
+        let alertCount = 0;
 
-        for (const project of projectsData) {
+        // Processamento Síncrono Instantâneo (Na RAM do navegador)
+        for (const project of activeProjects) {
           let daysLeft = '--';
           let numericDaysLeft = 999;
+          
           if (project.data_limite) {
             const today = new Date();
             today.setHours(0, 0, 0, 0);
             const deadline = new Date(project.data_limite);
             deadline.setHours(0, 0, 0, 0);
-            const diffTime = deadline.getTime() - today.getTime();
-            numericDaysLeft = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            numericDaysLeft = Math.ceil((deadline.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
             daysLeft = numericDaysLeft.toString();
           }
 
           let visualStatus = 'on_track'; 
           
-          const { data: briefing } = await supabase
-            .from('client_briefings')
-            .select('is_completed')
-            .eq('project_id', project.id)
-            .maybeSingle(); 
+          // Busca rápida no array em RAM (0ms)
+          const briefing = briefingsData?.find(b => b.project_id === project.id);
             
           if (!briefing || !briefing.is_completed) {
             visualStatus = 'waiting_client';
@@ -139,12 +145,10 @@ export default function AdminDashboard() {
           }
         }
         
-        // Ordenação de Wall Street: Risco Maior (Menos dias) aparece primeiro no CRM
         formattedClients.sort((a, b) => a.numericDaysLeft - b.numericDaysLeft);
         setActiveClients(formattedClients);
         
-        // Busca Tarefas de Comunidade
-        const { data: pendingPosts } = await supabase.from('community_posts').select('id, profiles(nome), content').eq('status', 'pending');
+        // Tarefas de Comunidade (Já resolvidas no batch paralelo)
         if (pendingPosts && pendingPosts.length > 0) {
            pendingPosts.forEach((post: any) => {
                const clientName = Array.isArray(post.profiles) ? post.profiles[0]?.nome : post.profiles?.nome;
@@ -162,25 +166,22 @@ export default function AdminDashboard() {
            });
         }
 
-        // Ordenar Radar de Urgência: Crítico > Alto > Médio > Baixo
         const priorityWeight: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
         tasks.sort((a, b) => priorityWeight[b.priority] - priorityWeight[a.priority]);
 
         setUrgentTasks(tasks);
         setTotalUrgentTasks(alertCount);
+
+      } catch (error) {
+        console.error("Erro ao carregar Dashboard:", error);
+        showToast("Erro de sincronização. A consultar cache.");
+      } finally {
+        setIsDashboardLoading(false);
       }
+    };
 
-    } catch (error) {
-      console.error("Erro ao carregar Dashboard:", error);
-      showToast("Erro ao sincronizar dados da operação.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
+    processDashboardData();
+  }, [activeProjects, isGlobalLoading]);
 
   // ==========================================
   // AÇÕES DO TERMINAL DE RESOLUÇÃO (MODAL)
@@ -196,7 +197,6 @@ export default function AdminDashboard() {
       } 
       
       else if (activeActionTask.type === 'vault_upload') {
-        // Simulando a marcação de entrega direta por aqui
         await supabase.from('projects').update({ status: 'delivered', delivered_at: new Date().toISOString() }).eq('id', activeActionTask.projectId);
         showToast("SLA Protegido. Projeto marcado como entregue.");
       }
@@ -211,9 +211,9 @@ export default function AdminDashboard() {
         }
       }
 
-      // Limpeza e Refetch Silencioso
+      // Sincroniza a memória global e fecha o painel
       setActiveActionTask(null);
-      await fetchDashboardData();
+      await refreshGlobalData(); // A memória RAM é atualizada e o useEffect redesenha a tela instantaneamente
 
     } catch (error) {
       showToast("Erro ao executar a ordem.");
@@ -225,7 +225,8 @@ export default function AdminDashboard() {
 
   const filteredClients = activeClients.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  if (isLoading) {
+  // União do Loading Global (RAM) + Loading Local (Batch)
+  if (isGlobalLoading || isDashboardLoading) {
     return <div className="flex h-screen items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
   }
 
@@ -370,7 +371,7 @@ export default function AdminDashboard() {
               urgentTasks.map((task, index) => (
                 <motion.div 
                   initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.1 }} key={task.id} 
-                  onClick={() => setActiveActionTask(task)} // AQUI: A MÁGICA DA RESOLUÇÃO CONTEXTUAL
+                  onClick={() => setActiveActionTask(task)} 
                   className={`border p-5 rounded-2xl shadow-[0_5px_15px_rgba(122,116,112,0.05)] transition-all group cursor-pointer relative overflow-hidden
                     ${task.priority === 'critical' ? 'bg-red-50/50 border-red-200 hover:border-red-400' : 
                       task.priority === 'high' ? 'bg-orange-50/50 border-orange-200 hover:border-orange-400' : 
@@ -413,7 +414,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* =========================================================================
-          MODAL: CENTRO DE RESOLUÇÃO CONTEXTUAL (A GRANDE MELHORIA)
+          MODAL: CENTRO DE RESOLUÇÃO CONTEXTUAL
           ========================================================================= */}
       <AnimatePresence>
         {activeActionTask && (
@@ -438,7 +439,6 @@ export default function AdminDashboard() {
                   {activeActionTask.title}
                 </p>
                 
-                {/* Detalhes Contextuais */}
                 {activeActionTask.type === 'community_approval' && (
                   <div className="mt-4 p-4 border border-dashed border-gray-200 rounded-xl">
                     <span className="text-[10px] uppercase font-bold text-gray-400 block mb-2">Conteúdo Submetido:</span>

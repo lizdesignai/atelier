@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabase";
 import { useRouter } from "next/navigation";
+import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
 import { 
   DollarSign, TrendingUp, ArrowUpRight, ArrowDownRight, 
   CreditCard, Calendar, CheckCircle2, Clock, Loader2, Wallet,
@@ -20,8 +21,12 @@ const CUSTO_HORA_BRL = 45;
 
 export default function FinanceiroPage() {
   const router = useRouter();
+  
+  // 🧠 CONSUMO IMEDIATO DA MEMÓRIA RAM
+  const { activeProjects, isGlobalLoading, refreshGlobalData } = useGlobalStore();
+  
   const [activeView, setActiveView] = useState<'overview' | 'finance' | 'health'>('overview');
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLocalLoading, setIsLocalLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
   
   // ==========================================
@@ -47,14 +52,11 @@ export default function FinanceiroPage() {
   const [editPackage, setEditPackage] = useState("");
 
   const handleOpenEdit = (projectId?: string) => {
-    // Pode abrir para um cliente específico ou abrir vazio e selecionar no dropdown
     const proj = projectId ? upcomingBillings.find(b => b.id === projectId) : null;
     if (proj) {
       setProjectToEdit(proj);
       setEditFinancialValue(proj.amount || "");
       setEditPackage(proj.service || "");
-      // Busca no projects global para pegar os dados corretos
-      const p = overviewData.activeProjects > 0 ? null : null; // Hackzinho: usamos os dados crus caso não estejam no billings
     } else {
       setProjectToEdit(null);
       setEditFinancialValue("");
@@ -75,239 +77,221 @@ export default function FinanceiroPage() {
     chartData: [] as { monthKey: string, monthLabel: string, value: number }[]
   });
 
+  // ==========================================
+  // PARALLEL FETCHING SÊNIOR
+  // ==========================================
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (isGlobalLoading) return;
 
-  const fetchData = async () => {
-    setIsLoading(true);
-    try {
-      // 1. CARREGAR DADOS FINANCEIROS E PROJETOS
-      const { data: projects, error } = await supabase
-        .from('projects')
-        .select('*, profiles(nome, empresa, email)')
-        .in('status', ['active', 'delivered']);
+    const fetchFinancialData = async () => {
+      setIsLocalLoading(true);
+      try {
+        // Disparamos apenas os dados que a RAM não tem (Tarefas, Equipa e NPS) SIMULTANEAMENTE
+        const [ { data: tasksData }, { data: teamData }, { data: npsData } ] = await Promise.all([
+          supabase.from('tasks').select('project_id, estimated_time, actual_time'),
+          supabase.from('profiles').select('id, nome, avatar_url, role, team_performance(exp_points, level_name, total_tasks_completed, avg_tnps, on_time_rate)').in('role', ['admin', 'gestor', 'colaborador']),
+          supabase.from('t_nps_scores').select(`id, score, feedback, profiles!t_nps_scores_client_id_fkey(nome), assignee:profiles!t_nps_scores_assignee_id_fkey(nome)`).order('created_at', { ascending: false }).limit(10)
+        ]);
 
-      if (error) throw error;
+        let mrrCalc = 0; let totalCalc = 0; let pendingCalc = 0; let paidCalc = 0;
+        let lucroRealGlobal = 0; let churnRiskCalc = 0;
+        let billings: any[] = []; let economics: any[] = [];
 
-      // 2. CARREGAR TAREFAS PARA CRUZAMENTO DE TEMPO REAL (UNIT ECONOMICS)
-      const { data: tasksData } = await supabase.from('tasks').select('project_id, estimated_time, actual_time');
+        const now = new Date();
+        const currentMonth = now.getMonth();
+        const currentYear = now.getFullYear();
+        
+        let currentMonthRev = 0; let lastMonthRev = 0;
+        let activeProjCount = 0;
+        let npsSum = 0; let npsCount = 0;
+        let ytdRev = 0;
+        let currentMonthDays: number[] = []; let lastMonthDays: number[] = [];
 
-      let mrrCalc = 0; let totalCalc = 0; let pendingCalc = 0; let paidCalc = 0;
-      let lucroRealGlobal = 0; let churnRiskCalc = 0;
-      let billings: any[] = []; let economics: any[] = [];
+        const last6Months: { monthKey: string, monthLabel: string, value: number }[] = [];
+        for (let i = 5; i >= 0; i--) {
+          const d = new Date(currentYear, currentMonth - i, 1);
+          last6Months.push({
+            monthKey: `${d.getFullYear()}-${d.getMonth()}`,
+            monthLabel: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase(),
+            value: 0
+          });
+        }
 
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-      
-      let currentMonthRev = 0; let lastMonthRev = 0;
-      let activeProjCount = 0;
-      let npsSum = 0; let npsCount = 0;
-      let ytdRev = 0;
-      let currentMonthDays: number[] = []; let lastMonthDays: number[] = [];
+        // O Loop Matemático corre instantaneamente com os projetos vindos da RAM
+        if (activeProjects) {
+          activeProjects.forEach((proj: any) => {
+            const value = proj.financial_value || 0;
+            totalCalc += value;
 
-      const last6Months: { monthKey: string, monthLabel: string, value: number }[] = [];
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(currentYear, currentMonth - i, 1);
-        last6Months.push({
-          monthKey: `${d.getFullYear()}-${d.getMonth()}`,
-          monthLabel: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase(),
-          value: 0
-        });
-      }
+            // CÁLCULOS VISÃO GERAL
+            const createdDate = new Date(proj.created_at);
+            const projMonth = createdDate.getMonth();
+            const projYear = createdDate.getFullYear();
+            const projMonthKey = `${projYear}-${projMonth}`;
 
-      if (projects) {
-        projects.forEach((proj: any) => {
-          const value = proj.financial_value || 0;
-          totalCalc += value;
+            if (projYear === currentYear) ytdRev += value;
 
-          // CÁLCULOS VISÃO GERAL
-          const createdDate = new Date(proj.created_at);
-          const projMonth = createdDate.getMonth();
-          const projYear = createdDate.getFullYear();
-          const projMonthKey = `${projYear}-${projMonth}`;
-
-          if (projYear === currentYear) ytdRev += value;
-
-          if (projYear === currentYear && projMonth === currentMonth) {
-            currentMonthRev += value;
-          } else if (
-            (currentMonth === 0 && projYear === currentYear - 1 && projMonth === 11) || 
-            (projYear === currentYear && projMonth === currentMonth - 1)
-          ) {
-            lastMonthRev += value;
-          }
-
-          const chartItem = last6Months.find(m => m.monthKey === projMonthKey);
-          if (chartItem) chartItem.value += value;
-
-          if (proj.status === 'active') activeProjCount++;
-
-          const tNPS = proj.brand_health_score || 100;
-          npsSum += (tNPS / 10); 
-          npsCount++;
-
-          if (proj.status === 'delivered' && proj.delivered_at) {
-            const deliveredDate = new Date(proj.delivered_at);
-            const days = Math.ceil(Math.abs(deliveredDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
-            
-            if (deliveredDate.getFullYear() === currentYear && deliveredDate.getMonth() === currentMonth) {
-              currentMonthDays.push(days);
+            if (projYear === currentYear && projMonth === currentMonth) {
+              currentMonthRev += value;
             } else if (
-              (currentMonth === 0 && deliveredDate.getFullYear() === currentYear - 1 && deliveredDate.getMonth() === 11) || 
-              (deliveredDate.getFullYear() === currentYear && deliveredDate.getMonth() === currentMonth - 1)
+              (currentMonth === 0 && projYear === currentYear - 1 && projMonth === 11) || 
+              (projYear === currentYear && projMonth === currentMonth - 1)
             ) {
-              lastMonthDays.push(days);
+              lastMonthRev += value;
             }
-          }
 
-          // ==========================================
-          // NOVO UNIT ECONOMICS (Custo Operacional Sênior)
-          // ==========================================
-          const isInChurnRisk = proj.payment_recurrence === 'Mensal' && proj.status === 'active' && tNPS < 80;
+            const chartItem = last6Months.find(m => m.monthKey === projMonthKey);
+            if (chartItem) chartItem.value += value;
 
-          if (proj.payment_recurrence === 'Mensal' && proj.status === 'active') {
-            mrrCalc += value;
-            if (isInChurnRisk) churnRiskCalc += value;
-          }
+            if (proj.status === 'active') activeProjCount++;
 
-          // Cruza os dados do JTBD deste projeto específico
-          const projTasks = tasksData?.filter(t => t.project_id === proj.id) || [];
-          const totalEstimatedMinutes = projTasks.reduce((acc, t) => acc + (t.estimated_time || 0), 0);
-          const totalActualMinutes = projTasks.reduce((acc, t) => acc + (t.actual_time || 0), 0);
-          
-          const horasReaisGastas = totalActualMinutes / 60;
-          const custoRealDaOperacao = horasReaisGastas * CUSTO_HORA_BRL;
-          const lucroReal = value - custoRealDaOperacao;
-          const margemPercentual = value > 0 ? Math.round((lucroReal / value) * 100) : 0;
-          
-          if (proj.status === 'active') {
-            lucroRealGlobal += lucroReal;
-            economics.push({
-              id: proj.id, 
-              client: proj.profiles?.nome, 
-              service: proj.type || proj.service_type,
-              value: value, 
-              estimatedHours: (totalEstimatedMinutes / 60).toFixed(1),
-              actualHours: horasReaisGastas.toFixed(1),
-              cost: custoRealDaOperacao, 
-              profit: lucroReal, 
-              margin: margemPercentual, 
-              tNps: tNPS
-            });
-          }
+            const tNPS = proj.brand_health_score || 100;
+            npsSum += (tNPS / 10); 
+            npsCount++;
 
-          // LÓGICA DE SPLIT DE PAGAMENTOS E FILTRO DE INADIMPLÊNCIA
-          // Apenas envia para "Próximas Cobranças" se o projeto NÃO estiver "delivered" ou se o pagamento estiver pendente
-          let projPaid = 0; let projPending = 0;
-          if (proj.payment_recurrence === 'Mensal') {
-            projPaid = value; 
-            if (proj.billing_date && proj.status === 'active') {
-              billings.push({
-                id: proj.id, client: proj.profiles?.nome, email: proj.profiles?.email, service: proj.type || proj.service_type, amount: value,
-                date: proj.billing_date, type: 'MRR / Recorrência Mensal', risk: isInChurnRisk
+            if (proj.status === 'delivered' && proj.delivered_at) {
+              const deliveredDate = new Date(proj.delivered_at);
+              const days = Math.ceil(Math.abs(deliveredDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
+              
+              if (deliveredDate.getFullYear() === currentYear && deliveredDate.getMonth() === currentMonth) {
+                currentMonthDays.push(days);
+              } else if (
+                (currentMonth === 0 && deliveredDate.getFullYear() === currentYear - 1 && deliveredDate.getMonth() === 11) || 
+                (deliveredDate.getFullYear() === currentYear && deliveredDate.getMonth() === currentMonth - 1)
+              ) {
+                lastMonthDays.push(days);
+              }
+            }
+
+            // UNIT ECONOMICS (Custo Operacional Sênior)
+            const isInChurnRisk = proj.payment_recurrence === 'Mensal' && proj.status === 'active' && tNPS < 80;
+
+            if (proj.payment_recurrence === 'Mensal' && proj.status === 'active') {
+              mrrCalc += value;
+              if (isInChurnRisk) churnRiskCalc += value;
+            }
+
+            // Cruza os dados do JTBD deste projeto
+            const projTasks = tasksData?.filter(t => t.project_id === proj.id) || [];
+            const totalEstimatedMinutes = projTasks.reduce((acc, t) => acc + (t.estimated_time || 0), 0);
+            const totalActualMinutes = projTasks.reduce((acc, t) => acc + (t.actual_time || 0), 0);
+            
+            const horasReaisGastas = totalActualMinutes / 60;
+            const custoRealDaOperacao = horasReaisGastas * CUSTO_HORA_BRL;
+            const lucroReal = value - custoRealDaOperacao;
+            const margemPercentual = value > 0 ? Math.round((lucroReal / value) * 100) : 0;
+            
+            if (proj.status === 'active') {
+              lucroRealGlobal += lucroReal;
+              economics.push({
+                id: proj.id, 
+                client: proj.profiles?.nome, 
+                service: proj.type || proj.service_type,
+                value: value, 
+                estimatedHours: (totalEstimatedMinutes / 60).toFixed(1),
+                actualHours: horasReaisGastas.toFixed(1),
+                cost: custoRealDaOperacao, 
+                profit: lucroReal, 
+                margin: margemPercentual, 
+                tNps: tNPS
               });
             }
-          } else {
-            if (proj.payment_split === '100% Antecipado') projPaid = value;
-            else if (proj.payment_split === '50% Entrada / 50% Entrega') {
-              if (proj.status === 'delivered') projPaid = value; 
-              else {
-                projPaid = value * 0.5; projPending = value * 0.5; 
-                billings.push({ id: proj.id, client: proj.profiles?.nome, email: proj.profiles?.email, service: proj.type || proj.service_type, amount: projPending, date: proj.data_limite || 'Na Entrega', type: 'Parcela Final (Entrega)' });
-              }
-            } else if (proj.payment_split === '30% / 30% / 40%') {
-              if (proj.status === 'delivered') projPaid = value;
-              else if (proj.progress >= 50) {
-                projPaid = value * 0.6; projPending = value * 0.4;
-                billings.push({ id: proj.id, client: proj.profiles?.nome, email: proj.profiles?.email, service: proj.type || proj.service_type, amount: projPending, date: proj.data_limite || 'Na Entrega', type: 'Parcela Final (40%)' });
-              } else {
-                projPaid = value * 0.3; projPending = value * 0.7;
-                billings.push({ id: proj.id, client: proj.profiles?.nome, email: proj.profiles?.email, service: proj.type || proj.service_type, amount: value * 0.3, date: 'No Meio do Projeto', type: 'Segunda Parcela (30%)' });
-              }
-            } else projPending = value; 
-          }
 
-          paidCalc += projPaid;
-          pendingCalc += projPending;
+            // SPLIT DE PAGAMENTOS E FILTRO DE INADIMPLÊNCIA
+            let projPaid = 0; let projPending = 0;
+            if (proj.payment_recurrence === 'Mensal') {
+              projPaid = value; 
+              if (proj.billing_date && proj.status === 'active') {
+                billings.push({
+                  id: proj.id, client: proj.profiles?.nome, email: proj.profiles?.email, service: proj.type || proj.service_type, amount: value,
+                  date: proj.billing_date, type: 'MRR / Recorrência Mensal', risk: isInChurnRisk
+                });
+              }
+            } else {
+              if (proj.payment_split === '100% Antecipado') projPaid = value;
+              else if (proj.payment_split === '50% Entrada / 50% Entrega') {
+                if (proj.status === 'delivered') projPaid = value; 
+                else {
+                  projPaid = value * 0.5; projPending = value * 0.5; 
+                  billings.push({ id: proj.id, client: proj.profiles?.nome, email: proj.profiles?.email, service: proj.type || proj.service_type, amount: projPending, date: proj.data_limite || 'Na Entrega', type: 'Parcela Final (Entrega)' });
+                }
+              } else if (proj.payment_split === '30% / 30% / 40%') {
+                if (proj.status === 'delivered') projPaid = value;
+                else if (proj.progress >= 50) {
+                  projPaid = value * 0.6; projPending = value * 0.4;
+                  billings.push({ id: proj.id, client: proj.profiles?.nome, email: proj.profiles?.email, service: proj.type || proj.service_type, amount: projPending, date: proj.data_limite || 'Na Entrega', type: 'Parcela Final (40%)' });
+                } else {
+                  projPaid = value * 0.3; projPending = value * 0.7;
+                  billings.push({ id: proj.id, client: proj.profiles?.nome, email: proj.profiles?.email, service: proj.type || proj.service_type, amount: value * 0.3, date: 'No Meio do Projeto', type: 'Segunda Parcela (30%)' });
+                }
+              } else projPending = value; 
+            }
+
+            paidCalc += projPaid;
+            pendingCalc += projPending;
+          });
+        }
+
+        const revGrowth = lastMonthRev === 0 ? 100 : Math.round(((currentMonthRev - lastMonthRev) / lastMonthRev) * 100);
+        const avgDaysCurrent = currentMonthDays.length > 0 ? Math.round(currentMonthDays.reduce((a,b)=>a+b,0) / currentMonthDays.length) : 0;
+        const avgDaysLast = lastMonthDays.length > 0 ? Math.round(lastMonthDays.reduce((a,b)=>a+b,0) / lastMonthDays.length) : 0;
+        const daysDiff = avgDaysLast === 0 ? 0 : avgDaysCurrent - avgDaysLast;
+        const avgGlobalNps = npsCount > 0 ? (npsSum / npsCount).toFixed(1) : "10.0";
+
+        setOverviewData({
+          currentMonthRevenue: currentMonthRev,
+          revenueGrowth: revGrowth,
+          activeProjects: activeProjCount,
+          avgDeliveryDays: avgDaysCurrent || 18,
+          deliveryDaysChange: daysDiff,
+          avgNps: parseFloat(avgGlobalNps),
+          ytdRevenue: ytdRev,
+          chartData: last6Months
         });
+
+        setMetrics({ mrr: mrrCalc, totalContracted: totalCalc, pendingReceivables: pendingCalc, paid: paidCalc, lucroRealTotal: lucroRealGlobal, churnRiskAmount: churnRiskCalc });
+        
+        billings.sort((a, b) => {
+          if (a.date === 'Na Entrega') return 1; if (b.date === 'Na Entrega') return -1;
+          return new Date(a.date).getTime() - new Date(b.date).getTime();
+        });
+        setUpcomingBillings(billings);
+        
+        economics.sort((a, b) => a.margin - b.margin);
+        setUnitEconomics(economics);
+
+        if (teamData) {
+          const sortedTeam = teamData.map((t: any) => ({
+            ...t, perf: t.team_performance?.[0] || { exp_points: 0, level_name: 'Novato', total_tasks_completed: 0, avg_tnps: 10.0, on_time_rate: 100 }
+          })).sort((a, b) => b.perf.exp_points - a.perf.exp_points);
+          setTeamHealth(sortedTeam);
+        }
+
+        if (npsData && npsData.length > 0) {
+          setRecentNps(npsData.map((n: any) => ({
+            id: n.id,
+            client: n.profiles?.nome || "Cliente",
+            score: n.score,
+            feedback: n.feedback,
+            member: n.assignee?.nome || "Equipa"
+          })));
+        } else {
+          setRecentNps([]);
+        }
+
+      } catch (error) {
+        console.error("Erro geral:", error);
+        showToast("Erro ao carregar dados do painel.");
+      } finally {
+        setIsLocalLoading(false);
       }
+    };
 
-      const revGrowth = lastMonthRev === 0 ? 100 : Math.round(((currentMonthRev - lastMonthRev) / lastMonthRev) * 100);
-      const avgDaysCurrent = currentMonthDays.length > 0 ? Math.round(currentMonthDays.reduce((a,b)=>a+b,0) / currentMonthDays.length) : 0;
-      const avgDaysLast = lastMonthDays.length > 0 ? Math.round(lastMonthDays.reduce((a,b)=>a+b,0) / lastMonthDays.length) : 0;
-      const daysDiff = avgDaysLast === 0 ? 0 : avgDaysCurrent - avgDaysLast;
-      const avgGlobalNps = npsCount > 0 ? (npsSum / npsCount).toFixed(1) : "10.0";
-
-      setOverviewData({
-        currentMonthRevenue: currentMonthRev,
-        revenueGrowth: revGrowth,
-        activeProjects: activeProjCount,
-        avgDeliveryDays: avgDaysCurrent || 18,
-        deliveryDaysChange: daysDiff,
-        avgNps: parseFloat(avgGlobalNps),
-        ytdRevenue: ytdRev,
-        chartData: last6Months
-      });
-
-      setMetrics({ mrr: mrrCalc, totalContracted: totalCalc, pendingReceivables: pendingCalc, paid: paidCalc, lucroRealTotal: lucroRealGlobal, churnRiskAmount: churnRiskCalc });
-      
-      billings.sort((a, b) => {
-        if (a.date === 'Na Entrega') return 1; if (b.date === 'Na Entrega') return -1;
-        return new Date(a.date).getTime() - new Date(b.date).getTime();
-      });
-      setUpcomingBillings(billings);
-      
-      economics.sort((a, b) => a.margin - b.margin);
-      setUnitEconomics(economics);
-
-      // CARREGAR DADOS DE SAÚDE (GAMIFICAÇÃO & T-NPS REAIS)
-      const { data: teamData } = await supabase
-        .from('profiles')
-        .select('id, nome, avatar_url, role, team_performance(exp_points, level_name, total_tasks_completed, avg_tnps, on_time_rate)')
-        .in('role', ['admin', 'gestor', 'colaborador']);
-      
-      if (teamData) {
-        const sortedTeam = teamData.map(t => ({
-          ...t, perf: t.team_performance?.[0] || { exp_points: 0, level_name: 'Novato', total_tasks_completed: 0, avg_tnps: 10.0, on_time_rate: 100 }
-        })).sort((a, b) => b.perf.exp_points - a.perf.exp_points);
-        setTeamHealth(sortedTeam);
-      }
-
-      const { data: npsData } = await supabase
-        .from('t_nps_scores')
-        .select(`
-          id, score, feedback, 
-          profiles!t_nps_scores_client_id_fkey(nome), 
-          assignee:profiles!t_nps_scores_assignee_id_fkey(nome)
-        `)
-        .order('created_at', { ascending: false })
-        .limit(10);
-
-      if (npsData && npsData.length > 0) {
-        setRecentNps(npsData.map((n: any) => ({
-          id: n.id,
-          client: n.profiles?.nome || "Cliente",
-          score: n.score,
-          feedback: n.feedback,
-          member: n.assignee?.nome || "Equipa"
-        })));
-      } else {
-        setRecentNps([]);
-      }
-
-    } catch (error) {
-      console.error("Erro geral:", error);
-      showToast("Erro ao carregar dados do painel.");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    fetchFinancialData();
+  }, [isGlobalLoading, activeProjects]);
 
   const handleNotifyClient = async (clientName: string, email: string) => {
     setIsProcessing(true);
-    // Simulação do envio de email ou notificação push para o cliente
     showToast(`A enviar notificação de cobrança para ${email}...`);
     setTimeout(() => {
       showToast(`✅ Notificação enviada com sucesso para ${clientName}.`);
@@ -317,8 +301,6 @@ export default function FinanceiroPage() {
 
   const handleMarkAsPaid = async (projectId: string) => {
     setIsProcessing(true);
-    // Na nossa lógica atual, como a cobrança mensal atualiza o 'billing_date' um mês pra frente,
-    // este botão apenas empurra a data da próxima fatura caso o cliente pague manualmente.
     try {
       const proj = upcomingBillings.find(b => b.id === projectId);
       if (proj && proj.date !== 'Na Entrega') {
@@ -326,9 +308,9 @@ export default function FinanceiroPage() {
          nextMonth.setMonth(nextMonth.getMonth() + 1);
          await supabase.from('projects').update({ billing_date: nextMonth.toISOString() }).eq('id', projectId);
          showToast("💵 Fatura liquidada! Ciclo renovado.");
-         fetchData();
+         refreshGlobalData(); // Recarrega RAM silenciosamente
       } else {
-         showToast("Este pagamento está atrelado ao fim do projeto. Vá a 'Clientes' para marcar o projeto como entregue.");
+         showToast("Vá a 'Clientes' para marcar o projeto IDV como entregue.");
       }
     } catch (e) {
       showToast("Erro ao atualizar pagamento.");
@@ -351,7 +333,8 @@ export default function FinanceiroPage() {
     return 5000;
   };
 
-  if (isLoading) return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
+  // 🛡️ Prevenção de Tela em Branco (Se um carregar e o outro não)
+  if (isGlobalLoading || isLocalLoading) return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   const maxChartValue = Math.max(...overviewData.chartData.map(d => d.value), 1000);
 
@@ -909,7 +892,7 @@ export default function FinanceiroPage() {
                     await supabase.from('projects').update(updates).eq('id', projectToEdit.id);
                     showToast("Contrato reajustado com sucesso!");
                     setIsEditModalOpen(false);
-                    fetchData(); // Recarrega gráficos
+                    refreshGlobalData(); // Recarrega a RAM e Atualiza a tela
                   } catch (e) {
                     showToast("Erro ao editar contrato.");
                   } finally {
