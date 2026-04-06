@@ -126,14 +126,13 @@ const isIdvService = (project: any) => {
 export default function AnalyticsPage() {
   const [activeView, setActiveView] = useState<'overview' | 'projects' | 'routing'>('overview');
   
-  // 🧠 Consumo da Memória RAM Global
+  // 🧠 Consumo da Memória RAM Global (0ms Latência)
   const { activeProjects, isGlobalLoading, refreshGlobalData } = useGlobalStore();
   
   // Estado local modificado para não chocar com a RAM
   const [isLocalLoading, setIsLocalLoading] = useState(true);
   const [metrics, setMetrics] = useState({ activeProjects: 0, pendingTasks: 0, totalTeam: 0 });
   
-  // O estado 'projects' foi removido e trocado pela derivação 'validProjects' abaixo
   const [team, setTeam] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [routingRules, setRoutingRules] = useState<any[]>([]);
@@ -306,7 +305,7 @@ export default function AnalyticsPage() {
 
       if (Object.keys(projUpdates).length > 0) {
         await supabase.from('projects').update(projUpdates).eq('id', project.id);
-        refreshGlobalData(); // Atualiza a RAM silenciosamente
+        refreshGlobalData(); // Apenas notifica o banco central para renovar a RAM silenciosamente
       }
 
       showToast(hasPreviousTasks ? "🔄 Ciclo Mensal Renovado!" : "🚀 Pipeline Inteligente Instanciado!");
