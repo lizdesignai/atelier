@@ -10,6 +10,7 @@ import {
   Loader2, Activity, Trash2, ChevronDown, Smartphone, 
   Download, CalendarDays, Eye, MessageSquare, Sparkles, X, FileText
 } from "lucide-react";
+import InstagramBriefingModal from "../../../components/InstagramBriefingModal";
 import { pdf } from '@react-pdf/renderer';
 import InstagramBriefingPDF from "../../../components/pdf/InstagramBriefingPDF";
 import BrandbookPDF from "../../../components/pdf/BrandbookPDF";
@@ -87,13 +88,16 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
   const fetchInstagramData = async () => {
     setIsLoading(true);
     try {
-      // 1. Busca Artes Visuais (Cobre falhas atrelando ao cliente e projeto simultaneamente)
-      const { data: postsData } = await supabase
+      if (!activeProjectId) return;
+
+      // 1. Busca Artes Visuais (Foco direto no project_id para evitar crashs de "undefined")
+      const { data: postsData, error: postsError } = await supabase
         .from('social_posts')
         .select('*')
-        .or(`project_id.eq.${activeProjectId},client_id.eq.${currentProject?.client_id}`)
+        .eq('project_id', activeProjectId)
         .order('created_at', { ascending: false });
         
+      if (postsError) console.error("Erro ao carregar posts:", postsError);
       if (postsData) setPosts(postsData);
 
       const postIds = postsData?.map(p => p.id) || [];
@@ -102,9 +106,21 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
         if (pinsData) setPins(pinsData);
       }
 
-      // 2. Busca Briefing Inicial (Focado no Cliente para não dar erro)
-      if (currentProject?.client_id) {
-        const { data: briefData } = await supabase
+      // 2. Busca do Briefing Inicial (Cascata: Primeiro por Projeto, depois por Cliente)
+      let foundBriefing = null;
+      
+      const { data: briefByProj } = await supabase
+        .from('instagram_briefings')
+        .select('*')
+        .eq('project_id', activeProjectId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      foundBriefing = briefByProj;
+
+      if (!foundBriefing && currentProject?.client_id) {
+        const { data: briefByClient } = await supabase
           .from('instagram_briefings')
           .select('*')
           .eq('client_id', currentProject.client_id)
@@ -112,8 +128,10 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
           .limit(1)
           .maybeSingle();
           
-        if (briefData) setBriefing(briefData);
+        foundBriefing = briefByClient;
       }
+
+      setBriefing(foundBriefing);
 
       // 3. Dados do Laboratório e Planeamento Mensal
       const { data: lab } = await supabase.from('brandbook_laboratory').select('*').eq('project_id', activeProjectId).maybeSingle();
@@ -326,7 +344,7 @@ function InstagramWorkspace({ activeProjectId, currentProject }: { activeProject
 
   const approvedPlans = monthlyPlan.filter(plan => plan.status === 'approved');
   // Filtro abrangente de posts visuais da curadoria (Exclui apenas o que foi rejeitado por completo)
-  const visiblePosts = posts.filter(p => p.status !== 'rejected');
+  const visiblePosts = posts.filter(p => ['pending', 'pending_approval', 'needs_revision', 'approved'].includes(p.status));
 
   if (isLoading) return <div className="flex h-64 items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
