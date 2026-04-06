@@ -8,6 +8,9 @@ import "./globals.css";
 import { supabase } from "../lib/supabase"; 
 import AppSidebar from "../components/layout/AppSidebar";
 
+// INJEÇÃO DA MEMÓRIA GLOBAL (RAM)
+import { GlobalStoreProvider } from "../contexts/GlobalStore";
+
 const roboto = Roboto({ 
   weight: ['300', '400', '500', '700'],
   subsets: ['latin'],
@@ -127,29 +130,34 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR" className={roboto.variable}>
       <body className="bg-[var(--color-atelier-creme)] text-[var(--color-atelier-grafite)] font-roboto h-screen w-screen overflow-hidden flex relative selection:bg-[var(--color-atelier-terracota)] selection:text-white">
         
-        <GlobalToast />
+        {/* MEMÓRIA GLOBAL (RAM) INJETADA NO NÚCLEO */}
+        <GlobalStoreProvider>
+          
+          <GlobalToast />
 
-        {!isLoginPage && (
-          <>
-            <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] bg-[var(--color-atelier-terracota)]/5 blur-[120px] rounded-full pointer-events-none z-0"></div>
-            <div className="absolute bottom-[-15%] right-[-10%] w-[600px] h-[600px] bg-[var(--color-atelier-rose)]/10 blur-[150px] rounded-full pointer-events-none z-0"></div>
-          </>
-        )}
+          {!isLoginPage && (
+            <>
+              <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] bg-[var(--color-atelier-terracota)]/5 blur-[120px] rounded-full pointer-events-none z-0"></div>
+              <div className="absolute bottom-[-15%] right-[-10%] w-[600px] h-[600px] bg-[var(--color-atelier-rose)]/10 blur-[150px] rounded-full pointer-events-none z-0"></div>
+            </>
+          )}
 
-        {/* MODULARIZAÇÃO DA SIDEBAR (Importada do componente separado) */}
-        {!isLoginPage && userRole && (
-          <AppSidebar 
-            userRole={userRole} 
-            handleLogout={handleLogout} 
-            onHideSidebar={(hidden) => setIsSidebarHidden(hidden)} 
-          />
-        )}
+          {/* MODULARIZAÇÃO DA SIDEBAR */}
+          {!isLoginPage && userRole && (
+            <AppSidebar 
+              userRole={userRole} 
+              handleLogout={handleLogout} 
+              onHideSidebar={(hidden) => setIsSidebarHidden(hidden)} 
+            />
+          )}
 
-        <main className={`flex-1 relative z-10 overflow-hidden flex flex-col ${isLoginPage || isSidebarHidden ? 'p-0' : 'px-6 md:px-12 py-8'}`}>
-          <div className={isLoginPage || isSidebarHidden ? "w-full h-full" : "flex-1 overflow-y-auto custom-scrollbar"}>
-            {!isInitializing ? children : null}
-          </div>
-        </main>
+          <main className={`flex-1 relative z-10 overflow-hidden flex flex-col ${isLoginPage || isSidebarHidden ? 'p-0' : 'px-6 md:px-12 py-8'}`}>
+            <div className={isLoginPage || isSidebarHidden ? "w-full h-full" : "flex-1 overflow-y-auto custom-scrollbar"}>
+              {!isInitializing ? children : null}
+            </div>
+          </main>
+
+        </GlobalStoreProvider>
 
       </body>
     </html>
