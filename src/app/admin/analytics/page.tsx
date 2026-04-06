@@ -10,7 +10,7 @@ import {
   Activity, Target, FolderKanban, Clock, Users, 
   Loader2, Sparkles, BrainCircuit, CheckCircle2, 
   AlertTriangle, LayoutDashboard, ChevronRight,
-  GitMerge, Layers, UserCircle2, Flame, Edit3, X, PlayCircle, Trash2, Check, PlusCircle
+  GitMerge, Layers, UserCircle2, Flame, Edit3, X, PlayCircle, Trash2, Check, PlusCircle, Square, CheckSquare
 } from "lucide-react";
 
 const showToast = (message: string) => {
@@ -129,7 +129,6 @@ export default function AnalyticsPage() {
   // 🧠 Consumo da Memória RAM Global (0ms Latência)
   const { activeProjects, isGlobalLoading, refreshGlobalData } = useGlobalStore();
   
-  // Estado local modificado para não chocar com a RAM
   const [isLocalLoading, setIsLocalLoading] = useState(true);
   const [metrics, setMetrics] = useState({ activeProjects: 0, pendingTasks: 0, totalTeam: 0 });
   
@@ -137,26 +136,36 @@ export default function AnalyticsPage() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [routingRules, setRoutingRules] = useState<any[]>([]);
 
-  // Estados de Interface
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [selectedPackageForDeploy, setSelectedPackageForDeploy] = useState<string>("Pacote 1");
   const [editingTask, setEditingTask] = useState<any>(null);
   const [selectedCollab, setSelectedCollab] = useState<any>(null);
 
-  // Estado do Formulário de Regras de Routing
   const [routeConfig, setRouteConfig] = useState({ projectId: "", taskType: "", assigneeId: "" });
   const [isProcessing, setIsProcessing] = useState(false);
 
-  // Estado para Demanda Pontual (Ad-Hoc)
   const [adHocDemand, setAdHocDemand] = useState({ title: "", projectId: "", assigneeId: "", taskType: "", urgency: false });
 
-  // Derivação automática (0ms de latência) baseada na RAM
+  // 🔥 ESTADOS DO MODO DE EDIÇÃO EM LOTE (BULK ACTIONS)
+  const [isBulkMode, setIsBulkMode] = useState(false);
+  const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
+  const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>([]);
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [bulkAssigneeId, setBulkAssigneeId] = useState("");
+  const [bulkDeadline, setBulkDeadline] = useState("");
+
   const validProjects = activeProjects.filter(p => p.status === 'active' || p.status === 'delivered');
 
   useEffect(() => {
     if (isGlobalLoading) return;
     fetchOperationalData();
   }, [isGlobalLoading, activeProjects.length]);
+
+  // Limpa seleções de lote ao mudar de aba
+  useEffect(() => {
+    setSelectedTaskIds([]);
+    setSelectedRuleIds([]);
+  }, [activeView]);
 
   const fetchOperationalData = async () => {
     setIsLocalLoading(true);
@@ -167,7 +176,6 @@ export default function AnalyticsPage() {
         setSelectedProjectId(validProjects[0].id);
       }
 
-      // 🔥 MÁGICA SÊNIOR: Parallel Fetching - Disparamos os 3 pedidos pesados ao mesmo tempo
       const teamPromise = supabase.from('profiles').select('id, nome, role, avatar_url, skills, team_performance(exp_points, level_name)').in('role', ['admin', 'gestor', 'colaborador']);
       const tasksPromise = supabase.from('tasks').select('*, projects(profiles(nome, avatar_url), type, service_type), profiles!assigned_to(nome, avatar_url)').order('deadline', { ascending: true });
       const rulesPromise = supabase.from('routing_rules').select('*');
@@ -188,7 +196,6 @@ export default function AnalyticsPage() {
         totalTeam: teamData?.length || 0
       });
 
-      // 🧠 ATELIER PM ENGINE: Gatilhos Diários de Fundo (Gestão de Risco e Calibração Económica)
       if (session?.user) {
         AtelierPMEngine.runDailyRiskMitigation(session.user.id);
         AtelierPMEngine.calibrateUnitEconomics(session.user.id);
@@ -210,6 +217,90 @@ export default function AnalyticsPage() {
       fetchOperationalData();
     } catch (e) {
       showToast("Erro ao finalizar missão.");
+    }
+  };
+
+  // ============================================================================
+  // 🔥 FUNÇÕES DE EXECUÇÃO EM LOTE (BULK ACTIONS)
+  // ============================================================================
+  const toggleTaskSelection = (id: string) => {
+    if (selectedTaskIds.includes(id)) setSelectedTaskIds(selectedTaskIds.filter(tid => tid !== id));
+    else setSelectedTaskIds([...selectedTaskIds, id]);
+  };
+
+  const toggleRuleSelection = (id: string) => {
+    if (selectedRuleIds.includes(id)) setSelectedRuleIds(selectedRuleIds.filter(rid => rid !== id));
+    else setSelectedRuleIds([...selectedRuleIds, id]);
+  };
+
+  const handleBulkTaskUpdate = async () => {
+    if (selectedTaskIds.length === 0) return;
+    setIsProcessing(true);
+    try {
+      const updates: any = {};
+      if (bulkAssigneeId !== "") updates.assigned_to = bulkAssigneeId === "unassigned" ? null : bulkAssigneeId;
+      if (bulkDeadline) updates.deadline = new Date(bulkDeadline).toISOString();
+
+      if (Object.keys(updates).length > 0) {
+         await supabase.from('tasks').update(updates).in('id', selectedTaskIds);
+      }
+      showToast(`Lote de ${selectedTaskIds.length} tarefas atualizado!`);
+      setSelectedTaskIds([]);
+      setBulkModalOpen(false);
+      setBulkAssigneeId("");
+      setBulkDeadline("");
+      fetchOperationalData();
+    } catch(e) {
+      showToast("Erro na atualização em lote.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleBulkTaskComplete = async () => {
+    if (selectedTaskIds.length === 0) return;
+    setIsProcessing(true);
+    try {
+      await supabase.from('tasks').update({ status: 'completed', completed_at: new Date().toISOString() }).in('id', selectedTaskIds);
+      showToast(`Lote de ${selectedTaskIds.length} tarefas concluído!`);
+      setSelectedTaskIds([]);
+      fetchOperationalData();
+    } catch(e) {
+      showToast("Erro ao concluir em lote.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleBulkTaskDelete = async () => {
+    if (selectedTaskIds.length === 0) return;
+    if (!window.confirm(`ATENÇÃO: Apagar definitivamente ${selectedTaskIds.length} tarefas?`)) return;
+    setIsProcessing(true);
+    try {
+      await supabase.from('tasks').delete().in('id', selectedTaskIds);
+      showToast(`Lote de ${selectedTaskIds.length} tarefas apagado!`);
+      setSelectedTaskIds([]);
+      fetchOperationalData();
+    } catch(e) {
+      showToast("Erro ao apagar em lote.");
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleBulkRuleDelete = async () => {
+    if (selectedRuleIds.length === 0) return;
+    if (!window.confirm(`Apagar ${selectedRuleIds.length} regras de automação?`)) return;
+    setIsProcessing(true);
+    try {
+      await supabase.from('routing_rules').delete().in('id', selectedRuleIds);
+      showToast(`${selectedRuleIds.length} regras removidas!`);
+      setSelectedRuleIds([]);
+      fetchOperationalData();
+    } catch(e) {
+      showToast("Erro ao remover regras.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -241,7 +332,6 @@ export default function AnalyticsPage() {
     }
   };
 
-  // 🧠 ATELIER PM ENGINE
   const handleAutoDeploy = async (project: any) => {
     setIsProcessing(true);
     try {
@@ -305,7 +395,7 @@ export default function AnalyticsPage() {
 
       if (Object.keys(projUpdates).length > 0) {
         await supabase.from('projects').update(projUpdates).eq('id', project.id);
-        refreshGlobalData(); // Apenas notifica o banco central para renovar a RAM silenciosamente
+        refreshGlobalData();
       }
 
       showToast(hasPreviousTasks ? "🔄 Ciclo Mensal Renovado!" : "🚀 Pipeline Inteligente Instanciado!");
@@ -397,9 +487,6 @@ export default function AnalyticsPage() {
     }
   };
 
-  // ============================================================================
-  // FILTROS UI E DERIVAÇÕES DE ESTADO (Usando a RAM)
-  // ============================================================================
   const activeTasksForQueue = tasks.filter(t => t.status !== 'completed');
   const activeTasks = activeTasksForQueue; 
   const activeProjectsList = validProjects.filter(p => p.status === 'active');
@@ -410,7 +497,6 @@ export default function AnalyticsPage() {
   
   const liveTasks = tasks.filter(t => t.status === 'in_progress');
 
-  // Proteção Visual do Carregamento Misto (Global + Local)
   if (isGlobalLoading || isLocalLoading) return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   return (
@@ -427,10 +513,19 @@ export default function AnalyticsPage() {
           <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Oráculo & <span className="text-[var(--color-atelier-terracota)] italic">Analytics.</span></h1>
         </div>
         
-        <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0">
-           <button onClick={() => setActiveView('overview')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'overview' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Dashboard</button>
-           <button onClick={() => setActiveView('projects')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'projects' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Visão de Projetos</button>
-           <button onClick={() => setActiveView('routing')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'routing' ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Motor de Routing</button>
+        <div className="flex items-center gap-2">
+           <button 
+             onClick={() => { setIsBulkMode(!isBulkMode); setSelectedTaskIds([]); setSelectedRuleIds([]); }} 
+             className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all border ${isBulkMode ? 'bg-[var(--color-atelier-terracota)] text-white border-[var(--color-atelier-terracota)] shadow-md' : 'bg-white/60 text-[var(--color-atelier-grafite)]/60 hover:bg-white border-white shadow-sm'}`}
+           >
+             {isBulkMode ? "Sair da Edição em Lote" : "Ações em Lote"}
+           </button>
+           
+           <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0">
+              <button onClick={() => setActiveView('overview')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'overview' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Dashboard</button>
+              <button onClick={() => setActiveView('projects')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'projects' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Visão de Projetos</button>
+              <button onClick={() => setActiveView('routing')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'routing' ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Motor de Routing</button>
+           </div>
         </div>
       </header>
 
@@ -498,13 +593,26 @@ export default function AnalyticsPage() {
                   <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3">
                     {activeTasksForQueue.map(task => {
                       const isDelayed = task.status !== 'completed' && new Date(task.deadline) < new Date();
+                      const isSelected = selectedTaskIds.includes(task.id);
+                      
                       return (
-                        <div key={task.id} className="bg-white/80 p-4 rounded-2xl border border-[var(--color-atelier-grafite)]/5 flex flex-col group hover:border-[var(--color-atelier-terracota)]/30 transition-all shadow-sm">
+                        <div 
+                          key={task.id} 
+                          onClick={() => isBulkMode ? toggleTaskSelection(task.id) : null}
+                          className={`p-4 rounded-2xl border flex flex-col group transition-all shadow-sm ${isBulkMode ? 'cursor-pointer' : ''} ${isSelected ? 'bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)]' : 'bg-white/80 border-[var(--color-atelier-grafite)]/5 hover:border-[var(--color-atelier-terracota)]/30'}`}
+                        >
                           <div className="flex items-center gap-4 flex-1">
+                            
+                            {isBulkMode && (
+                              <div className="shrink-0 text-[var(--color-atelier-terracota)]">
+                                {isSelected ? <CheckSquare size={18} /> : <Square size={18} className="text-gray-300"/>}
+                              </div>
+                            )}
+
                             <div className="w-10 h-10 rounded-xl overflow-hidden border border-gray-100 shrink-0 bg-gray-50 flex items-center justify-center shadow-inner">
                               {task.projects?.profiles?.avatar_url ? <img src={task.projects.profiles.avatar_url} className="w-full h-full object-cover" /> : <span className="font-elegant text-lg text-[var(--color-atelier-terracota)]">{task.projects?.profiles?.nome?.charAt(0)}</span>}
                             </div>
-                            <div className="flex flex-col cursor-pointer flex-1" onClick={() => setEditingTask(task)}>
+                            <div className="flex flex-col cursor-pointer flex-1" onClick={(e) => { if (isBulkMode) return; setEditingTask(task); }}>
                               <div className="flex justify-between items-start">
                                 <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors leading-tight pr-2">{task.title}</span>
                                 {task.urgency && <Flame size={12} className="text-orange-500 shrink-0 mt-0.5"/>}
@@ -526,9 +634,11 @@ export default function AnalyticsPage() {
                               </div>
                             </div>
                             
-                            <button onClick={(e) => { e.stopPropagation(); handleCompleteTask(task.id); }} className="w-8 h-8 rounded-full bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-500 hover:text-white transition-all shadow-sm border border-green-200" title="Finalizar Tarefa">
-                              <Check size={14} strokeWidth={3} />
-                            </button>
+                            {!isBulkMode && (
+                              <button onClick={(e) => { e.stopPropagation(); handleCompleteTask(task.id); }} className="w-8 h-8 rounded-full bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-500 hover:text-white transition-all shadow-sm border border-green-200" title="Finalizar Tarefa">
+                                <Check size={14} strokeWidth={3} />
+                              </button>
+                            )}
                           </div>
                         </div>
                       )
@@ -696,23 +806,37 @@ export default function AnalyticsPage() {
                          <div key={stage} className="mb-6">
                            <h4 className="font-roboto font-bold text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-3 flex items-center gap-2 border-b border-[var(--color-atelier-grafite)]/5 pb-2"><Layers size={12}/> {stage}</h4>
                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                             {tasks.filter(t => t.project_id === selectedProjectId && t.stage === stage).map(task => (
-                               <div key={task.id} className="bg-white p-5 rounded-2xl border border-[var(--color-atelier-grafite)]/5 flex flex-col gap-3 shadow-sm hover:border-[var(--color-atelier-terracota)]/30 transition-colors group">
-                                 <div className="flex justify-between items-start">
-                                    <span className={`text-[13px] font-bold leading-tight pr-4 ${task.status === 'completed' ? 'text-gray-400 line-through' : 'text-[var(--color-atelier-grafite)]'}`}>{task.title}</span>
-                                    <button onClick={() => setEditingTask(task)} className="opacity-0 group-hover:opacity-100 text-[var(--color-atelier-grafite)]/30 hover:text-[var(--color-atelier-terracota)] transition-opacity"><Edit3 size={14}/></button>
-                                 </div>
-                                 <div className="flex justify-between items-end border-t border-[var(--color-atelier-grafite)]/5 pt-3 mt-1">
-                                   <div className="flex items-center gap-2">
-                                      <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-100 border border-white">
-                                        {task.profiles?.avatar_url ? <img src={task.profiles.avatar_url} className="w-full h-full object-cover"/> : <UserCircle2 size={10} className="text-gray-300"/>}
+                             {tasks.filter(t => t.project_id === selectedProjectId && t.stage === stage).map(task => {
+                               const isSelected = selectedTaskIds.includes(task.id);
+                               return (
+                                 <div 
+                                   key={task.id} 
+                                   onClick={() => isBulkMode ? toggleTaskSelection(task.id) : null}
+                                   className={`p-5 rounded-2xl border flex flex-col gap-3 transition-colors group ${isBulkMode ? 'cursor-pointer' : ''} ${isSelected ? 'bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)] shadow-md' : 'bg-white border-[var(--color-atelier-grafite)]/5 hover:border-[var(--color-atelier-terracota)]/30 shadow-sm'}`}
+                                 >
+                                   <div className="flex justify-between items-start">
+                                      <div className="flex gap-3">
+                                        {isBulkMode && (
+                                          <div className="shrink-0 text-[var(--color-atelier-terracota)] mt-0.5">
+                                            {isSelected ? <CheckSquare size={16} /> : <Square size={16} className="text-gray-300"/>}
+                                          </div>
+                                        )}
+                                        <span className={`text-[13px] font-bold leading-tight pr-4 ${task.status === 'completed' ? 'text-gray-400 line-through' : 'text-[var(--color-atelier-grafite)]'}`}>{task.title}</span>
                                       </div>
-                                      <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">{task.profiles?.nome?.split(" ")[0] || "A definir"}</span>
+                                      {!isBulkMode && <button onClick={() => setEditingTask(task)} className="opacity-0 group-hover:opacity-100 text-[var(--color-atelier-grafite)]/30 hover:text-[var(--color-atelier-terracota)] transition-opacity"><Edit3 size={14}/></button>}
                                    </div>
-                                   <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)]/40 bg-gray-50 px-2 py-1 rounded-md">{new Date(task.deadline).toLocaleDateString('pt-BR')}</span>
+                                   <div className="flex justify-between items-end border-t border-[var(--color-atelier-grafite)]/5 pt-3 mt-1">
+                                     <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-100 border border-white">
+                                          {task.profiles?.avatar_url ? <img src={task.profiles.avatar_url} className="w-full h-full object-cover"/> : <UserCircle2 size={10} className="text-gray-300"/>}
+                                        </div>
+                                        <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">{task.profiles?.nome?.split(" ")[0] || "A definir"}</span>
+                                     </div>
+                                     <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)]/40 bg-gray-50 px-2 py-1 rounded-md">{new Date(task.deadline).toLocaleDateString('pt-BR')}</span>
+                                   </div>
                                  </div>
-                               </div>
-                             ))}
+                               )
+                             })}
                            </div>
                          </div>
                        ))}
@@ -772,9 +896,11 @@ export default function AnalyticsPage() {
               </div>
 
               <div className="col-span-8 glass-panel bg-white/60 p-8 rounded-[2.5rem] border border-white shadow-sm overflow-hidden flex flex-col h-full">
-                <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-6 mb-6 shrink-0">
-                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Matriz Ativa</h3>
-                  <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/60 mt-1">Conexões mapeadas para atribuição automática.</p>
+                <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-6 mb-6 shrink-0 flex justify-between items-center">
+                  <div>
+                    <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Matriz Ativa</h3>
+                    <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/60 mt-1">Conexões mapeadas para atribuição automática.</p>
+                  </div>
                 </div>
                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3">
                   {routingRules.length === 0 ? (
@@ -788,10 +914,21 @@ export default function AnalyticsPage() {
                       const member = team.find(t => t.id === rule.assignee_id);
                       const taskTypeArray = isIdvService(proj) ? TASK_TYPES_IDV : TASK_TYPES_IG;
                       const taskTypeLabel = taskTypeArray?.find(t => t.id === rule.task_type)?.label || rule.task_type;
+                      const isSelected = selectedRuleIds.includes(rule.id);
 
                       return (
-                        <div key={rule.id} className="bg-white p-5 rounded-2xl border border-[var(--color-atelier-grafite)]/5 flex items-center justify-between group hover:border-red-200 transition-all shadow-sm">
+                        <div 
+                          key={rule.id} 
+                          onClick={() => isBulkMode ? toggleRuleSelection(rule.id) : null}
+                          className={`p-5 rounded-2xl border flex items-center justify-between group transition-all shadow-sm ${isBulkMode ? 'cursor-pointer' : ''} ${isSelected ? 'bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)]' : 'bg-white border-[var(--color-atelier-grafite)]/5 hover:border-red-200'}`}
+                        >
                           <div className="flex items-center gap-6 w-full">
+                            {isBulkMode && (
+                              <div className="shrink-0 text-[var(--color-atelier-terracota)]">
+                                {isSelected ? <CheckSquare size={18} /> : <Square size={18} className="text-gray-300"/>}
+                              </div>
+                            )}
+
                             <div className="flex flex-col w-1/3">
                               <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Cliente</span>
                               <div className="flex items-center gap-2">
@@ -816,7 +953,9 @@ export default function AnalyticsPage() {
                               </div>
                             </div>
                           </div>
-                          <button onClick={() => handleDeleteRule(rule.id)} className="text-red-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all opacity-0 group-hover:opacity-100 ml-4"><Trash2 size={16}/></button>
+                          {!isBulkMode && (
+                            <button onClick={(e) => { e.stopPropagation(); handleDeleteRule(rule.id); }} className="text-red-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all opacity-0 group-hover:opacity-100 ml-4"><Trash2 size={16}/></button>
+                          )}
                         </div>
                       )
                     })
@@ -829,7 +968,73 @@ export default function AnalyticsPage() {
         </AnimatePresence>
       </div>
 
-      {/* MODAL DE EDIÇÃO DE TAREFA */}
+      {/* FLOATING ACTION BAR PARA EDIÇÃO EM LOTE */}
+      <AnimatePresence>
+        {(selectedTaskIds.length > 0 || selectedRuleIds.length > 0) && (
+          <motion.div
+             initial={{ y: 100, opacity: 0 }}
+             animate={{ y: 0, opacity: 1 }}
+             exit={{ y: 100, opacity: 0 }}
+             className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-[var(--color-atelier-grafite)] text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-6 z-[150]"
+          >
+             <span className="font-bold text-[13px] bg-white/10 px-3 py-1 rounded-full whitespace-nowrap">
+               {selectedTaskIds.length > 0 ? `${selectedTaskIds.length} Tarefas` : `${selectedRuleIds.length} Regras`}
+             </span>
+
+             {selectedTaskIds.length > 0 && (
+                <>
+                   <button onClick={() => setBulkModalOpen(true)} className="flex items-center gap-2 hover:text-[var(--color-atelier-terracota)] transition-colors text-[12px] uppercase tracking-widest font-bold whitespace-nowrap"><Edit3 size={14}/> Editar Lote</button>
+                   <button onClick={handleBulkTaskComplete} className="flex items-center gap-2 hover:text-green-400 transition-colors text-[12px] uppercase tracking-widest font-bold whitespace-nowrap"><CheckCircle2 size={14}/> Concluir</button>
+                   <button onClick={handleBulkTaskDelete} className="flex items-center gap-2 hover:text-red-400 transition-colors text-[12px] uppercase tracking-widest font-bold whitespace-nowrap"><Trash2 size={14}/> Apagar</button>
+                </>
+             )}
+
+             {selectedRuleIds.length > 0 && (
+                <button onClick={handleBulkRuleDelete} className="flex items-center gap-2 hover:text-red-400 transition-colors text-[12px] uppercase tracking-widest font-bold whitespace-nowrap"><Trash2 size={14}/> Apagar Regras</button>
+             )}
+
+             <div className="w-px h-6 bg-white/20"></div>
+             
+             <button onClick={() => { setSelectedTaskIds([]); setSelectedRuleIds([]); setIsBulkMode(false); }} className="hover:text-gray-300 transition-colors" title="Cancelar"><X size={18}/></button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL DE EDIÇÃO EM LOTE DE TAREFAS */}
+      <AnimatePresence>
+        {bulkModalOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setBulkModalOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-white/20 flex flex-col gap-5">
+              <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
+                <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Atualizar {selectedTaskIds.length} Tarefas</h3>
+                <button onClick={() => setBulkModalOpen(false)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)]"><X size={20}/></button>
+              </div>
+              
+              <div className="flex flex-col gap-1.5">
+                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Novo Responsável</span>
+                <select value={bulkAssigneeId} onChange={(e) => setBulkAssigneeId(e.target.value)} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50">
+                  <option value="">Manter Atuais</option>
+                  <option value="unassigned">Ficar em Fila Neutra</option>
+                  {team.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                </select>
+              </div>
+              
+              <div className="flex flex-col gap-1.5">
+                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Novo Prazo Base (Deadline)</span>
+                <input type="datetime-local" value={bulkDeadline} onChange={(e) => setBulkDeadline(e.target.value)} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50" />
+                <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 mt-1 italic">Dica: Deixe em branco se desejar manter os prazos originais de cada tarefa.</span>
+              </div>
+
+              <button onClick={handleBulkTaskUpdate} disabled={isProcessing || (bulkAssigneeId === "" && bulkDeadline === "")} className="w-full mt-2 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-[var(--color-atelier-terracota)] transition-colors flex justify-center items-center gap-2 disabled:opacity-50">
+                {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <Edit3 size={16}/>} Aplicar a Todos
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL DE EDIÇÃO DE TAREFA ÚNICA */}
       <AnimatePresence>
         {editingTask && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
@@ -931,25 +1136,39 @@ export default function AnalyticsPage() {
               <div className="mt-6 flex-1 bg-white rounded-[2rem] p-6 md:p-8 border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col min-h-0">
                 <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-4 shrink-0 flex items-center gap-2"><FolderKanban size={14}/> Fila de Produção</h4>
                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3">
-                  {activeTasks.filter(t => t.assigned_to === selectedCollab.id).map(task => (
-                    <div key={task.id} className="p-4 rounded-xl border border-[var(--color-atelier-grafite)]/10 flex justify-between items-center bg-gray-50/50 hover:bg-white transition-colors group">
-                      <div className="flex flex-col truncate pr-4">
-                        <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] truncate">{task.title}</span>
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">{task.projects?.profiles?.nome}</span>
-                          <span className="text-[9px] text-[var(--color-atelier-grafite)]/20">•</span>
-                          <span className={`text-[9px] uppercase font-bold tracking-widest ${new Date(task.deadline) < new Date() ? 'text-red-500' : 'text-[var(--color-atelier-terracota)]'}`}>
-                            Vence: {new Date(task.deadline).toLocaleDateString('pt-BR')}
-                          </span>
+                  {activeTasks.filter(t => t.assigned_to === selectedCollab.id).map(task => {
+                    const isSelected = selectedTaskIds.includes(task.id);
+                    return (
+                      <div 
+                        key={task.id} 
+                        onClick={() => isBulkMode ? toggleTaskSelection(task.id) : null}
+                        className={`p-4 rounded-xl border flex justify-between items-center transition-colors group ${isBulkMode ? 'cursor-pointer' : ''} ${isSelected ? 'bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)] shadow-md' : 'bg-gray-50/50 border-[var(--color-atelier-grafite)]/10 hover:bg-white'}`}
+                      >
+                        <div className="flex items-center gap-3 w-full truncate pr-4">
+                          {isBulkMode && (
+                            <div className="shrink-0 text-[var(--color-atelier-terracota)]">
+                              {isSelected ? <CheckSquare size={16} /> : <Square size={16} className="text-gray-300"/>}
+                            </div>
+                          )}
+                          <div className="flex flex-col truncate">
+                            <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] truncate">{task.title}</span>
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">{task.projects?.profiles?.nome}</span>
+                              <span className="text-[9px] text-[var(--color-atelier-grafite)]/20">•</span>
+                              <span className={`text-[9px] uppercase font-bold tracking-widest ${new Date(task.deadline) < new Date() ? 'text-red-500' : 'text-[var(--color-atelier-terracota)]'}`}>
+                                Vence: {new Date(task.deadline).toLocaleDateString('pt-BR')}
+                              </span>
+                            </div>
+                          </div>
                         </div>
+                        <span className={`px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest border shrink-0
+                          ${task.status === 'in_progress' ? 'bg-blue-100 text-blue-700 border-blue-200 shadow-sm' : 'bg-white text-[var(--color-atelier-grafite)]/50'}
+                        `}>
+                          {task.status === 'in_progress' ? 'Em Foco' : 'Fila'}
+                        </span>
                       </div>
-                      <span className={`px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest border shrink-0
-                        ${task.status === 'in_progress' ? 'bg-blue-100 text-blue-700 border-blue-200 shadow-sm' : 'bg-white text-[var(--color-atelier-grafite)]/50'}
-                      `}>
-                        {task.status === 'in_progress' ? 'Em Foco' : 'Fila'}
-                      </span>
-                    </div>
-                  ))}
+                    )
+                  })}
                 </div>
               </div>
 
