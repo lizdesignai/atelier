@@ -129,21 +129,24 @@ export default function AnalyticsPage() {
   // 🧠 Consumo da Memória RAM Global (0ms Latência)
   const { activeProjects, isGlobalLoading, refreshGlobalData } = useGlobalStore();
   
+  // Estado local modificado para não chocar com a RAM
   const [isLocalLoading, setIsLocalLoading] = useState(true);
-  const [metrics, setMetrics] = useState({ activeProjects: 0, pendingTasks: 0, totalTeam: 0 });
   
   const [team, setTeam] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [routingRules, setRoutingRules] = useState<any[]>([]);
 
+  // Estados de Interface
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [selectedPackageForDeploy, setSelectedPackageForDeploy] = useState<string>("Pacote 1");
   const [editingTask, setEditingTask] = useState<any>(null);
   const [selectedCollab, setSelectedCollab] = useState<any>(null);
 
+  // Estado do Formulário de Regras de Routing
   const [routeConfig, setRouteConfig] = useState({ projectId: "", taskType: "", assigneeId: "" });
   const [isProcessing, setIsProcessing] = useState(false);
 
+  // Estado para Demanda Pontual (Ad-Hoc)
   const [adHocDemand, setAdHocDemand] = useState({ title: "", projectId: "", assigneeId: "", taskType: "", urgency: false });
 
   // 🔥 ESTADOS DO MODO DE EDIÇÃO EM LOTE (BULK ACTIONS)
@@ -154,6 +157,7 @@ export default function AnalyticsPage() {
   const [bulkAssigneeId, setBulkAssigneeId] = useState("");
   const [bulkDeadline, setBulkDeadline] = useState("");
 
+  // Derivação automática (0ms de latência) baseada na RAM
   const validProjects = activeProjects.filter(p => p.status === 'active' || p.status === 'delivered');
 
   useEffect(() => {
@@ -176,6 +180,7 @@ export default function AnalyticsPage() {
         setSelectedProjectId(validProjects[0].id);
       }
 
+      // 🔥 MÁGICA SÊNIOR: Parallel Fetching - Disparamos os 3 pedidos pesados ao mesmo tempo
       const teamPromise = supabase.from('profiles').select('id, nome, role, avatar_url, skills, team_performance(exp_points, level_name)').in('role', ['admin', 'gestor', 'colaborador']);
       const tasksPromise = supabase.from('tasks').select('*, projects(profiles(nome, avatar_url), type, service_type), profiles!assigned_to(nome, avatar_url)').order('deadline', { ascending: true });
       const rulesPromise = supabase.from('routing_rules').select('*');
@@ -190,12 +195,7 @@ export default function AnalyticsPage() {
       if (tasksData) setTasks(tasksData);
       if (rulesData) setRoutingRules(rulesData);
 
-      setMetrics({
-        activeProjects: validProjects.filter(p => p.status === 'active').length || 0,
-        pendingTasks: tasksData?.filter(t => t.status !== 'completed')?.length || 0,
-        totalTeam: teamData?.length || 0
-      });
-
+      // 🧠 ATELIER PM ENGINE: Gatilhos Diários de Fundo (Gestão de Risco e Calibração Económica)
       if (session?.user) {
         AtelierPMEngine.runDailyRiskMitigation(session.user.id);
         AtelierPMEngine.calibrateUnitEconomics(session.user.id);
@@ -209,19 +209,95 @@ export default function AnalyticsPage() {
     }
   };
 
+  // ============================================================================
+  // MUTAÇÃO OTIMISTA: TAREFA UNITÁRIA
+  // ============================================================================
   const handleCompleteTask = async (taskId: string) => {
+    // 1. MUTAÇÃO OTIMISTA: Remove a tarefa da vista imediatamente (< 10ms)
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'completed' } : t));
+    showToast("Missão concluída!");
+    
+    // 2. BACKGROUND SYNC: Envia para o Supabase silenciosamente
     try {
-      const { error } = await supabase.from('tasks').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', taskId);
-      if (error) throw error;
-      showToast("Missão concluída com sucesso!");
-      fetchOperationalData();
+      await supabase.from('tasks').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', taskId);
     } catch (e) {
       showToast("Erro ao finalizar missão.");
+      fetchOperationalData(); // Só recarrega se der erro
+    }
+  };
+
+  const handleUpdateTask = async () => {
+    if (!editingTask) return;
+    setIsProcessing(true);
+    
+    // 1. MUTAÇÃO OTIMISTA
+    setTasks(prev => prev.map(t => t.id === editingTask.id ? { 
+      ...t, 
+      title: editingTask.title, 
+      description: editingTask.description, 
+      urgency: editingTask.urgency, 
+      deadline: editingTask.deadline, 
+      assigned_to: editingTask.assigned_to 
+    } : t));
+    
+    setEditingTask(null);
+    showToast("Tarefa atualizada instantaneamente!");
+
+    // 2. BACKGROUND SYNC
+    try {
+      await supabase.from('tasks').update({
+        title: editingTask.title,
+        description: editingTask.description,
+        urgency: editingTask.urgency,
+        deadline: editingTask.deadline,
+        assigned_to: editingTask.assigned_to || null 
+      }).eq('id', editingTask.id);
+    } catch (e) {
+      showToast("Erro na sincronização da tarefa.");
+      fetchOperationalData();
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleAddAdHocDemand = async () => {
+    const targetProject = adHocDemand.projectId || selectedProjectId;
+    if (!adHocDemand.title || !adHocDemand.assigneeId || !targetProject) {
+      showToast("Preencha título, colaborador e projeto."); return;
+    }
+    setIsProcessing(true);
+
+    const newTask = {
+      project_id: targetProject,
+      assigned_to: adHocDemand.assigneeId,
+      title: adHocDemand.title,
+      urgency: adHocDemand.urgency,
+      status: 'pending',
+      stage: 'Demanda Pontual',
+      task_type: adHocDemand.taskType || 'setup',
+      deadline: new Date(Date.now() + 86400000).toISOString(),
+      // Mock data para a UI funcionar antes do fetch
+      profiles: team.find(t => t.id === adHocDemand.assigneeId) || {},
+      projects: { profiles: validProjects.find(p => p.id === targetProject)?.profiles || {} }
+    };
+
+    try {
+      const { data, error } = await supabase.from('tasks').insert(newTask).select('*, projects(profiles(nome, avatar_url), type, service_type), profiles!assigned_to(nome, avatar_url)').single();
+      if (error) throw error;
+      
+      // MUTAÇÃO OTIMISTA
+      setTasks(prev => [...prev, data]);
+      showToast("🔥 Demanda injetada na fila do colaborador!");
+      setAdHocDemand({ title: "", projectId: "", assigneeId: "", taskType: "", urgency: false });
+    } catch (e) {
+      showToast("Erro ao injetar demanda.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
   // ============================================================================
-  // 🔥 FUNÇÕES DE EXECUÇÃO EM LOTE (BULK ACTIONS)
+  // 🔥 FUNÇÕES DE EXECUÇÃO EM LOTE (BULK ACTIONS - OTIMISTAS)
   // ============================================================================
   const toggleTaskSelection = (id: string) => {
     if (selectedTaskIds.includes(id)) setSelectedTaskIds(selectedTaskIds.filter(tid => tid !== id));
@@ -236,22 +312,29 @@ export default function AnalyticsPage() {
   const handleBulkTaskUpdate = async () => {
     if (selectedTaskIds.length === 0) return;
     setIsProcessing(true);
-    try {
-      const updates: any = {};
-      if (bulkAssigneeId !== "") updates.assigned_to = bulkAssigneeId === "unassigned" ? null : bulkAssigneeId;
-      if (bulkDeadline) updates.deadline = new Date(bulkDeadline).toISOString();
 
+    const updates: any = {};
+    if (bulkAssigneeId !== "") updates.assigned_to = bulkAssigneeId === "unassigned" ? null : bulkAssigneeId;
+    if (bulkDeadline) updates.deadline = new Date(bulkDeadline).toISOString();
+
+    // 1. MUTAÇÃO OTIMISTA
+    setTasks(prev => prev.map(t => selectedTaskIds.includes(t.id) ? { ...t, ...updates } : t));
+    showToast(`Lote de ${selectedTaskIds.length} tarefas atualizado!`);
+    
+    const idsToUpdate = [...selectedTaskIds];
+    setSelectedTaskIds([]);
+    setBulkModalOpen(false);
+    setBulkAssigneeId("");
+    setBulkDeadline("");
+
+    // 2. BACKGROUND SYNC
+    try {
       if (Object.keys(updates).length > 0) {
-         await supabase.from('tasks').update(updates).in('id', selectedTaskIds);
+         await supabase.from('tasks').update(updates).in('id', idsToUpdate);
       }
-      showToast(`Lote de ${selectedTaskIds.length} tarefas atualizado!`);
-      setSelectedTaskIds([]);
-      setBulkModalOpen(false);
-      setBulkAssigneeId("");
-      setBulkDeadline("");
-      fetchOperationalData();
     } catch(e) {
       showToast("Erro na atualização em lote.");
+      fetchOperationalData();
     } finally {
       setIsProcessing(false);
     }
@@ -260,13 +343,20 @@ export default function AnalyticsPage() {
   const handleBulkTaskComplete = async () => {
     if (selectedTaskIds.length === 0) return;
     setIsProcessing(true);
+    
+    // 1. MUTAÇÃO OTIMISTA
+    setTasks(prev => prev.map(t => selectedTaskIds.includes(t.id) ? { ...t, status: 'completed' } : t));
+    showToast(`Lote de ${selectedTaskIds.length} tarefas concluído!`);
+    
+    const idsToComplete = [...selectedTaskIds];
+    setSelectedTaskIds([]);
+    
+    // 2. BACKGROUND SYNC
     try {
-      await supabase.from('tasks').update({ status: 'completed', completed_at: new Date().toISOString() }).in('id', selectedTaskIds);
-      showToast(`Lote de ${selectedTaskIds.length} tarefas concluído!`);
-      setSelectedTaskIds([]);
-      fetchOperationalData();
+      await supabase.from('tasks').update({ status: 'completed', completed_at: new Date().toISOString() }).in('id', idsToComplete);
     } catch(e) {
       showToast("Erro ao concluir em lote.");
+      fetchOperationalData();
     } finally {
       setIsProcessing(false);
     }
@@ -276,13 +366,20 @@ export default function AnalyticsPage() {
     if (selectedTaskIds.length === 0) return;
     if (!window.confirm(`ATENÇÃO: Apagar definitivamente ${selectedTaskIds.length} tarefas?`)) return;
     setIsProcessing(true);
+    
+    // 1. MUTAÇÃO OTIMISTA
+    setTasks(prev => prev.filter(t => !selectedTaskIds.includes(t.id)));
+    showToast(`Lote de ${selectedTaskIds.length} tarefas apagado!`);
+    
+    const idsToDelete = [...selectedTaskIds];
+    setSelectedTaskIds([]);
+    
+    // 2. BACKGROUND SYNC
     try {
-      await supabase.from('tasks').delete().in('id', selectedTaskIds);
-      showToast(`Lote de ${selectedTaskIds.length} tarefas apagado!`);
-      setSelectedTaskIds([]);
-      fetchOperationalData();
+      await supabase.from('tasks').delete().in('id', idsToDelete);
     } catch(e) {
       showToast("Erro ao apagar em lote.");
+      fetchOperationalData();
     } finally {
       setIsProcessing(false);
     }
@@ -292,46 +389,41 @@ export default function AnalyticsPage() {
     if (selectedRuleIds.length === 0) return;
     if (!window.confirm(`Apagar ${selectedRuleIds.length} regras de automação?`)) return;
     setIsProcessing(true);
+
+    // 1. MUTAÇÃO OTIMISTA
+    setRoutingRules(prev => prev.filter(r => !selectedRuleIds.includes(r.id)));
+    showToast(`${selectedRuleIds.length} regras removidas!`);
+    
+    const idsToDelete = [...selectedRuleIds];
+    setSelectedRuleIds([]);
+    
+    // 2. BACKGROUND SYNC
     try {
-      await supabase.from('routing_rules').delete().in('id', selectedRuleIds);
-      showToast(`${selectedRuleIds.length} regras removidas!`);
-      setSelectedRuleIds([]);
-      fetchOperationalData();
+      await supabase.from('routing_rules').delete().in('id', idsToDelete);
     } catch(e) {
       showToast("Erro ao remover regras.");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleAddAdHocDemand = async () => {
-    const targetProject = adHocDemand.projectId || selectedProjectId;
-    if (!adHocDemand.title || !adHocDemand.assigneeId || !targetProject) {
-      showToast("Preencha título, colaborador e projeto."); return;
-    }
-    setIsProcessing(true);
-    try {
-      const { error } = await supabase.from('tasks').insert({
-        project_id: targetProject,
-        assigned_to: adHocDemand.assigneeId,
-        title: adHocDemand.title,
-        urgency: adHocDemand.urgency,
-        status: 'pending',
-        stage: 'Demanda Pontual',
-        task_type: adHocDemand.taskType || 'setup',
-        deadline: new Date(Date.now() + 86400000).toISOString()
-      });
-      if (error) throw error;
-      showToast("🔥 Demanda injetada na fila do colaborador!");
-      setAdHocDemand({ title: "", projectId: "", assigneeId: "", taskType: "", urgency: false });
       fetchOperationalData();
-    } catch (e) {
-      showToast("Erro ao injetar demanda.");
     } finally {
       setIsProcessing(false);
     }
   };
 
+  const handleDeleteRule = async (ruleId: string) => {
+    if (!window.confirm("Remover esta regra de roteamento?")) return;
+    
+    // MUTAÇÃO OTIMISTA
+    setRoutingRules(prev => prev.filter(r => r.id !== ruleId));
+    showToast("Regra removida instantaneamente.");
+
+    try {
+      await supabase.from('routing_rules').delete().eq('id', ruleId);
+    } catch (error) {
+      showToast("Erro ao remover regra no banco.");
+      fetchOperationalData();
+    }
+  };
+
+  // 🧠 ATELIER PM ENGINE
   const handleAutoDeploy = async (project: any) => {
     setIsProcessing(true);
     try {
@@ -399,7 +491,7 @@ export default function AnalyticsPage() {
       }
 
       showToast(hasPreviousTasks ? "🔄 Ciclo Mensal Renovado!" : "🚀 Pipeline Inteligente Instanciado!");
-      fetchOperationalData();
+      fetchOperationalData(); // Único local onde vale a pena recarregar devido ao volume gigante de dados
     } catch (error) {
       console.error(error);
       showToast("Erro no Deploy do Pipeline.");
@@ -430,40 +522,6 @@ export default function AnalyticsPage() {
     }
   };
 
-  const handleDeleteRule = async (ruleId: string) => {
-    if (!window.confirm("Remover esta regra de roteamento?")) return;
-    try {
-      await supabase.from('routing_rules').delete().eq('id', ruleId);
-      showToast("Regra removida.");
-      fetchOperationalData();
-    } catch (error) {
-      showToast("Erro ao remover regra.");
-    }
-  };
-
-  const handleUpdateTask = async () => {
-    if (!editingTask) return;
-    setIsProcessing(true);
-    try {
-      const { error } = await supabase.from('tasks').update({
-        title: editingTask.title,
-        description: editingTask.description,
-        urgency: editingTask.urgency,
-        deadline: editingTask.deadline,
-        assigned_to: editingTask.assigned_to || null 
-      }).eq('id', editingTask.id);
-      
-      if (error) throw error;
-      showToast("Tarefa sincronizada com o JTBD!");
-      setEditingTask(null);
-      fetchOperationalData();
-    } catch (e) {
-      showToast("Erro ao atualizar tarefa.");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   const handleToggleSkill = async (collabId: string, skillId: string) => {
     const collab = team.find(t => t.id === collabId);
     if (!collab) return;
@@ -472,21 +530,23 @@ export default function AnalyticsPage() {
       ? currentSkills.filter((s: string) => s !== skillId)
       : [...currentSkills, skillId];
     
+    // MUTAÇÃO OTIMISTA
     setTeam(team.map(t => t.id === collabId ? { ...t, skills: newSkills } : t));
     if (selectedCollab && selectedCollab.id === collabId) {
       setSelectedCollab({ ...selectedCollab, skills: newSkills });
     }
 
     try {
-      const { error } = await supabase.from('profiles').update({ skills: newSkills }).eq('id', collabId);
-      if (error) throw error;
-      showToast("Competência atualizada no banco de dados.");
+      await supabase.from('profiles').update({ skills: newSkills }).eq('id', collabId);
     } catch (e) {
       showToast("Erro ao atualizar competências.");
       fetchOperationalData(); 
     }
   };
 
+  // ============================================================================
+  // FILTROS UI E DERIVAÇÕES DE ESTADO (Recalculados instantaneamente)
+  // ============================================================================
   const activeTasksForQueue = tasks.filter(t => t.status !== 'completed');
   const activeTasks = activeTasksForQueue; 
   const activeProjectsList = validProjects.filter(p => p.status === 'active');
@@ -497,6 +557,14 @@ export default function AnalyticsPage() {
   
   const liveTasks = tasks.filter(t => t.status === 'in_progress');
 
+  // As métricas reagem à manipulação otimista dos arrays (0ms)
+  const dynamicMetrics = {
+    activeProjects: validProjects.filter(p => p.status === 'active').length || 0,
+    pendingTasks: tasks.filter(t => t.status !== 'completed').length || 0,
+    totalTeam: team.length || 0
+  };
+
+  // Proteção Visual do Carregamento Misto (Global + Local)
   if (isGlobalLoading || isLocalLoading) return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   return (
@@ -562,21 +630,21 @@ export default function AnalyticsPage() {
                 <div className="bg-white/60 p-4 rounded-2xl border border-white flex items-center gap-4 shadow-sm">
                   <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0"><FolderKanban size={18} /></div>
                   <div className="flex flex-col">
-                    <span className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">{metrics.activeProjects}</span>
+                    <span className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">{dynamicMetrics.activeProjects}</span>
                     <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-0.5">Projetos Ativos</span>
                   </div>
                 </div>
                 <div className="bg-white/60 p-4 rounded-2xl border border-white flex items-center gap-4 shadow-sm">
                   <div className="w-10 h-10 rounded-xl bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center shrink-0"><Target size={18} /></div>
                   <div className="flex flex-col">
-                    <span className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">{metrics.pendingTasks}</span>
+                    <span className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">{dynamicMetrics.pendingTasks}</span>
                     <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-0.5">Missões Pendentes</span>
                   </div>
                 </div>
                 <div className="bg-white/60 p-4 rounded-2xl border border-white flex items-center gap-4 shadow-sm">
                   <div className="w-10 h-10 rounded-xl bg-green-500/10 text-green-600 flex items-center justify-center shrink-0"><Users size={18} /></div>
                   <div className="flex flex-col">
-                    <span className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">{metrics.totalTeam}</span>
+                    <span className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">{dynamicMetrics.totalTeam}</span>
                     <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-0.5">Força de Equipa</span>
                   </div>
                 </div>
