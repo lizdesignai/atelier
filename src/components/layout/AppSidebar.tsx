@@ -161,13 +161,13 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
             <>
               {clientServiceType === "Gestão de Instagram" ? (
                 <>
-                  <NavItem href="/cockpit" icon={<LayoutDashboard size={20} strokeWidth={1.75} />} label="Cockpit" collapsed={isCollapsed} active={pathname === '/cockpit'} />
+                  <NavItem href="/cockpit" icon={<LayoutDashboard size={20} strokeWidth={1.75} />} label="Comece por aqui" collapsed={isCollapsed} active={pathname === '/cockpit'} />
                   <NavItem href="/brandbook" icon={<Sparkles size={20} strokeWidth={1.75} />} label="Sua Marca" collapsed={isCollapsed} active={pathname === '/brandbook'} />
                   <NavItem href="/curadoria" icon={<CheckCircle2 size={20} strokeWidth={1.75} />} label="Curadoria" collapsed={isCollapsed} active={pathname === '/curadoria'} />
                 </>
               ) : (
                 <>
-                  <NavItem href="/" icon={<Home size={20} strokeWidth={1.75} />} label="Mesa de Trabalho" collapsed={isCollapsed} active={pathname === '/'} />
+                  <NavItem href="/" icon={<Home size={20} strokeWidth={1.75} />} label="Comece por aqui" collapsed={isCollapsed} active={pathname === '/'} />
                   <NavItem href="/cofre" icon={<Lock size={20} strokeWidth={1.75} />} label="O Cofre" collapsed={isCollapsed} active={pathname === '/cofre'} />
                   <NavItem href="/referencias" icon={<Compass size={20} strokeWidth={1.75} />} label="Referências" collapsed={isCollapsed} active={pathname === '/referencias'} />
                 </>
@@ -182,8 +182,8 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
           {isTeamMember && (
             <>
               {/* Visto por todos (Admin, Gestor, Colaborador) */}
-              <NavItem href="/admin/jtbd" icon={<Crosshair size={20} strokeWidth={1.75} />} label="Focus (JTBD)" collapsed={isCollapsed} active={pathname === '/admin/jtbd'} />
-              <NavItem href="/admin" icon={<LayoutDashboard size={20} strokeWidth={1.75} />} label="Comando" collapsed={isCollapsed} active={pathname === '/admin'} />
+              <NavItem href="/admin/jtbd" icon={<Crosshair size={20} strokeWidth={1.75} />} label="Focus" collapsed={isCollapsed} active={pathname === '/admin/jtbd'} />
+              <NavItem href="/admin" icon={<LayoutDashboard size={20} strokeWidth={1.75} />} label="Gestão" collapsed={isCollapsed} active={pathname === '/admin'} />
               <NavItem href="/admin/projetos" icon={<FolderKanban size={20} strokeWidth={1.75} />} label="Estúdio" collapsed={isCollapsed} active={pathname === '/admin/projetos'} />
               <NavItem href="/admin/inbox" icon={<Inbox size={20} strokeWidth={1.75} />} label="Caixa de Entrada" collapsed={isCollapsed} active={pathname === '/admin/inbox'} />
               <NavItem href="/comunidade" icon={<Globe2 size={20} strokeWidth={1.75} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />

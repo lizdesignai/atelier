@@ -6,104 +6,27 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabase";
 import { AtelierPMEngine } from "../../../lib/AtelierPMEngine"; 
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
+import { BrainCircuit, Loader2 } from "lucide-react";
+
+// Importações do Núcleo Estático
 import { 
-  Activity, Target, FolderKanban, Clock, Users, 
-  Loader2, Sparkles, BrainCircuit, CheckCircle2, 
-  AlertTriangle, LayoutDashboard, ChevronRight,
-  GitMerge, Layers, UserCircle2, Flame, Edit3, X, PlayCircle, Trash2, Check, PlusCircle, Square, CheckSquare
-} from "lucide-react";
+  TASK_TYPES_IDV, TASK_TYPES_IG, ALL_SKILLS, 
+  IDV_PIPELINE, IG_SETUP, generateUnitaryIG 
+} from "./constants";
+
+// Importações dos Módulos da Interface
+import OverviewDashboard from "./views/OverviewDashboard";
+import ProjectsManager from "./views/ProjectsManager";
+import RoutingEngine from "./views/RoutingEngine";
+import LiveExecutionBar from "./components/LiveExecutionBar";
+import AnalyticsModals from "./components/AnalyticsModals";
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
 };
 
 // ============================================================================
-// 1. DICIONÁRIOS, PIPELINES UNITARIZADOS E COMPETÊNCIAS (TAGS)
-// ============================================================================
-const TASK_TYPES_IDV = [
-  { id: 'setup', label: 'Administrativo & Contratos' },
-  { id: 'reuniao', label: 'Reuniões & Apresentações' },
-  { id: 'copy', label: 'Pesquisa & Estratégia' },
-  { id: 'design', label: 'Design & Direção Visual' },
-  { id: 'community', label: 'Diário de Bordo & Comunidade' },
-  { id: 'presentation', label: 'Mockups e Apresentação' } 
-];
-
-const TASK_TYPES_IG = [
-  { id: 'setup', label: 'Gestão & Relatórios' },
-  { id: 'reuniao', label: 'Reuniões' },
-  { id: 'copy', label: 'Copywriting' },
-  { id: 'planning', label: 'Planejamento & Aprovação' },
-  { id: 'design', label: 'Design Gráfico' },
-  { id: 'video', label: 'Edição de Vídeo' },
-  { id: 'community', label: 'Moderação da Comunidade' }
-];
-
-const ALL_SKILLS = [
-  { id: 'setup', label: 'Gestão & Contratos' },
-  { id: 'reuniao', label: 'Reuniões & Calls' },
-  { id: 'copy', label: 'Copy & Estratégia' },
-  { id: 'planning', label: 'Planejamento' },
-  { id: 'design', label: 'Design Gráfico' },
-  { id: 'video', label: 'Edição de Vídeo' },
-  { id: 'community', label: 'Comunidade & Diário' },
-  { id: 'search', label: 'Pesquisa' },
-  { id: 'presentation', label: 'Mockups e Apresentação' }
-];
-
-const IDV_PIPELINE = [
-  { stage: "Kickoff", type: "setup", title: "Formulário de cadastro & Contrato", daysOffset: 0, estTime: 30 },
-  { stage: "Kickoff", type: "setup", title: "Pagamento", daysOffset: 1, estTime: 15 },
-  { stage: "Kickoff", type: "setup", title: "Coletar Brandbook/Briefing", daysOffset: 1, estTime: 20 },
-  { stage: "Kickoff", type: "reuniao", title: "Reunião de briefing", daysOffset: 2, estTime: 60 },
-  { stage: "Kickoff", type: "community", title: "Postar Kickoff no Diário de Bordo", daysOffset: 2, estTime: 15 },
-  { stage: "Imersão", type: "copy", title: "Moodboard & Semiótica Visual", daysOffset: 5, estTime: 180 },
-  { stage: "Design", type: "design", title: "Laboratório de Logotipo", daysOffset: 9, estTime: 240 },
-  { stage: "Design", type: "design", title: "Tipografia e Cores", daysOffset: 12, estTime: 180 },
-  { stage: "Apresentação", type: "design", title: "Montagem do Brandbook", daysOffset: 16, estTime: 180 },
-  { stage: "Apresentação", type: "community", title: "Postar Prévia no Diário de Bordo", daysOffset: 16, estTime: 15 },
-  { stage: "Handover", type: "setup", title: "Envio do Drive e Conclusão", daysOffset: 18, estTime: 30 }
-];
-
-const IG_SETUP = [
-  { stage: "Setup", type: "setup", title: "Assinatura & Onboarding", daysOffset: 0, estTime: 30 },
-  { stage: "Setup", type: "setup", title: "Coletar Briefing Base", daysOffset: 1, estTime: 20 },
-  { stage: "Setup", type: "community", title: "Apresentar Cliente no Diário de Bordo", daysOffset: 1, estTime: 15 },
-  { stage: "Estratégia", type: "copy", title: "Criação de Estratégia e Copy (Mês)", daysOffset: 5, estTime: 180 },
-  { stage: "Estratégia", type: "planning", title: "Enviar Planejamento para Aprovação", daysOffset: 6, estTime: 30 },
-];
-
-const generateUnitaryIG = (packageName: string) => {
-  const units: any[] = [];
-  const counts: Record<string, {type: string, qty: number}> = {
-    "Pacote 1": { type: "video", qty: 6 },
-    "Pacote 2": { type: "design", qty: 4 },
-    "Pacote 3": { type: "design", qty: 8 },
-    "Pacote 4": { type: "design", qty: 12 }
-  };
-
-  const config = counts[packageName] || { type: "design", qty: 1 };
-  
-  for (let i = 1; i <= config.qty; i++) {
-    units.push({
-      stage: "Produção Ativa",
-      type: config.type,
-      title: `${config.type === 'video' ? 'Reels/Vídeo' : 'Post/Card'} Unitário #${i} - ${packageName}`,
-      daysOffset: Math.floor(10 + (i * (18 / config.qty))),
-      estTime: 60
-    });
-  }
-
-  if (packageName === "Pacote 4") {
-    units.push({ stage: "Produção Diária", type: "copy", title: "Roteirização Diária de Stories", daysOffset: 18, estTime: 300 });
-    units.push({ stage: "Gestão Contínua", type: "community", title: "Moderação da Comunidade VIP", daysOffset: 20, estTime: 120 });
-  }
-  
-  return units;
-};
-
-// ============================================================================
-// 2. FUNÇÕES AUXILIARES
+// FUNÇÕES AUXILIARES
 // ============================================================================
 const groupTasksByStage = (projectTasks: any[]) => {
   const stages: Record<string, any[]> = {};
@@ -121,7 +44,7 @@ const isIdvService = (project: any) => {
 };
 
 // ============================================================================
-// 3. COMPONENTE PRINCIPAL
+// COMPONENTE ORQUESTRADOR PRINCIPAL
 // ============================================================================
 export default function AnalyticsPage() {
   const [activeView, setActiveView] = useState<'overview' | 'projects' | 'routing'>('overview');
@@ -154,6 +77,16 @@ export default function AnalyticsPage() {
   const [bulkAssigneeId, setBulkAssigneeId] = useState("");
   const [bulkDeadline, setBulkDeadline] = useState("");
 
+  // 🏢 GESTÃO UNIFICADA (PROJETOS + AGÊNCIAS)
+  const [selectedEntityId, setSelectedEntityId] = useState<string>(""); 
+  const [selectedEntityType, setSelectedEntityType] = useState<'project' | 'agency'>('project');
+  const [agencies, setAgencies] = useState<any[]>([]);
+  const [agencySubclients, setAgencySubclients] = useState<any[]>([]);
+
+  // 📍 MÓDULO DE LOGÍSTICA
+  const [isCaptacaoModalOpen, setIsCaptacaoModalOpen] = useState(false);
+  const [captacaoForm, setCaptacaoForm] = useState({ title: "", assigneeId: "", date: "", location: "", notes: "" });
+
   const validProjects = activeProjects.filter(p => p.status === 'active' || p.status === 'delivered');
 
   useEffect(() => {
@@ -172,54 +105,33 @@ export default function AnalyticsPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
-      if (validProjects.length > 0 && !selectedProjectId) {
-        setSelectedProjectId(validProjects[0].id);
-      }
-
-      // 1. Busca Equipa
       const teamPromise = supabase.from('profiles').select('id, nome, role, avatar_url, skills, team_performance(exp_points, level_name)').in('role', ['admin', 'gestor', 'colaborador']);
-      
-      // 2. Busca Tarefas (SEM JOIN AMBÍGUO DE PROFILES PARA EVITAR ERRO 500)
       const tasksPromise = supabase.from('tasks').select('*, projects(profiles(nome, avatar_url), type, service_type)').order('deadline', { ascending: true });
-      
       const rulesPromise = supabase.from('routing_rules').select('*');
+      const agenciesPromise = supabase.from('agencies').select('*').eq('status', 'active');
+      const subclientsPromise = supabase.from('agency_subclients').select('*');
+
+      const [resTeam, resTasks, resRules, resAgencies, resSubs] = await Promise.all([
+        teamPromise, tasksPromise, rulesPromise, agenciesPromise, subclientsPromise
+      ]);
+
+      if (resTeam.data) setTeam(resTeam.data);
+      if (resRules.data) setRoutingRules(resRules.data);
+      if (resAgencies.data) setAgencies(resAgencies.data);
+      if (resSubs.data) setAgencySubclients(resSubs.data);
       
-      // 3. FASE 3: Busca Agências e Subclientes para integrar as tarefas White-label
-      const agenciesPromise = supabase.from('agencies').select('id, name');
-      const subclientsPromise = supabase.from('agency_subclients').select('id, name, agency_id');
-
-      const [
-        { data: teamData },
-        { data: rawTasksData, error: taskErr },
-        { data: rulesData },
-        { data: agenciesData },
-        { data: subclientsData }
-      ] = await Promise.all([teamPromise, tasksPromise, rulesPromise, agenciesPromise, subclientsPromise]);
-
-      if (taskErr) console.error("Erro específico nas Tasks:", taskErr);
-
-      if (teamData) setTeam(teamData);
-      
-      if (rawTasksData && teamData) {
-        // 🧠 CLIENT-SIDE JOIN: Cruzamos os dados na RAM para evitar Erros 500 no Supabase
-        const mappedTasks = rawTasksData.map(task => {
-          // Achar o executor
-          const executor = teamData.find(t => t.id === task.assigned_to);
-          
-          // FASE 3: Intercetar tarefas de Agências e disfarçá-las de Projetos Normais
+      if (resTasks.data && resTeam.data) {
+        const mappedTasks = resTasks.data.map(task => {
+          const executor = resTeam.data.find(t => t.id === task.assigned_to);
           let projectVisualData = task.projects;
           
-          if (task.agency_id && agenciesData && subclientsData) {
-            const agency = agenciesData.find(a => a.id === task.agency_id);
-            const subclient = subclientsData.find(s => s.id === task.subclient_id);
-            
+          if (task.agency_id && resAgencies.data && resSubs.data) {
+            const agency = resAgencies.data.find(a => a.id === task.agency_id);
+            const subclient = resSubs.data.find(s => s.id === task.subclient_id);
             projectVisualData = {
               type: 'Agência / White-Label',
               service_type: 'Produção Contínua',
-              profiles: {
-                nome: `${agency?.name || 'Agência'} • ${subclient?.name || 'Cliente'}`,
-                avatar_url: null
-              }
+              profiles: { nome: `${agency?.name || 'Agência'} • ${subclient?.name || 'Cliente'}`, avatar_url: null }
             };
           }
 
@@ -231,21 +143,28 @@ export default function AnalyticsPage() {
         });
 
         setTasks(mappedTasks);
-
         setMetrics({
           activeProjects: validProjects.filter(p => p.status === 'active').length || 0,
           pendingTasks: mappedTasks.filter(t => t.status !== 'completed').length || 0,
-          totalTeam: teamData.length || 0
+          totalTeam: resTeam.data.length || 0
         });
-      }
 
-      if (rulesData) setRoutingRules(rulesData);
+        // Seleção inicial unificada
+        if (!selectedEntityId) {
+            if (validProjects.length > 0) {
+                setSelectedEntityId(validProjects[0].id);
+                setSelectedEntityType('project');
+            } else if (resAgencies.data && resAgencies.data.length > 0) {
+                setSelectedEntityId(resAgencies.data[0].id);
+                setSelectedEntityType('agency');
+            }
+        }
+      }
 
       if (session?.user) {
         AtelierPMEngine.runDailyRiskMitigation(session.user.id);
         AtelierPMEngine.calibrateUnitEconomics(session.user.id);
       }
-
     } catch (error) {
       console.error("Erro no Analytics:", error);
       showToast("Erro ao sincronizar Centro de Operações.");
@@ -266,7 +185,7 @@ export default function AnalyticsPage() {
   };
 
   // ============================================================================
-  // 🔥 FUNÇÕES DE EXECUÇÃO EM LOTE (BULK ACTIONS)
+  // 🔥 FUNÇÕES DE EXECUÇÃO EM LOTE E LOGÍSTICA
   // ============================================================================
   const toggleTaskSelection = (id: string) => {
     if (selectedTaskIds.includes(id)) setSelectedTaskIds(selectedTaskIds.filter(tid => tid !== id));
@@ -350,14 +269,15 @@ export default function AnalyticsPage() {
   };
 
   const handleAddAdHocDemand = async () => {
-    const targetProject = adHocDemand.projectId || selectedProjectId;
-    if (!adHocDemand.title || !adHocDemand.assigneeId || !targetProject) {
-      showToast("Preencha título, colaborador e projeto."); return;
+    const targetProject = adHocDemand.projectId || (selectedEntityType === 'project' ? selectedEntityId : null);
+    if (!adHocDemand.title || !adHocDemand.assigneeId || (!targetProject && selectedEntityType !== 'agency')) {
+      showToast("Preencha título e colaborador."); return;
     }
     setIsProcessing(true);
     try {
       const { error } = await supabase.from('tasks').insert({
         project_id: targetProject,
+        agency_id: selectedEntityType === 'agency' ? selectedEntityId : null,
         assigned_to: adHocDemand.assigneeId,
         title: adHocDemand.title,
         urgency: adHocDemand.urgency,
@@ -375,6 +295,48 @@ export default function AnalyticsPage() {
     } finally {
       setIsProcessing(false);
     }
+  };
+
+  const handleAddCaptacao = async () => {
+    if (!captacaoForm.title || !captacaoForm.assigneeId || !captacaoForm.date) return;
+    setIsProcessing(true);
+    try {
+      const { error } = await supabase.from('tasks').insert({
+        project_id: selectedEntityType === 'project' ? selectedEntityId : null,
+        agency_id: selectedEntityType === 'agency' ? selectedEntityId : null,
+        assigned_to: captacaoForm.assigneeId,
+        title: `📸 CAPTAÇÃO: ${captacaoForm.title}`,
+        description: `📍 Local: ${captacaoForm.location}\n📝 Notas: ${captacaoForm.notes}`,
+        task_type: 'captacao',
+        stage: 'Logística Externa',
+        deadline: new Date(captacaoForm.date).toISOString(),
+        status: 'pending',
+        estimated_time: 120
+      });
+      if (error) throw error;
+      showToast("📍 Logística de captação agendada com sucesso!");
+      setIsCaptacaoModalOpen(false);
+      setCaptacaoForm({ title: "", assigneeId: "", date: "", location: "", notes: "" });
+      fetchOperationalData();
+    } catch (e) { showToast("Erro ao registrar logística."); }
+    finally { setIsProcessing(false); }
+  };
+
+  const handleUpdateSubclientDemand = async (subId: string, demand: number) => {
+    try {
+      await supabase.from('agency_subclients').update({ deliverables_count: demand }).eq('id', subId);
+      showToast("Demanda de posts atualizada.");
+      fetchOperationalData();
+    } catch (e) { showToast("Erro ao atualizar demanda."); }
+  };
+
+  const handleDeleteSubclient = async (subId: string) => {
+    if (!window.confirm("Remover este perfil da agência?")) return;
+    try {
+      await supabase.from('agency_subclients').delete().eq('id', subId);
+      showToast("Perfil removido da operação.");
+      fetchOperationalData();
+    } catch (e) { showToast("Erro ao remover perfil."); }
   };
 
   const handleAutoDeploy = async (project: any) => {
@@ -417,7 +379,6 @@ export default function AnalyticsPage() {
 
         return {
           project_id: project.id,
-          creator_id: session?.user?.id || null,
           assigned_to: optimalAssignee,
           title: t.title,
           stage: t.stage,
@@ -532,21 +493,31 @@ export default function AnalyticsPage() {
     }
   };
 
+  // ============================================================================
+  // COMPUTAÇÃO DE DADOS PARA INTERFACE
+  // ============================================================================
   const activeTasksForQueue = tasks.filter(t => t.status !== 'completed');
-  const activeTasks = activeTasksForQueue; 
   const activeProjectsList = validProjects.filter(p => p.status === 'active');
-  const selectedProj = validProjects.find(p => p.id === selectedProjectId);
-  
+  const liveTasks = tasks.filter(t => t.status === 'in_progress');
+
+  const selectedEntityData = selectedEntityType === 'project' 
+    ? validProjects.find(p => p.id === selectedEntityId)
+    : agencies.find(a => a.id === selectedEntityId);
+
   const routeProjObj = validProjects.find(p => p.id === routeConfig.projectId); 
   const currentTaskTypes = isIdvService(routeProjObj) ? TASK_TYPES_IDV : TASK_TYPES_IG;
-  
-  const liveTasks = tasks.filter(t => t.status === 'in_progress');
+
+  const unifiedWallet = [
+    ...validProjects.filter(p => p.status === 'active').map(p => ({ id: p.id, name: p.profiles?.nome, type: 'project', label: isIdvService(p) ? 'IDV' : 'Instagram' })),
+    ...agencies.map(a => ({ id: a.id, name: a.name, type: 'agency', label: 'White-Label' }))
+  ].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
   if (isGlobalLoading || isLocalLoading) return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   return (
     <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6 px-4 md:px-0">
       
+      {/* HEADER ORQUESTRADOR */}
       <header className="shrink-0 flex flex-col md:flex-row md:items-end justify-between gap-4 mt-6 animate-[fadeInUp_0.5s_ease-out]">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -575,671 +546,116 @@ export default function AnalyticsPage() {
       </header>
 
       {/* WIDGET: LIVE EXECUTION */}
-      {liveTasks.length > 0 && activeView !== 'routing' && (
-        <div className="shrink-0 bg-[var(--color-atelier-grafite)] text-white p-4 rounded-2xl flex items-center gap-4 overflow-x-auto custom-scrollbar shadow-lg animate-[fadeIn_0.5s_ease-out]">
-          <div className="flex items-center gap-2 shrink-0 border-r border-white/20 pr-4">
-             <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-             <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-white/70">Executando Agora</span>
-          </div>
-          {liveTasks.map(t => (
-            <div key={t.id} className="flex items-center gap-3 bg-white/10 px-4 py-2 rounded-xl shrink-0">
-               <div className="w-6 h-6 rounded-full bg-white/20 flex items-center justify-center overflow-hidden shrink-0 border border-white/30">
-                 {t.profiles?.avatar_url ? <img src={t.profiles.avatar_url} className="w-full h-full object-cover"/> : <UserCircle2 size={12}/>}
-               </div>
-               <div className="flex flex-col">
-                 <span className="font-roboto text-[11px] font-bold">{t.profiles?.nome}</span>
-                 <span className="text-[9px] text-white/50 truncate max-w-[150px]">{t.title}</span>
-               </div>
-               <PlayCircle size={14} className="text-green-400 ml-2" />
-            </div>
-          ))}
-        </div>
-      )}
+      <LiveExecutionBar liveTasks={liveTasks} />
 
       <div className="flex-1 min-h-0 relative">
         <AnimatePresence mode="wait">
-
-          {/* DASHBOARD OVERVIEW */}
+          
           {activeView === 'overview' && (
-            <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-6 h-full min-h-0">
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
-                <div className="bg-white/60 p-4 rounded-2xl border border-white flex items-center gap-4 shadow-sm">
-                  <div className="w-10 h-10 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0"><FolderKanban size={18} /></div>
-                  <div className="flex flex-col">
-                    <span className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">{metrics.activeProjects}</span>
-                    <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-0.5">Projetos Ativos</span>
-                  </div>
-                </div>
-                <div className="bg-white/60 p-4 rounded-2xl border border-white flex items-center gap-4 shadow-sm">
-                  <div className="w-10 h-10 rounded-xl bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center shrink-0"><Target size={18} /></div>
-                  <div className="flex flex-col">
-                    <span className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">{metrics.pendingTasks}</span>
-                    <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-0.5">Missões Pendentes</span>
-                  </div>
-                </div>
-                <div className="bg-white/60 p-4 rounded-2xl border border-white flex items-center gap-4 shadow-sm">
-                  <div className="w-10 h-10 rounded-xl bg-green-500/10 text-green-600 flex items-center justify-center shrink-0"><Users size={18} /></div>
-                  <div className="flex flex-col">
-                    <span className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">{metrics.totalTeam}</span>
-                    <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-0.5">Força de Equipa</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
-                
-                {/* COLUNA 1: FILA GERAL */}
-                <div className="w-full lg:w-1/3 glass-panel bg-white/40 p-6 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden h-full min-h-0">
-                  <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-4 shrink-0 flex justify-between items-center">
-                    <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Fila de Missões</h3>
-                    <span className="bg-orange-100 text-orange-700 px-2 py-1 rounded text-[9px] font-bold uppercase tracking-widest">{activeTasksForQueue.length} Pendentes</span>
-                  </div>
-                  <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3">
-                    {activeTasksForQueue.map(task => {
-                      const isDelayed = task.status !== 'completed' && new Date(task.deadline) < new Date();
-                      const isSelected = selectedTaskIds.includes(task.id);
-                      
-                      return (
-                        <div 
-                          key={task.id} 
-                          onClick={() => isBulkMode ? toggleTaskSelection(task.id) : null}
-                          className={`p-4 rounded-2xl border flex flex-col group transition-all shadow-sm ${isBulkMode ? 'cursor-pointer' : ''} ${isSelected ? 'bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)]' : 'bg-white/80 border-[var(--color-atelier-grafite)]/5 hover:border-[var(--color-atelier-terracota)]/30'}`}
-                        >
-                          <div className="flex items-center gap-4 flex-1">
-                            
-                            {isBulkMode && (
-                              <div className="shrink-0 text-[var(--color-atelier-terracota)]">
-                                {isSelected ? <CheckSquare size={18} /> : <Square size={18} className="text-gray-300"/>}
-                              </div>
-                            )}
-
-                            <div className="w-10 h-10 rounded-xl overflow-hidden border border-gray-100 shrink-0 bg-gray-50 flex items-center justify-center shadow-inner">
-                              {task.projects?.profiles?.avatar_url ? <img src={task.projects.profiles.avatar_url} className="w-full h-full object-cover" /> : <span className="font-elegant text-lg text-[var(--color-atelier-terracota)]">{task.projects?.profiles?.nome?.charAt(0)}</span>}
-                            </div>
-                            <div className="flex flex-col cursor-pointer flex-1" onClick={(e) => { if (isBulkMode) return; setEditingTask(task); }}>
-                              <div className="flex justify-between items-start">
-                                <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors leading-tight pr-2">{task.title}</span>
-                                {task.urgency && <Flame size={12} className="text-orange-500 shrink-0 mt-0.5"/>}
-                              </div>
-                              <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-1 truncate">
-                                {task.projects?.profiles?.nome} • {new Date(task.deadline).toLocaleDateString('pt-BR')}
-                              </span>
-                            </div>
-                          </div>
-                          
-                          <div className="flex items-center justify-between mt-3 pt-3 border-t border-[var(--color-atelier-grafite)]/5">
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 rounded-full overflow-hidden border border-white shadow-sm bg-gray-100 flex items-center justify-center shrink-0">
-                                {task.profiles?.avatar_url ? <img src={task.profiles.avatar_url} className="w-full h-full object-cover"/> : <UserCircle2 size={12} className="text-gray-300"/>}
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="text-[8px] uppercase font-bold text-[var(--color-atelier-grafite)]/30">Executor</span>
-                                <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)]/80 leading-none">{task.profiles?.nome?.split(" ")[0] || "Livre"}</span>
-                              </div>
-                            </div>
-                            
-                            {!isBulkMode && (
-                              <button onClick={(e) => { e.stopPropagation(); handleCompleteTask(task.id); }} className="w-8 h-8 rounded-full bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-500 hover:text-white transition-all shadow-sm border border-green-200" title="Finalizar Tarefa">
-                                <Check size={14} strokeWidth={3} />
-                              </button>
-                            )}
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* COLUNA 2: ANDAMENTO REAL DOS PROJETOS */}
-                <div className="w-full lg:w-1/3 glass-panel bg-white/60 p-6 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden h-full min-h-0">
-                  <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-4 shrink-0 flex justify-between items-center">
-                    <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Progressão Real</h3>
-                    <Activity size={18} className="text-[var(--color-atelier-terracota)]"/>
-                  </div>
-                  <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4">
-                    {activeProjectsList.map(proj => {
-                      const projTasks = tasks.filter(t => t.project_id === proj.id);
-                      const total = projTasks.length;
-                      const done = projTasks.filter(t => t.status === 'completed').length;
-                      const progress = total === 0 ? 0 : Math.round((done / total) * 100);
-                      const isDelayed = projTasks.some(t => t.status !== 'completed' && new Date(t.deadline) < new Date());
-
-                      return (
-                        <div key={proj.id} onClick={() => { setSelectedProjectId(proj.id); setActiveView('projects'); }} className="bg-white p-4 rounded-xl border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col gap-3 cursor-pointer hover:shadow-md transition-all group">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 rounded-lg overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0">
-                                {proj.profiles?.avatar_url ? <img src={proj.profiles.avatar_url} className="w-full h-full object-cover"/> : <span className="font-elegant text-sm text-[var(--color-atelier-terracota)]">{proj.profiles?.nome?.charAt(0)}</span>}
-                              </div>
-                              <div className="flex flex-col">
-                                <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] truncate max-w-[150px]">{proj.profiles?.nome}</span>
-                                <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">{isIdvService(proj) ? 'IDV' : 'Instagram'}</span>
-                              </div>
-                            </div>
-                            {total === 0 ? <AlertTriangle size={14} className="text-orange-500" /> : isDelayed && <AlertTriangle size={14} className="text-red-500" />}
-                          </div>
-                          <div className="flex flex-col gap-1.5">
-                            <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
-                              <span className="text-[var(--color-atelier-grafite)]/50">{total === 0 ? 'Sem Pipeline' : 'Avanço do JTBD'}</span>
-                              <span className="text-[var(--color-atelier-terracota)]">{total > 0 && `${done}/${total}`}</span>
-                            </div>
-                            <div className="h-1.5 w-full bg-[var(--color-atelier-grafite)]/5 rounded-full overflow-hidden">
-                              <motion.div initial={{ width: 0 }} animate={{ width: `${progress}%` }} className={`h-full rounded-full ${isDelayed ? 'bg-red-500' : 'bg-gradient-to-r from-[var(--color-atelier-rose)] to-[var(--color-atelier-terracota)]'}`}></motion.div>
-                            </div>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-
-                {/* COLUNA 3: CARGA DA EQUIPA E XP */}
-                <div className="w-full lg:w-1/3 glass-panel bg-[var(--color-atelier-creme)]/50 p-6 flex flex-col rounded-[2.5rem] border border-[var(--color-atelier-terracota)]/20 shadow-sm overflow-hidden h-full min-h-0">
-                  <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-4 shrink-0 flex justify-between items-center">
-                    <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Alocação de Esforço</h3>
-                    <Users size={18} className="text-[var(--color-atelier-terracota)]"/>
-                  </div>
-                  <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3">
-                    {team.map(member => {
-                      const memberTasks = activeTasksForQueue.filter(t => t.assigned_to === member.id);
-                      const estHours = (memberTasks.reduce((acc, t) => acc + (t.estimated_time || 0), 0) / 60).toFixed(1);
-                      return (
-                        <div key={member.id} onClick={() => setSelectedCollab(member)} className="bg-white p-4 rounded-xl border border-white shadow-sm flex items-center justify-between cursor-pointer hover:border-[var(--color-atelier-terracota)]/40 transition-all group">
-                          <div className="flex items-center gap-3 w-3/4">
-                            <div className="w-10 h-10 rounded-xl overflow-hidden border border-[var(--color-atelier-terracota)]/20 shadow-inner shrink-0 bg-white flex items-center justify-center">
-                              {member.avatar_url ? <img src={member.avatar_url} className="w-full h-full object-cover"/> : <UserCircle2 className="text-gray-200" />}
-                            </div>
-                            <div className="flex flex-col overflow-hidden">
-                              <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors truncate">{member.nome}</span>
-                              <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-0.5">{memberTasks.length} Ativas</span>
-                            </div>
-                          </div>
-                          <div className="text-right pl-2 border-l border-[var(--color-atelier-grafite)]/5 shrink-0">
-                            <span className="text-[10px] font-bold text-orange-500">~{estHours}h</span>
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+            <OverviewDashboard 
+              metrics={metrics}
+              activeTasksForQueue={activeTasksForQueue}
+              validProjects={validProjects}
+              tasks={tasks}
+              team={team}
+              isBulkMode={isBulkMode}
+              selectedTaskIds={selectedTaskIds}
+              toggleTaskSelection={toggleTaskSelection}
+              setEditingTask={setEditingTask}
+              handleCompleteTask={handleCompleteTask}
+              setSelectedProjectId={setSelectedProjectId}
+              setActiveView={setActiveView}
+              setSelectedCollab={setSelectedCollab}
+              isIdvService={isIdvService}
+            />
           )}
 
-          {/* VISÃO DE PROJETOS E DEMANDA AD-HOC */}
           {activeView === 'projects' && (
-            <motion.div key="projects" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col lg:flex-row gap-6 h-full overflow-hidden">
-              
-              <div className="w-full lg:w-[320px] glass-panel bg-white/40 p-5 rounded-[2rem] border border-white shadow-sm flex flex-col h-[300px] lg:h-full shrink-0">
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-4 px-2 block border-b border-[var(--color-atelier-grafite)]/10 pb-4">Carteira Ativa</span>
-                <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-1">
-                  {activeProjectsList.map(p => (
-                    <button key={p.id} onClick={() => setSelectedProjectId(p.id)} className={`p-4 rounded-xl text-left transition-all border ${selectedProjectId === p.id ? 'bg-white border-[var(--color-atelier-terracota)]/30 shadow-md' : 'border-transparent hover:bg-white/50'}`}>
-                      <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-lg overflow-hidden border border-gray-100 shrink-0">
-                           {p.profiles?.avatar_url ? <img src={p.profiles.avatar_url} className="w-full h-full object-cover"/> : <div className="bg-gray-50 w-full h-full flex items-center justify-center font-elegant text-sm text-[var(--color-atelier-terracota)]">{p.profiles?.nome?.charAt(0)}</div>}
-                        </div>
-                        <div className="flex flex-col truncate">
-                          <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] block truncate">{p.profiles?.nome}</span>
-                          <span className="text-[9px] uppercase font-bold text-[var(--color-atelier-terracota)]">{isIdvService(p) ? 'IDV' : 'Instagram'}</span>
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex-1 glass-panel bg-white/80 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden h-full">
-                {!selectedProj ? (
-                  <div className="flex-1 flex flex-col items-center justify-center opacity-40"><FolderKanban size={48} className="mb-4 text-[var(--color-atelier-terracota)]"/><p className="font-elegant text-3xl">Selecione um Projeto</p></div>
-                ) : (
-                  <>
-                    <div className="flex flex-col lg:flex-row justify-between lg:items-start gap-4 mb-6 shrink-0">
-                      <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-2xl overflow-hidden border border-gray-100 shadow-sm">
-                          {selectedProj.profiles?.avatar_url ? <img src={selectedProj.profiles.avatar_url} className="w-full h-full object-cover"/> : <div className="bg-gray-50 w-full h-full flex items-center justify-center font-elegant text-2xl text-[var(--color-atelier-terracota)]">{selectedProj.profiles?.nome?.charAt(0)}</div>}
-                        </div>
-                        <div>
-                          <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">{selectedProj.profiles?.nome}</h2>
-                          <p className="text-[11px] font-bold text-[var(--color-atelier-grafite)]/40 uppercase tracking-widest mt-1">{isIdvService(selectedProj) ? 'Identidade Visual' : `Gestão de Instagram ${selectedProj.instagram_package ? `• ${selectedProj.instagram_package}` : ''}`}</p>
-                        </div>
-                      </div>
-                      
-                      {(!isIdvService(selectedProj) || tasks.filter(t => t.project_id === selectedProj.id).length === 0) && (
-                        <button onClick={() => handleAutoDeploy(selectedProj)} disabled={isProcessing} className="bg-[var(--color-atelier-terracota)] text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#8c562e] transition-all flex items-center gap-2">
-                          {isProcessing ? <Loader2 size={14} className="animate-spin"/> : <Sparkles size={14}/>} 
-                          {tasks.filter(t => t.project_id === selectedProj.id).length > 0 ? "Renovar Ciclo Mensal" : "Instanciar Produção"}
-                        </button>
-                      )}
-                    </div>
-
-                    <div className="bg-[var(--color-atelier-grafite)] p-6 rounded-[2rem] mb-8 flex flex-col md:flex-row items-end gap-4 shadow-xl relative overflow-hidden shrink-0">
-                      <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
-                      
-                      <div className="flex flex-col gap-2 flex-1 relative z-10 w-full">
-                        <span className="text-[10px] uppercase font-bold tracking-widest text-white/50 ml-1">Injetar Demanda Puntual</span>
-                        <input type="text" placeholder="Título da tarefa urgente..." value={adHocDemand.title} onChange={(e) => setAdHocDemand({...adHocDemand, title: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] transition-colors" />
-                      </div>
-                      
-                      <div className="flex flex-col gap-2 w-full md:w-48 relative z-10">
-                        <span className="text-[10px] uppercase font-bold tracking-widest text-white/50 ml-1">Tag (Domínio)</span>
-                        <select value={adHocDemand.taskType} onChange={(e) => setAdHocDemand({...adHocDemand, taskType: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white text-[12px] outline-none">
-                          <option value="" className="text-black">Definir Escopo...</option>
-                          {ALL_SKILLS.map(s => <option key={s.id} value={s.id} className="text-black">{s.label}</option>)}
-                        </select>
-                      </div>
-
-                      <div className="flex flex-col gap-2 w-full md:w-56 relative z-10">
-                        <span className="text-[10px] uppercase font-bold tracking-widest text-white/50 ml-1">Para o Executor</span>
-                        <select value={adHocDemand.assigneeId} onChange={(e) => setAdHocDemand({...adHocDemand, assigneeId: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white text-[12px] outline-none">
-                          <option value="" className="text-black">Escolher...</option>
-                          {team.map(t => {
-                            const isRecommended = adHocDemand.taskType && t.skills?.includes(adHocDemand.taskType);
-                            return <option key={t.id} value={t.id} className="text-black">{t.nome} {isRecommended ? '⭐' : ''}</option>
-                          })}
-                        </select>
-                      </div>
-
-                      <button onClick={handleAddAdHocDemand} disabled={isProcessing || !adHocDemand.title || !adHocDemand.assigneeId} className="bg-[var(--color-atelier-terracota)] text-white w-full md:w-14 h-[46px] rounded-xl flex items-center justify-center hover:bg-white hover:text-[var(--color-atelier-grafite)] transition-all shrink-0">
-                        {isProcessing ? <Loader2 className="animate-spin" size={20}/> : <PlusCircle size={20}/>}
-                      </button>
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto custom-scrollbar pr-2">
-                       {Object.keys(groupTasksByStage(tasks.filter(t => t.project_id === selectedProjectId))).map(stage => (
-                         <div key={stage} className="mb-6">
-                           <h4 className="font-roboto font-bold text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-3 flex items-center gap-2 border-b border-[var(--color-atelier-grafite)]/5 pb-2"><Layers size={12}/> {stage}</h4>
-                           <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                             {tasks.filter(t => t.project_id === selectedProjectId && t.stage === stage).map(task => {
-                               const isSelected = selectedTaskIds.includes(task.id);
-                               return (
-                                 <div 
-                                   key={task.id} 
-                                   onClick={() => isBulkMode ? toggleTaskSelection(task.id) : null}
-                                   className={`p-5 rounded-2xl border flex flex-col gap-3 transition-colors group ${isBulkMode ? 'cursor-pointer' : ''} ${isSelected ? 'bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)] shadow-md' : 'bg-white border-[var(--color-atelier-grafite)]/5 hover:border-[var(--color-atelier-terracota)]/30 shadow-sm'}`}
-                                 >
-                                   <div className="flex justify-between items-start">
-                                      <div className="flex gap-3">
-                                        {isBulkMode && (
-                                          <div className="shrink-0 text-[var(--color-atelier-terracota)] mt-0.5">
-                                            {isSelected ? <CheckSquare size={16} /> : <Square size={16} className="text-gray-300"/>}
-                                          </div>
-                                        )}
-                                        <span className={`text-[13px] font-bold leading-tight pr-4 ${task.status === 'completed' ? 'text-gray-400 line-through' : 'text-[var(--color-atelier-grafite)]'}`}>{task.title}</span>
-                                      </div>
-                                      {!isBulkMode && <button onClick={() => setEditingTask(task)} className="opacity-0 group-hover:opacity-100 text-[var(--color-atelier-grafite)]/30 hover:text-[var(--color-atelier-terracota)] transition-opacity"><Edit3 size={14}/></button>}
-                                   </div>
-                                   <div className="flex justify-between items-end border-t border-[var(--color-atelier-grafite)]/5 pt-3 mt-1">
-                                     <div className="flex items-center gap-2">
-                                        <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-100 border border-white">
-                                          {task.profiles?.avatar_url ? <img src={task.profiles.avatar_url} className="w-full h-full object-cover"/> : <UserCircle2 size={10} className="text-gray-300"/>}
-                                        </div>
-                                        <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">{task.profiles?.nome?.split(" ")[0] || "A definir"}</span>
-                                     </div>
-                                     <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)]/40 bg-gray-50 px-2 py-1 rounded-md">{new Date(task.deadline).toLocaleDateString('pt-BR')}</span>
-                                   </div>
-                                 </div>
-                               )
-                             })}
-                           </div>
-                         </div>
-                       ))}
-                    </div>
-                  </>
-                )}
-              </div>
-            </motion.div>
+            <ProjectsManager 
+              unifiedWallet={unifiedWallet}
+              selectedEntityId={selectedEntityId}
+              setSelectedEntityId={setSelectedEntityId}
+              selectedEntityType={selectedEntityType}
+              setSelectedEntityType={setSelectedEntityType}
+              selectedEntityData={selectedEntityData}
+              setIsCaptacaoModalOpen={setIsCaptacaoModalOpen}
+              handleAutoDeploy={handleAutoDeploy}
+              isProcessing={isProcessing}
+              tasks={tasks}
+              adHocDemand={adHocDemand}
+              setAdHocDemand={setAdHocDemand}
+              team={team}
+              handleAddAdHocDemand={handleAddAdHocDemand}
+              agencySubclients={agencySubclients}
+              handleDeleteSubclient={handleDeleteSubclient}
+              handleUpdateSubclientDemand={handleUpdateSubclientDemand}
+              groupTasksByStage={groupTasksByStage}
+              isBulkMode={isBulkMode}
+              toggleTaskSelection={toggleTaskSelection}
+              selectedTaskIds={selectedTaskIds}
+              setEditingTask={setEditingTask}
+              handleCompleteTask={handleCompleteTask}
+              isIdvService={isIdvService}
+              showToast={showToast}
+            />
           )}
 
-          {/* MOTOR DE ROUTING */}
           {activeView === 'routing' && (
-            <motion.div key="routing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="grid grid-cols-12 gap-6 h-full min-h-0">
-              
-              <div className="col-span-4 glass-panel bg-[var(--color-atelier-grafite)] text-white p-8 rounded-[2.5rem] flex flex-col gap-6 shadow-2xl h-fit relative overflow-hidden">
-                <div className="absolute -right-10 -top-10 w-40 h-40 bg-[var(--color-atelier-terracota)]/20 rounded-full blur-3xl pointer-events-none"></div>
-                <div className="relative z-10 border-b border-white/10 pb-4">
-                  <h3 className="font-elegant text-3xl mb-1">Distribuição de Regras</h3>
-                  <p className="font-roboto text-[11px] text-white/50 uppercase tracking-widest">Delegar Fases Automáticas</p>
-                </div>
-                
-                <div className="flex flex-col gap-4 relative z-10">
-                  <div className="flex flex-col gap-1.5">
-                    <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-white/60 ml-1">1. Qual Projeto?</span>
-                    <select value={routeConfig.projectId} onChange={(e) => setRouteConfig({...routeConfig, projectId: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl p-4 text-[13px] text-white outline-none">
-                      <option value="" disabled className="text-black">Selecionar Cliente...</option>
-                      {activeProjectsList.map(p => <option key={p.id} value={p.id} className="text-black">{p.profiles?.nome}</option>)}
-                    </select>
-                  </div>
-                  
-                  <div className="flex flex-col gap-1.5">
-                    <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-white/60 ml-1">2. Que Fase ou Tarefa?</span>
-                    <select value={routeConfig.taskType} onChange={(e) => setRouteConfig({...routeConfig, taskType: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl p-4 text-[13px] text-white outline-none">
-                      <option value="" disabled className="text-black">Fase da Operação...</option>
-                      {routeConfig.projectId 
-                        ? currentTaskTypes?.map(type => <option key={type.id} value={type.id} className="text-black">{type.label}</option>)
-                        : <option disabled className="text-black">Selecione o Cliente Acima ↑</option>
-                      }
-                    </select>
-                  </div>
-
-                  <div className="flex flex-col gap-1.5">
-                    <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-white/60 ml-1">3. A quem vai pertencer?</span>
-                    <select value={routeConfig.assigneeId} onChange={(e) => setRouteConfig({...routeConfig, assigneeId: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl p-4 text-[13px] text-white outline-none">
-                      <option value="" disabled className="text-black">Responsável Direto...</option>
-                      {team.map(t => {
-                        const isRecommended = routeConfig.taskType && t.skills?.includes(routeConfig.taskType);
-                        return <option key={t.id} value={t.id} className="text-black">{t.nome} {isRecommended ? '⭐' : ''}</option>
-                      })}
-                    </select>
-                  </div>
-                  
-                  <button onClick={handleSaveRule} disabled={isProcessing || !routeConfig.projectId || !routeConfig.taskType || !routeConfig.assigneeId} className="w-full mt-2 bg-[var(--color-atelier-terracota)] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[11px] shadow-lg hover:bg-white hover:text-[var(--color-atelier-grafite)] transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-                    {isProcessing ? <Loader2 className="animate-spin" size={16}/> : <GitMerge size={16}/>} Estabelecer Regra
-                  </button>
-                </div>
-              </div>
-
-              <div className="col-span-8 glass-panel bg-white/60 p-8 rounded-[2.5rem] border border-white shadow-sm overflow-hidden flex flex-col h-full">
-                <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-6 mb-6 shrink-0 flex justify-between items-center">
-                  <div>
-                    <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Matriz Ativa</h3>
-                    <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/60 mt-1">Conexões mapeadas para atribuição automática.</p>
-                  </div>
-                </div>
-                <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3">
-                  {routingRules.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center h-full opacity-40 text-center">
-                      <GitMerge size={48} className="mb-4 text-[var(--color-atelier-grafite)]" />
-                      <p className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Sem Automação</p>
-                    </div>
-                  ) : (
-                    routingRules.map(rule => {
-                      const proj = validProjects.find(p => p.id === rule.project_id);
-                      const member = team.find(t => t.id === rule.assignee_id);
-                      const taskTypeArray = isIdvService(proj) ? TASK_TYPES_IDV : TASK_TYPES_IG;
-                      const taskTypeLabel = taskTypeArray?.find(t => t.id === rule.task_type)?.label || rule.task_type;
-                      const isSelected = selectedRuleIds.includes(rule.id);
-
-                      return (
-                        <div 
-                          key={rule.id} 
-                          onClick={() => isBulkMode ? toggleRuleSelection(rule.id) : null}
-                          className={`p-5 rounded-2xl border flex items-center justify-between group transition-all shadow-sm ${isBulkMode ? 'cursor-pointer' : ''} ${isSelected ? 'bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)]' : 'bg-white border-[var(--color-atelier-grafite)]/5 hover:border-red-200'}`}
-                        >
-                          <div className="flex items-center gap-6 w-full">
-                            {isBulkMode && (
-                              <div className="shrink-0 text-[var(--color-atelier-terracota)]">
-                                {isSelected ? <CheckSquare size={18} /> : <Square size={18} className="text-gray-300"/>}
-                              </div>
-                            )}
-
-                            <div className="flex flex-col w-1/3">
-                              <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Cliente</span>
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-100 border border-gray-200">
-                                  {proj?.profiles?.avatar_url ? <img src={proj.profiles.avatar_url} className="w-full h-full object-cover" /> : <span className="text-[8px] flex items-center justify-center w-full h-full">{proj?.profiles?.nome?.charAt(0)}</span>}
-                                </div>
-                                <span className="font-roboto font-bold text-[14px] text-[var(--color-atelier-grafite)] truncate">{proj?.profiles?.nome || "Excluído"}</span>
-                              </div>
-                            </div>
-                            <div className="flex flex-col w-1/4">
-                              <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Atribuição</span>
-                              <span className="font-roboto font-bold text-[12px] text-[var(--color-atelier-grafite)]/80 truncate">{taskTypeLabel}</span>
-                            </div>
-                            <ChevronRight size={14} className="text-[var(--color-atelier-grafite)]/20"/>
-                            <div className="flex flex-col flex-1">
-                              <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Vai para</span>
-                              <div className="flex items-center gap-2">
-                                <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-100 border border-gray-200">
-                                  {member?.avatar_url ? <img src={member.avatar_url} className="w-full h-full object-cover" /> : <UserCircle2 size={12} className="text-gray-300"/>}
-                                </div>
-                                <span className="font-roboto font-bold text-[14px] text-[var(--color-atelier-terracota)] truncate">{member?.nome || "Desconhecido"}</span>
-                              </div>
-                            </div>
-                          </div>
-                          {!isBulkMode && (
-                            <button onClick={(e) => { e.stopPropagation(); handleDeleteRule(rule.id); }} className="text-red-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-lg transition-all opacity-0 group-hover:opacity-100 ml-4"><Trash2 size={16}/></button>
-                          )}
-                        </div>
-                      )
-                    })
-                  )}
-                </div>
-              </div>
-            </motion.div>
+            <RoutingEngine 
+              routeConfig={routeConfig}
+              setRouteConfig={setRouteConfig}
+              isProcessing={isProcessing}
+              activeProjectsList={activeProjectsList}
+              currentTaskTypes={currentTaskTypes}
+              team={team}
+              handleSaveRule={handleSaveRule}
+              routingRules={routingRules}
+              validProjects={validProjects}
+              isIdvService={isIdvService}
+              isBulkMode={isBulkMode}
+              selectedRuleIds={selectedRuleIds}
+              toggleRuleSelection={toggleRuleSelection}
+              handleDeleteRule={handleDeleteRule}
+            />
           )}
 
         </AnimatePresence>
       </div>
 
-      {/* FLOATING ACTION BAR PARA EDIÇÃO EM LOTE */}
-      <AnimatePresence>
-        {(selectedTaskIds.length > 0 || selectedRuleIds.length > 0) && (
-          <motion.div
-             initial={{ y: 100, opacity: 0 }}
-             animate={{ y: 0, opacity: 1 }}
-             exit={{ y: 100, opacity: 0 }}
-             className="fixed bottom-10 left-1/2 -translate-x-1/2 bg-[var(--color-atelier-grafite)] text-white px-6 py-4 rounded-full shadow-2xl flex items-center gap-6 z-[150]"
-          >
-             <span className="font-bold text-[13px] bg-white/10 px-3 py-1 rounded-full whitespace-nowrap">
-               {selectedTaskIds.length > 0 ? `${selectedTaskIds.length} Tarefas` : `${selectedRuleIds.length} Regras`}
-             </span>
-
-             {selectedTaskIds.length > 0 && (
-                <>
-                   <button onClick={() => setBulkModalOpen(true)} className="flex items-center gap-2 hover:text-[var(--color-atelier-terracota)] transition-colors text-[12px] uppercase tracking-widest font-bold whitespace-nowrap"><Edit3 size={14}/> Editar Lote</button>
-                   <button onClick={handleBulkTaskComplete} className="flex items-center gap-2 hover:text-green-400 transition-colors text-[12px] uppercase tracking-widest font-bold whitespace-nowrap"><CheckCircle2 size={14}/> Concluir</button>
-                   <button onClick={handleBulkTaskDelete} className="flex items-center gap-2 hover:text-red-400 transition-colors text-[12px] uppercase tracking-widest font-bold whitespace-nowrap"><Trash2 size={14}/> Apagar</button>
-                </>
-             )}
-
-             {selectedRuleIds.length > 0 && (
-                <button onClick={handleBulkRuleDelete} className="flex items-center gap-2 hover:text-red-400 transition-colors text-[12px] uppercase tracking-widest font-bold whitespace-nowrap"><Trash2 size={14}/> Apagar Regras</button>
-             )}
-
-             <div className="w-px h-6 bg-white/20"></div>
-             
-             <button onClick={() => { setSelectedTaskIds([]); setSelectedRuleIds([]); setIsBulkMode(false); }} className="hover:text-gray-300 transition-colors" title="Cancelar"><X size={18}/></button>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* MODAL DE EDIÇÃO EM LOTE DE TAREFAS */}
-      <AnimatePresence>
-        {bulkModalOpen && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setBulkModalOpen(false)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-white/20 flex flex-col gap-5">
-              <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
-                <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Atualizar {selectedTaskIds.length} Tarefas</h3>
-                <button onClick={() => setBulkModalOpen(false)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)]"><X size={20}/></button>
-              </div>
-              
-              <div className="flex flex-col gap-1.5">
-                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Novo Responsável</span>
-                <select value={bulkAssigneeId} onChange={(e) => setBulkAssigneeId(e.target.value)} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50">
-                  <option value="">Manter Atuais</option>
-                  <option value="unassigned">Ficar em Fila Neutra</option>
-                  {team.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
-                </select>
-              </div>
-              
-              <div className="flex flex-col gap-1.5">
-                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Novo Prazo Base (Deadline)</span>
-                <input type="datetime-local" value={bulkDeadline} onChange={(e) => setBulkDeadline(e.target.value)} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50" />
-                <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 mt-1 italic">Dica: Deixe em branco se desejar manter os prazos originais de cada tarefa.</span>
-              </div>
-
-              <button onClick={handleBulkTaskUpdate} disabled={isProcessing || (bulkAssigneeId === "" && bulkDeadline === "")} className="w-full mt-2 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-[var(--color-atelier-terracota)] transition-colors flex justify-center items-center gap-2 disabled:opacity-50">
-                {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <Edit3 size={16}/>} Aplicar a Todos
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* MODAL DE EDIÇÃO DE TAREFA ÚNICA */}
-      <AnimatePresence>
-        {editingTask && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditingTask(null)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-white/20 flex flex-col gap-5">
-              <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
-                <div className="w-full pr-4">
-                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Modificar Missão</h3>
-                  <input type="text" value={editingTask.title} onChange={(e) => setEditingTask({...editingTask, title: e.target.value})} className="w-full bg-transparent font-roboto text-[13px] font-bold text-[var(--color-atelier-grafite)]/80 outline-none mt-1 border-b border-transparent focus:border-[var(--color-atelier-terracota)]/40" />
-                </div>
-                <button onClick={() => setEditingTask(null)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] shrink-0"><X size={20}/></button>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Responsável no JTBD</span>
-                <select value={editingTask.assigned_to || ""} onChange={(e) => setEditingTask({...editingTask, assigned_to: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50">
-                  <option value="">Ficar em Fila Neutra</option>
-                  {team.map(t => {
-                    const isRecommended = editingTask.task_type && t.skills?.includes(editingTask.task_type);
-                    return <option key={t.id} value={t.id}>{t.nome} ({t.role}) {isRecommended ? '⭐' : ''}</option>
-                  })}
-                </select>
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Data de Entrega (Deadline)</span>
-                <input type="datetime-local" value={new Date(editingTask.deadline).toISOString().slice(0, 16)} onChange={(e) => setEditingTask({...editingTask, deadline: new Date(e.target.value).toISOString()})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50" />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Instruções Técnicas</span>
-                <textarea value={editingTask.description || ""} onChange={(e) => setEditingTask({...editingTask, description: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] resize-none h-24 outline-none focus:border-[var(--color-atelier-terracota)]/50 custom-scrollbar" placeholder="Instruções para a equipa..." />
-              </div>
-              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl bg-orange-50/50 border border-orange-100 hover:bg-orange-50 transition-colors">
-                <input type="checkbox" className="hidden" checked={editingTask.urgency} onChange={(e) => setEditingTask({...editingTask, urgency: e.target.checked})} />
-                <div className={`w-5 h-5 rounded flex items-center justify-center border ${editingTask.urgency ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-orange-200'}`}>{editingTask.urgency && <CheckCircle2 size={12} strokeWidth={3}/>}</div>
-                <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-orange-600 flex items-center gap-1"><Flame size={12}/> Classificar como Granada (Urgente)</span>
-              </label>
-              <button onClick={handleUpdateTask} disabled={isProcessing} className="w-full mt-2 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-[var(--color-atelier-terracota)] transition-colors flex justify-center items-center gap-2">
-                {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <Edit3 size={16}/>} Atualizar Missão
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* MODAL: RAIO-X DO COLABORADOR */}
-      <AnimatePresence>
-        {selectedCollab && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedCollab(null)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-[var(--color-atelier-creme)] p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-3xl border border-white/40 flex flex-col h-[85vh]">
-              
-              <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-6 shrink-0">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 rounded-2xl overflow-hidden border border-[var(--color-atelier-terracota)]/20 shadow-inner bg-white flex items-center justify-center text-[var(--color-atelier-terracota)] font-elegant text-3xl">
-                    {selectedCollab.avatar_url ? <img src={selectedCollab.avatar_url} className="w-full h-full object-cover"/> : selectedCollab.nome.charAt(0)}
-                  </div>
-                  <div className="flex flex-col">
-                    <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none mb-1">{selectedCollab.nome}</h3>
-                    <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)]">{selectedCollab.role}</span>
-                  </div>
-                </div>
-                <button onClick={() => setSelectedCollab(null)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] bg-white p-2 rounded-full shadow-sm"><X size={20}/></button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 shrink-0">
-                {(() => {
-                  const myTasks = activeTasks.filter(t => t.assigned_to === selectedCollab.id);
-                  const estHours = (myTasks.reduce((acc, t) => acc + (t.estimated_time || 0), 0) / 60).toFixed(1);
-                  const activeClientsCount = new Set(myTasks.map(t => t.project_id)).size;
-                  const inProgress = myTasks.filter(t => t.status === 'in_progress');
-                  return (
-                    <>
-                      <div className="bg-white p-4 rounded-2xl border border-[var(--color-atelier-grafite)]/5 shadow-sm text-center flex flex-col justify-center h-24">
-                        <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] block mb-1">{estHours}h</span>
-                        <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Carga Estimada</span>
-                      </div>
-                      <div className="bg-white p-4 rounded-2xl border border-[var(--color-atelier-grafite)]/5 shadow-sm text-center flex flex-col justify-center h-24">
-                        <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] block mb-1">{myTasks.length}</span>
-                        <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Tarefas Filadas</span>
-                      </div>
-                      <div className="bg-[var(--color-atelier-terracota)]/5 border border-[var(--color-atelier-terracota)]/20 p-4 rounded-2xl shadow-sm text-center flex flex-col justify-center h-24">
-                        <span className="font-elegant text-3xl text-[var(--color-atelier-terracota)] block mb-1">{activeClientsCount}</span>
-                        <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">Projetos em Mãos</span>
-                      </div>
-                      
-                      <div className="col-span-1 md:col-span-3 bg-blue-50 border border-blue-100 p-5 rounded-2xl flex items-center gap-4">
-                        <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-600 shrink-0"><Activity size={18}/></div>
-                        <div className="flex flex-col flex-1 min-w-0">
-                          <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-blue-600/70 mb-0.5">Executando Agora</span>
-                          <span className="font-roboto font-bold text-[14px] text-blue-900 truncate">
-                            {inProgress.length > 0 ? inProgress[0].title : "Mesa limpa ou fora de turno."}
-                          </span>
-                        </div>
-                      </div>
-                    </>
-                  )
-                })()}
-              </div>
-
-              <div className="mt-6 flex-1 bg-white rounded-[2rem] p-6 md:p-8 border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col min-h-0">
-                <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-4 shrink-0 flex items-center gap-2"><FolderKanban size={14}/> Fila de Produção</h4>
-                <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3">
-                  {activeTasks.filter(t => t.assigned_to === selectedCollab.id).map(task => {
-                    const isSelected = selectedTaskIds.includes(task.id);
-                    return (
-                      <div 
-                        key={task.id} 
-                        onClick={() => isBulkMode ? toggleTaskSelection(task.id) : null}
-                        className={`p-4 rounded-xl border flex justify-between items-center transition-colors group ${isBulkMode ? 'cursor-pointer' : ''} ${isSelected ? 'bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)] shadow-md' : 'bg-gray-50/50 border-[var(--color-atelier-grafite)]/10 hover:bg-white'}`}
-                      >
-                        <div className="flex items-center gap-3 w-full truncate pr-4">
-                          {isBulkMode && (
-                            <div className="shrink-0 text-[var(--color-atelier-terracota)]">
-                              {isSelected ? <CheckSquare size={16} /> : <Square size={16} className="text-gray-300"/>}
-                            </div>
-                          )}
-                          <div className="flex flex-col truncate">
-                            <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] truncate">{task.title}</span>
-                            <div className="flex items-center gap-2 mt-1">
-                              <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">{task.projects?.profiles?.nome}</span>
-                              <span className="text-[9px] text-[var(--color-atelier-grafite)]/20">•</span>
-                              <span className={`text-[9px] uppercase font-bold tracking-widest ${new Date(task.deadline) < new Date() ? 'text-red-500' : 'text-[var(--color-atelier-terracota)]'}`}>
-                                Vence: {new Date(task.deadline).toLocaleDateString('pt-BR')}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                        <span className={`px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest border shrink-0
-                          ${task.status === 'in_progress' ? 'bg-blue-100 text-blue-700 border-blue-200 shadow-sm' : 'bg-white text-[var(--color-atelier-grafite)]/50'}
-                        `}>
-                          {task.status === 'in_progress' ? 'Em Foco' : 'Fila'}
-                        </span>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* ÁREA DE COMPETÊNCIAS (TAGS) */}
-              <div className="mt-6 pt-6 border-t border-[var(--color-atelier-grafite)]/10 shrink-0">
-                <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-4 flex items-center gap-2"><Target size={14}/> Competências (Tags de Distribuição)</h4>
-                <div className="flex flex-wrap gap-2">
-                  {ALL_SKILLS.map(skill => {
-                    const hasSkill = selectedCollab.skills?.includes(skill.id);
-                    return (
-                      <button 
-                        key={skill.id}
-                        onClick={() => handleToggleSkill(selectedCollab.id, skill.id)}
-                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all border shadow-sm ${hasSkill ? 'bg-[var(--color-atelier-terracota)] text-white border-[var(--color-atelier-terracota)]' : 'bg-white border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/60 hover:border-[var(--color-atelier-terracota)]/50'}`}
-                      >
-                        {skill.label}
-                      </button>
-                    )
-                  })}
-                </div>
-              </div>
-
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* RENDERIZAÇÃO DOS MODAIS */}
+      <AnalyticsModals 
+        selectedTaskIds={selectedTaskIds}
+        selectedRuleIds={selectedRuleIds}
+        isBulkMode={isBulkMode}
+        setIsBulkMode={setIsBulkMode}
+        setSelectedTaskIds={setSelectedTaskIds}
+        setSelectedRuleIds={setSelectedRuleIds}
+        bulkModalOpen={bulkModalOpen}
+        setBulkModalOpen={setBulkModalOpen}
+        bulkAssigneeId={bulkAssigneeId}
+        setBulkAssigneeId={setBulkAssigneeId}
+        bulkDeadline={bulkDeadline}
+        setBulkDeadline={setBulkDeadline}
+        handleBulkTaskUpdate={handleBulkTaskUpdate}
+        handleBulkTaskComplete={handleBulkTaskComplete}
+        handleBulkTaskDelete={handleBulkTaskDelete}
+        handleBulkRuleDelete={handleBulkRuleDelete}
+        editingTask={editingTask}
+        setEditingTask={setEditingTask}
+        handleUpdateTask={handleUpdateTask}
+        selectedCollab={selectedCollab}
+        setSelectedCollab={setSelectedCollab}
+        activeTasksForQueue={activeTasksForQueue}
+        toggleTaskSelection={toggleTaskSelection}
+        handleToggleSkill={handleToggleSkill}
+        isCaptacaoModalOpen={isCaptacaoModalOpen}
+        setIsCaptacaoModalOpen={setIsCaptacaoModalOpen}
+        captacaoForm={captacaoForm}
+        setCaptacaoForm={setCaptacaoForm}
+        handleAddCaptacao={handleAddCaptacao}
+        isProcessing={isProcessing}
+        team={team}
+      />
 
     </div>
   );

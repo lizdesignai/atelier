@@ -16,7 +16,7 @@ import DiaryModule from "../../../components/admin/DiaryModule";
 import { pdf } from '@react-pdf/renderer';
 
 // IMPORTAÇÃO EXTERNA: Traz apenas o Motor de Gestão de Instagram
-import { InstagramWorkspace } from "../gerenciamento/page";
+import { GerenciamentoWorkspace } from "../gerenciamento/page";
 
 // Importação dos Módulos PDF
 import BriefingPDF from "../../../components/pdf/BriefingPDF"; 
@@ -983,7 +983,7 @@ function WorkspaceDesigner() {
         </div>
       ) : (
         <div className="flex-1 flex flex-col min-h-0 animate-[fadeInUp_0.8s_ease-out_0.2s_both] relative z-10">
-          <InstagramWorkspace activeProjectId={activeProjectId as string} currentProject={currentProject} />
+          <GerenciamentoWorkspace activeProjectId={activeProjectId as string} currentProject={currentProject} />
         </div>
       )}
 

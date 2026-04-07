@@ -26,14 +26,12 @@ export class AtelierPMEngine {
    * ============================================================================
    * 1. LOAD BALANCING (Otimização de Capacidade e Foco)
    * ============================================================================
-   * Utiliza a Teoria das Restrições para evitar gargalos e penalização por troca de contexto.
    */
   static async getOptimalAssignee(taskType: string, projectId: string, defaultAssigneeId: string | null, estimatedMinutes: number = 60): Promise<string | null> {
     try {
       const { data: team } = await supabase.from('profiles').select('id, skills').in('role', ['admin', 'gestor', 'colaborador']);
       if (!team || team.length === 0) return defaultAssigneeId;
 
-      // Filtra pool de talentos pela competência (Tag)
       const skilledMembers = team.filter(m => m.skills && m.skills.includes(taskType));
       const candidates = skilledMembers.length > 0 ? skilledMembers : team;
 
@@ -55,7 +53,6 @@ export class AtelierPMEngine {
           if (t.project_id === projectId) hasContext = true;
         });
 
-        // Fórmula de Carga Efetiva: Reduz o "peso" percebido se o colaborador já domina o contexto do cliente
         const effectiveLoad = hasContext ? Math.max(0, rawLoad - this.CONTEXT_SWITCH_BONUS) : rawLoad;
 
         if (effectiveLoad < lowestEffectiveLoad) {
@@ -64,7 +61,6 @@ export class AtelierPMEngine {
         }
       }
 
-      // Se o designado padrão estiver a entrar em Burnout, força o Bypass
       if (defaultAssigneeId && bestCandidateId !== defaultAssigneeId) {
         const defaultTasks = await supabase.from('tasks').select('estimated_time').eq('assigned_to', defaultAssigneeId).in('status', ['pending', 'in_progress']);
         const defaultLoad = defaultTasks.data?.reduce((acc, t) => acc + (t.estimated_time || 60), 0) || 0;
@@ -86,13 +82,10 @@ export class AtelierPMEngine {
    * ============================================================================
    * 2. SMART SCHEDULING (Critical Chain Method - CCPM)
    * ============================================================================
-   * Aplica a Lei de Parkinson mitigada: O trabalho expande para preencher o tempo.
-   * Logo, comprimimos os prazos reais e adicionamos um Buffer de Projeto no final.
    */
   static generateSmartSchedule(tasks: any[], startDate: Date, endDate: Date): any[] {
     const totalBusinessDays = differenceInBusinessDays(endDate, startDate);
     
-    // Reserva 20% do tempo final como "Project Buffer" para acomodar refações e feedback do cliente
     const executionDays = Math.max(1, Math.floor(totalBusinessDays * 0.8)); 
     const step = Math.max(1, Math.floor(executionDays / tasks.length));
 
@@ -104,7 +97,7 @@ export class AtelierPMEngine {
         ...task,
         deadline: currentDate.toISOString(),
         temp_dependency_index: index > 0 ? index - 1 : null,
-        is_blocked: index > 0 // Cria a dependência linear (Finish-to-Start)
+        is_blocked: index > 0 
       };
     });
   }
@@ -140,7 +133,6 @@ export class AtelierPMEngine {
       const dangerMap: Record<string, { name: string, totalMinutes: number, tasks: number }> = {};
       
       urgentTasks.forEach((t: any) => {
-        // Extração Blindada (Type-Safe)
         const profileObj = extractNode<{ nome: string }>(t.profiles);
         const name = profileObj?.nome || "Membro Desconhecido";
 
@@ -173,8 +165,6 @@ export class AtelierPMEngine {
    * ============================================================================
    * 4. DAILY TRIAGE (WSJF - Weighted Shortest Job First)
    * ============================================================================
-   * Algoritmo de Priorização SAFe: (Custo do Atraso) / Duração
-   * Retira a carga cognitiva do colaborador sobre "O que devo fazer a seguir?".
    */
   static async prioritizeDailyTriage(collaboratorId: string) {
     try {
@@ -194,21 +184,18 @@ export class AtelierPMEngine {
           continue;
         }
 
-        // Extração Blindada (Type-Safe)
         const projObj = extractNode<{ financial_value: number }>(task.projects);
         const ltvValue = projObj?.financial_value || 0;
         
-        // 1. Cálculo do Custo do Atraso (Cost of Delay)
         let costOfDelay = 0;
         if (task.urgency) costOfDelay += 1000;
-        costOfDelay += (ltvValue * 0.1); // Contratos maiores geram mais pressão
+        costOfDelay += (ltvValue * 0.1); 
 
         const hoursLeft = differenceInHours(new Date(task.deadline), now);
-        if (hoursLeft <= 0) costOfDelay += 2000;      // Em atraso = Crítico
-        else if (hoursLeft <= 24) costOfDelay += 800; // Hoje
-        else if (hoursLeft <= 72) costOfDelay += 300; // Curto Prazo
+        if (hoursLeft <= 0) costOfDelay += 2000;      
+        else if (hoursLeft <= 24) costOfDelay += 800; 
+        else if (hoursLeft <= 72) costOfDelay += 300; 
 
-        // 2. Cálculo Final WSJF (Quanto menor a tarefa e maior o custo do atraso, maior o Score)
         const jobSizeMinutes = task.estimated_time || 60;
         const wsjfScore = Math.round((costOfDelay / jobSizeMinutes) * 100);
 
@@ -222,7 +209,159 @@ export class AtelierPMEngine {
 
   /**
    * ============================================================================
-   * 5. CALIBRAÇÃO (Earned Value Management - EVM Loop)
+   * 5. PONTO DE INTERVENÇÃO 3: AUTOMAÇÃO DE APROVAÇÃO & GAMIFICAÇÃO
+   * ============================================================================
+   */
+  static async triggerPostApproval(hookTitle: string, userId: string) {
+    try {
+      if (!hookTitle) return;
+
+      const { data: tasks, error: searchError } = await supabase
+        .from('tasks')
+        .select('id, status')
+        .eq('assigned_to', userId)
+        .ilike('title', `%${hookTitle}%`) 
+        .in('status', ['pending', 'in_progress', 'review'])
+        .limit(1);
+
+      if (searchError) throw searchError;
+      
+      if (tasks && tasks.length > 0) {
+        const taskId = tasks[0].id;
+        const now = new Date().toISOString();
+
+        await supabase
+          .from('tasks')
+          .update({ 
+            status: 'completed', 
+            completed_at: now 
+          })
+          .eq('id', taskId);
+
+        if (this.unlockDependencies) {
+          await this.unlockDependencies(taskId);
+        }
+
+        await this.applyGamification(userId, 50); 
+        
+        console.log(`[Motor] Tarefa "${hookTitle}" automatizada para Concluída. Gamificação Aplicada!`);
+      }
+    } catch (error) {
+      console.error("[Motor] Erro na automação de aprovação:", error);
+    }
+  }
+
+  /**
+   * ============================================================================
+   * 6. PONTO DE INTERVENÇÃO 5: GATILHOS GENÉRICOS DE SISTEMA (MACRO TAREFAS)
+   * ============================================================================
+   */
+  static async triggerSystemAction(projectId: string, actionType: string, userId: string) {
+    try {
+      if (!projectId || !userId) return;
+
+      if (actionType === 'planning') {
+        const { data: tasks, error } = await supabase
+          .from('tasks')
+          .select('id, status')
+          .eq('project_id', projectId)
+          .eq('assigned_to', userId)
+          .in('status', ['pending', 'in_progress', 'review'])
+          .or('title.ilike.%planejamento%,title.ilike.%planeamento%,title.ilike.%estratégia%')
+          .limit(1);
+
+        if (error) throw error;
+
+        if (tasks && tasks.length > 0) {
+          const taskId = tasks[0].id;
+          const now = new Date().toISOString();
+          
+          await supabase.from('tasks').update({ status: 'completed', completed_at: now }).eq('id', taskId);
+
+          if (this.unlockDependencies) await this.unlockDependencies(taskId);
+          
+          await this.applyGamification(userId, 100); 
+          
+          console.log(`[Motor] Macro-Tarefa de Planeamento automatizada para Concluída! Bónus de 100 EXP.`);
+        }
+      }
+    } catch (error) {
+      console.error(`[Motor] Erro ao engatilhar System Action (${actionType}):`, error);
+    }
+  }
+
+  /**
+   * ============================================================================
+   * 7. OVERWRITE DINÂMICO DE TAREFAS (SINCRONIZAÇÃO DE CONTEÚDO)
+   * ============================================================================
+   * Busca uma tarefa nativa (Ex: "Design & Copy: Post 1") e substitui o seu título
+   * e descrição pelo Hook e Briefing gerados no planeamento.
+   */
+  static async syncTaskContent(projectId: string, originalTaskName: string, newTitle: string, descriptionText: string) {
+    try {
+      if (!projectId || !originalTaskName || !newTitle) return;
+
+      // 1. Procura a tarefa pendente usando o nome genérico dentro deste projeto
+      const { data: tasks, error: searchError } = await supabase
+        .from('tasks')
+        .select('id')
+        .eq('project_id', projectId)
+        .ilike('title', `%${originalTaskName}%`) // Ex: "%Design & Copy: Post 1%"
+        .in('status', ['pending', 'in_progress', 'review']) // Ignora tarefas já entregues
+        .limit(1);
+
+      if (searchError) throw searchError;
+
+      // 2. Se a tarefa existir, injeta os dados reais do cliente nela
+      if (tasks && tasks.length > 0) {
+        const taskId = tasks[0].id;
+
+        const { error: updateError } = await supabase
+          .from('tasks')
+          .update({
+            title: newTitle, // O Hook ou Título da Campanha
+            description: descriptionText // O Briefing ou Legenda
+          })
+          .eq('id', taskId);
+
+        if (updateError) throw updateError;
+        
+        console.log(`[Motor] OVERWRITE SUCESSO: Tarefa "${originalTaskName}" renomeada para "${newTitle}".`);
+      } else {
+        console.warn(`[Motor] OVERWRITE AVISO: Tarefa genérica "${originalTaskName}" não encontrada no JTBD para este projeto.`);
+      }
+    } catch (error) {
+      console.error(`[Motor] Erro ao sincronizar conteúdo da tarefa ${originalTaskName}:`, error);
+    }
+  }
+
+  /**
+   * ============================================================================
+   * 8. GAMIFICATION ENGINE (Recompensas de Performance)
+   * ============================================================================
+   */
+  private static async applyGamification(userId: string, expAmount: number) {
+    try {
+      const { data: perf } = await supabase
+        .from('team_performance')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
+
+      if (perf) {
+        await supabase.from('team_performance').update({
+          exp_points: (perf.exp_points || 0) + expAmount,
+          total_tasks_completed: (perf.total_tasks_completed || 0) + 1
+        }).eq('user_id', userId);
+      }
+    } catch (error) {
+      console.error("[PM Engine] Erro ao aplicar Gamificação:", error);
+    }
+  }
+
+  /**
+   * ============================================================================
+   * 9. CALIBRAÇÃO (Earned Value Management - EVM Loop)
    * ============================================================================
    */
   static async calibrateUnitEconomics(adminId: string) {
@@ -254,13 +393,12 @@ export class AtelierPMEngine {
           const avgEst = data.totalEst / data.count;
           const avgAct = data.totalAct / data.count;
 
-          // Desvio Padrão Aceitável é de 30%. Se passar disso, exige calibração do modelo.
           if (avgAct > avgEst * 1.3) {
             await supabase.from('tasks').insert({
               project_id: null,
               assigned_to: adminId,
               title: `⚙️ Desvio de EVM: ${taskName}`,
-              description: `Anotação do Motor: A tarefa "${taskName}" orçada em ${avgEst.toFixed(0)}m está a consumir ${avgAct.toFixed(0)}m reais (Amostra: ${data.count}). Ajuste o Dicionário de Base (IG_SETUP / IDV_PIPELINE) para proteger o lucro da agência.`,
+              description: `Anotação do Motor: A tarefa "${taskName}" orçada em ${avgEst.toFixed(0)}m está a consumir ${avgAct.toFixed(0)}m reais (Amostra: ${data.count}). Ajuste o Dicionário de Base para proteger o lucro da agência.`,
               urgency: false,
               status: 'pending',
               stage: 'Otimização Sistémica',

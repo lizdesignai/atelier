@@ -2,25 +2,19 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabase";
-import { AtelierPMEngine } from "../../../lib/AtelierPMEngine"; // 🧠 Motor PM Injetado
-import { CalendarEngine } from "../../../lib/CalendarEngine"; // 📅 Motor Calendário Injetado
-import { 
-  PlayCircle, PauseCircle, CheckCircle2, Clock, Flame, 
-  Loader2, AlertTriangle, Crosshair, Plus, X, 
-  ChevronRight, Award, UserCircle2, Star, Zap, Target, Eye, Activity, CalendarDays, ArrowRight
-} from "lucide-react";
+import { AtelierPMEngine } from "../../../lib/AtelierPMEngine";
+import { CalendarEngine } from "../../../lib/CalendarEngine";
+import { Loader2, Plus, Flame, User } from "lucide-react";
+
+// VIEWS E COMPONENTES
+import PersonalDesk from "./views/PersonalDesk";
+import CalendarWidget from "./views/CalendarWidget";
+import DailyKanban from "./views/DailyKanban";
+import JTBDModals from "./components/JTBDModals";
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
-};
-
-const getNextLevelExp = (currentExp: number) => {
-  if (currentExp < 500) return 500;
-  if (currentExp < 1500) return 1500;
-  if (currentExp < 3000) return 3000;
-  return 5000;
 };
 
 export default function JTBDPage() {
@@ -36,8 +30,9 @@ export default function JTBDPage() {
 
   // 📅 Calendário States
   const [currentWeek, setCurrentWeek] = useState<Date[]>([]);
-  const [selectedDate, setSelectedDate] = useState<string | null>(null); // "YYYY-MM-DD"
-  const [isRescheduling, setIsRescheduling] = useState<string | null>(null); // ID da task
+  const [weekOffset, setWeekOffset] = useState(0);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null);
+  const [isRescheduling, setIsRescheduling] = useState<string | null>(null);
   
   // Ad-Hoc Grenades
   const [projects, setProjects] = useState<any[]>([]);
@@ -45,12 +40,28 @@ export default function JTBDPage() {
   const [adHocProcessing, setAdHocProcessing] = useState(false);
   const [adHocForm, setAdHocForm] = useState({ title: "", projectId: "", assigneeId: "", estTime: 60, deadline: "", description: "" });
 
-  // Feedback Gamificação
-  const [earnedExpToast, setEarnedExpToast] = useState<{show: boolean, amount: number, msg: string}>({ show: false, amount: 0, msg: "" });
-
+  // Lógica de Paginação da Semana (Offset)
   useEffect(() => {
-    setCurrentWeek(CalendarEngine.getCurrentWeek());
+    const getOffsetWeek = (offset: number) => {
+      const curr = new Date();
+      curr.setDate(curr.getDate() + (offset * 7));
+      const week = [];
+      for (let i = 0; i < 7; i++) {
+        const first = curr.getDate() - curr.getDay() + i;
+        const day = new Date(curr.setDate(first));
+        week.push(day);
+      }
+      return week;
+    };
+    setCurrentWeek(getOffsetWeek(weekOffset));
+  }, [weekOffset]);
+
+  // Fetch Inicial
+  useEffect(() => {
     fetchJTBDData();
+    const handleAutoRefresh = () => fetchJTBDData();
+    window.addEventListener("jtbdRefreshNeeded", handleAutoRefresh);
+    return () => window.removeEventListener("jtbdRefreshNeeded", handleAutoRefresh);
   }, []);
 
   const fetchJTBDData = async () => {
@@ -59,25 +70,24 @@ export default function JTBDPage() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const { data: profile } = await supabase.from('profiles').select('*, team_performance(*)').eq('id', session.user.id).single();
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
       setCurrentUser(profile);
-      setViewingUserId(profile.id); // Inicia vendo o próprio quadro
+      setViewingUserId(profile.id);
 
       let teamData = [];
       if (profile.role === 'admin' || profile.role === 'gestor') {
-        const { data: tData } = await supabase.from('profiles').select('*, team_performance(*)').in('role', ['admin', 'gestor', 'colaborador']).order('nome');
+        const { data: tData } = await supabase.from('profiles').select('*').in('role', ['admin', 'gestor', 'colaborador']).order('nome');
         if (tData) teamData = tData;
         
         const { data: pData } = await supabase.from('projects').select('id, profiles(nome), type').eq('status', 'active');
         if (pData) setProjects(pData);
       } else {
-        teamData = [profile]; // Colaborador só vê ele mesmo
+        teamData = [profile];
       }
       setTeam(teamData);
 
       const teamIds = teamData.map(t => t.id);
       
-      // 🧠 ATELIER PM ENGINE: Ordenação pela pontuação calculada pelo motor (WSJF) em vez de apenas urgência
       const { data: tasksData } = await supabase
         .from('tasks')
         .select('*, projects(profiles(nome), type)')
@@ -86,14 +96,11 @@ export default function JTBDPage() {
         .order('deadline', { ascending: true });
       
       if (tasksData) {
-        // 📅 MOTOR DE CALENDÁRIO: Sincroniza e protege a saúde do colaborador (Reuniões/Captações)
         const optimizedTasks = await CalendarEngine.optimizeSchedule(tasksData);
         setAllTasks(optimizedTasks || tasksData);
       }
 
-      // Gatilho Silencioso: O Motor recalibra a pontuação de todos os cards da mesa deste usuário
       AtelierPMEngine.prioritizeDailyTriage(profile.id);
-
     } catch (error) {
       showToast("Erro ao carregar o Centro de Operações.");
     } finally {
@@ -101,12 +108,8 @@ export default function JTBDPage() {
     }
   };
 
-  // ============================================================================
-  // MOTOR DE TEMPO E ESTADOS
-  // ============================================================================
   const updateTaskStatus = async (task: any, newStatus: string) => {
-    if (task.status === newStatus) return; // Evita updates redundantes no Drag & Drop
-    
+    if (task.status === newStatus) return;
     try {
       const updates: any = { status: newStatus };
       const now = new Date();
@@ -123,13 +126,10 @@ export default function JTBDPage() {
       if (newStatus === 'review' || newStatus === 'completed') {
         updates.completed_at = now.toISOString();
         if (newStatus === 'completed') {
-           await processGamification(task, updates.actual_time || task.actual_time);
-           // 🧠 ATELIER PM ENGINE: Desbloqueia a próxima etapa na cadeia de produção (CCPM)
            await AtelierPMEngine.unlockDependencies(task.id);
         }
       }
 
-      // Atualização Otimista UI
       setAllTasks(prev => prev.map(t => t.id === task.id ? { ...t, ...updates } : t));
 
       const { error } = await supabase.from('tasks').update(updates).eq('id', task.id);
@@ -137,25 +137,22 @@ export default function JTBDPage() {
 
     } catch (error) {
       showToast("Erro ao sincronizar missão.");
-      fetchJTBDData(); // Reverte UI em caso de erro
+      fetchJTBDData();
     }
   };
 
-  // 📅 REAGENDAMENTO RÁPIDO
   const handleReschedule = async (task: any) => {
     setIsRescheduling(task.id);
     try {
       const currentDeadline = new Date(task.deadline);
       let nextDay = new Date(currentDeadline);
       
-      // Adia 1 dia útil
       do {
         nextDay.setDate(nextDay.getDate() + 1);
       } while (nextDay.getDay() === 0 || nextDay.getDay() === 6);
 
       const newDateStr = nextDay.toISOString();
       
-      // Mutação Otimista
       setAllTasks(prev => prev.map(t => t.id === task.id ? { ...t, deadline: newDateStr } : t));
       
       await CalendarEngine.rescheduleTask(task.id, newDateStr);
@@ -168,11 +165,8 @@ export default function JTBDPage() {
     }
   };
 
-  // ============================================================================
-  // DRAG AND DROP HANDLERS (Nativo HTML5)
-  // ============================================================================
   const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault(); // Necessário para permitir o drop
+    e.preventDefault();
   };
 
   const handleDrop = (e: React.DragEvent, newStatus: string) => {
@@ -188,57 +182,6 @@ export default function JTBDPage() {
     }
   };
 
-  // ============================================================================
-  // ALGORITMO DE GAMIFICAÇÃO
-  // ============================================================================
-  const processGamification = async (task: any, totalMinutes: number) => {
-    if (!currentUser) return;
-    
-    let expEarned = 0;
-    let msg = "";
-
-    const deadlineDate = new Date(task.deadline);
-    const isLate = new Date() > deadlineDate;
-    const isUnderTime = totalMinutes <= task.estimated_time;
-
-    if (isLate) {
-      expEarned -= 50;
-      msg = "Prazo estourado. Missão penalizada.";
-    } else {
-      expEarned += 50; 
-      msg = "Missão cumprida no prazo!";
-      if (isUnderTime) {
-        expEarned += 50; 
-        msg = "Eficiência tática! Abaixo do tempo estimado.";
-      }
-    }
-
-    if (task.urgency) {
-      expEarned += 100;
-      msg = "Granada desarmada! Bônus de urgência.";
-    }
-
-    try {
-      const { data: perf } = await supabase.from('team_performance').select('*').eq('user_id', task.assigned_to).single();
-      if (perf) {
-        await supabase.from('team_performance').update({
-          exp_points: Math.max(0, perf.exp_points + expEarned),
-          total_tasks_completed: perf.total_tasks_completed + 1
-        }).eq('user_id', task.assigned_to);
-        
-        if (currentUser.id === task.assigned_to) {
-          setEarnedExpToast({ show: true, amount: expEarned, msg });
-          setTimeout(() => setEarnedExpToast({ show: false, amount: 0, msg: "" }), 4000);
-        }
-      }
-    } catch (e) {
-      console.error("Erro ao aplicar EXP.");
-    }
-  };
-
-  // ============================================================================
-  // DISPARAR GRANADA (Ad-Hoc)
-  // ============================================================================
   const handleFireGrenade = async () => {
     if (!adHocForm.title || !adHocForm.projectId || !adHocForm.assigneeId || !adHocForm.deadline) return;
     setAdHocProcessing(true);
@@ -272,12 +215,8 @@ export default function JTBDPage() {
   if (isLoading) return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   const viewedUser = team.find(t => t.id === viewingUserId) || currentUser;
-  const viewedUserPerf = viewedUser?.team_performance?.[0] || { exp_points: 0, level_name: 'Aprendiz', total_tasks_completed: 0, avg_tnps: 10 };
-  const nextLevelExp = getNextLevelExp(viewedUserPerf.exp_points);
-  const expProgress = Math.min((viewedUserPerf.exp_points / nextLevelExp) * 100, 100);
-
-  // 📅 FILTRAGEM POR DATA
   const allUserTasks = allTasks.filter(t => t.assigned_to === viewingUserId);
+  
   const displayedTasks = selectedDate 
     ? allUserTasks.filter(t => new Date(t.deadline).toISOString().split('T')[0] === selectedDate)
     : allUserTasks;
@@ -288,440 +227,106 @@ export default function JTBDPage() {
   const completedTasks = displayedTasks.filter(t => t.status === 'completed').slice(0, 20); 
 
   const isAdminOrManager = currentUser?.role === 'admin' || currentUser?.role === 'gestor';
-  const isViewingSelf = viewingUserId === currentUser.id;
-
-  const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-  const currentMonthName = currentWeek.length > 0 ? `${monthNames[currentWeek[0].getMonth()]} ${currentWeek[0].getFullYear()}` : "";
+  const isViewingSelf = viewingUserId === currentUser?.id;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1500px] mx-auto relative z-10 pb-6 gap-6 px-4 md:px-0">
+    <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1500px] mx-auto relative z-10 px-4 md:px-0 overflow-hidden">
       
-      {/* =========================================================================
-          1. WIDGET DE IMERSÃO E IDENTIFICAÇÃO (ATELIER OS COCKPIT)
-          ========================================================================= */}
-      <div className="shrink-0 flex flex-col gap-6 animate-[fadeInUp_0.5s_ease-out] mt-6">
+      <div className="flex flex-col xl:flex-row gap-6 w-full mt-6 h-full min-h-0">
         
-        {/* Barra de Comando (God Mode Switcher) */}
-        {isAdminOrManager && (
-          <div className="glass-panel p-3 rounded-2xl bg-white/40 border border-white flex items-center justify-between shadow-sm overflow-hidden">
-            <div className="flex items-center gap-2 px-3 shrink-0 border-r border-[var(--color-atelier-grafite)]/10 mr-2">
-              <Eye size={14} className="text-[var(--color-atelier-terracota)]" />
-              <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Visão de Comando</span>
-            </div>
-            <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar flex-1 pr-4">
-              {team.map(member => (
-                <button 
-                  key={member.id} 
-                  onClick={() => setViewingUserId(member.id)}
-                  className={`flex items-center gap-2 px-3 py-1.5 rounded-xl transition-all whitespace-nowrap border ${viewingUserId === member.id ? 'bg-[var(--color-atelier-grafite)] text-white border-transparent shadow-md' : 'bg-white/50 text-[var(--color-atelier-grafite)]/60 hover:bg-white border-white'}`}
-                >
-                  <div className="w-5 h-5 rounded-full bg-[var(--color-atelier-creme)] overflow-hidden shrink-0 flex items-center justify-center text-[8px] font-bold text-[var(--color-atelier-terracota)]">
-                    {member.avatar_url ? <img src={member.avatar_url} className="w-full h-full object-cover"/> : member.nome.charAt(0)}
-                  </div>
-                  <span className="font-roboto text-[11px] font-bold">{member.nome.split(" ")[0]}</span>
-                  {viewingUserId === member.id && <CheckCircle2 size={12} className="ml-1 opacity-50"/>}
-                </button>
-              ))}
-            </div>
-            <button onClick={() => setIsAdHocModalOpen(true)} className="ml-4 shrink-0 bg-orange-500 text-white px-5 py-2 rounded-xl font-roboto font-bold uppercase tracking-widest text-[10px] hover:bg-orange-600 transition-all shadow-md flex items-center gap-2">
-              <Flame size={12} /> Disparar Granada
+        {/* COLUNA ESQUERDA (SIDEBAR COMPACTA) */}
+        <div className="flex flex-col gap-6 w-full xl:w-[340px] shrink-0 h-[calc(100vh-80px)] overflow-y-auto custom-scrollbar pr-2 pb-6">
+          
+          <PersonalDesk 
+            viewedUser={viewedUser}
+            isViewingSelf={isViewingSelf}
+            allUserTasks={allUserTasks}
+          />
+
+          <CalendarWidget 
+            currentWeek={currentWeek}
+            weekOffset={weekOffset}
+            setWeekOffset={setWeekOffset}
+            selectedDate={selectedDate}
+            setSelectedDate={setSelectedDate}
+            allUserTasks={allUserTasks}
+          />
+
+        </div>
+
+        {/* COLUNA DIREITA (CHÃO DE FÁBRICA KANBAN - OCUPA TODA A ALTURA) */}
+        <div className="flex-1 min-w-0 flex flex-col h-[calc(100vh-80px)] pb-6">
+          <DailyKanban 
+            pendingTasks={pendingTasks}
+            inProgressTasks={inProgressTasks}
+            reviewTasks={reviewTasks}
+            completedTasks={completedTasks}
+            isAdminOrManager={isAdminOrManager}
+            updateTaskStatus={updateTaskStatus}
+            handleReschedule={handleReschedule}
+            isRescheduling={isRescheduling}
+            handleDragOver={handleDragOver}
+            handleDrop={handleDrop}
+          />
+        </div>
+      </div>
+
+      {/* BOTÃO FLUTUANTE (FAB) PARA COMANDOS */}
+      {isAdminOrManager && (
+        <div className="fixed bottom-8 right-8 z-50 flex flex-col-reverse items-end gap-3 group">
+          
+          {/* Botão Principal */}
+          <button className="w-14 h-14 bg-[var(--color-atelier-terracota)] rounded-full text-white shadow-xl flex items-center justify-center transition-transform hover:scale-105">
+            <Plus size={28} />
+          </button>
+
+          {/* Menu Oculto (Aparece ao passar o rato na área) */}
+          <div className="flex flex-col-reverse items-end gap-3 opacity-0 translate-y-4 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 origin-bottom">
+            
+            {/* Lançar Granada */}
+            <button 
+              onClick={() => setIsAdHocModalOpen(true)} 
+              className="flex items-center gap-2 bg-red-500 text-white px-5 py-3 rounded-full shadow-lg hover:bg-red-600 transition-colors font-bold text-sm"
+            >
+               <span>Lançar Granada</span> <Flame size={18} />
             </button>
-          </div>
-        )}
-
-        {/* Cockpit Pessoal do Usuário Visualizado */}
-        <div className="glass-panel bg-[var(--color-atelier-grafite)] p-8 md:p-10 rounded-[3rem] shadow-2xl relative overflow-hidden flex flex-col md:flex-row items-center gap-8 md:gap-12">
-          <div className="absolute right-[-10%] top-[-20%] w-[500px] h-[500px] bg-[var(--color-atelier-terracota)]/20 rounded-full blur-[80px] pointer-events-none"></div>
-          
-          <div className="flex items-center gap-6 w-full md:w-auto relative z-10">
-            <div className="relative">
-              {/* Anel de Pulso */}
-              <div className="absolute inset-[-6px] rounded-full border-2 border-[var(--color-atelier-terracota)]/30 border-t-[var(--color-atelier-terracota)] animate-spin" style={{ animationDuration: '3s' }}></div>
-              <div className="w-24 h-24 rounded-full bg-white/10 overflow-hidden border border-white/20 flex items-center justify-center text-4xl font-elegant text-white shadow-inner relative z-10">
-                {viewedUser.avatar_url ? <img src={viewedUser.avatar_url} className="w-full h-full object-cover"/> : viewedUser.nome.charAt(0)}
-              </div>
-            </div>
             
-            <div className="flex flex-col">
-              <span className="text-[10px] uppercase font-bold tracking-widest text-white/50 flex items-center gap-2 mb-1">
-                {isViewingSelf ? 'Mesa de Trabalho Pessoal' : 'Modo Espectador Ativo'} {isViewingSelf && <CheckCircle2 size={10} className="text-green-400"/>}
-              </span>
-              <h2 className="font-elegant text-4xl text-white tracking-wide">{viewedUser.nome}</h2>
-              <div className="flex items-center gap-3 mt-2">
-                <span className="bg-white/10 px-3 py-1 rounded-md text-[10px] font-bold uppercase tracking-widest text-white/80">{viewedUser.role}</span>
-                <span className="text-[11px] font-bold text-[var(--color-atelier-terracota)] tracking-widest uppercase flex items-center gap-1">
-                  <Award size={12}/> Nível: {viewedUserPerf.level_name}
-                </span>
-              </div>
-              {/* Barra de EXP */}
-              <div className="flex items-center gap-3 mt-4">
-                <div className="w-48 h-2 bg-white/10 rounded-full overflow-hidden shadow-inner">
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${expProgress}%` }} className="h-full bg-gradient-to-r from-[var(--color-atelier-rose)] to-[var(--color-atelier-terracota)] rounded-full"></motion.div>
-                </div>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-white/60">{viewedUserPerf.exp_points} / {nextLevelExp} XP</span>
-              </div>
-            </div>
-          </div>
+            {/* Divisor Visual */}
+            <div className="w-12 h-[1px] bg-gray-300 mr-2 my-1"></div>
 
-          {/* WIDGETS TÁTICOS (MÉTRICAS DO USUÁRIO) */}
-          <div className="flex-1 w-full grid grid-cols-2 lg:grid-cols-4 gap-4 relative z-10">
-            <div className="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col justify-between hover:bg-white/10 transition-colors">
-              <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-white/40 mb-2">Foco Atual</span>
-              <span className="font-roboto font-bold text-[13px] text-blue-300 leading-tight line-clamp-2">
-                {allUserTasks.filter(t => t.status === 'in_progress').length > 0 ? allUserTasks.filter(t => t.status === 'in_progress')[0].title : "Nenhuma Missão Ativa."}
-              </span>
-            </div>
-            
-            <div className="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col justify-between hover:bg-white/10 transition-colors">
-              <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-white/40 mb-2 flex items-center gap-1"><Crosshair size={10}/> Eficiência</span>
-              <div className="flex items-end gap-2">
-                <span className="font-elegant text-3xl text-white leading-none">{allUserTasks.filter(t => t.status === 'completed').length}</span>
-                <span className="text-[10px] text-white/40 pb-0.5">Missões Feitas</span>
-              </div>
-            </div>
-
-            <div className="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col justify-between hover:bg-white/10 transition-colors">
-              <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-white/40 mb-2 flex items-center gap-1"><Star size={10}/> T-NPS Pessoal</span>
-              <div className="flex items-end gap-2">
-                <span className="font-elegant text-3xl text-green-400 leading-none">{viewedUserPerf.avg_tnps}</span>
-                <span className="text-[10px] text-white/40 pb-0.5">Média / 10</span>
-              </div>
-            </div>
-
-            <div className="bg-[var(--color-atelier-terracota)]/20 border border-[var(--color-atelier-terracota)]/30 p-5 rounded-2xl flex flex-col justify-between hover:bg-[var(--color-atelier-terracota)]/30 transition-colors">
-              <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)] mb-2 flex items-center gap-1"><Zap size={10}/> Carga Visível</span>
-              <div className="flex items-end gap-2">
-                <span className="font-elegant text-3xl text-white leading-none">{allUserTasks.filter(t => t.status === 'pending').length}</span>
-                <span className="text-[10px] text-white/60 pb-0.5">Na Fila Geral</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* =========================================================================
-          2. WIDGET DE CALENDÁRIO INTELIGENTE (Filtro por Dia)
-          ========================================================================= */}
-      <div className="shrink-0 glass-panel bg-white/60 p-5 rounded-[2.5rem] border border-white shadow-sm flex flex-col gap-4 animate-[fadeInUp_0.6s_ease-out]">
-        <div className="flex justify-between items-center px-2 border-b border-[var(--color-atelier-grafite)]/10 pb-3">
-          <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
-            <CalendarDays size={20} className="text-[var(--color-atelier-terracota)]"/> Planeamento Semanal
-          </h3>
-          <div className="flex items-center gap-4">
-            <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">{currentMonthName}</span>
-            {selectedDate && (
-              <button onClick={() => setSelectedDate(null)} className="text-[9px] uppercase font-bold tracking-widest bg-[var(--color-atelier-grafite)]/5 hover:bg-[var(--color-atelier-terracota)] hover:text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
-                Limpar Filtro <X size={10}/>
-              </button>
-            )}
-          </div>
-        </div>
-
-        <div className="flex justify-between gap-2 overflow-x-auto custom-scrollbar pb-2">
-          {currentWeek.map((date, i) => {
-            const dateStr = date.toISOString().split('T')[0];
-            const isSelected = selectedDate === dateStr;
-            const isToday = new Date().toISOString().split('T')[0] === dateStr;
-            
-            // Verifica o que há neste dia para este utilizador
-            const dayTasks = allUserTasks.filter(t => t.status !== 'completed' && new Date(t.deadline).toISOString().split('T')[0] === dateStr);
-            const hasHeavy = dayTasks.some(t => ['reuniao', 'captacao'].includes(t.task_type));
-            const hasUrgent = dayTasks.some(t => t.urgency);
-
-            return (
+            {/* Avatares da Equipa */}
+            {team.map(user => (
               <button 
-                key={i}
-                onClick={() => setSelectedDate(selectedDate === dateStr ? null : dateStr)}
-                className={`flex-1 min-w-[100px] flex flex-col items-center justify-center p-3 rounded-2xl transition-all border ${isSelected ? 'bg-[var(--color-atelier-grafite)] text-white border-[var(--color-atelier-grafite)] shadow-md translate-y-[-2px]' : isToday ? 'bg-[var(--color-atelier-terracota)]/10 border-[var(--color-atelier-terracota)]/30 text-[var(--color-atelier-grafite)]' : 'bg-white border-transparent hover:border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/60 hover:bg-gray-50'}`}
+                key={user.id} 
+                onClick={() => setViewingUserId(user.id)} 
+                className={`flex items-center gap-3 px-4 py-2 rounded-full shadow-md transition-all border ${viewingUserId === user.id ? 'bg-[var(--color-atelier-grafite)] text-white border-[var(--color-atelier-grafite)]' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:scale-105'}`}
               >
-                <span className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${isSelected ? 'text-white/60' : isToday ? 'text-[var(--color-atelier-terracota)]' : ''}`}>
-                  {date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
-                </span>
-                <span className={`font-elegant text-3xl leading-none ${isSelected ? 'text-white' : ''}`}>
-                  {date.getDate()}
-                </span>
-                
-                {/* Indicadores Visuais de Carga */}
-                <div className="flex items-center gap-1 mt-2 h-2">
-                  {hasHeavy && <div className="w-1.5 h-1.5 rounded-full bg-purple-500" title="Reunião/Captação"></div>}
-                  {hasUrgent && <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" title="Urgente"></div>}
-                  {!hasHeavy && !hasUrgent && dayTasks.length > 0 && <div className="w-1.5 h-1.5 rounded-full bg-blue-400" title="Tarefas Regulares"></div>}
-                </div>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* FEEDBACK GAMIFICAÇÃO NA TELA */}
-      <AnimatePresence>
-        {earnedExpToast.show && (
-          <motion.div 
-            initial={{ opacity: 0, y: 50, scale: 0.9 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed bottom-10 right-10 z-[200] bg-[var(--color-atelier-grafite)] text-white p-6 rounded-3xl shadow-2xl flex items-center gap-5 border border-white/10"
-          >
-            <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl ${earnedExpToast.amount > 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
-              <Award size={28} />
-            </div>
-            <div className="flex flex-col">
-              <span className={`font-elegant text-3xl leading-none ${earnedExpToast.amount > 0 ? 'text-green-400' : 'text-red-400'}`}>
-                {earnedExpToast.amount > 0 ? '+' : ''}{earnedExpToast.amount} EXP
-              </span>
-              <span className="font-roboto text-[11px] uppercase tracking-widest text-white/50 mt-1">{earnedExpToast.msg}</span>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* =========================================================================
-          3. O KANBAN SILENCIOSO (Chão de Fábrica Premium com Drag & Drop HTML5)
-          ========================================================================= */}
-      <div className="flex-1 flex gap-6 overflow-x-auto custom-scrollbar pb-4 min-h-[550px] animate-[fadeInUp_0.7s_ease-out]">
-        
-        {/* COLUNA 1: FILA DE ESPERA */}
-        <div 
-          className="flex flex-col min-w-[340px] max-w-[340px] bg-white/40 p-5 rounded-[2.5rem] border border-white h-full shadow-sm"
-          onDragOver={handleDragOver}
-          onDrop={(e) => handleDrop(e, 'pending')}
-        >
-          <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
-            <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
-              <Clock size={18} className="text-[var(--color-atelier-grafite)]/40"/> Fila de Espera
-            </h3>
-            <span className="bg-white px-2.5 py-1 rounded-md text-[11px] font-bold text-[var(--color-atelier-grafite)]/60 shadow-sm border border-[var(--color-atelier-grafite)]/5">{pendingTasks.length}</span>
-          </div>
-          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4">
-            {pendingTasks.map(task => <TaskCard key={task.id} task={task} isAdmin={isAdminOrManager} onAction={(newStatus: string) => updateTaskStatus(task, newStatus)} onReschedule={() => handleReschedule(task)} isRescheduling={isRescheduling === task.id} />)}
-            {pendingTasks.length === 0 && <div className="text-center text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/30 mt-10 pointer-events-none">Arraste para cá</div>}
-          </div>
-        </div>
-
-        {/* COLUNA 2: EM FOCO (TIMER ATIVO) */}
-        <div 
-          className="flex flex-col min-w-[340px] max-w-[340px] bg-blue-50/70 p-5 rounded-[2.5rem] border border-blue-200 h-full shadow-inner relative overflow-hidden"
-          onDragOver={handleDragOver}
-          onDrop={(e) => handleDrop(e, 'in_progress')}
-        >
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1.5 bg-blue-500 rounded-b-full shadow-[0_0_15px_rgba(59,130,246,0.8)]"></div>
-          <div className="absolute top-[-50px] left-[-50px] w-40 h-40 bg-blue-400/10 rounded-full blur-3xl pointer-events-none"></div>
-          
-          <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-blue-200/50 pb-4 relative z-10">
-            <h3 className="font-elegant text-2xl text-blue-900 flex items-center gap-2">
-              <Crosshair size={18} className="text-blue-500"/> Em Foco <span className="text-[10px] font-sans uppercase font-bold tracking-widest text-blue-500 bg-blue-100 px-2 py-0.5 rounded animate-pulse">Live</span>
-            </h3>
-          </div>
-          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4 relative z-10">
-            {inProgressTasks.length === 0 ? (
-               <div className="h-full flex flex-col items-center justify-center text-center opacity-40 pointer-events-none">
-                 <PlayCircle size={48} className="mb-4 text-blue-500 opacity-50"/>
-                 <span className="font-roboto text-[11px] uppercase tracking-widest font-bold text-blue-900">Arraste uma missão para iniciar</span>
-               </div>
-            ) : (
-              inProgressTasks.map(task => <TaskCard key={task.id} task={task} isFocus isAdmin={isAdminOrManager} onAction={(newStatus: string) => updateTaskStatus(task, newStatus)} onReschedule={() => handleReschedule(task)} isRescheduling={isRescheduling === task.id}/>)
-            )}
-          </div>
-        </div>
-
-        {/* COLUNA 3: AGUARDANDO REVISÃO */}
-        <div 
-          className="flex flex-col min-w-[340px] max-w-[340px] bg-orange-50/70 p-5 rounded-[2.5rem] border border-orange-200 h-full shadow-sm relative overflow-hidden"
-          onDragOver={handleDragOver}
-          onDrop={(e) => handleDrop(e, 'review')}
-        >
-          <div className="absolute top-[-50px] right-[-50px] w-40 h-40 bg-orange-400/10 rounded-full blur-3xl pointer-events-none"></div>
-          
-          <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-orange-200/50 pb-4 relative z-10">
-            <h3 className="font-elegant text-2xl text-orange-900 flex items-center gap-2">
-              <AlertTriangle size={18} className="text-orange-500"/> Revisão Interna
-            </h3>
-            <span className="bg-white px-2.5 py-1 rounded-md text-[11px] font-bold text-orange-600 shadow-sm border border-orange-200">{reviewTasks.length}</span>
-          </div>
-          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4 relative z-10">
-            {reviewTasks.map(task => <TaskCard key={task.id} task={task} isReview isAdmin={isAdminOrManager} onAction={(newStatus: string) => updateTaskStatus(task, newStatus)} onReschedule={() => handleReschedule(task)} isRescheduling={isRescheduling === task.id}/>)}
-            {reviewTasks.length === 0 && <div className="text-center text-[10px] uppercase font-bold text-orange-900/30 mt-10 pointer-events-none">Arraste para cá</div>}
-          </div>
-        </div>
-
-        {/* COLUNA 4: CONCLUÍDOS */}
-        <div 
-          className="flex flex-col min-w-[340px] max-w-[340px] bg-white/40 p-5 rounded-[2.5rem] border border-white/60 h-full shadow-sm opacity-80 hover:opacity-100 transition-opacity"
-          onDragOver={handleDragOver}
-          onDrop={(e) => handleDrop(e, 'completed')}
-        >
-          <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
-            <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
-              <CheckCircle2 size={18} className="text-green-500"/> Arsenal (Feitos)
-            </h3>
-          </div>
-          <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4">
-            {completedTasks.map(task => <TaskCard key={task.id} task={task} isCompleted isAdmin={isAdminOrManager} onAction={() => {}} onReschedule={() => {}} />)}
-            {completedTasks.length === 0 && <div className="text-center text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/30 mt-10 pointer-events-none">Arraste para cá</div>}
-          </div>
-        </div>
-
-      </div>
-
-      {/* =========================================================================
-          MODAL: INJETAR GRANADA (ADMIN/GESTOR)
-          ========================================================================= */}
-      <AnimatePresence>
-        {isAdHocModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAdHocModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-orange-500/20 flex flex-col gap-5">
-              <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
-                <div>
-                  <h3 className="font-elegant text-3xl text-orange-600 flex items-center gap-2"><Flame size={24}/> Granada Ad-Hoc</h3>
-                  <p className="font-roboto text-[11px] font-bold text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest mt-1">Injeção direta no JTBD de um membro</p>
-                </div>
-                <button onClick={() => setIsAdHocModalOpen(false)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)]"><X size={20}/></button>
-              </div>
-              
-              <div className="flex flex-col gap-4">
-                <input type="text" placeholder="Título da Missão Urgente..." value={adHocForm.title} onChange={(e) => setAdHocForm({...adHocForm, title: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[14px] font-bold text-[var(--color-atelier-grafite)] outline-none focus:border-orange-500 shadow-sm" />
-                
-                <select value={adHocForm.projectId} onChange={(e) => setAdHocForm({...adHocForm, projectId: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-orange-500 shadow-sm">
-                  <option value="" disabled>Selecione o Projeto do Cliente...</option>
-                  {projects.map(p => <option key={p.id} value={p.id}>{p.profiles?.nome}</option>)}
-                </select>
-
-                <select value={adHocForm.assigneeId} onChange={(e) => setAdHocForm({...adHocForm, assigneeId: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-orange-500 shadow-sm">
-                  <option value="" disabled>Quem deve executar AGORA?</option>
-                  {team.map(t => <option key={t.id} value={t.id}>{t.nome} ({t.role})</option>)}
-                </select>
-
-                <div className="flex gap-4">
-                  <div className="flex flex-col gap-1.5 w-1/2">
-                    <span className="font-roboto text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/50 ml-1">Deadline Crucial</span>
-                    <input type="datetime-local" value={adHocForm.deadline} onChange={(e) => setAdHocForm({...adHocForm, deadline: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[12px] outline-none focus:border-orange-500 shadow-sm" />
-                  </div>
-                  <div className="flex flex-col gap-1.5 w-1/2">
-                    <span className="font-roboto text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/50 ml-1">Tempo Est. (Min)</span>
-                    <input type="number" value={adHocForm.estTime} onChange={(e) => setAdHocForm({...adHocForm, estTime: parseInt(e.target.value)})} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-orange-500 shadow-sm" />
-                  </div>
-                </div>
-
-                <textarea placeholder="Briefing e Links rápidos..." value={adHocForm.description} onChange={(e) => setAdHocForm({...adHocForm, description: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] resize-none h-24 outline-none focus:border-orange-500 custom-scrollbar shadow-sm" />
-              </div>
-
-              <button onClick={handleFireGrenade} disabled={adHocProcessing || !adHocForm.title || !adHocForm.projectId || !adHocForm.assigneeId || !adHocForm.deadline} className="w-full mt-2 bg-orange-500 text-white py-4 rounded-xl text-[12px] font-bold uppercase tracking-widest shadow-[0_10px_20px_rgba(249,115,22,0.3)] hover:bg-orange-600 transition-colors flex justify-center items-center">
-                {adHocProcessing ? <Loader2 size={16} className="animate-spin"/> : "Disparar Granada"}
-              </button>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-    </div>
-  );
-}
-
-// ============================================================================
-// COMPONENTE: CARTÃO DE TAREFA (Atualizado com Adiar 1 Dia)
-// ============================================================================
-function TaskCard({ task, isFocus, isReview, isCompleted, isAdmin, onAction, onReschedule, isRescheduling }: any) {
-  const isDelayed = !isCompleted && new Date(task.deadline) < new Date();
-  
-  const isBlockedClass = task.is_blocked && !isCompleted ? "opacity-60 cursor-not-allowed grayscale" : "cursor-grab active:cursor-grabbing";
-
-  return (
-    <div 
-      draggable={!task.is_blocked && !isCompleted}
-      onDragStart={(e) => {
-        if (task.is_blocked || isCompleted) {
-          e.preventDefault();
-          return;
-        }
-        e.dataTransfer.setData("taskId", task.id);
-      }}
-      className={`p-5 rounded-2xl flex flex-col gap-3 group transition-all relative overflow-hidden ${isBlockedClass}
-        ${isCompleted ? 'bg-white/40 border border-[var(--color-atelier-grafite)]/10' : 'bg-white border border-[var(--color-atelier-grafite)]/5 shadow-[0_4px_12px_rgba(122,116,112,0.05)] hover:shadow-[0_8px_24px_rgba(122,116,112,0.1)] hover:border-[var(--color-atelier-terracota)]/30'}
-        ${task.urgency && !isCompleted ? 'border-orange-300 ring-1 ring-orange-500/20' : ''}
-      `}
-    >
-      {isFocus && <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)]"></div>}
-      {task.urgency && !isCompleted && !isFocus && <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>}
-
-      <div className="flex justify-between items-start pointer-events-none">
-        <div className="flex flex-col pr-4">
-          <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1 flex items-center gap-1">
-            {task.projects?.type === 'Identidade Visual' ? <Target size={10}/> : <Activity size={10}/>}
-            {task.projects?.profiles?.nome?.split(" ")[0]} • {task.stage}
-          </span>
-          <span className={`font-roboto font-bold text-[14px] leading-snug ${isCompleted ? 'text-[var(--color-atelier-grafite)]/40 line-through' : 'text-[var(--color-atelier-grafite)]'}`}>
-            {task.title}
-          </span>
-        </div>
-        {task.urgency && !isCompleted && <Flame size={16} className="text-orange-500 shrink-0 mt-1 animate-pulse" />}
-      </div>
-
-      {!isCompleted && (
-        <div className="flex items-center justify-between border-t border-[var(--color-atelier-grafite)]/5 pt-4 mt-2">
-          
-          <div className="flex flex-col gap-1">
-            <span className={`text-[10px] uppercase font-bold tracking-widest flex items-center gap-1 ${isDelayed ? 'text-red-500' : 'text-[var(--color-atelier-grafite)]/50'}`}>
-              <Clock size={12}/> {new Date(task.deadline).toLocaleDateString('pt-BR')}
-            </span>
-            <div className="flex items-center gap-2">
-              <span className="text-[9px] text-[var(--color-atelier-grafite)]/30 uppercase font-bold tracking-widest bg-gray-50 px-2 py-0.5 rounded">Est: {task.estimated_time}m</span>
-              
-              {/* BOTAO REAGENDAR (ADICIONADO) */}
-              <button 
-                onClick={(e) => { e.stopPropagation(); onReschedule(); }}
-                disabled={isRescheduling}
-                className="text-[9px] uppercase font-bold tracking-widest text-blue-500 hover:bg-blue-50 px-2 py-0.5 rounded transition-colors flex items-center gap-1 cursor-pointer pointer-events-auto disabled:opacity-50"
-              >
-                {isRescheduling ? <Loader2 size={10} className="animate-spin"/> : <ArrowRight size={10}/>} Adiar
-              </button>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 relative z-10 pointer-events-auto">
-            {task.is_blocked ? (
-              <span className="text-[9px] uppercase font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm" title="Aguardando fase anterior">Pendente</span>
-            ) : (
-              <>
-                {task.status === 'pending' && (
-                  <button onClick={() => onAction('in_progress')} className="bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm flex items-center gap-2">
-                    <PlayCircle size={14} /> Foco
-                  </button>
+                <span className="text-sm font-bold">{user.nome.split(" ")[0]}</span>
+                {user.avatar_url ? (
+                  <img src={user.avatar_url} className="w-7 h-7 rounded-full object-cover border border-white/20" alt={user.nome} />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-gray-500"><User size={14}/></div>
                 )}
-
-                {isFocus && (
-                  <>
-                    <button onClick={() => onAction('pending')} className="bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-200 w-9 h-9 rounded-xl flex items-center justify-center transition-colors shadow-sm" title="Pausar Foco">
-                      <PauseCircle size={14} />
-                    </button>
-                    <button onClick={() => onAction('review')} className="bg-orange-500 border border-orange-600 text-white hover:bg-orange-600 px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_10px_rgba(249,115,22,0.3)] hover:-translate-y-0.5 flex items-center gap-1">
-                      Revisão <ChevronRight size={14}/>
-                    </button>
-                  </>
-                )}
-
-                {isReview && (
-                  <>
-                    {isAdmin ? (
-                      <button onClick={() => onAction('completed')} className="bg-green-500 border border-green-600 text-white hover:bg-green-600 px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_10px_rgba(34,197,94,0.3)] hover:-translate-y-0.5 flex items-center gap-1">
-                        Aprovar <CheckCircle2 size={14}/>
-                      </button>
-                    ) : (
-                      <span className="bg-orange-50 border border-orange-200 text-orange-600 px-3 h-8 rounded-lg flex items-center justify-center text-[9px] font-bold uppercase tracking-widest animate-pulse cursor-not-allowed">
-                        Aguardando
-                      </span>
-                    )}
-                  </>
-                )}
-              </>
-            )}
+              </button>
+            ))}
           </div>
+
         </div>
       )}
-      
-      {isCompleted && (
-        <div className="absolute right-[-15px] bottom-[-15px] opacity-10 pointer-events-none">
-          <CheckCircle2 size={100} className="text-green-500" />
-        </div>
-      )}
+
+      {/* MODAIS GLOBAIS */}
+      <JTBDModals 
+        isAdHocModalOpen={isAdHocModalOpen}
+        setIsAdHocModalOpen={setIsAdHocModalOpen}
+        adHocForm={adHocForm}
+        setAdHocForm={setAdHocForm}
+        projects={projects}
+        team={team}
+        handleFireGrenade={handleFireGrenade}
+        adHocProcessing={adHocProcessing}
+        earnedExpToast={{ show: false, amount: 0, msg: "" }} // Como removemos a gamificação, passamos um state vazio para o toast não quebrar
+      />
+
     </div>
   );
 }
