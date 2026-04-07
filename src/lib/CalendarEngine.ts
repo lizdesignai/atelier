@@ -38,6 +38,25 @@ export class CalendarEngine {
   }
 
   /**
+   * Gera a semana com base num offset (0 = atual, 1 = próxima, -1 = anterior)
+   */
+  static getWeek(weekOffset: number = 0): Date[] {
+    const date = new Date();
+    date.setDate(date.getDate() + (weekOffset * 7));
+    const day = date.getDay();
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+    
+    const monday = new Date(date.setDate(diff));
+    monday.setHours(0, 0, 0, 0);
+
+    return Array.from({ length: 7 }).map((_, i) => {
+      const nextDay = new Date(monday);
+      nextDay.setDate(monday.getDate() + i);
+      return nextDay;
+    });
+  }
+
+  /**
    * O Cérebro Autónomo: Capacity Planning & Load Balancing
    * Reorganiza a matriz de tempo respeitando limites de horas e burnout.
    */

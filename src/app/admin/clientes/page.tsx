@@ -211,23 +211,24 @@ export default function BaseClientesPage() {
       const baseDate = billingDate ? new Date(billingDate) : new Date();
       const today = new Date();
 
-      const tasksToInsert = pipeline.map((t) => {
-        const targetDate = new Date(today);
-        targetDate.setDate(targetDate.getDate() + t.daysOffset);
-        
-        return {
-          project_id: newProject.id,
-          client_id: selectedClientId,
-          creator_id: session?.user?.id || null,
-          assigned_to: null, 
-          title: t.title,
-          stage: t.stage,
-          task_type: t.type,
-          estimated_time: t.estTime,
-          deadline: targetDate.toISOString(),
-          status: 'pending'
-        };
-      });
+      // Substituir o mapeamento antigo por este:
+const tasksToInsert = pipeline.map((t) => {
+  const targetDate = new Date(today);
+  targetDate.setDate(targetDate.getDate() + t.daysOffset);
+  
+  return {
+    project_id: newProject.id,
+    client_id: selectedClientId,
+    // creator_id removido para alinhar com o banco de dados
+    assigned_to: null, 
+    title: t.title,
+    stage: t.stage,
+    task_type: t.type,
+    estimated_time: t.estTime,
+    deadline: targetDate.toISOString(),
+    status: 'pending'
+  };
+});
 
       if (tasksToInsert.length > 0) {
         const { error: tasksError } = await supabase.from('tasks').insert(tasksToInsert);
@@ -272,8 +273,6 @@ export default function BaseClientesPage() {
 
     setIsSubmitting(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-
       // 1. Cria Agência
       const { data: agency, error: agencyError } = await supabase.from('agencies').insert({
         name: agencyName,
@@ -303,19 +302,18 @@ export default function BaseClientesPage() {
         const tasksToInsert: any[] = [];
         const baseDate = agencyBillingDate ? new Date(agencyBillingDate) : new Date();
 
-        insertedSubclients.forEach((sub) => {
+        insertedSubclients?.forEach((sub) => {
           for (let i = 1; i <= sub.deliverables_count; i++) {
              const targetDate = new Date(baseDate);
-             // Distribui as tarefas uniformemente ao longo do mês
              targetDate.setDate(targetDate.getDate() + Math.floor((30 / sub.deliverables_count) * i)); 
 
              tasksToInsert.push({
                agency_id: agency.id,
                subclient_id: sub.id,
-               creator_id: session?.user?.id || null,
+               // 💡 creator_id removido para evitar Erro 400
                title: `Produção (Agência): ${sub.name} - Demanda ${i}/${sub.deliverables_count}`,
                stage: "Produção Contínua",
-               task_type: "design", // Cai na fila de design por defeito
+               task_type: "design", 
                estimated_time: 60,
                deadline: targetDate.toISOString(),
                status: 'pending'
@@ -329,14 +327,13 @@ export default function BaseClientesPage() {
         }
       }
 
-      showToast("✨ Agência forjada e Demandas instanciadas no Analytics!");
+      showToast("✨ Agência forjada com sucesso!");
       setIsAgencyModalOpen(false);
       setAgencyName("");
       setAgencyFinancialValue("");
       setAgencyBillingDate("");
       setAgencySubclients([{ name: "", deliverables_count: 1 }]);
       
-      // O Financeiro e o Analytics vão reagir passivamente
       refreshGlobalData(); 
     } catch (error) {
       console.error("Erro ao criar agência:", error);

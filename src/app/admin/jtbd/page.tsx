@@ -4,11 +4,12 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabase";
-import { AtelierPMEngine } from "../../../lib/AtelierPMEngine"; // 🧠 Motor Injetado
+import { AtelierPMEngine } from "../../../lib/AtelierPMEngine"; // 🧠 Motor PM Injetado
+import { CalendarEngine } from "../../../lib/CalendarEngine"; // 📅 Motor Calendário Injetado
 import { 
   PlayCircle, PauseCircle, CheckCircle2, Clock, Flame, 
   Loader2, AlertTriangle, Crosshair, Plus, X, 
-  ChevronRight, Award, UserCircle2, Star, Zap, Target, Eye, Activity
+  ChevronRight, Award, UserCircle2, Star, Zap, Target, Eye, Activity, CalendarDays, ArrowRight
 } from "lucide-react";
 
 const showToast = (message: string) => {
@@ -32,6 +33,11 @@ export default function JTBDPage() {
   
   // Tasks Global State
   const [allTasks, setAllTasks] = useState<any[]>([]);
+
+  // 📅 Calendário States
+  const [currentWeek, setCurrentWeek] = useState<Date[]>([]);
+  const [selectedDate, setSelectedDate] = useState<string | null>(null); // "YYYY-MM-DD"
+  const [isRescheduling, setIsRescheduling] = useState<string | null>(null); // ID da task
   
   // Ad-Hoc Grenades
   const [projects, setProjects] = useState<any[]>([]);
@@ -43,6 +49,7 @@ export default function JTBDPage() {
   const [earnedExpToast, setEarnedExpToast] = useState<{show: boolean, amount: number, msg: string}>({ show: false, amount: 0, msg: "" });
 
   useEffect(() => {
+    setCurrentWeek(CalendarEngine.getCurrentWeek());
     fetchJTBDData();
   }, []);
 
@@ -78,7 +85,11 @@ export default function JTBDPage() {
         .order('priority_score', { ascending: false }) 
         .order('deadline', { ascending: true });
       
-      if (tasksData) setAllTasks(tasksData);
+      if (tasksData) {
+        // 📅 MOTOR DE CALENDÁRIO: Sincroniza e protege a saúde do colaborador (Reuniões/Captações)
+        const optimizedTasks = await CalendarEngine.optimizeSchedule(tasksData);
+        setAllTasks(optimizedTasks || tasksData);
+      }
 
       // Gatilho Silencioso: O Motor recalibra a pontuação de todos os cards da mesa deste usuário
       AtelierPMEngine.prioritizeDailyTriage(profile.id);
@@ -127,6 +138,33 @@ export default function JTBDPage() {
     } catch (error) {
       showToast("Erro ao sincronizar missão.");
       fetchJTBDData(); // Reverte UI em caso de erro
+    }
+  };
+
+  // 📅 REAGENDAMENTO RÁPIDO
+  const handleReschedule = async (task: any) => {
+    setIsRescheduling(task.id);
+    try {
+      const currentDeadline = new Date(task.deadline);
+      let nextDay = new Date(currentDeadline);
+      
+      // Adia 1 dia útil
+      do {
+        nextDay.setDate(nextDay.getDate() + 1);
+      } while (nextDay.getDay() === 0 || nextDay.getDay() === 6);
+
+      const newDateStr = nextDay.toISOString();
+      
+      // Mutação Otimista
+      setAllTasks(prev => prev.map(t => t.id === task.id ? { ...t, deadline: newDateStr } : t));
+      
+      await CalendarEngine.rescheduleTask(task.id, newDateStr);
+      showToast("Missão adiada para o próximo dia útil.");
+    } catch (e) {
+      showToast("Erro ao reagendar.");
+      fetchJTBDData();
+    } finally {
+      setIsRescheduling(null);
     }
   };
 
@@ -238,7 +276,12 @@ export default function JTBDPage() {
   const nextLevelExp = getNextLevelExp(viewedUserPerf.exp_points);
   const expProgress = Math.min((viewedUserPerf.exp_points / nextLevelExp) * 100, 100);
 
-  const displayedTasks = allTasks.filter(t => t.assigned_to === viewingUserId);
+  // 📅 FILTRAGEM POR DATA
+  const allUserTasks = allTasks.filter(t => t.assigned_to === viewingUserId);
+  const displayedTasks = selectedDate 
+    ? allUserTasks.filter(t => new Date(t.deadline).toISOString().split('T')[0] === selectedDate)
+    : allUserTasks;
+
   const pendingTasks = displayedTasks.filter(t => t.status === 'pending');
   const inProgressTasks = displayedTasks.filter(t => t.status === 'in_progress');
   const reviewTasks = displayedTasks.filter(t => t.status === 'review');
@@ -246,6 +289,9 @@ export default function JTBDPage() {
 
   const isAdminOrManager = currentUser?.role === 'admin' || currentUser?.role === 'gestor';
   const isViewingSelf = viewingUserId === currentUser.id;
+
+  const monthNames = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+  const currentMonthName = currentWeek.length > 0 ? `${monthNames[currentWeek[0].getMonth()]} ${currentWeek[0].getFullYear()}` : "";
 
   return (
     <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1500px] mx-auto relative z-10 pb-6 gap-6 px-4 md:px-0">
@@ -322,14 +368,14 @@ export default function JTBDPage() {
             <div className="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col justify-between hover:bg-white/10 transition-colors">
               <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-white/40 mb-2">Foco Atual</span>
               <span className="font-roboto font-bold text-[13px] text-blue-300 leading-tight line-clamp-2">
-                {inProgressTasks.length > 0 ? inProgressTasks[0].title : "Nenhuma Missão Ativa."}
+                {allUserTasks.filter(t => t.status === 'in_progress').length > 0 ? allUserTasks.filter(t => t.status === 'in_progress')[0].title : "Nenhuma Missão Ativa."}
               </span>
             </div>
             
             <div className="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col justify-between hover:bg-white/10 transition-colors">
               <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-white/40 mb-2 flex items-center gap-1"><Crosshair size={10}/> Eficiência</span>
               <div className="flex items-end gap-2">
-                <span className="font-elegant text-3xl text-white leading-none">{completedTasks.length}</span>
+                <span className="font-elegant text-3xl text-white leading-none">{allUserTasks.filter(t => t.status === 'completed').length}</span>
                 <span className="text-[10px] text-white/40 pb-0.5">Missões Feitas</span>
               </div>
             </div>
@@ -345,11 +391,65 @@ export default function JTBDPage() {
             <div className="bg-[var(--color-atelier-terracota)]/20 border border-[var(--color-atelier-terracota)]/30 p-5 rounded-2xl flex flex-col justify-between hover:bg-[var(--color-atelier-terracota)]/30 transition-colors">
               <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)] mb-2 flex items-center gap-1"><Zap size={10}/> Carga Visível</span>
               <div className="flex items-end gap-2">
-                <span className="font-elegant text-3xl text-white leading-none">{pendingTasks.length}</span>
-                <span className="text-[10px] text-white/60 pb-0.5">Na Fila</span>
+                <span className="font-elegant text-3xl text-white leading-none">{allUserTasks.filter(t => t.status === 'pending').length}</span>
+                <span className="text-[10px] text-white/60 pb-0.5">Na Fila Geral</span>
               </div>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* =========================================================================
+          2. WIDGET DE CALENDÁRIO INTELIGENTE (Filtro por Dia)
+          ========================================================================= */}
+      <div className="shrink-0 glass-panel bg-white/60 p-5 rounded-[2.5rem] border border-white shadow-sm flex flex-col gap-4 animate-[fadeInUp_0.6s_ease-out]">
+        <div className="flex justify-between items-center px-2 border-b border-[var(--color-atelier-grafite)]/10 pb-3">
+          <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
+            <CalendarDays size={20} className="text-[var(--color-atelier-terracota)]"/> Planeamento Semanal
+          </h3>
+          <div className="flex items-center gap-4">
+            <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">{currentMonthName}</span>
+            {selectedDate && (
+              <button onClick={() => setSelectedDate(null)} className="text-[9px] uppercase font-bold tracking-widest bg-[var(--color-atelier-grafite)]/5 hover:bg-[var(--color-atelier-terracota)] hover:text-white px-3 py-1.5 rounded-lg transition-colors flex items-center gap-1">
+                Limpar Filtro <X size={10}/>
+              </button>
+            )}
+          </div>
+        </div>
+
+        <div className="flex justify-between gap-2 overflow-x-auto custom-scrollbar pb-2">
+          {currentWeek.map((date, i) => {
+            const dateStr = date.toISOString().split('T')[0];
+            const isSelected = selectedDate === dateStr;
+            const isToday = new Date().toISOString().split('T')[0] === dateStr;
+            
+            // Verifica o que há neste dia para este utilizador
+            const dayTasks = allUserTasks.filter(t => t.status !== 'completed' && new Date(t.deadline).toISOString().split('T')[0] === dateStr);
+            const hasHeavy = dayTasks.some(t => ['reuniao', 'captacao'].includes(t.task_type));
+            const hasUrgent = dayTasks.some(t => t.urgency);
+
+            return (
+              <button 
+                key={i}
+                onClick={() => setSelectedDate(selectedDate === dateStr ? null : dateStr)}
+                className={`flex-1 min-w-[100px] flex flex-col items-center justify-center p-3 rounded-2xl transition-all border ${isSelected ? 'bg-[var(--color-atelier-grafite)] text-white border-[var(--color-atelier-grafite)] shadow-md translate-y-[-2px]' : isToday ? 'bg-[var(--color-atelier-terracota)]/10 border-[var(--color-atelier-terracota)]/30 text-[var(--color-atelier-grafite)]' : 'bg-white border-transparent hover:border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/60 hover:bg-gray-50'}`}
+              >
+                <span className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${isSelected ? 'text-white/60' : isToday ? 'text-[var(--color-atelier-terracota)]' : ''}`}>
+                  {date.toLocaleDateString('pt-BR', { weekday: 'short' }).replace('.', '')}
+                </span>
+                <span className={`font-elegant text-3xl leading-none ${isSelected ? 'text-white' : ''}`}>
+                  {date.getDate()}
+                </span>
+                
+                {/* Indicadores Visuais de Carga */}
+                <div className="flex items-center gap-1 mt-2 h-2">
+                  {hasHeavy && <div className="w-1.5 h-1.5 rounded-full bg-purple-500" title="Reunião/Captação"></div>}
+                  {hasUrgent && <div className="w-1.5 h-1.5 rounded-full bg-orange-500 animate-pulse" title="Urgente"></div>}
+                  {!hasHeavy && !hasUrgent && dayTasks.length > 0 && <div className="w-1.5 h-1.5 rounded-full bg-blue-400" title="Tarefas Regulares"></div>}
+                </div>
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -374,7 +474,7 @@ export default function JTBDPage() {
       </AnimatePresence>
 
       {/* =========================================================================
-          2. O KANBAN SILENCIOSO (Chão de Fábrica Premium com Drag & Drop HTML5)
+          3. O KANBAN SILENCIOSO (Chão de Fábrica Premium com Drag & Drop HTML5)
           ========================================================================= */}
       <div className="flex-1 flex gap-6 overflow-x-auto custom-scrollbar pb-4 min-h-[550px] animate-[fadeInUp_0.7s_ease-out]">
         
@@ -391,7 +491,7 @@ export default function JTBDPage() {
             <span className="bg-white px-2.5 py-1 rounded-md text-[11px] font-bold text-[var(--color-atelier-grafite)]/60 shadow-sm border border-[var(--color-atelier-grafite)]/5">{pendingTasks.length}</span>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4">
-            {pendingTasks.map(task => <TaskCard key={task.id} task={task} isAdmin={isAdminOrManager} onAction={(newStatus: string) => updateTaskStatus(task, newStatus)} />)}
+            {pendingTasks.map(task => <TaskCard key={task.id} task={task} isAdmin={isAdminOrManager} onAction={(newStatus: string) => updateTaskStatus(task, newStatus)} onReschedule={() => handleReschedule(task)} isRescheduling={isRescheduling === task.id} />)}
             {pendingTasks.length === 0 && <div className="text-center text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/30 mt-10 pointer-events-none">Arraste para cá</div>}
           </div>
         </div>
@@ -417,7 +517,7 @@ export default function JTBDPage() {
                  <span className="font-roboto text-[11px] uppercase tracking-widest font-bold text-blue-900">Arraste uma missão para iniciar</span>
                </div>
             ) : (
-              inProgressTasks.map(task => <TaskCard key={task.id} task={task} isFocus isAdmin={isAdminOrManager} onAction={(newStatus: string) => updateTaskStatus(task, newStatus)} />)
+              inProgressTasks.map(task => <TaskCard key={task.id} task={task} isFocus isAdmin={isAdminOrManager} onAction={(newStatus: string) => updateTaskStatus(task, newStatus)} onReschedule={() => handleReschedule(task)} isRescheduling={isRescheduling === task.id}/>)
             )}
           </div>
         </div>
@@ -437,7 +537,7 @@ export default function JTBDPage() {
             <span className="bg-white px-2.5 py-1 rounded-md text-[11px] font-bold text-orange-600 shadow-sm border border-orange-200">{reviewTasks.length}</span>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4 relative z-10">
-            {reviewTasks.map(task => <TaskCard key={task.id} task={task} isReview isAdmin={isAdminOrManager} onAction={(newStatus: string) => updateTaskStatus(task, newStatus)} />)}
+            {reviewTasks.map(task => <TaskCard key={task.id} task={task} isReview isAdmin={isAdminOrManager} onAction={(newStatus: string) => updateTaskStatus(task, newStatus)} onReschedule={() => handleReschedule(task)} isRescheduling={isRescheduling === task.id}/>)}
             {reviewTasks.length === 0 && <div className="text-center text-[10px] uppercase font-bold text-orange-900/30 mt-10 pointer-events-none">Arraste para cá</div>}
           </div>
         </div>
@@ -454,7 +554,7 @@ export default function JTBDPage() {
             </h3>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4">
-            {completedTasks.map(task => <TaskCard key={task.id} task={task} isCompleted isAdmin={isAdminOrManager} onAction={() => {}} />)}
+            {completedTasks.map(task => <TaskCard key={task.id} task={task} isCompleted isAdmin={isAdminOrManager} onAction={() => {}} onReschedule={() => {}} />)}
             {completedTasks.length === 0 && <div className="text-center text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/30 mt-10 pointer-events-none">Arraste para cá</div>}
           </div>
         </div>
@@ -517,12 +617,11 @@ export default function JTBDPage() {
 }
 
 // ============================================================================
-// COMPONENTE: CARTÃO DE TAREFA (Com suporte a Drag & Drop Native)
+// COMPONENTE: CARTÃO DE TAREFA (Atualizado com Adiar 1 Dia)
 // ============================================================================
-function TaskCard({ task, isFocus, isReview, isCompleted, isAdmin, onAction }: any) {
+function TaskCard({ task, isFocus, isReview, isCompleted, isAdmin, onAction, onReschedule, isRescheduling }: any) {
   const isDelayed = !isCompleted && new Date(task.deadline) < new Date();
   
-  // Opacidade visual para tarefas bloqueadas (esperando o passo anterior)
   const isBlockedClass = task.is_blocked && !isCompleted ? "opacity-60 cursor-not-allowed grayscale" : "cursor-grab active:cursor-grabbing";
 
   return (
@@ -540,7 +639,6 @@ function TaskCard({ task, isFocus, isReview, isCompleted, isAdmin, onAction }: a
         ${task.urgency && !isCompleted ? 'border-orange-300 ring-1 ring-orange-500/20' : ''}
       `}
     >
-      {/* Efeitos Visuais (Luzes de Foco e Urgência) */}
       {isFocus && <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)]"></div>}
       {task.urgency && !isCompleted && !isFocus && <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>}
 
@@ -557,30 +655,38 @@ function TaskCard({ task, isFocus, isReview, isCompleted, isAdmin, onAction }: a
         {task.urgency && !isCompleted && <Flame size={16} className="text-orange-500 shrink-0 mt-1 animate-pulse" />}
       </div>
 
-      {/* Interface de Ação */}
       {!isCompleted && (
         <div className="flex items-center justify-between border-t border-[var(--color-atelier-grafite)]/5 pt-4 mt-2">
           
-          <div className="flex flex-col gap-0.5 pointer-events-none">
+          <div className="flex flex-col gap-1">
             <span className={`text-[10px] uppercase font-bold tracking-widest flex items-center gap-1 ${isDelayed ? 'text-red-500' : 'text-[var(--color-atelier-grafite)]/50'}`}>
               <Clock size={12}/> {new Date(task.deadline).toLocaleDateString('pt-BR')}
             </span>
-            <span className="text-[9px] text-[var(--color-atelier-grafite)]/30 uppercase font-bold tracking-widest">Est: {task.estimated_time}m</span>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-[var(--color-atelier-grafite)]/30 uppercase font-bold tracking-widest bg-gray-50 px-2 py-0.5 rounded">Est: {task.estimated_time}m</span>
+              
+              {/* BOTAO REAGENDAR (ADICIONADO) */}
+              <button 
+                onClick={(e) => { e.stopPropagation(); onReschedule(); }}
+                disabled={isRescheduling}
+                className="text-[9px] uppercase font-bold tracking-widest text-blue-500 hover:bg-blue-50 px-2 py-0.5 rounded transition-colors flex items-center gap-1 cursor-pointer pointer-events-auto disabled:opacity-50"
+              >
+                {isRescheduling ? <Loader2 size={10} className="animate-spin"/> : <ArrowRight size={10}/>} Adiar
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-center gap-2 relative z-10">
+          <div className="flex items-center gap-2 relative z-10 pointer-events-auto">
             {task.is_blocked ? (
-              <span className="text-[9px] uppercase font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm" title="Aguardando fase anterior">Dependência Pendente</span>
+              <span className="text-[9px] uppercase font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm" title="Aguardando fase anterior">Pendente</span>
             ) : (
               <>
-                {/* ESTADO: PENDENTE */}
                 {task.status === 'pending' && (
                   <button onClick={() => onAction('in_progress')} className="bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm flex items-center gap-2">
                     <PlayCircle size={14} /> Foco
                   </button>
                 )}
 
-                {/* ESTADO: EM FOCO */}
                 {isFocus && (
                   <>
                     <button onClick={() => onAction('pending')} className="bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-200 w-9 h-9 rounded-xl flex items-center justify-center transition-colors shadow-sm" title="Pausar Foco">
@@ -592,7 +698,6 @@ function TaskCard({ task, isFocus, isReview, isCompleted, isAdmin, onAction }: a
                   </>
                 )}
 
-                {/* ESTADO: EM REVISÃO */}
                 {isReview && (
                   <>
                     {isAdmin ? (
@@ -612,7 +717,6 @@ function TaskCard({ task, isFocus, isReview, isCompleted, isAdmin, onAction }: a
         </div>
       )}
       
-      {/* Selo Visual de Concluído */}
       {isCompleted && (
         <div className="absolute right-[-15px] bottom-[-15px] opacity-10 pointer-events-none">
           <CheckCircle2 size={100} className="text-green-500" />
