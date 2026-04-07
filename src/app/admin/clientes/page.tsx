@@ -73,7 +73,7 @@ export default function BaseClientesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all"); 
 
-  // 🧠 CONSUMO DIRETO DA MEMÓRIA GLOBAL (Substitui a query lenta de projetos)
+  // 🧠 CONSUMO DIRETO DA MEMÓRIA GLOBAL
   const { activeProjects, isGlobalLoading, refreshGlobalData } = useGlobalStore();
 
   // Estados Locais Modificados
@@ -99,6 +99,15 @@ export default function BaseClientesPage() {
   const [billingDate, setBillingDate] = useState("");
 
   // ==========================================
+  // ESTADOS: CRIAR NOVA AGÊNCIA (WHITE-LABEL)
+  // ==========================================
+  const [isAgencyModalOpen, setIsAgencyModalOpen] = useState(false);
+  const [agencyName, setAgencyName] = useState("");
+  const [agencyFinancialValue, setAgencyFinancialValue] = useState("");
+  const [agencyBillingDate, setAgencyBillingDate] = useState("");
+  const [agencySubclients, setAgencySubclients] = useState<{ name: string; deliverables_count: number }[]>([{ name: "", deliverables_count: 1 }]);
+
+  // ==========================================
   // ESTADOS: EDITAR PROJETO FINANCEIRO
   // ==========================================
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
@@ -118,7 +127,6 @@ export default function BaseClientesPage() {
     const fetchLocalData = async () => {
       setIsLocalLoading(true);
       try {
-        // Disparamos as tarefas e a lista de clientes em paralelo
         const [ { data: tasksData }, { data: clientsData } ] = await Promise.all([
           supabase.from('tasks').select('project_id, status'),
           supabase.from('profiles').select('id, nome, email').eq('role', 'client')
@@ -126,7 +134,6 @@ export default function BaseClientesPage() {
 
         if (clientsData) setAvailableClients(clientsData);
 
-        // Enriquece os projetos já vindos da Memória RAM
         if (activeProjects) {
           const enriched = activeProjects.map(p => {
             const pTasks = tasksData?.filter(t => t.project_id === p.id) || [];
@@ -138,7 +145,6 @@ export default function BaseClientesPage() {
           });
           setEnrichedProjects(enriched);
         }
-
       } catch (error) {
         console.error("Erro local ao buscar dados do CRM:", error);
       } finally {
@@ -149,7 +155,6 @@ export default function BaseClientesPage() {
     fetchLocalData();
   }, [isGlobalLoading, activeProjects]);
 
-  // Lógica dinâmica para sub-pacotes
   useEffect(() => {
     if (serviceType === "Identidade Visual") {
       setProjectPackage("Identidade Visual Premium");
@@ -195,7 +200,7 @@ export default function BaseClientesPage() {
       const { data: newProject, error: projError } = await supabase.from('projects').insert(projectPayload).select().single();
       if (projError) throw projError;
       
-      // 2. SELECIONA O PIPELINE E FAZ O DEPLOY (Backward Scheduling Baseado na Data)
+      // 2. SELECIONA O PIPELINE E FAZ O DEPLOY
       let pipeline: any[] = [];
       if (serviceType === 'Identidade Visual') {
         pipeline = IDV_PIPELINE;
@@ -235,11 +240,107 @@ export default function BaseClientesPage() {
       setFinancialValue("");
       setBillingDate("");
       
-      // 🧠 Aciona a atualização da Memória Global em vez do fetch antigo
       refreshGlobalData();
     } catch (error) {
       console.error("Erro ao criar:", error);
       showToast("Erro ao criar projeto. Verifique as tabelas do banco.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // ============================================================================
+  // CRIAR AGÊNCIA E AUTO-DEPLOY DE SUB-CLIENTES (White-Label)
+  // ============================================================================
+  const handleAddSubclient = () => {
+    setAgencySubclients([...agencySubclients, { name: "", deliverables_count: 1 }]);
+  };
+
+  const handleRemoveSubclient = (index: number) => {
+    setAgencySubclients(agencySubclients.filter((_, i) => i !== index));
+  };
+
+  const handleSubclientChange = (index: number, field: string, value: string | number) => {
+    const newSubs = [...agencySubclients];
+    newSubs[index] = { ...newSubs[index], [field]: value };
+    setAgencySubclients(newSubs);
+  };
+
+  const handleCreateAgency = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!agencyName) return;
+
+    setIsSubmitting(true);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+
+      // 1. Cria Agência
+      const { data: agency, error: agencyError } = await supabase.from('agencies').insert({
+        name: agencyName,
+        financial_value: agencyFinancialValue ? parseFloat(agencyFinancialValue) : 0,
+        billing_date: agencyBillingDate || null,
+        status: 'active'
+      }).select().single();
+
+      if (agencyError) throw agencyError;
+
+      // 2. Cria Subclientes e gera Tarefas (Analytics)
+      if (agencySubclients.length > 0) {
+        const subclientsToInsert = agencySubclients.map(sub => ({
+          agency_id: agency.id,
+          name: sub.name,
+          deliverables_count: sub.deliverables_count
+        }));
+
+        const { data: insertedSubclients, error: subError } = await supabase
+          .from('agency_subclients')
+          .insert(subclientsToInsert)
+          .select();
+
+        if (subError) throw subError;
+
+        // 3. Distribuição das Tarefas de Agência
+        const tasksToInsert: any[] = [];
+        const baseDate = agencyBillingDate ? new Date(agencyBillingDate) : new Date();
+
+        insertedSubclients.forEach((sub) => {
+          for (let i = 1; i <= sub.deliverables_count; i++) {
+             const targetDate = new Date(baseDate);
+             // Distribui as tarefas uniformemente ao longo do mês
+             targetDate.setDate(targetDate.getDate() + Math.floor((30 / sub.deliverables_count) * i)); 
+
+             tasksToInsert.push({
+               agency_id: agency.id,
+               subclient_id: sub.id,
+               creator_id: session?.user?.id || null,
+               title: `Produção (Agência): ${sub.name} - Demanda ${i}/${sub.deliverables_count}`,
+               stage: "Produção Contínua",
+               task_type: "design", // Cai na fila de design por defeito
+               estimated_time: 60,
+               deadline: targetDate.toISOString(),
+               status: 'pending'
+             });
+          }
+        });
+
+        if (tasksToInsert.length > 0) {
+          const { error: tasksError } = await supabase.from('tasks').insert(tasksToInsert);
+          if (tasksError) throw tasksError;
+        }
+      }
+
+      showToast("✨ Agência forjada e Demandas instanciadas no Analytics!");
+      setIsAgencyModalOpen(false);
+      setAgencyName("");
+      setAgencyFinancialValue("");
+      setAgencyBillingDate("");
+      setAgencySubclients([{ name: "", deliverables_count: 1 }]);
+      
+      // O Financeiro e o Analytics vão reagir passivamente
+      refreshGlobalData(); 
+    } catch (error) {
+      console.error("Erro ao criar agência:", error);
+      showToast("Erro ao criar operação de agência.");
     } finally {
       setIsSubmitting(false);
     }
@@ -359,11 +460,29 @@ export default function BaseClientesPage() {
             </h1>
           </div>
 
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => setIsAgencyModalOpen(true)}
+              className="bg-transparent border border-[var(--color-atelier-grafite)]/20 text-[var(--color-atelier-grafite)] px-6 py-3.5 rounded-full font-roboto font-bold uppercase tracking-widest text-[11px] hover:bg-[var(--color-atelier-grafite)] hover:text-[var(--color-atelier-creme)] transition-all duration-300 shadow-sm flex items-center gap-2 hidden md:flex"
+            >
+              <Briefcase size={16} /> Nova Agência
+            </button>
+            <button 
+              onClick={() => setIsNewClientModalOpen(true)}
+              className="bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] px-6 py-3.5 rounded-full font-roboto font-bold uppercase tracking-widest text-[11px] hover:bg-[var(--color-atelier-terracota)] transition-all duration-300 shadow-[0_10px_20px_rgba(122,116,112,0.2)] hover:shadow-[0_15px_30px_rgba(173,111,64,0.3)] hover:-translate-y-0.5 flex items-center gap-2"
+            >
+              <Plus size={16} /> Novo Contrato
+            </button>
+          </div>
+        </div>
+
+        {/* Botão Agência Mobile */}
+        <div className="md:hidden">
           <button 
-            onClick={() => setIsNewClientModalOpen(true)}
-            className="bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] px-6 py-3.5 rounded-full font-roboto font-bold uppercase tracking-widest text-[11px] hover:bg-[var(--color-atelier-terracota)] transition-all duration-300 shadow-[0_10px_20px_rgba(122,116,112,0.2)] hover:shadow-[0_15px_30px_rgba(173,111,64,0.3)] hover:-translate-y-0.5 flex items-center gap-2"
+            onClick={() => setIsAgencyModalOpen(true)}
+            className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] py-3 rounded-xl font-roboto font-bold uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 shadow-sm"
           >
-            <Plus size={16} /> Novo Contrato
+            <Briefcase size={16} /> Registar Agência Parceira
           </button>
         </div>
 
@@ -401,7 +520,6 @@ export default function BaseClientesPage() {
         </div>
 
         <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-2 relative">
-          {/* Validação de Carregamento Duplo (RAM + Local) */}
           {isGlobalLoading || isLocalLoading ? (
             <div className="absolute inset-0 flex items-center justify-center">
               <Loader2 className="animate-spin text-[var(--color-atelier-terracota)]" size={32} />
@@ -838,6 +956,108 @@ export default function BaseClientesPage() {
                 >
                   {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
                   Validar Contrato e Gerar Tarefas (Auto-Deploy)
+                </button>
+              </div>
+
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ==========================================
+          MODAL DE NOVA OPERAÇÃO DE AGÊNCIA
+          ========================================== */}
+      <AnimatePresence>
+        {isAgencyModalOpen && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8">
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsAgencyModalOpen(false)}
+              className="absolute inset-0 bg-[var(--color-atelier-grafite)]/40 backdrop-blur-sm cursor-pointer"
+            ></motion.div>
+            
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-[800px] max-h-full overflow-hidden bg-[var(--color-atelier-creme)] rounded-[2.5rem] shadow-[0_20px_50px_rgba(122,116,112,0.2)] border border-white flex flex-col"
+            >
+              <div className="p-6 md:p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 backdrop-blur-xl flex justify-between items-start shrink-0 z-10">
+                <div>
+                  <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
+                    <Building size={24} className="text-[var(--color-atelier-terracota)]" /> 
+                    Nova Operação de Agência
+                  </h2>
+                  <p className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-2">
+                    White-label & Terceirização
+                  </p>
+                </div>
+                <button onClick={() => setIsAgencyModalOpen(false)} className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors shadow-sm border border-white/50">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
+                <form id="new-agency-form" onSubmit={handleCreateAgency} className="flex flex-col gap-8">
+                  
+                  {/* Dados Base da Agência */}
+                  <div className="bg-white/40 p-6 rounded-3xl border border-white">
+                    <h3 className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] mb-4 flex items-center gap-2">
+                      <Briefcase size={14} className="text-[var(--color-atelier-terracota)]"/> 1. Dados da Agência
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex flex-col gap-2">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 pl-1">Nome da Agência</label>
+                        <input type="text" value={agencyName} onChange={(e)=>setAgencyName(e.target.value)} required className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm font-bold text-[var(--color-atelier-grafite)]" />
+                      </div>
+                      <div className="flex flex-col gap-2">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 pl-1">Data de Vencimento/Ciclo</label>
+                        <input type="date" value={agencyBillingDate} onChange={(e)=>setAgencyBillingDate(e.target.value)} required className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm font-medium text-[var(--color-atelier-grafite)] cursor-pointer" />
+                      </div>
+                      <div className="flex flex-col gap-2 md:col-span-2">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 pl-1">Valor Contratual (MRR - R$)</label>
+                        <div className="relative">
+                          <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-[var(--color-atelier-grafite)]/40">R$</span>
+                          <input type="number" required placeholder="0.00" value={agencyFinancialValue} onChange={(e)=>setAgencyFinancialValue(e.target.value)} className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl py-3 pl-10 pr-4 text-[14px] font-bold text-[var(--color-atelier-grafite)] outline-none shadow-sm" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Subclientes e Demandas */}
+                  <div className="bg-[var(--color-atelier-terracota)]/5 p-6 rounded-3xl border border-[var(--color-atelier-terracota)]/20">
+                    <div className="flex justify-between items-center mb-4">
+                      <h3 className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] flex items-center gap-2">
+                        <Users size={14} /> 2. Perfis Geridos & Demanda
+                      </h3>
+                      <button type="button" onClick={handleAddSubclient} className="text-[10px] uppercase font-bold text-[var(--color-atelier-terracota)] hover:underline flex items-center gap-1">
+                        <Plus size={12}/> Add Perfil
+                      </button>
+                    </div>
+
+                    <div className="flex flex-col gap-4">
+                      {agencySubclients.map((sub, index) => (
+                        <div key={index} className="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm border border-transparent focus-within:border-[var(--color-atelier-terracota)]/30 transition-colors">
+                          <input type="text" placeholder="Nome do Perfil/Cliente" required value={sub.name} onChange={(e)=>handleSubclientChange(index, 'name', e.target.value)} className="flex-1 bg-transparent outline-none text-[13px] font-medium" />
+                          <div className="w-px h-6 bg-[var(--color-atelier-grafite)]/10"></div>
+                          <input type="number" placeholder="Posts" required min="1" value={sub.deliverables_count} onChange={(e)=>handleSubclientChange(index, 'deliverables_count', parseInt(e.target.value))} className="w-20 bg-transparent outline-none text-[13px] font-bold text-center" />
+                          <button type="button" onClick={()=>handleRemoveSubclient(index)} disabled={agencySubclients.length === 1} className="text-red-400 hover:text-red-600 disabled:opacity-30 pr-2 transition-colors">
+                            <Trash2 size={16}/>
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </form>
+              </div>
+
+              <div className="p-6 md:p-8 border-t border-[var(--color-atelier-grafite)]/10 bg-white/40 shrink-0">
+                <button 
+                  type="submit" 
+                  form="new-agency-form" 
+                  disabled={isSubmitting || !agencyName} 
+                  className="w-full bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] py-4 rounded-2xl font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all shadow-[0_10px_20px_rgba(122,116,112,0.15)] disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-2"
+                >
+                  {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} 
+                  Salvar Agência e Injetar Demandas
                 </button>
               </div>
 

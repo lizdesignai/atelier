@@ -7,6 +7,7 @@ import { Roboto } from "next/font/google";
 import "./globals.css";
 import { supabase } from "../lib/supabase"; 
 import AppSidebar from "../components/layout/AppSidebar";
+import CommandPalette from "../components/global/CommandPalette"; // 🤖 INJEÇÃO DO ASSISTENTE GLOBAL
 
 // INJEÇÃO DA MEMÓRIA GLOBAL (RAM)
 import { GlobalStoreProvider } from "../contexts/GlobalStore";
@@ -134,6 +135,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <GlobalStoreProvider>
           
           <GlobalToast />
+          
+          {/* 🤖 INJEÇÃO DO ASSISTENTE GLOBAL IA (CTRL+K) */}
+          {!isLoginPage && <CommandPalette />}
 
           {!isLoginPage && (
             <>

@@ -11,17 +11,18 @@ import {
   LayoutDashboard, Target, CalendarDays, MapPin
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
+import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
 import DiaryModule from "../../../components/admin/DiaryModule";
 import { pdf } from '@react-pdf/renderer';
 
 // IMPORTAÇÃO EXTERNA: Traz apenas o Motor de Gestão de Instagram
 import { InstagramWorkspace } from "../gerenciamento/page";
 
-// Importação dos Módulos PDF (Certifique-se de que os caminhos estão corretos)
-import BriefingPDF from "../../../components/pdf/BriefingPDF"; // Para IDV
-import CuradoriaPDF from "../../../components/pdf/CuradoriaPDF"; // Para IDV
-import InstagramBriefingPDF from "../../../components/pdf/InstagramBriefingPDF"; // Para IG
-import BrandbookPDF from "../../../components/pdf/BrandbookPDF"; // Para IG
+// Importação dos Módulos PDF
+import BriefingPDF from "../../../components/pdf/BriefingPDF"; 
+import CuradoriaPDF from "../../../components/pdf/CuradoriaPDF"; 
+import InstagramBriefingPDF from "../../../components/pdf/InstagramBriefingPDF"; 
+import BrandbookPDF from "../../../components/pdf/BrandbookPDF"; 
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -64,54 +65,38 @@ function InfoBlock({ label, value }: { label: string, value: any }) {
 
 function WorkspaceDesigner() {
   // ==========================================
-  // ESTADOS DO SUPABASE (READ & SYNC)
+  // ESTADOS DO SUPABASE (CONSUMO DE RAM)
   // ==========================================
-  const [isLoading, setIsLoading] = useState(true);
-  const [dbProjects, setDbProjects] = useState<any[]>([]);
+  const { activeProjects, isGlobalLoading, refreshGlobalData } = useGlobalStore();
+  
+  const [isLocalLoading, setIsLocalLoading] = useState(true);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [isClientMenuOpen, setIsClientMenuOpen] = useState(false);
   const [isBriefingModalOpen, setIsBriefingModalOpen] = useState(false);
 
+  // Derivação automática
+  const validProjects = activeProjects.filter(p => ['active', 'delivered', 'archived'].includes(p.status));
+  const currentProject = validProjects.find(p => p.id === activeProjectId);
+  const isIdv = isIdvService(currentProject); 
+
+  // Carregamento instantâneo via RAM
   useEffect(() => {
-    const fetchActiveProjects = async () => {
-      try {
-        const { data, error } = await supabase
-  .from('projects')
-  .select('*, profiles(nome, avatar_url, empresa)')
-  .in('status', ['active', 'delivered', 'archived'])
-  .order('created_at', { ascending: false });
-
-        if (error) throw error;
-        
-        if (data && data.length > 0) {
-          setDbProjects(data);
-          setActiveProjectId(data[0].id);
-        }
-      } catch (error) {
-        console.error("Erro ao buscar projetos:", error);
-        showToast("Erro ao carregar a mesa de trabalho.");
-      } finally {
-        setIsLoading(false);
-      }
-    };
-    fetchActiveProjects();
-  }, []);
-
-  const currentProject = dbProjects.find(p => p.id === activeProjectId);
-  const isIdv = isIdvService(currentProject); // <--- IDENTIFICADOR DE ROTA INTELIGENTE
-
-  // FIX SÊNIOR: Array de dependências estabilizada. Evita loop de re-render.
-  useEffect(() => {
-    if (activeProjectId) {
-      const proj = dbProjects.find(p => p.id === activeProjectId);
-      if (proj) {
-        setDeadlineDate(proj.data_limite || "");
-        setContractUrl(proj.contract_url || "");
-        setBriefingAiInsight(proj.briefing_ai_insight || null);
-        setCuradoriaAiInsight(proj.curadoria_ai_insight || null);
-      }
+    if (isGlobalLoading) return;
+    
+    if (validProjects.length > 0 && !activeProjectId) {
+      setActiveProjectId(validProjects[0].id);
     }
-  }, [activeProjectId, dbProjects]);
+    setIsLocalLoading(false);
+  }, [isGlobalLoading, activeProjects.length]);
+
+  useEffect(() => {
+    if (currentProject) {
+      setDeadlineDate(currentProject.data_limite || "");
+      setContractUrl(currentProject.contract_url || "");
+      setBriefingAiInsight(currentProject.briefing_ai_insight || null);
+      setCuradoriaAiInsight(currentProject.curadoria_ai_insight || null);
+    }
+  }, [currentProject]);
 
   // ==========================================
   // ESTADOS DOS FICHEIROS, CONTRATO E BRIEFING
@@ -131,31 +116,50 @@ function WorkspaceDesigner() {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isGeneratingCuradoriaPDF, setIsGeneratingCuradoriaPDF] = useState(false);
 
+  // FETCHING PARALELO (Ativos e Briefing)
   useEffect(() => {
     if (!activeProjectId) return;
     const fetchAssetsAndBriefing = async () => {
-      const { data: assetsData } = await supabase
-        .from('project_assets')
-        .select('*')
-        .eq('project_id', activeProjectId)
-        .order('created_at', { ascending: false });
-      
-      if (assetsData) setProjectAssets(assetsData);
-
-      const { data: briefingData } = await supabase
-        .from('client_briefings')
-        .select('answers')
-        .eq('project_id', activeProjectId)
-        .maybeSingle();
+      try {
+        const [ { data: assetsData }, { data: briefingData } ] = await Promise.all([
+          supabase.from('project_assets').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false }),
+          supabase.from('client_briefings').select('answers, is_completed').eq('project_id', activeProjectId).maybeSingle()
+        ]);
         
-      if (briefingData && briefingData.answers) {
-        setClientBriefing(briefingData.answers);
-      } else {
-        setClientBriefing(null);
+        if (assetsData) setProjectAssets(assetsData);
+        
+        // Verifica se o briefing existe e se está preenchido (is_completed !== false)
+        if (briefingData && briefingData.answers && briefingData.is_completed !== false) {
+          setClientBriefing(briefingData.answers);
+        } else {
+          setClientBriefing(null);
+        }
+      } catch (error) {
+        console.error("Erro no fetching paralelo:", error);
       }
     };
     fetchAssetsAndBriefing();
   }, [activeProjectId]);
+
+  // ==========================================
+  // NOVA AÇÃO: DEVOLVER BRIEFING (Optimistic UI)
+  // ==========================================
+  const handleReturnBriefing = async () => {
+    if (!activeProjectId || !clientBriefing) return;
+    if (!window.confirm("Deseja devolver o briefing para o cliente? Ele precisará revisar e reenviar.")) return;
+    
+    // MUTAÇÃO OTIMISTA: Limpa a tela imediatamente
+    setClientBriefing(null);
+    setIsBriefingModalOpen(false);
+    showToast("Briefing devolvido. O cliente foi notificado para rever.");
+
+    // BACKGROUND SYNC
+    try {
+      await supabase.from('client_briefings').update({ is_completed: false }).eq('project_id', activeProjectId);
+    } catch (e) {
+      showToast("Erro ao processar devolução de briefing.");
+    }
+  };
 
   // ==========================================
   // MOTORES DE INTELIGÊNCIA ARTIFICIAL
@@ -179,7 +183,7 @@ function WorkspaceDesigner() {
 
       await supabase.from('projects').update({ briefing_ai_insight: data.insight }).eq('id', activeProjectId);
       setBriefingAiInsight(data.insight);
-      setDbProjects(prev => prev.map(p => p.id === activeProjectId ? { ...p, briefing_ai_insight: data.insight } : p));
+      refreshGlobalData(); // Sincroniza RAM
       showToast("Diagnóstico CBO gerado com sucesso! ✨");
     } catch (e) {
       showToast("Erro ao processar insight da IA.");
@@ -207,7 +211,7 @@ function WorkspaceDesigner() {
 
       await supabase.from('projects').update({ curadoria_ai_insight: data.insight }).eq('id', activeProjectId);
       setCuradoriaAiInsight(data.insight);
-      setDbProjects(prev => prev.map(p => p.id === activeProjectId ? { ...p, curadoria_ai_insight: data.insight } : p));
+      refreshGlobalData(); // Sincroniza RAM
       showToast("Análise Visual gerada com sucesso! ✨");
     } catch (e) {
       showToast("Erro ao processar insight da IA.");
@@ -217,7 +221,7 @@ function WorkspaceDesigner() {
   };
 
   // ==========================================
-  // MOTORES DE PDF VETORIAL (REACT-PDF/RENDERER)
+  // MOTORES DE PDF VETORIAL
   // ==========================================
   const handleDownloadBriefingPDF = async () => {
     if (!clientBriefing) {
@@ -229,7 +233,6 @@ function WorkspaceDesigner() {
     showToast("A forjar Dossiê Vetorial...");
     
     try {
-      // Import dinâmico para não quebrar o SSR do Next.js
       const { pdf } = await import('@react-pdf/renderer');
       const BriefingPDF = (await import('../../../components/pdf/BriefingPDF')).default;
       
@@ -279,8 +282,7 @@ function WorkspaceDesigner() {
     }
   };
 
-
-  // UPLOAD DE ATIVOS FINAIS E CONTRATO (Inalterados)
+  // UPLOAD DE ATIVOS FINAIS E CONTRATO
   const handleAssetUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !activeProjectId) return;
@@ -355,7 +357,7 @@ function WorkspaceDesigner() {
       if (dbError) throw dbError;
       
       setContractUrl(data.publicUrl);
-      setDbProjects(dbProjects.map(p => p.id === activeProjectId ? { ...p, contract_url: data.publicUrl } : p));
+      refreshGlobalData(); // Sync Global RAM
       showToast("Contrato arquivado com sucesso no Cofre!");
 
     } catch (error) {
@@ -369,7 +371,7 @@ function WorkspaceDesigner() {
 
 
   // ==========================================
-  // MOTOR DE TEMPO E FASE E ENTREGAS E ARQUIVAMENTO
+  // MOTOR DE TEMPO E FASE E ENTREGAS (OTIMISTA)
   // ==========================================
   const [deadlineDate, setDeadlineDate] = useState("");
   const [daysLeft, setDaysLeft] = useState(0);
@@ -395,26 +397,18 @@ function WorkspaceDesigner() {
     setIsForceUnlocked(false);
     
     if (activeProjectId) {
-      const { error } = await supabase.from('projects').update({ data_limite: newDate }).eq('id', activeProjectId);
-      if (error) {
-        showToast("Erro ao guardar o prazo na base de dados.");
-      } else {
-        showToast(`Prazo gravado: ${newDate.split('-').reverse().join('/')}`);
-        setDbProjects(dbProjects.map(p => p.id === activeProjectId ? { ...p, data_limite: newDate } : p));
-      }
+      await supabase.from('projects').update({ data_limite: newDate }).eq('id', activeProjectId);
+      showToast(`Prazo gravado: ${newDate.split('-').reverse().join('/')}`);
+      refreshGlobalData(); // Sync
     }
   };
 
   const handleStageChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const novaFase = e.target.value;
     if (activeProjectId) {
-      const { error } = await supabase.from('projects').update({ fase: novaFase }).eq('id', activeProjectId);
-      if (error) {
-        showToast("Erro ao alterar fase.");
-      } else {
-        showToast("Fase do projeto atualizada com sucesso!");
-        setDbProjects(dbProjects.map(p => p.id === activeProjectId ? { ...p, fase: novaFase } : p));
-      }
+      await supabase.from('projects').update({ fase: novaFase }).eq('id', activeProjectId);
+      showToast("Fase do projeto atualizada com sucesso!");
+      refreshGlobalData(); // Sync
     }
   };
 
@@ -423,18 +417,13 @@ function WorkspaceDesigner() {
     if (!window.confirm("Deseja marcar este projeto como ENTREGUE? O cliente terá 15 dias de acesso às abas antes delas serem arquivadas.")) return;
 
     try {
-      const { error } = await supabase
+      await supabase
         .from('projects')
-        .update({ 
-          status: 'delivered', 
-          delivered_at: new Date().toISOString() 
-        })
+        .update({ status: 'delivered', delivered_at: new Date().toISOString() })
         .eq('id', activeProjectId);
 
-      if (error) throw error;
-
       showToast("Projeto marcado como Entregue! A contagem regressiva de 15 dias começou.");
-      setDbProjects(dbProjects.map(p => p.id === activeProjectId ? { ...p, status: 'delivered' } : p));
+      refreshGlobalData(); // Sync
     } catch (error) {
       showToast("Erro ao marcar projeto como entregue.");
     }
@@ -445,15 +434,9 @@ function WorkspaceDesigner() {
     if (!window.confirm("ATENÇÃO: O cliente perderá acesso IMEDIATO ao cofre e canais deste projeto. Deseja prosseguir?")) return;
 
     try {
-      const { error } = await supabase
-        .from('projects')
-        .update({ status: 'archived' })
-        .eq('id', activeProjectId);
-
-      if (error) throw error;
-
+      await supabase.from('projects').update({ status: 'archived' }).eq('id', activeProjectId);
       showToast("Projeto Arquivado com sucesso! O cliente está agora na fase de Legado.");
-      setDbProjects(dbProjects.map(p => p.id === activeProjectId ? { ...p, status: 'archived' } : p));
+      refreshGlobalData(); // Sync
     } catch (error) {
       showToast("Erro ao arquivar projeto.");
     }
@@ -464,22 +447,15 @@ function WorkspaceDesigner() {
     if (!window.confirm("Deseja REATIVAR este projeto? O cliente voltará a ter acesso total à sua mesa de trabalho.")) return;
 
     try {
-      const { error } = await supabase
-        .from('projects')
-        .update({ status: 'active', delivered_at: null })
-        .eq('id', activeProjectId);
-
-      if (error) throw error;
-
+      await supabase.from('projects').update({ status: 'active', delivered_at: null }).eq('id', activeProjectId);
       showToast("Projeto Reativado com sucesso!");
-      setDbProjects(dbProjects.map(p => p.id === activeProjectId ? { ...p, status: 'active' } : p));
+      refreshGlobalData(); // Sync
     } catch (error) {
       showToast("Erro ao reativar projeto.");
     }
   };
 
   const isCofreUnlocked = (daysLeft === 0 && deadlineDate !== "") || isForceUnlocked;
-
 
   // ==========================================
   // PAINEL DE CURADORIA (MULTI-IMAGENS & PDF)
@@ -499,11 +475,14 @@ function WorkspaceDesigner() {
     if (!showRefsPanel || !activeProjectId) return;
     
     const fetchCuradoria = async () => {
-      const { data: strategicData } = await supabase.from('strategic_answers').select('moodboard_urls').eq('project_id', activeProjectId).maybeSingle();
+      const [ { data: strategicData }, { data: directionsData } ] = await Promise.all([
+        supabase.from('strategic_answers').select('moodboard_urls').eq('project_id', activeProjectId).maybeSingle(),
+        supabase.from('design_directions').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: true })
+      ]);
+      
       if (strategicData && strategicData.moodboard_urls) setClientMoodboard(strategicData.moodboard_urls);
       else setClientMoodboard([]);
 
-      const { data: directionsData } = await supabase.from('design_directions').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: true });
       if (directionsData) {
         setAdminRefs(directionsData);
         if (directionsData.length > 0) setActiveEvalIndex(directionsData.length - 1); 
@@ -579,17 +558,20 @@ function WorkspaceDesigner() {
   const removeAdminRef = async (id: string) => {
     const confirm = window.confirm("Remover esta direção visual permanentemente?");
     if (!confirm) return;
+    
+    // MUTAÇÃO OTIMISTA
+    setAdminRefs(adminRefs.filter(ref => ref.id !== id));
+    setActiveEvalIndex(0); 
+    showToast("Direção visual removida.");
+    
     try {
       await supabase.from('design_directions').delete().eq('id', id);
-      setAdminRefs(adminRefs.filter(ref => ref.id !== id));
-      setActiveEvalIndex(0); 
-      showToast("Direção visual removida.");
     } catch (error) {
-      showToast("Erro ao remover direção.");
+      showToast("Erro ao remover direção no banco.");
     }
   };
 
-  if (isLoading) {
+  if (isGlobalLoading || isLocalLoading) {
     return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
   }
 
@@ -623,7 +605,12 @@ function WorkspaceDesigner() {
                 </div>
                 <div className="flex items-center gap-3">
                   
-                  {/* NOVO: BOTÃO DE CÉREBRO DA IA */}
+                  {/* NOVO BOTÃO: DEVOLVER BRIEFING */}
+                  <button onClick={handleReturnBriefing} disabled={!clientBriefing} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2 rounded-full flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-red-500 hover:text-white transition-all shadow-sm disabled:opacity-50">
+                    <RotateCcw size={14} /> Devolver Briefing
+                  </button>
+                  
+                  {/* BOTÃO CÉREBRO DA IA */}
                   <button onClick={handleGenerateBriefingInsight} disabled={isGeneratingBriefingInsight || !clientBriefing} className="bg-white border border-[var(--color-atelier-terracota)]/40 text-[var(--color-atelier-terracota)] px-4 py-2 rounded-full flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm disabled:opacity-50">
                     {isGeneratingBriefingInsight ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Gerar IA (CBO)
                   </button>
@@ -826,7 +813,7 @@ function WorkspaceDesigner() {
                 >
                   <div className="px-4 py-2 border-b border-[var(--color-atelier-grafite)]/5 text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">Projetos no Estúdio</div>
                   <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
-                    {dbProjects.map(p => (
+                    {validProjects.map(p => (
                       <div 
                         key={p.id} 
                         onClick={() => { 
@@ -1021,7 +1008,7 @@ function WorkspaceDesigner() {
                 </div>
                 <div className="flex gap-3">
 
-                  {/* NOVO: BOTÃO DE CÉREBRO DA IA DA CURADORIA */}
+                  {/* BOTÃO DE CÉREBRO DA IA DA CURADORIA */}
                   <button onClick={handleGenerateCuradoriaInsight} disabled={isGeneratingCuradoriaInsight || adminRefs.length === 0} className="bg-white border border-[var(--color-atelier-terracota)]/40 text-[var(--color-atelier-terracota)] px-4 py-2 rounded-xl flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:border-[var(--color-atelier-terracota)] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-colors shadow-sm disabled:opacity-50">
                     {isGeneratingCuradoriaInsight ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Gerar IA Diretor
                   </button>
