@@ -253,13 +253,17 @@ export class AtelierPMEngine {
 
   /**
    * ============================================================================
-   * 6. PONTO DE INTERVENÇÃO 5: GATILHOS GENÉRICOS DE SISTEMA (MACRO TAREFAS)
+   * 6. PONTOS DE INTERVENÇÃO 4 E 5: GATILHOS GENÉRICOS DE SISTEMA 
    * ============================================================================
+   * Centraliza ações do sistema para macro-tarefas ou tarefas diárias.
    */
   static async triggerSystemAction(projectId: string, actionType: string, userId: string) {
     try {
       if (!projectId || !userId) return;
 
+      // -------------------------------------------------------------
+      // PONTO DE INTERVENÇÃO 5: PLANEAMENTO MENSAL
+      // -------------------------------------------------------------
       if (actionType === 'planning') {
         const { data: tasks, error } = await supabase
           .from('tasks')
@@ -284,6 +288,38 @@ export class AtelierPMEngine {
           
           console.log(`[Motor] Macro-Tarefa de Planeamento automatizada para Concluída! Bónus de 100 EXP.`);
         }
+      } 
+      // -------------------------------------------------------------
+      // PONTO DE INTERVENÇÃO 4: DIÁRIO DE BORDO / COMUNIDADE
+      // -------------------------------------------------------------
+      else if (actionType === 'community') {
+        const { data: tasks, error } = await supabase
+          .from('tasks')
+          .select('id, status')
+          .eq('project_id', projectId)
+          .eq('assigned_to', userId)
+          .in('status', ['pending', 'in_progress', 'review'])
+          // Apanha variações comuns para tarefas de comunidade/relatório diário
+          .or('title.ilike.%moderação da comunidade%,title.ilike.%diário de bordo%,title.ilike.%relatório diário%')
+          .limit(1);
+
+        if (error) throw error;
+
+        if (tasks && tasks.length > 0) {
+          const taskId = tasks[0].id;
+          const now = new Date().toISOString();
+          
+          // Marca a tarefa diária como concluída
+          await supabase.from('tasks').update({ status: 'completed', completed_at: now }).eq('id', taskId);
+
+          // Liberta a próxima etapa (mesmo sendo raro em tarefas diárias, é uma boa prática)
+          if (this.unlockDependencies) await this.unlockDependencies(taskId);
+          
+          // Aplica o bónus de rotina diária (30 EXP)
+          await this.applyGamification(userId, 30); 
+          
+          console.log(`[Motor] Tarefa de Comunidade/Diário automatizada para Concluída! Bónus de 30 EXP.`);
+        }
       }
     } catch (error) {
       console.error(`[Motor] Erro ao engatilhar System Action (${actionType}):`, error);
@@ -294,33 +330,29 @@ export class AtelierPMEngine {
    * ============================================================================
    * 7. OVERWRITE DINÂMICO DE TAREFAS (SINCRONIZAÇÃO DE CONTEÚDO)
    * ============================================================================
-   * Busca uma tarefa nativa (Ex: "Design & Copy: Post 1") e substitui o seu título
-   * e descrição pelo Hook e Briefing gerados no planeamento.
    */
   static async syncTaskContent(projectId: string, originalTaskName: string, newTitle: string, descriptionText: string) {
     try {
       if (!projectId || !originalTaskName || !newTitle) return;
 
-      // 1. Procura a tarefa pendente usando o nome genérico dentro deste projeto
       const { data: tasks, error: searchError } = await supabase
         .from('tasks')
         .select('id')
         .eq('project_id', projectId)
-        .ilike('title', `%${originalTaskName}%`) // Ex: "%Design & Copy: Post 1%"
-        .in('status', ['pending', 'in_progress', 'review']) // Ignora tarefas já entregues
+        .ilike('title', `%${originalTaskName}%`) 
+        .in('status', ['pending', 'in_progress', 'review']) 
         .limit(1);
 
       if (searchError) throw searchError;
 
-      // 2. Se a tarefa existir, injeta os dados reais do cliente nela
       if (tasks && tasks.length > 0) {
         const taskId = tasks[0].id;
 
         const { error: updateError } = await supabase
           .from('tasks')
           .update({
-            title: newTitle, // O Hook ou Título da Campanha
-            description: descriptionText // O Briefing ou Legenda
+            title: newTitle, 
+            description: descriptionText 
           })
           .eq('id', taskId);
 
