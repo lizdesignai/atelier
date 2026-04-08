@@ -6,18 +6,17 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
 import { 
-  Bell, Settings, LogOut, CheckCircle2, 
+  Bell, CheckCircle2, 
   Circle, Info, AlertTriangle, ShieldCheck 
 } from "lucide-react";
 
 interface AppHeaderProps {
-  handleLogout: () => void;
+  handleLogout: () => void; // Mantido na interface para não quebrar o layout.tsx
 }
 
 export default function AppHeader({ handleLogout }: AppHeaderProps) {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState<any>(null);
-  const [userRole, setUserRole] = useState<string>("");
   
   // Estados do Sistema de Notificações
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -50,7 +49,6 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
         
       if (profile) {
         setUserProfile(profile);
-        setUserRole(profile.role);
         fetchNotifications(profile.id);
         setupRealtimeSubscription(profile.id);
       }
@@ -127,18 +125,17 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
     }
   };
 
-  const isTeamMember = ['admin', 'gestor', 'colaborador'].includes(userRole);
-
   return (
-    <header className="h-20 bg-white/40 backdrop-blur-xl border-b border-white/60 flex items-center justify-end px-8 shrink-0 relative z-40 shadow-[0_4px_24px_rgba(122,116,112,0.02)]">
+    <header className="absolute top-0 left-0 w-full h-24 flex items-start justify-end px-8 z-30 pointer-events-none">
       
-      <div className="flex items-center gap-6" ref={dropdownRef}>
+      {/* Contêiner minimalista flutuante - Apenas pointer-events-auto nesta área */}
+      <div className="flex items-center gap-4 bg-white/40 backdrop-blur-xl border border-white shadow-sm p-2 px-4 rounded-3xl pointer-events-auto mt-6" ref={dropdownRef}>
         
         {/* SINO DE NOTIFICAÇÕES */}
         <div className="relative">
           <button 
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-            className="w-10 h-10 rounded-full bg-white border border-[var(--color-atelier-grafite)]/10 flex items-center justify-center text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-terracota)] hover:border-[var(--color-atelier-terracota)]/30 transition-all shadow-sm"
+            className="w-10 h-10 rounded-full bg-white border border-[var(--color-atelier-grafite)]/5 flex items-center justify-center text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-terracota)] transition-all shadow-sm"
           >
             <Bell size={18} className={unreadCount > 0 ? "animate-[wiggle_1s_ease-in-out_infinite]" : ""} />
             {unreadCount > 0 && (
@@ -208,36 +205,19 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
           </AnimatePresence>
         </div>
 
-        <div className="w-px h-8 bg-[var(--color-atelier-grafite)]/10"></div>
+        <div className="w-px h-6 bg-[var(--color-atelier-grafite)]/10"></div>
 
-        {/* PERFIL E MENU DE SISTEMA */}
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col items-end hidden md:flex">
-            <span className="font-roboto text-[13px] font-bold text-[var(--color-atelier-grafite)] leading-tight">
-              {userProfile?.nome?.split(' ')[0] || (isTeamMember ? 'Atelier Team' : 'Cliente')}
-            </span>
-            <span className="font-roboto text-[9px] text-[var(--color-atelier-terracota)] font-bold uppercase tracking-widest">
-              {userRole === 'admin' ? 'Administrador' : userRole === 'gestor' ? 'Gestor de Conta' : userRole === 'colaborador' ? 'Membro da Equipa' : 'Premium'}
-            </span>
-          </div>
-          
-          <div className="w-10 h-10 rounded-xl overflow-hidden shadow-sm border border-white flex items-center justify-center bg-[var(--color-atelier-grafite)] text-white">
-            {userProfile?.avatar_url ? (
-              <img src={userProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-            ) : (
-              <span className="font-elegant text-xl">{userProfile?.nome?.charAt(0) || "U"}</span>
-            )}
-          </div>
-
-          {/* ACESSOS RÁPIDOS DE HEADER */}
-          <div className="flex items-center gap-1 ml-2">
-            <button onClick={() => router.push('/configuracoes')} className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-grafite)] hover:bg-white transition-colors" title="Configurações">
-              <Settings size={16} />
-            </button>
-            <button onClick={handleLogout} className="w-8 h-8 rounded-full flex items-center justify-center text-[var(--color-atelier-grafite)]/40 hover:text-red-500 hover:bg-red-50 transition-colors" title="Sair">
-              <LogOut size={16} />
-            </button>
-          </div>
+        {/* FOTO DE PERFIL */}
+        <div 
+          onClick={() => router.push('/configuracoes')}
+          className="w-10 h-10 rounded-xl overflow-hidden shadow-sm border border-white flex items-center justify-center bg-[var(--color-atelier-grafite)] text-white cursor-pointer hover:scale-105 transition-transform"
+          title="Configurações"
+        >
+          {userProfile?.avatar_url ? (
+            <img src={userProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+          ) : (
+            <span className="font-elegant text-xl">{userProfile?.nome?.charAt(0) || "U"}</span>
+          )}
         </div>
 
       </div>

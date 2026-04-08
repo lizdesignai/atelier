@@ -821,7 +821,7 @@ function WorkspaceDesigner() {
               <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] leading-none flex items-center gap-2 group-hover:text-[var(--color-atelier-terracota)] transition-colors truncate max-w-[300px] md:max-w-md">
                 {currentProject.profiles?.nome || "Cliente"} 
                 <ChevronDown size={20} className={`text-[var(--color-atelier-grafite)]/40 transition-transform duration-300 shrink-0 ${isClientMenuOpen ? 'rotate-180' : ''}`} />
-                <span className="text-[var(--color-atelier-grafite)]/40 px-2 shrink-0 hidden md:inline">/</span> <span className="text-[var(--color-atelier-terracota)] italic text-3xl shrink-0 hidden md:inline">Mesa de Trabalho</span>
+                <span className="text-[var(--color-atelier-grafite)]/40 px-2 shrink-0 hidden md:inline">/</span> <span className="text-[var(--color-atelier-terracota)] italic text-3xl shrink-0 hidden md:inline"></span>
               </h1>
             </div>
             

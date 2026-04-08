@@ -14,7 +14,7 @@ import {
 
 interface AppSidebarProps {
   userRole: string;
-  handleLogout: () => void; // Mantido na interface para não quebrar o layout.tsx superior, mas já não é usado aqui
+  handleLogout: () => void;
   onHideSidebar: (hidden: boolean) => void;
 }
 
@@ -99,11 +99,12 @@ export default function AppSidebar({ userRole, onHideSidebar }: AppSidebarProps)
     <motion.aside 
       initial={false}
       animate={{ width: isCollapsed ? 88 : 280 }}
-      transition={{ type: "spring", stiffness: 350, damping: 35 }}
+      transition={{ type: "spring", stiffness: 350, damping: 35, mass: 1 }}
       className={`
-        relative z-50 flex flex-col shrink-0 h-screen
-        bg-white/50 backdrop-blur-2xl border-r border-white/60 
-        shadow-[8px_0_30px_rgba(122,116,112,0.03)]
+        relative z-50 flex flex-col shrink-0 
+        h-[calc(100vh-2rem)] my-4 ml-4 rounded-[2.5rem]
+        bg-white/40 backdrop-blur-2xl border border-white/60 
+        shadow-[8px_8px_32px_rgba(122,116,112,0.04)]
       `}
     >
       {/* CABEÇALHO DA SIDEBAR: LOGO E BRANDING */}
@@ -130,16 +131,16 @@ export default function AppSidebar({ userRole, onHideSidebar }: AppSidebarProps)
         </AnimatePresence>
       </div>
 
-      {/* BOTÃO DE COLAPSO (Design Refinado) */}
+      {/* BOTÃO DE COLAPSO FLUTUANTE (Design Refinado) */}
       <button 
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3.5 top-16 bg-white border border-[var(--color-atelier-grafite)]/10 shadow-[0_4px_12px_rgba(0,0,0,0.06)] text-[var(--color-atelier-grafite)]/60 rounded-full w-7 h-7 flex items-center justify-center cursor-pointer z-50 hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all duration-300 hover:scale-110 hover:border-transparent"
+        className="absolute -right-3.5 top-14 bg-white/90 backdrop-blur-md border border-[var(--color-atelier-grafite)]/10 shadow-[0_4px_12px_rgba(0,0,0,0.06)] text-[var(--color-atelier-grafite)]/60 rounded-full w-7 h-7 flex items-center justify-center cursor-pointer z-50 hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all duration-300 hover:scale-110 hover:border-transparent"
       >
         {isCollapsed ? <ChevronRight size={14} strokeWidth={2.5} /> : <ChevronLeft size={14} strokeWidth={2.5} />}
       </button>
 
       {/* ÁREA DE NAVEGAÇÃO LÍMPIDA */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 custom-scrollbar relative">
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2 custom-scrollbar relative">
         <AnimatePresence>
           {!isCollapsed && (
             <motion.div 
@@ -151,7 +152,7 @@ export default function AppSidebar({ userRole, onHideSidebar }: AppSidebarProps)
           )}
         </AnimatePresence>
         
-        <nav className="flex flex-col gap-2 relative pb-10">
+        <nav className="flex flex-col gap-1.5 relative pb-8">
           
           {/* MENU PARA CLIENTES */}
           {!isTeamMember && (
@@ -171,7 +172,7 @@ export default function AppSidebar({ userRole, onHideSidebar }: AppSidebarProps)
               )}
               
               <div className="flex items-center justify-center my-3 opacity-20">
-                <div className="w-full h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
+                <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
               </div>
               
               <NavItem href="/canais" icon={<MessageSquare size={18} strokeWidth={1.5} />} label="Canais" collapsed={isCollapsed} active={pathname === '/canais'} />
@@ -190,7 +191,7 @@ export default function AppSidebar({ userRole, onHideSidebar }: AppSidebarProps)
               <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
               
               <div className="flex items-center justify-center my-3 opacity-20">
-                <div className="w-full h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
+                <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
               </div>
               
               {/* Visto apenas por Gestor e Admin */}
@@ -222,8 +223,8 @@ function NavItem({ href, icon, label, collapsed, active }: { href: string, icon:
       href={href} 
       title={collapsed ? label : ""} 
       className={`
-        relative flex items-center ${collapsed ? 'justify-center' : 'justify-start pl-4'} gap-4 p-3 rounded-[1rem] 
-        font-roboto text-[13px] transition-colors duration-300 group overflow-hidden outline-none
+        relative flex items-center ${collapsed ? 'justify-center' : 'justify-start pl-4'} gap-4 p-3 rounded-[1.2rem] 
+        font-roboto text-[13px] transition-colors duration-300 group outline-none
         ${active ? "text-[var(--color-atelier-terracota)] font-bold" : "text-[var(--color-atelier-grafite)]/60 font-medium hover:text-[var(--color-atelier-grafite)]"}
       `}
     >
@@ -231,18 +232,18 @@ function NavItem({ href, icon, label, collapsed, active }: { href: string, icon:
       {active && (
         <motion.div
           layoutId="sidebar-active-pill"
-          className="absolute inset-0 bg-white/80 shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-white rounded-[1rem] -z-10"
+          className="absolute inset-0 bg-white/80 shadow-[0_4px_16px_rgba(0,0,0,0.03)] border border-white rounded-[1.2rem] -z-10"
           transition={{ type: "spring", stiffness: 400, damping: 35 }}
         />
       )}
       
       {/* EFEITO HOVER SECUNDÁRIO */}
       {!active && (
-        <div className="absolute inset-0 bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1rem] -z-10"></div>
+        <div className="absolute inset-0 bg-white/30 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1.2rem] -z-10"></div>
       )}
 
       {/* ÍCONE COM MICRO-INTERAÇÃO (Scale e Color Shift) */}
-      <div className={`relative z-10 flex items-center justify-center transition-transform duration-300 ${!active && 'group-hover:scale-110 group-hover:text-[var(--color-atelier-terracota)]/70'}`}>
+      <div className={`relative z-10 flex items-center justify-center transition-transform duration-300 ${!active && 'group-hover:scale-110 group-hover:text-[var(--color-atelier-terracota)]/80'}`}>
         {icon}
       </div>
 
