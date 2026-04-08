@@ -51,6 +51,12 @@ export default function ComunidadeFeed() {
 
       // 1. Busca os Posts do Grupo
       let query = supabase.from('community_posts').select('*, profiles(nome, avatar_url, role, username)').order('created_at', { ascending: false });
+      
+      // 🛡️ BLINDAGEM DE SEGURANÇA: Esconde posts 'pending' de outros utilizadores (Apenas Admin vê tudo)
+      if (profileData?.role !== 'admin') {
+        query = query.or(`status.eq.approved,author_id.eq.${session.user.id}`);
+      }
+
       if (currentGroup === 'global') {
         query = query.or('group_slug.eq.global,group_slug.is.null');
       } else {
@@ -68,13 +74,12 @@ export default function ComunidadeFeed() {
         setPosts(postsData.map(post => ({ ...post, is_liked_by_me: myLikedPostIds.includes(post.id) })));
       }
 
-      // 3. NOVIDADE: Busca Aniversariantes do Dia (Apenas no Mural Global)
+      // 3. Busca Aniversariantes do Dia (Apenas no Mural Global)
       if (currentGroup === 'global') {
         const today = new Date();
         const currentMonth = today.getMonth() + 1;
         const currentDay = today.getDate();
 
-        // Traz perfis com data de aniversário preenchida
         const { data: bdays } = await supabase
           .from('profiles')
           .select('id, nome, username, avatar_url, anniversary_date')
@@ -100,11 +105,26 @@ export default function ComunidadeFeed() {
     fetchCommunityData();
   }, [currentGroup]);
 
-  // Função para gatilho de "Dar os Parabéns"
+  // Função para gatilho de "Dar os Parabéns" com auto-resize
   const handleCongratulate = (username: string) => {
     setNewPostText(`@${username} parabéns por mais um ano de sucesso e evolução! 🎉 `);
     if (publisherRef.current) {
       publisherRef.current.focus();
+      setTimeout(() => {
+        if (publisherRef.current) {
+          publisherRef.current.style.height = 'auto';
+          publisherRef.current.style.height = `${publisherRef.current.scrollHeight}px`;
+        }
+      }, 10);
+    }
+  };
+
+  // UX: Auto-Resize do Textarea
+  const handleTextareaChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setNewPostText(e.target.value);
+    if (publisherRef.current) {
+      publisherRef.current.style.height = 'auto';
+      publisherRef.current.style.height = `${publisherRef.current.scrollHeight}px`;
     }
   };
 
@@ -155,7 +175,12 @@ export default function ComunidadeFeed() {
         setPosts(prev => [{ ...insertedPost[0], is_liked_by_me: false, likes_count: 0 }, ...prev]);
       }
       
-      setNewPostText(""); setNewPostImagePreview(null); setNewPostImageFile(null);
+      // Reseta o formulário e a altura do textarea
+      setNewPostText(""); 
+      setNewPostImagePreview(null); 
+      setNewPostImageFile(null);
+      if (publisherRef.current) publisherRef.current.style.height = 'auto';
+
       showToast(userProfile.role !== 'admin' ? "Publicação enviada para análise." : "Publicado com sucesso!");
 
     } catch (error) {
@@ -327,7 +352,7 @@ export default function ComunidadeFeed() {
         )}
       </AnimatePresence>
 
-      {/* O PUBLICADOR */}
+      {/* O PUBLICADOR FUIDO */}
       <div className="glass-panel p-5 rounded-[2rem] bg-white/80 border border-white shadow-[0_10px_30px_rgba(122,116,112,0.05)] relative z-20">
         <form onSubmit={handlePublish} className="flex flex-col gap-4">
           <div className="flex gap-4">
@@ -336,15 +361,16 @@ export default function ComunidadeFeed() {
             </div>
             <textarea 
               ref={publisherRef}
+              rows={1}
               value={newPostText} 
-              onChange={(e) => setNewPostText(e.target.value)} 
+              onChange={handleTextareaChange} 
               disabled={isPublishing} 
               placeholder={
                 currentGroup === 'networking' ? "O que a sua empresa procura ou oferece hoje?" : 
                 currentGroup === 'feedback' ? "Precisa de uma opinião? Partilhe a sua ideia..." :
                 "Que vitória a sua marca conquistou hoje?"
               }
-              className="flex-1 bg-transparent border-none outline-none font-roboto text-[15px] text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 resize-none min-h-[60px] pt-2 custom-scrollbar disabled:opacity-50" 
+              className="flex-1 bg-transparent border-none outline-none font-roboto text-[15px] text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 resize-none min-h-[44px] overflow-hidden pt-2.5 disabled:opacity-50 transition-all" 
             />
           </div>
           

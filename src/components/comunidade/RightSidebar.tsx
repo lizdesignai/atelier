@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import { Award, Medal, Loader2, Sparkles, Target, Handshake, Briefcase, Users } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -16,6 +17,7 @@ interface RightSidebarProps {
 }
 
 export default function RightSidebar({ currentGroup }: RightSidebarProps) {
+  const router = useRouter();
   const [titans, setTitans] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -69,20 +71,27 @@ export default function RightSidebar({ currentGroup }: RightSidebarProps) {
             Encontre os parceiros certos para escalar o seu projeto, ou ofereça os serviços da sua marca para a comunidade.
           </p>
           <div className="flex flex-col gap-3">
-            <button onClick={() => showToast("Em breve: Criação de Ofertas B2B!")} className="bg-blue-50 hover:bg-blue-100 border border-blue-100 p-3.5 rounded-xl flex items-center gap-3 transition-colors text-left w-full">
-               <Briefcase size={16} className="text-blue-500 shrink-0" />
-               <div className="flex flex-col">
-                 <span className="font-roboto text-[11px] text-blue-800 font-bold uppercase tracking-widest">Oferecer Parceria</span>
-                 <span className="font-roboto text-[9px] text-blue-600/70">Divulgue os seus serviços</span>
-               </div>
-            </button>
-            <button onClick={() => showToast("Em breve: Classificados de Talentos!")} className="bg-orange-50 hover:bg-orange-100 border border-orange-100 p-3.5 rounded-xl flex items-center gap-3 transition-colors text-left w-full">
-               <Users size={16} className="text-orange-500 shrink-0" />
-               <div className="flex flex-col">
-                 <span className="font-roboto text-[11px] text-orange-800 font-bold uppercase tracking-widest">Procurar Talentos</span>
-                 <span className="font-roboto text-[9px] text-orange-600/70">Encontre fornecedores</span>
-               </div>
-            </button>
+            <button 
+  onClick={() => router.push('/comunidade/hub')} 
+  className="bg-blue-50 hover:bg-blue-100 border border-blue-100 p-3.5 rounded-xl flex items-center gap-3 transition-colors text-left w-full group"
+>
+   <Briefcase size={16} className="text-blue-500 shrink-0 group-hover:scale-110 transition-transform" />
+   <div className="flex flex-col">
+     <span className="font-roboto text-[11px] text-blue-800 font-bold uppercase tracking-widest">Oferecer Parceria</span>
+     <span className="font-roboto text-[9px] text-blue-600/70">Divulgue os seus serviços</span>
+   </div>
+</button>
+
+<button 
+  onClick={() => router.push('/comunidade/hub')} 
+  className="bg-orange-50 hover:bg-orange-100 border border-orange-100 p-3.5 rounded-xl flex items-center gap-3 transition-colors text-left w-full group"
+>
+   <Users size={16} className="text-orange-500 shrink-0 group-hover:scale-110 transition-transform" />
+   <div className="flex flex-col">
+     <span className="font-roboto text-[11px] text-orange-800 font-bold uppercase tracking-widest">Procurar Talentos</span>
+     <span className="font-roboto text-[9px] text-orange-600/70">Encontre fornecedores</span>
+   </div>
+</button>
           </div>
         </div>
       ) : (
@@ -109,10 +118,10 @@ export default function RightSidebar({ currentGroup }: RightSidebarProps) {
             </div>
 
             <button 
-              onClick={() => showToast("Em breve: Painel de Missões Detalhado!")} 
+              onClick={() => router.push('/comunidade/missoes')}
               className="mt-2 w-full py-3 rounded-xl bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-roboto text-[10px] font-bold uppercase tracking-widest hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-colors shadow-sm relative z-10"
             >
-              Ver Missões
+              Ver Missões Disponíveis
             </button>
           </div>
 
