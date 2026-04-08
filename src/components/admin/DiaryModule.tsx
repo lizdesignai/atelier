@@ -8,13 +8,14 @@ import { supabase } from "../../lib/supabase";
 interface DiaryModuleProps {
   activeProjectId: string | null;
   currentProject: any;
+  onActivity?: () => void;
 }
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
 };
 
-export default function DiaryModule({ activeProjectId, currentProject }: DiaryModuleProps) {
+export default function DiaryModule({ activeProjectId, currentProject, onActivity }: DiaryModuleProps) {
   const [postTitle, setPostTitle] = useState("");
   const [postText, setPostText] = useState("");
   const [postImageFile, setPostImageFile] = useState<File | null>(null);
@@ -78,6 +79,9 @@ export default function DiaryModule({ activeProjectId, currentProject }: DiaryMo
           imageUrl = data.publicUrl;
         }
       }
+
+     if (onActivity) onActivity(); // <--- INJETE ISTO AQUI!
+
 
       const { data: { session } } = await supabase.auth.getSession();
       

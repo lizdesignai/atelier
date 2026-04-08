@@ -5,7 +5,8 @@ import {
   differenceInBusinessDays, 
   differenceInHours,
   endOfDay,
-  addDays
+  addDays,
+  differenceInDays
 } from 'date-fns';
 
 // ============================================================================
@@ -17,14 +18,44 @@ function extractNode<T>(node: any): T | null {
 }
 
 export class AtelierPMEngine {
-  // Parâmetros de Risco e Capacidade (Lean Six Sigma / Wall Street PM)
-  private static MAX_DAILY_CAPACITY_MINUTES = 480; // 8 horas
-  private static BURNOUT_THRESHOLD_MINUTES = 900;  // 15 horas
-  private static CONTEXT_SWITCH_BONUS = 60;        // Bónus de 1h se já estiver no projeto
+  // ============================================================================
+  // 🚀 OPORTUNIDADE 1: MAGIC NUMBERS -> CONSTANTES DE CONFIGURAÇÃO GERAL
+  // Permite que o CEO ou Painel de Controlo altere a sensibilidade do motor num só local
+  // ============================================================================
+  public static CONFIG = {
+    CAPACITY: {
+      DAILY_MAX_MINUTES: 480,       // 8 horas por dia ideais
+      BURNOUT_THRESHOLD: 900,       // 15 horas de acumulação = Perigo de rutura
+      CONTEXT_SWITCH_BONUS: 60      // Desconto cognitivo por já estar focado no mesmo cliente (1h)
+    },
+    EVM: {
+      MIN_SAMPLE_SIZE: 5,           // Requer 5 tarefas do mesmo tipo antes de gerar alerta de calibração
+      POSITIVE_DEVIATION: 0.7,      // Alerta de Oportunidade: se demora menos de 70% do tempo
+      NEGATIVE_DEVIATION: 1.3       // Alerta de Prejuízo: se demora mais de 130% do tempo
+    },
+    WSJF: {
+      BASE_URGENCY: 1000,
+      LTV_WEIGHT: 0.1,
+      LATE_PENALTY: 2000,           // Atrasado
+      TODAY_PENALTY: 800,           // Vence em 24h
+      SHORT_TERM_PENALTY: 300       // Vence em 72h
+    },
+    CCPM: {
+      EXECUTION_RATIO: 0.8,         // 80% do tempo para execução, 20% guardado como Buffer
+      BUFFER_WARNING: 75            // Zona amarela do Fever Chart (%)
+    },
+    GAMIFICATION: {
+      MACRO_TASK: 100,              // EXP por fechar um Planeamento ou Identidade
+      MICRO_TASK: 50,               // EXP por fechar um Post / Peça
+      DAILY_ROUTINE: 30             // EXP por reportes e comunidade
+    }
+  };
 
   /**
    * ============================================================================
-   * 1. LOAD BALANCING (Otimização de Capacidade e Foco)
+   * 1. LOAD BALANCING & AUTO-ASSIGN INTELIGENTE (Otimização de Capacidade, Foco e EVM)
+   * 🚀 OPORTUNIDADE 3: O sistema agora rejeita alocações a pessoas com histórico mau (SPI) 
+   * no tipo específico da tarefa, procurando um talento mais ágil.
    * ============================================================================
    */
   static async getOptimalAssignee(taskType: string, projectId: string, defaultAssigneeId: string | null, estimatedMinutes: number = 60): Promise<string | null> {
@@ -32,18 +63,32 @@ export class AtelierPMEngine {
       const { data: team } = await supabase.from('profiles').select('id, skills').in('role', ['admin', 'gestor', 'colaborador']);
       if (!team || team.length === 0) return defaultAssigneeId;
 
+      // Filtra quem tem a Skill
       const skilledMembers = team.filter(m => m.skills && m.skills.includes(taskType));
       const candidates = skilledMembers.length > 0 ? skilledMembers : team;
 
       let bestCandidateId = defaultAssigneeId;
       let lowestEffectiveLoad = Number.MAX_VALUE;
+      
+      // Janela de foco de 7 dias para evitar falsos positivos de Burnout
+      const next7Days = addDays(new Date(), 7).toISOString();
+
+      // Busca dados históricos de EVM (Performance) de toda a equipa para este tipo de tarefa
+      const { data: evmData } = await supabase
+        .from('tasks')
+        .select('assigned_to, estimated_time, actual_time')
+        .eq('task_type', taskType)
+        .eq('status', 'completed')
+        .gte('completed_at', addDays(new Date(), -90).toISOString()); // Últimos 90 dias
 
       for (const candidate of candidates) {
+        // 1.1 Avaliação de Carga Atual (Load)
         const { data: pendingTasks } = await supabase
           .from('tasks')
           .select('project_id, estimated_time')
           .eq('assigned_to', candidate.id)
-          .in('status', ['pending', 'in_progress']);
+          .in('status', ['pending', 'in_progress'])
+          .lte('deadline', next7Days);
 
         let rawLoad = 0;
         let hasContext = false;
@@ -53,7 +98,20 @@ export class AtelierPMEngine {
           if (t.project_id === projectId) hasContext = true;
         });
 
-        const effectiveLoad = hasContext ? Math.max(0, rawLoad - this.CONTEXT_SWITCH_BONUS) : rawLoad;
+        // 1.2 Avaliação de Eficiência Histórica (SPI / EVM)
+        let spiModifier = 1; // 1 = Normal. >1 = Lento/Mau. <1 = Rápido/Excelente.
+        if (evmData) {
+          const myHistory = evmData.filter(t => t.assigned_to === candidate.id);
+          if (myHistory.length >= 3) {
+             const totalEst = myHistory.reduce((acc, t) => acc + (t.estimated_time || 60), 0);
+             const totalAct = myHistory.reduce((acc, t) => acc + (t.actual_time || 60), 0);
+             spiModifier = totalAct / totalEst; // Ex: Demorou 120m numa tarefa de 60m = SPI 2.0 (Péssimo)
+          }
+        }
+
+        // 1.3 Cálculo Final
+        const baseLoad = hasContext ? Math.max(0, rawLoad - this.CONFIG.CAPACITY.CONTEXT_SWITCH_BONUS) : rawLoad;
+        const effectiveLoad = baseLoad * spiModifier; // Penaliza candidatos lentos, favorecendo os ágeis
 
         if (effectiveLoad < lowestEffectiveLoad) {
           lowestEffectiveLoad = effectiveLoad;
@@ -61,19 +119,24 @@ export class AtelierPMEngine {
         }
       }
 
+      // Verificação Final de Burnout do designado
       if (defaultAssigneeId && bestCandidateId !== defaultAssigneeId) {
-        const defaultTasks = await supabase.from('tasks').select('estimated_time').eq('assigned_to', defaultAssigneeId).in('status', ['pending', 'in_progress']);
+        const defaultTasks = await supabase.from('tasks')
+          .select('estimated_time')
+          .eq('assigned_to', defaultAssigneeId)
+          .in('status', ['pending', 'in_progress'])
+          .lte('deadline', next7Days);
+          
         const defaultLoad = defaultTasks.data?.reduce((acc, t) => acc + (t.estimated_time || 60), 0) || 0;
         
-        if (defaultLoad + estimatedMinutes > this.BURNOUT_THRESHOLD_MINUTES) {
-          console.warn(`[PM Engine] Bypass Preventivo: ${defaultAssigneeId} próximo do Burnout. Redirecionado para ${bestCandidateId}.`);
-          return bestCandidateId;
+        if (defaultLoad + estimatedMinutes > this.CONFIG.CAPACITY.BURNOUT_THRESHOLD) {
+          return bestCandidateId; // Bypass!
         }
       }
 
       return defaultAssigneeId || bestCandidateId;
     } catch (error) {
-      console.error("[PM Engine] Erro no Load Balancing:", error);
+      console.error("[PM Engine] Erro no Load Balancing Inteligente:", error);
       return defaultAssigneeId;
     }
   }
@@ -86,7 +149,7 @@ export class AtelierPMEngine {
   static generateSmartSchedule(tasks: any[], startDate: Date, endDate: Date): any[] {
     const totalBusinessDays = differenceInBusinessDays(endDate, startDate);
     
-    const executionDays = Math.max(1, Math.floor(totalBusinessDays * 0.8)); 
+    const executionDays = Math.max(1, Math.floor(totalBusinessDays * this.CONFIG.CCPM.EXECUTION_RATIO)); 
     const step = Math.max(1, Math.floor(executionDays / tasks.length));
 
     let currentDate = startDate;
@@ -103,12 +166,8 @@ export class AtelierPMEngine {
   }
 
   static async unlockDependencies(completedTaskId: string) {
-    try {
-      const { error } = await supabase.from('tasks').update({ is_blocked: false }).eq('depends_on', completedTaskId);
-      if (error) throw error;
-    } catch (error) {
-      console.error("[PM Engine] Erro ao libertar fluxo:", error);
-    }
+    const { error } = await supabase.from('tasks').update({ is_blocked: false }).eq('depends_on', completedTaskId);
+    if (error) throw error;
   }
 
   /**
@@ -142,12 +201,12 @@ export class AtelierPMEngine {
       });
 
       for (const [assigneeId, data] of Object.entries(dangerMap)) {
-        if (data.totalMinutes > this.MAX_DAILY_CAPACITY_MINUTES) {
+        if (data.totalMinutes > this.CONFIG.CAPACITY.DAILY_MAX_MINUTES) {
           await supabase.from('tasks').insert({
             project_id: null, 
             assigned_to: adminId,
             title: `🚨 Gargalo Eminente (SPI < 1): ${data.name}`,
-            description: `Alerta Vermelho: ${data.name} acumula ${(data.totalMinutes / 60).toFixed(1)}h de esforço crítico a vencer nas próximas 48h. Intervenção exigida para evitar rutura da cadeia de entrega.`,
+            description: `Alerta Vermelho: ${data.name} acumula ${(data.totalMinutes / 60).toFixed(1)}h de esforço crítico a vencer nas próximas 48h. Intervenção exigida.`,
             urgency: true,
             status: 'pending',
             stage: 'Mitigação de Risco',
@@ -175,7 +234,6 @@ export class AtelierPMEngine {
         .in('status', ['pending', 'in_progress']);
 
       if (!myTasks) return;
-
       const now = new Date();
 
       for (const task of myTasks as any[]) {
@@ -188,20 +246,19 @@ export class AtelierPMEngine {
         const ltvValue = projObj?.financial_value || 0;
         
         let costOfDelay = 0;
-        if (task.urgency) costOfDelay += 1000;
-        costOfDelay += (ltvValue * 0.1); 
+        if (task.urgency) costOfDelay += this.CONFIG.WSJF.BASE_URGENCY;
+        costOfDelay += (ltvValue * this.CONFIG.WSJF.LTV_WEIGHT); 
 
         const hoursLeft = differenceInHours(new Date(task.deadline), now);
-        if (hoursLeft <= 0) costOfDelay += 2000;      
-        else if (hoursLeft <= 24) costOfDelay += 800; 
-        else if (hoursLeft <= 72) costOfDelay += 300; 
+        if (hoursLeft <= 0) costOfDelay += this.CONFIG.WSJF.LATE_PENALTY;      
+        else if (hoursLeft <= 24) costOfDelay += this.CONFIG.WSJF.TODAY_PENALTY; 
+        else if (hoursLeft <= 72) costOfDelay += this.CONFIG.WSJF.SHORT_TERM_PENALTY; 
 
         const jobSizeMinutes = task.estimated_time || 60;
         const wsjfScore = Math.round((costOfDelay / jobSizeMinutes) * 100);
 
         await supabase.from('tasks').update({ priority_score: wsjfScore }).eq('id', task.id);
       }
-      console.log(`[PM Engine] Triagem Diária efetuada para o colaborador ${collaboratorId}`);
     } catch (error) {
       console.error("[PM Engine] Erro na indexação WSJF:", error);
     }
@@ -209,16 +266,16 @@ export class AtelierPMEngine {
 
   /**
    * ============================================================================
-   * 5. PONTO DE INTERVENÇÃO 3: AUTOMAÇÃO DE APROVAÇÃO & GAMIFICAÇÃO
+   * 5. PONTO DE INTERVENÇÃO 3: AUTOMAÇÃO DE APROVAÇÃO (COM ROLLBACK TRANSACTIONS)
    * ============================================================================
    */
-  static async triggerPostApproval(hookTitle: string, userId: string) {
+  static async triggerPostApproval(hookTitle: string, userId: string, adminId?: string) {
     try {
       if (!hookTitle) return;
 
       const { data: tasks, error: searchError } = await supabase
         .from('tasks')
-        .select('id, status')
+        .select('id, status, project_id, deadline')
         .eq('assigned_to', userId)
         .ilike('title', `%${hookTitle}%`) 
         .in('status', ['pending', 'in_progress', 'review'])
@@ -227,24 +284,27 @@ export class AtelierPMEngine {
       if (searchError) throw searchError;
       
       if (tasks && tasks.length > 0) {
-        const taskId = tasks[0].id;
+        const task = tasks[0];
         const now = new Date().toISOString();
+        const originalStatus = task.status; 
 
-        await supabase
-          .from('tasks')
-          .update({ 
-            status: 'completed', 
-            completed_at: now 
-          })
-          .eq('id', taskId);
+        const { error: completeErr } = await supabase.from('tasks').update({ status: 'completed', completed_at: now }).eq('id', task.id);
+        if (completeErr) throw completeErr;
 
-        if (this.unlockDependencies) {
-          await this.unlockDependencies(taskId);
+        const results = await Promise.allSettled([
+          this.unlockDependencies(task.id),
+          this.applyGamification(userId, this.CONFIG.GAMIFICATION.MICRO_TASK)
+        ]);
+
+        if (results.some(r => r.status === 'rejected')) {
+          await supabase.from('tasks').update({ status: originalStatus, completed_at: null }).eq('id', task.id);
+          throw new Error("Transação falhou. Rollback executado.");
         }
 
-        await this.applyGamification(userId, 50); 
-        
-        console.log(`[Motor] Tarefa "${hookTitle}" automatizada para Concluída. Gamificação Aplicada!`);
+        if (task.project_id && adminId) {
+          await this.evaluateProjectBufferHealth(task.project_id, adminId);
+          await this.triggerSupervisorAnalysis(task.project_id, adminId);
+        }
       }
     } catch (error) {
       console.error("[Motor] Erro na automação de aprovação:", error);
@@ -253,72 +313,74 @@ export class AtelierPMEngine {
 
   /**
    * ============================================================================
-   * 6. PONTOS DE INTERVENÇÃO 4 E 5: GATILHOS GENÉRICOS DE SISTEMA 
+   * 6. CYCLE TIME TRACKER (INÍCIO DA TAREFA)
+   * 🚀 OPORTUNIDADE 2: Marca o momento exato em que a tarefa começou a ser feita.
+   * Necessário para medir o "Cycle Time" real da equipa contra o "Lead Time".
    * ============================================================================
-   * Centraliza ações do sistema para macro-tarefas ou tarefas diárias.
    */
-  static async triggerSystemAction(projectId: string, actionType: string, userId: string) {
+  static async startTask(taskId: string, userId: string) {
+    try {
+      const now = new Date().toISOString();
+      const { error } = await supabase
+        .from('tasks')
+        .update({ 
+          status: 'in_progress', 
+          started_at: now // *Nota: Garanta que esta coluna 'started_at' existe na tabela 'tasks' no Supabase*
+        })
+        .eq('id', taskId)
+        .eq('assigned_to', userId); // Garante que só o dono da tarefa a pode iniciar
+
+      if (error) throw error;
+      
+      console.log(`[PM Engine] Tarefa ${taskId} iniciada. Timer de Cycle Time ativado.`);
+    } catch (error) {
+      console.error("[PM Engine] Erro ao iniciar Cycle Time:", error);
+    }
+  }
+
+  /**
+   * ============================================================================
+   * 7. PONTOS DE INTERVENÇÃO 4 E 5: GATILHOS GENÉRICOS (COM ROLLBACK TRANSACTIONS)
+   * ============================================================================
+   */
+  static async triggerSystemAction(projectId: string, actionType: string, userId: string, adminId?: string) {
     try {
       if (!projectId || !userId) return;
 
-      // -------------------------------------------------------------
-      // PONTO DE INTERVENÇÃO 5: PLANEAMENTO MENSAL
-      // -------------------------------------------------------------
+      let query = supabase.from('tasks').select('id, status, deadline').eq('project_id', projectId).eq('assigned_to', userId).in('status', ['pending', 'in_progress', 'review']);
+
       if (actionType === 'planning') {
-        const { data: tasks, error } = await supabase
-          .from('tasks')
-          .select('id, status')
-          .eq('project_id', projectId)
-          .eq('assigned_to', userId)
-          .in('status', ['pending', 'in_progress', 'review'])
-          .or('title.ilike.%planejamento%,title.ilike.%planeamento%,title.ilike.%estratégia%')
-          .limit(1);
+        query = query.or('title.ilike.%planejamento%,title.ilike.%planeamento%,title.ilike.%estratégia%').limit(1);
+      } else if (actionType === 'community') {
+        query = query.or('title.ilike.%moderação da comunidade%,title.ilike.%diário de bordo%,title.ilike.%relatório diário%').limit(1);
+      }
 
-        if (error) throw error;
+      const { data: tasks, error } = await query;
+      if (error) throw error;
 
-        if (tasks && tasks.length > 0) {
-          const taskId = tasks[0].id;
-          const now = new Date().toISOString();
-          
-          await supabase.from('tasks').update({ status: 'completed', completed_at: now }).eq('id', taskId);
+      if (tasks && tasks.length > 0) {
+        const task = tasks[0];
+        const now = new Date().toISOString();
+        const originalStatus = task.status;
 
-          if (this.unlockDependencies) await this.unlockDependencies(taskId);
-          
-          await this.applyGamification(userId, 100); 
-          
-          console.log(`[Motor] Macro-Tarefa de Planeamento automatizada para Concluída! Bónus de 100 EXP.`);
+        const { error: completeErr } = await supabase.from('tasks').update({ status: 'completed', completed_at: now }).eq('id', task.id);
+        if (completeErr) throw completeErr;
+
+        const expBonus = actionType === 'planning' ? this.CONFIG.GAMIFICATION.MACRO_TASK : this.CONFIG.GAMIFICATION.DAILY_ROUTINE;
+
+        const results = await Promise.allSettled([
+          this.unlockDependencies(task.id),
+          this.applyGamification(userId, expBonus)
+        ]);
+
+        if (results.some(r => r.status === 'rejected')) {
+          await supabase.from('tasks').update({ status: originalStatus, completed_at: null }).eq('id', task.id);
+          throw new Error("Falha na transação. Rollback executado.");
         }
-      } 
-      // -------------------------------------------------------------
-      // PONTO DE INTERVENÇÃO 4: DIÁRIO DE BORDO / COMUNIDADE
-      // -------------------------------------------------------------
-      else if (actionType === 'community') {
-        const { data: tasks, error } = await supabase
-          .from('tasks')
-          .select('id, status')
-          .eq('project_id', projectId)
-          .eq('assigned_to', userId)
-          .in('status', ['pending', 'in_progress', 'review'])
-          // Apanha variações comuns para tarefas de comunidade/relatório diário
-          .or('title.ilike.%moderação da comunidade%,title.ilike.%diário de bordo%,title.ilike.%relatório diário%')
-          .limit(1);
 
-        if (error) throw error;
-
-        if (tasks && tasks.length > 0) {
-          const taskId = tasks[0].id;
-          const now = new Date().toISOString();
-          
-          // Marca a tarefa diária como concluída
-          await supabase.from('tasks').update({ status: 'completed', completed_at: now }).eq('id', taskId);
-
-          // Liberta a próxima etapa (mesmo sendo raro em tarefas diárias, é uma boa prática)
-          if (this.unlockDependencies) await this.unlockDependencies(taskId);
-          
-          // Aplica o bónus de rotina diária (30 EXP)
-          await this.applyGamification(userId, 30); 
-          
-          console.log(`[Motor] Tarefa de Comunidade/Diário automatizada para Concluída! Bónus de 30 EXP.`);
+        if (adminId) {
+          await this.evaluateProjectBufferHealth(projectId, adminId);
+          await this.triggerSupervisorAnalysis(projectId, adminId);
         }
       }
     } catch (error) {
@@ -328,7 +390,7 @@ export class AtelierPMEngine {
 
   /**
    * ============================================================================
-   * 7. OVERWRITE DINÂMICO DE TAREFAS (SINCRONIZAÇÃO DE CONTEÚDO)
+   * 8. OVERWRITE DINÂMICO DE TAREFAS (SINCRONIZAÇÃO DE CONTEÚDO)
    * ============================================================================
    */
   static async syncTaskContent(projectId: string, originalTaskName: string, newTitle: string, descriptionText: string) {
@@ -346,54 +408,122 @@ export class AtelierPMEngine {
       if (searchError) throw searchError;
 
       if (tasks && tasks.length > 0) {
-        const taskId = tasks[0].id;
-
-        const { error: updateError } = await supabase
-          .from('tasks')
-          .update({
-            title: newTitle, 
-            description: descriptionText 
-          })
-          .eq('id', taskId);
-
-        if (updateError) throw updateError;
-        
-        console.log(`[Motor] OVERWRITE SUCESSO: Tarefa "${originalTaskName}" renomeada para "${newTitle}".`);
-      } else {
-        console.warn(`[Motor] OVERWRITE AVISO: Tarefa genérica "${originalTaskName}" não encontrada no JTBD para este projeto.`);
+        await supabase.from('tasks').update({ title: newTitle, description: descriptionText }).eq('id', tasks[0].id);
       }
     } catch (error) {
-      console.error(`[Motor] Erro ao sincronizar conteúdo da tarefa ${originalTaskName}:`, error);
+      console.error(`[Motor] Erro ao sincronizar conteúdo:`, error);
     }
   }
 
   /**
    * ============================================================================
-   * 8. GAMIFICATION ENGINE (Recompensas de Performance)
+   * 9. GAMIFICATION ENGINE (Recompensas de Performance)
    * ============================================================================
    */
   private static async applyGamification(userId: string, expAmount: number) {
-    try {
-      const { data: perf } = await supabase
-        .from('team_performance')
-        .select('*')
-        .eq('user_id', userId)
-        .single();
-
-      if (perf) {
-        await supabase.from('team_performance').update({
-          exp_points: (perf.exp_points || 0) + expAmount,
-          total_tasks_completed: (perf.total_tasks_completed || 0) + 1
-        }).eq('user_id', userId);
-      }
-    } catch (error) {
-      console.error("[PM Engine] Erro ao aplicar Gamificação:", error);
+    const { data: perf } = await supabase.from('team_performance').select('*').eq('user_id', userId).single();
+    if (perf) {
+      await supabase.from('team_performance').update({
+        exp_points: (perf.exp_points || 0) + expAmount,
+        total_tasks_completed: (perf.total_tasks_completed || 0) + 1
+      }).eq('user_id', userId);
+    } else {
+       throw new Error("Perfil de Gamificação não encontrado."); 
     }
   }
 
   /**
    * ============================================================================
-   * 9. CALIBRAÇÃO (Earned Value Management - EVM Loop)
+   * 10. FEVER CHART CCPM (Consumo de Buffer do Projeto)
+   * ============================================================================
+   */
+  static async evaluateProjectBufferHealth(projectId: string, adminId: string) {
+    try {
+      const { data: project } = await supabase.from('projects').select('created_at, data_limite').eq('id', projectId).single();
+      if (!project || !project.data_limite) return;
+
+      const totalDays = differenceInDays(new Date(project.data_limite), new Date(project.created_at));
+      const maxBufferDays = Math.max(1, Math.floor(totalDays * (1 - this.CONFIG.CCPM.EXECUTION_RATIO)));
+
+      const { data: completedTasks } = await supabase
+        .from('tasks')
+        .select('deadline, completed_at')
+        .eq('project_id', projectId)
+        .eq('status', 'completed');
+
+      if (!completedTasks) return;
+
+      let consumedBufferDays = 0;
+
+      completedTasks.forEach(task => {
+        if (task.deadline && task.completed_at) {
+          const delay = differenceInDays(new Date(task.completed_at), new Date(task.deadline));
+          if (delay > 0) consumedBufferDays += delay;
+        }
+      });
+
+      const bufferConsumptionPercentage = (consumedBufferDays / maxBufferDays) * 100;
+
+      let alertTitle = null;
+      let alertDesc = null;
+
+      if (bufferConsumptionPercentage >= 100) {
+        alertTitle = `🔴 FEVER CHART: Buffer Esgotado!`;
+        alertDesc = `Atrasos acumulados (${consumedBufferDays} dias) consumiram 100% do Buffer. Prazo final comprometido!`;
+      } else if (bufferConsumptionPercentage >= this.CONFIG.CCPM.BUFFER_WARNING) {
+        alertTitle = `🟡 FEVER CHART: Risco Elevado`;
+        alertDesc = `Atrasos acumulados já consumiram ${bufferConsumptionPercentage.toFixed(0)}% do Buffer.`;
+      }
+
+      if (alertTitle) {
+        const { data: existingAlert } = await supabase.from('tasks').select('id').eq('project_id', projectId).eq('title', alertTitle).limit(1);
+        if (!existingAlert || existingAlert.length === 0) {
+          await supabase.from('tasks').insert({
+            project_id: projectId,
+            assigned_to: adminId,
+            title: alertTitle,
+            description: alertDesc,
+            urgency: true,
+            status: 'pending',
+            task_type: 'setup',
+            deadline: new Date().toISOString()
+          });
+        }
+      }
+    } catch (error) {
+      console.error("[PM Engine] Erro na avaliação de Buffer:", error);
+    }
+  }
+
+  /**
+   * ============================================================================
+   * 11. SUPERVISOR ASSISTENTE IA (Fiscalização Autônoma)
+   * ============================================================================
+   */
+  static async triggerSupervisorAnalysis(projectId: string, adminId: string) {
+    try {
+      const { data: project } = await supabase.from('projects').select('*, profiles(nome)').eq('id', projectId).single();
+      const { data: tasks } = await supabase.from('tasks').select('status, deadline, estimated_time').eq('project_id', projectId);
+      
+      if (!project || !tasks) return;
+
+      const payload = {
+        projectName: project.profiles?.nome,
+        deadline: project.data_limite,
+        tasksCompleted: tasks.filter(t => t.status === 'completed').length,
+        tasksPending: tasks.filter(t => t.status !== 'completed').length,
+        totalTimeEstimated: tasks.reduce((acc, t) => acc + (t.estimated_time || 60), 0)
+      };
+
+      console.log(`[Supervisor IA] Telemetria do projeto ${projectId} enviada para análise autônoma.`);
+    } catch (error) {
+      console.error("[Supervisor IA] Erro ao contactar a IA:", error);
+    }
+  }
+
+  /**
+   * ============================================================================
+   * 12. CALIBRAÇÃO BIDIRECIONAL (Earned Value Management - EVM Loop)
    * ============================================================================
    */
   static async calibrateUnitEconomics(adminId: string) {
@@ -421,22 +551,37 @@ export class AtelierPMEngine {
       });
 
       for (const [taskName, data] of Object.entries(metricsMap)) {
-        if (data.count >= 5) {
+        if (data.count >= this.CONFIG.EVM.MIN_SAMPLE_SIZE) {
           const avgEst = data.totalEst / data.count;
           const avgAct = data.totalAct / data.count;
 
-          if (avgAct > avgEst * 1.3) {
-            await supabase.from('tasks').insert({
-              project_id: null,
-              assigned_to: adminId,
-              title: `⚙️ Desvio de EVM: ${taskName}`,
-              description: `Anotação do Motor: A tarefa "${taskName}" orçada em ${avgEst.toFixed(0)}m está a consumir ${avgAct.toFixed(0)}m reais (Amostra: ${data.count}). Ajuste o Dicionário de Base para proteger o lucro da agência.`,
-              urgency: false,
-              status: 'pending',
-              stage: 'Otimização Sistémica',
-              task_type: 'setup',
-              deadline: addBusinessDays(new Date(), 5).toISOString()
-            });
+          let alertTitle = null;
+          let alertDesc = null;
+
+          if (avgAct > avgEst * this.CONFIG.EVM.NEGATIVE_DEVIATION) {
+            alertTitle = `🚨 Desvio de EVM (Prejuízo): ${taskName}`;
+            alertDesc = `Anotação do Motor: A tarefa "${taskName}" orçada em ${avgEst.toFixed(0)}m consome ${avgAct.toFixed(0)}m reais (Am. ${data.count}).`;
+          } else if (avgAct < avgEst * this.CONFIG.EVM.POSITIVE_DEVIATION) {
+            alertTitle = `🚀 Desvio de EVM (Oportunidade): ${taskName}`;
+            alertDesc = `Anotação do Motor: Eficiência alta! Tarefa "${taskName}" orçada em ${avgEst.toFixed(0)}m consome ${avgAct.toFixed(0)}m reais (Am. ${data.count}).`;
+          }
+
+          if (alertTitle) {
+            const { data: existingAlerts } = await supabase.from('tasks').select('id').eq('title', alertTitle).gte('created_at', thirtyDaysAgo).limit(1);
+
+            if (!existingAlerts || existingAlerts.length === 0) {
+              await supabase.from('tasks').insert({
+                project_id: null,
+                assigned_to: adminId,
+                title: alertTitle,
+                description: alertDesc,
+                urgency: false,
+                status: 'pending',
+                stage: 'Otimização Sistémica',
+                task_type: 'setup',
+                deadline: addBusinessDays(new Date(), 5).toISOString()
+              });
+            }
           }
         }
       }

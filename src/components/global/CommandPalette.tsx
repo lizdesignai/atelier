@@ -102,27 +102,24 @@ export default function CommandPalette() {
       }
     }
 
-    // 2. INTEGRAÇÃO COM A I.A. DO ATELIER (Comportamento de Assistente)
+    // 2. INTEGRAÇÃO COM A I.A. DO ATELIER (Cérebro Real)
     try {
-      // 💡 AQUI VOCÊ CONECTA O SEU ENDPOINT REAL DE IA (OpenAI, Anthropic, ou Edge Function do Supabase)
-      // Exemplo de como seria a chamada real:
-      // const res = await fetch('/api/ai/command', { method: 'POST', body: JSON.stringify({ prompt: query }) });
-      // const data = await res.json();
+      const res = await fetch('/api/ai/command', { 
+        method: 'POST', 
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: query }) 
+      });
       
-      // Simulação de tempo de processamento da IA para demonstração:
-      await new Promise(resolve => setTimeout(resolve, 1500));
-
-      // Mock de respostas inteligentes para demonstração de poder
-      if (q.includes("resumo") || q.includes("faturamento")) {
-        setAiResponse("Atualmente, o faturamento (MRR) projetado está em R$ 45.000, com uma margem de EBITDA de 72%. Nenhuma anomalia financeira detetada nos últimos 7 dias.");
-      } else if (q.includes("tarefa") || q.includes("urgente")) {
-        setAiResponse("Existem 3 tarefas marcadas como 'Granada' (Urgentes) no seu JTBD. Deseja que eu as redirecione para um membro com menos carga horária?");
-      } else {
-        setAiResponse(`Comando recebido: "${query}". Como IA do sistema, ainda estou a ser treinada para executar ações complexas. Em breve poderei automatizar isso por si.`);
-      }
+      const data = await res.json();
+      
+      if (!res.ok) throw new Error(data.error || "Falha ao contactar o Oráculo.");
+      
+      // Injeta a resposta real do Gemini na UI
+      setAiResponse(data.reply);
 
     } catch (error) {
-      setAiResponse("Erro de comunicação com o núcleo da IA. Tente novamente.");
+      console.error("[Command Palette] Erro:", error);
+      setAiResponse("Erro de comunicação com o núcleo da IA. Verifique as suas credenciais ou a conexão de rede.");
     } finally {
       setIsProcessing(false);
     }
@@ -183,7 +180,7 @@ export default function CommandPalette() {
                       </div>
                       <div className="flex flex-col">
                         <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mb-1">Resposta do Sistema</span>
-                        <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/80 leading-relaxed">
+                        <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap">
                           {aiResponse}
                         </p>
                       </div>

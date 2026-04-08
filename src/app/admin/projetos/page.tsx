@@ -18,6 +18,9 @@ import { pdf } from '@react-pdf/renderer';
 // IMPORTAÇÃO EXTERNA: Traz apenas o Motor de Gestão de Instagram
 import { GerenciamentoWorkspace } from "../gerenciamento/page";
 
+// Importação do nosso Motor de Automação
+import { AtelierPMEngine } from "../../../lib/AtelierPMEngine";
+
 // Importação dos Módulos PDF
 import BriefingPDF from "../../../components/pdf/BriefingPDF"; 
 import CuradoriaPDF from "../../../components/pdf/CuradoriaPDF"; 
@@ -158,6 +161,23 @@ function WorkspaceDesigner() {
       await supabase.from('client_briefings').update({ is_completed: false }).eq('project_id', activeProjectId);
     } catch (e) {
       showToast("Erro ao processar devolução de briefing.");
+    }
+  };
+
+  // ==========================================
+  // PONTO DE INTERVENÇÃO 4: AUTOMAÇÃO DO DIÁRIO DE BORDO
+  // ==========================================
+  const handleDiaryActivity = async () => {
+    if (!activeProjectId) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && session.user) {
+        if ((AtelierPMEngine as any).triggerSystemAction) {
+          await (AtelierPMEngine as any).triggerSystemAction(activeProjectId, 'community', session.user.id);
+        }
+      }
+    } catch (error) {
+      console.error("Erro na automação do Diário de Bordo:", error);
     }
   };
 
@@ -977,7 +997,11 @@ function WorkspaceDesigner() {
 
           {/* 3. COLUNA DIREITA: DIÁRIO (MÓDULO EXTRAÍDO) */}
           <div className="w-[37%] h-full">
-              <DiaryModule activeProjectId={activeProjectId} currentProject={currentProject} />
+              <DiaryModule 
+                 activeProjectId={activeProjectId} 
+                 currentProject={currentProject} 
+                 onActivity={handleDiaryActivity} 
+              />
           </div>
 
         </div>
