@@ -1,7 +1,7 @@
 // src/app/admin/gerenciamento/views/MonthlyPlanningDashboard.tsx
 import { useState, useEffect } from "react";
 import { supabase } from "../../../../lib/supabase";
-import { AtelierPMEngine } from "../../../../lib/AtelierPMEngine"; // Importação do nosso Motor de Automação
+import { AtelierPMEngine } from "../../../../lib/AtelierPMEngine"; 
 import { Send, Bot, User, Maximize2, Minimize2, FileText, Loader2, Save, Calendar, Target, Zap, Link } from "lucide-react";
 
 interface MonthlyPlanningProps {
@@ -23,14 +23,19 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
   const [planHook, setPlanHook] = useState(""); 
   const [jtbdTaskName, setJtbdTaskName] = useState(""); 
   
-  const [planDate, setPlanDate] = useState("");
-  const [planPillar, setPlanPillar] = useState("Autoridade Técnica");
-  
   const [isAvulso, setIsAvulso] = useState(false); 
   const [editorContent, setEditorContent] = useState("");
   const [isEditorExpanded, setIsEditorExpanded] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [labData, setLabData] = useState<any>(null);
+
+  // Estados Específicos: Post Avulso
+  const [planDate, setPlanDate] = useState("");
+  const [planPillar, setPlanPillar] = useState("Autoridade Técnica");
+
+  // Estados Específicos: Planeamento Mensal
+  const [campaignObjective, setCampaignObjective] = useState("Brand Awareness (Alcance)");
+  const [postQuantity, setPostQuantity] = useState("8 Posts/mês");
 
   // Inteligência de preenchimento automático para Avulsos
   useEffect(() => {
@@ -84,7 +89,7 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
   };
 
   // ==========================================
-  // MOTOR DO CHATBOT COM STREAMING ATIVO
+  // MOTOR DO CHATBOT COM STREAMING ATIVO E INJEÇÃO DE CONTEXTO
   // ==========================================
   const handleSendMessage = async () => {
     if (!prompt.trim()) return;
@@ -97,11 +102,18 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
     try {
       await supabase.from('copilot_interactions').insert(userMsg);
 
+      // MÁGICA DA IA: Injeta as definições do painel silenciosamente no prompt para orientar a IA
+      const uiContext = isAvulso 
+        ? `[Diretriz do Sistema: O gestor está a pedir um POST AVULSO. Pilar: ${planPillar}.]`
+        : `[Diretriz do Sistema: O gestor está a fazer um PLANEAMENTO MENSAL. Objetivo: ${campaignObjective}. Volume: ${postQuantity}. O Tema Central é: "${planHook}".]`;
+      
+      const enrichedPrompt = `${uiContext}\n\nPedido do utilizador: ${userMsg.content}`;
+
       const res = await fetch('/api/insights/content-agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
-          prompt: userMsg.content, 
+          prompt: enrichedPrompt, 
           labData, 
           clientName: currentProject?.profiles?.nome 
         })
@@ -146,12 +158,12 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
   };
 
   // ==========================================
-  // PONTO DE INTERVENÇÃO 3 E 5 E OVERWRITE
+  // GRAVAÇÃO E OVERWRITE
   // ==========================================
   const handleSavePlanning = async (sendToClient: boolean = false) => {
     if (sendToClient) {
       if (!planHook || !editorContent) {
-        window.dispatchEvent(new CustomEvent("showToast", { detail: "Preencha o Gancho e o Conteúdo antes de enviar." }));
+        window.dispatchEvent(new CustomEvent("showToast", { detail: "Preencha o Título Principal e o Conteúdo antes de enviar." }));
         return;
       }
       if (isAvulso && !jtbdTaskName) {
@@ -174,8 +186,8 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
       const payload = {
         project_id: activeProjectId,
         client_id: currentProject?.client_id,
-        publish_date: planDate ? new Date(planDate).toISOString() : null,
-        pillar: planPillar,
+        publish_date: isAvulso && planDate ? new Date(planDate).toISOString() : null,
+        pillar: isAvulso ? planPillar : campaignObjective, // Reutiliza a coluna 'pillar' para guardar o objetivo se for mensal
         hook: planHook,
         briefing: editorContent,
         status: newStatus,
@@ -188,10 +200,6 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
         await supabase.from('content_planning').insert(payload);
       }
 
-      // ============================================================================
-      // MÁGICA DE SINCRONIZAÇÃO (OVERWRITE DO JTBD)
-      // Renomeia as tarefas nativas para o nome real da campanha / post
-      // ============================================================================
       if ((AtelierPMEngine as any).syncTaskContent) {
          const targetTaskName = isAvulso ? jtbdTaskName : "Calendário Editorial";
          await (AtelierPMEngine as any).syncTaskContent(activeProjectId, targetTaskName, planHook, editorContent);
@@ -200,12 +208,9 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
       if (sendToClient) {
         const { data: { session } } = await supabase.auth.getSession();
         if (session && session.user) {
-          
           if (isAvulso && (AtelierPMEngine as any).triggerPostApproval) {
-             // Passamos o Hook em vez do jtbdTaskName, porque acabámos de renomear a tarefa lá em cima!
              await (AtelierPMEngine as any).triggerPostApproval(planHook, session.user.id);
           }
-
           if (!isAvulso && (AtelierPMEngine as any).triggerSystemAction) {
              await (AtelierPMEngine as any).triggerSystemAction(activeProjectId, 'planning', session.user.id);
           }
@@ -307,21 +312,23 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
           </div>
         </div>
 
-        {/* Inputs de Metadados */}
+        {/* Inputs de Metadados Dinâmicos */}
         <div className="p-6 border-b border-[var(--color-atelier-grafite)]/5 bg-gray-50/50 flex flex-col gap-4 shrink-0">
           
           <div className="flex flex-col gap-1.5">
-            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1.5"><Target size={12}/> Gancho Editorial (Hook)</span>
+            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1.5">
+              <Target size={12}/> {isAvulso ? "Gancho Editorial (Hook)" : "Tema da Campanha / Foco Mensal"}
+            </span>
             <input 
               type="text" 
-              placeholder="Ex: 3 erros silenciosos que estão a destruir o seu negócio..." 
+              placeholder={isAvulso ? "Ex: 3 erros silenciosos que estão a destruir o seu negócio..." : "Ex: Mês de Autoridade em Logística"} 
               value={planHook} 
               onChange={(e) => setPlanHook(e.target.value)} 
               className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[14px] font-bold text-[var(--color-atelier-grafite)] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm transition-colors" 
             />
           </div>
 
-          {/* NOVO CAMPO: Aparece apenas quando é Avulso para sincronizar com o JTBD */}
+          {/* Sincronização JTBD (Só em Avulso) */}
           {isAvulso && (
             <div className="flex flex-col gap-1.5">
               <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-orange-600 ml-1 flex items-center gap-1.5">
@@ -338,6 +345,8 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
           )}
           
           <div className="flex flex-col md:flex-row gap-4">
+            
+            {/* Modalidade (Sempre Visível) */}
             <div className="flex flex-col gap-1.5 w-full md:w-1/3">
               <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1.5"><Zap size={12}/> Modalidade</span>
               <select 
@@ -350,30 +359,66 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
               </select>
             </div>
 
-            <div className="flex flex-col gap-1.5 w-full md:w-1/3">
-              <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1.5"><Calendar size={12}/> Publicação</span>
-              <input 
-                type="date" 
-                value={planDate} 
-                onChange={(e) => setPlanDate(e.target.value)} 
-                className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] text-[var(--color-atelier-grafite)] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm" 
-              />
-            </div>
+            {/* Alternância Dinâmica de Campos (Mensal vs Avulso) */}
+            {!isAvulso ? (
+              <>
+                <div className="flex flex-col gap-1.5 w-full md:w-1/3">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1.5"><Target size={12}/> Objetivo</span>
+                  <select 
+                    value={campaignObjective} 
+                    onChange={(e) => setCampaignObjective(e.target.value)} 
+                    className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] text-[var(--color-atelier-grafite)] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm"
+                  >
+                    <option>Brand Awareness (Alcance)</option>
+                    <option>Geração de Leads</option>
+                    <option>Venda Direta (Conversão)</option>
+                    <option>Engajamento & Comunidade</option>
+                  </select>
+                </div>
 
-            <div className="flex flex-col gap-1.5 w-full md:w-1/3">
-              <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1.5"><FileText size={12}/> Pilar Estratégico</span>
-              <select 
-                value={planPillar} 
-                onChange={(e) => setPlanPillar(e.target.value)} 
-                className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] text-[var(--color-atelier-grafite)] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm"
-              >
-                <option>Autoridade Técnica</option>
-                <option>Cultura e Bastidores</option>
-                <option>Status e Lifestyle</option>
-                <option>Comunidade e Pertencimento</option>
-                <option>Promocional / Venda Direta</option>
-              </select>
-            </div>
+                <div className="flex flex-col gap-1.5 w-full md:w-1/3">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1.5"><Calendar size={12}/> Volume de Posts</span>
+                  <select 
+                    value={postQuantity} 
+                    onChange={(e) => setPostQuantity(e.target.value)} 
+                    className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] text-[var(--color-atelier-grafite)] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm"
+                  >
+                    <option>4 Posts/mês</option>
+                    <option>8 Posts/mês</option>
+                    <option>12 Posts/mês</option>
+                    <option>16 Posts/mês</option>
+                    <option>30 Posts/mês</option>
+                  </select>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex flex-col gap-1.5 w-full md:w-1/3">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1.5"><Calendar size={12}/> Publicação</span>
+                  <input 
+                    type="date" 
+                    value={planDate} 
+                    onChange={(e) => setPlanDate(e.target.value)} 
+                    className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] text-[var(--color-atelier-grafite)] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm" 
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5 w-full md:w-1/3">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1.5"><FileText size={12}/> Pilar Estratégico</span>
+                  <select 
+                    value={planPillar} 
+                    onChange={(e) => setPlanPillar(e.target.value)} 
+                    className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] text-[var(--color-atelier-grafite)] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm"
+                  >
+                    <option>Autoridade Técnica</option>
+                    <option>Cultura e Bastidores</option>
+                    <option>Status e Lifestyle</option>
+                    <option>Comunidade e Pertencimento</option>
+                    <option>Promocional / Venda Direta</option>
+                  </select>
+                </div>
+              </>
+            )}
           </div>
         </div>
 
@@ -396,7 +441,7 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
             `}
           >
             {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Send size={16}/>} 
-            {isAvulso ? "Enviar Post Avulso & Fechar JTBD" : "Enviar Planeamento & Fechar JTBD"}
+            {isAvulso ? "Enviar Post" : "Enviar Planeamento"}
           </button>
         </div>
 

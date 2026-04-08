@@ -72,8 +72,15 @@ export default function CockpitPage() {
           setPendingCount(postsCount || 0);
 
           if (proj.type === 'Gestão de Instagram' || proj.service_type === 'Gestão de Instagram') {
-            // 4. Buscar Briefing de Instagram
-            const { data: brief } = await supabase.from('instagram_briefings').select('*').eq('project_id', proj.id).maybeSingle();
+            // 4. Buscar Briefing de Instagram (Ignorando os devolvidos!)
+            const { data: brief } = await supabase
+              .from('instagram_briefings')
+              .select('*')
+              .eq('project_id', proj.id)
+              .neq('status', 'returned') // <--- CORREÇÃO AQUI (O FILTRO MÁGICO)
+              .order('created_at', { ascending: false })
+              .limit(1)
+              .maybeSingle();
             setBriefing(brief);
 
             // 5. Buscar Missões Pendentes
@@ -380,7 +387,7 @@ export default function CockpitPage() {
 
               {!briefing ? (
                 <button onClick={() => setIsBriefingModalOpen(true)} className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] shadow-md hover:-translate-y-0.5">
-                  Preencher Dossiê Agora <ArrowRight size={16} />
+                  Preencher Briefing Agora <ArrowRight size={16} />
                 </button>
               ) : pendingPlanCount > 0 ? (
                 <button onClick={() => window.scrollTo({ top: 400, behavior: 'smooth' })} className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">

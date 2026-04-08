@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabase";
 import { AtelierPMEngine } from "../../../lib/AtelierPMEngine"; 
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
-import { BrainCircuit, Loader2 } from "lucide-react";
+import { BrainCircuit, Loader2, Bell, X, Cpu, Play, CheckSquare, Check } from "lucide-react";
 
 // Importações do Núcleo Estático
 import { 
@@ -49,7 +49,7 @@ const isIdvService = (project: any) => {
 export default function AnalyticsPage() {
   const [activeView, setActiveView] = useState<'overview' | 'projects' | 'routing'>('overview');
   
-  // 🧠 Consumo da Memória RAM Global (0ms Latência)
+  // 🧠 Consumo da Memória RAM Global
   const { activeProjects, isGlobalLoading, refreshGlobalData } = useGlobalStore();
   
   const [isLocalLoading, setIsLocalLoading] = useState(true);
@@ -58,6 +58,11 @@ export default function AnalyticsPage() {
   const [team, setTeam] = useState<any[]>([]);
   const [tasks, setTasks] = useState<any[]>([]);
   const [routingRules, setRoutingRules] = useState<any[]>([]);
+
+  // 🚀 NOVOS ESTADOS DO MOTOR OPERACIONAL (HITL & CAIXA DE ENTRADA)
+  const [systemAlerts, setSystemAlerts] = useState<any[]>([]);
+  const [engineMode, setEngineMode] = useState<'manual' | 'auto'>('manual');
+  const [isOracleOpen, setIsOracleOpen] = useState(false); // Estado da Gaveta (Drawer)
 
   const [selectedProjectId, setSelectedProjectId] = useState<string>("");
   const [selectedPackageForDeploy, setSelectedPackageForDeploy] = useState<string>("Pacote 1");
@@ -69,7 +74,7 @@ export default function AnalyticsPage() {
 
   const [adHocDemand, setAdHocDemand] = useState({ title: "", projectId: "", assigneeId: "", taskType: "", urgency: false });
 
-  // 🔥 ESTADOS DO MODO DE EDIÇÃO EM LOTE (BULK ACTIONS)
+  // 🔥 ESTADOS DO MODO DE EDIÇÃO EM LOTE
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
   const [selectedRuleIds, setSelectedRuleIds] = useState<string[]>([]);
@@ -77,13 +82,12 @@ export default function AnalyticsPage() {
   const [bulkAssigneeId, setBulkAssigneeId] = useState("");
   const [bulkDeadline, setBulkDeadline] = useState("");
 
-  // 🏢 GESTÃO UNIFICADA (PROJETOS + AGÊNCIAS)
+  // 🏢 GESTÃO UNIFICADA
   const [selectedEntityId, setSelectedEntityId] = useState<string>(""); 
   const [selectedEntityType, setSelectedEntityType] = useState<'project' | 'agency'>('project');
   const [agencies, setAgencies] = useState<any[]>([]);
   const [agencySubclients, setAgencySubclients] = useState<any[]>([]);
 
-  // 📍 MÓDULO DE LOGÍSTICA
   const [isCaptacaoModalOpen, setIsCaptacaoModalOpen] = useState(false);
   const [captacaoForm, setCaptacaoForm] = useState({ title: "", assigneeId: "", date: "", location: "", notes: "" });
 
@@ -94,19 +98,42 @@ export default function AnalyticsPage() {
     fetchOperationalData();
   }, [isGlobalLoading, activeProjects.length]);
 
-  // Limpa seleções de lote ao mudar de aba
   useEffect(() => {
     setSelectedTaskIds([]);
     setSelectedRuleIds([]);
   }, [activeView]);
 
+  // 🚀 AUTOMAÇÃO DO MOTOR: Vigia o modo Auto
+  useEffect(() => {
+    if (engineMode === 'auto' && !isLocalLoading && !isProcessing) {
+      const hasOrphans = tasks.some(t => !t.assigned_to && t.status === 'pending');
+      if (hasOrphans) {
+        handleAutoDispatch();
+      }
+    }
+  }, [engineMode, tasks, isLocalLoading]);
+
+  // ============================================================================
+  // 🛡️ OTIMIZAÇÃO DE INFRAESTRUTURA (LEAN FETCHING)
+  // ============================================================================
   const fetchOperationalData = async () => {
     setIsLocalLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
       
       const teamPromise = supabase.from('profiles').select('id, nome, role, avatar_url, skills, team_performance(exp_points, level_name)').in('role', ['admin', 'gestor', 'colaborador']);
-      const tasksPromise = supabase.from('tasks').select('*, projects(profiles(nome, avatar_url), type, service_type)').order('deadline', { ascending: true });
+      
+      // LEAN QUERY
+      const fifteenDaysAgo = new Date();
+      fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+      const isoDate = fifteenDaysAgo.toISOString();
+
+      const tasksPromise = supabase
+        .from('tasks')
+        .select('*, projects(profiles(nome, avatar_url), type, service_type)')
+        .or(`status.neq.completed,completed_at.gte.${isoDate}`)
+        .order('deadline', { ascending: true });
+
       const rulesPromise = supabase.from('routing_rules').select('*');
       const agenciesPromise = supabase.from('agencies').select('*').eq('status', 'active');
       const subclientsPromise = supabase.from('agency_subclients').select('*');
@@ -142,14 +169,19 @@ export default function AnalyticsPage() {
           };
         });
 
-        setTasks(mappedTasks);
+        // SEPARAÇÃO DO FLUXO
+        const standardTasks = mappedTasks.filter(t => t.project_id !== null || t.agency_id !== null);
+        const engineAlerts = mappedTasks.filter(t => t.project_id === null && t.agency_id === null);
+
+        setTasks(standardTasks);
+        setSystemAlerts(engineAlerts);
+
         setMetrics({
           activeProjects: validProjects.filter(p => p.status === 'active').length || 0,
-          pendingTasks: mappedTasks.filter(t => t.status !== 'completed').length || 0,
+          pendingTasks: standardTasks.filter(t => t.status !== 'completed').length || 0,
           totalTeam: resTeam.data.length || 0
         });
 
-        // Seleção inicial unificada
         if (!selectedEntityId) {
             if (validProjects.length > 0) {
                 setSelectedEntityId(validProjects[0].id);
@@ -161,15 +193,42 @@ export default function AnalyticsPage() {
         }
       }
 
-      if (session?.user) {
-        AtelierPMEngine.runDailyRiskMitigation(session.user.id);
-        AtelierPMEngine.calibrateUnitEconomics(session.user.id);
-      }
+      // 🚨 REMOVIDA DAQUI A CHAMADA AO MOTOR
     } catch (error) {
       console.error("Erro no Analytics:", error);
       showToast("Erro ao sincronizar Centro de Operações.");
     } finally {
       setIsLocalLoading(false);
+    }
+  };
+
+  // ============================================================================
+  // 🚀 BOOT DO MOTOR (Corre apenas 1 vez na abertura do painel)
+  // ============================================================================
+  useEffect(() => {
+    const bootEngine = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        await AtelierPMEngine.runDailyRiskMitigation(session.user.id);
+        await AtelierPMEngine.calibrateUnitEconomics(session.user.id);
+      }
+    };
+    bootEngine();
+  }, []); // Array de dependências VAZIO para não repetir
+
+  // ============================================================================
+  // 🚀 GATILHOS DO ATELIER PM ENGINE
+  // ============================================================================
+  const handleAutoDispatch = async () => {
+    setIsProcessing(true);
+    try {
+      await AtelierPMEngine.distributeUnassignedTasks();
+      showToast("Automação executada: O Motor alocou as tarefas pendentes.");
+      fetchOperationalData();
+    } catch (e) {
+      showToast("Erro na distribuição autónoma.");
+    } finally {
+      setIsProcessing(false);
     }
   };
 
@@ -185,7 +244,7 @@ export default function AnalyticsPage() {
   };
 
   // ============================================================================
-  // 🔥 FUNÇÕES DE EXECUÇÃO EM LOTE E LOGÍSTICA
+  // 🔥 FUNÇÕES DE EXECUÇÃO EM LOTE E LOGÍSTICA (Omitidas para brevidade, mantenha as originais)
   // ============================================================================
   const toggleTaskSelection = (id: string) => {
     if (selectedTaskIds.includes(id)) setSelectedTaskIds(selectedTaskIds.filter(tid => tid !== id));
@@ -517,7 +576,7 @@ export default function AnalyticsPage() {
   return (
     <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6 px-4 md:px-0">
       
-      {/* HEADER ORQUESTRADOR */}
+      {/* HEADER ORQUESTRADOR COM BOTÃO DO ORÁCULO NO CANTO DIREITO */}
       <header className="shrink-0 flex flex-col md:flex-row md:items-end justify-between gap-4 mt-6 animate-[fadeInUp_0.5s_ease-out]">
         <div>
           <div className="flex items-center gap-2 mb-1">
@@ -530,6 +589,7 @@ export default function AnalyticsPage() {
         </div>
         
         <div className="flex items-center gap-2">
+           
            <button 
              onClick={() => { setIsBulkMode(!isBulkMode); setSelectedTaskIds([]); setSelectedRuleIds([]); }} 
              className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all border ${isBulkMode ? 'bg-[var(--color-atelier-terracota)] text-white border-[var(--color-atelier-terracota)] shadow-md' : 'bg-white/60 text-[var(--color-atelier-grafite)]/60 hover:bg-white border-white shadow-sm'}`}
@@ -542,6 +602,18 @@ export default function AnalyticsPage() {
               <button onClick={() => setActiveView('projects')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'projects' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Visão de Projetos</button>
               <button onClick={() => setActiveView('routing')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'routing' ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Motor de Routing</button>
            </div>
+
+           {/* 🚀 O BOTÃO DO SINO DO ORÁCULO AQUI (À Direita de Tudo) */}
+           <button 
+             onClick={() => setIsOracleOpen(true)} 
+             className="flex items-center justify-center w-10 h-10 ml-2 bg-white/70 border border-white hover:bg-white rounded-xl shadow-sm transition-all text-[var(--color-atelier-grafite)] hover:shadow-md relative"
+             title="Painel do Oráculo"
+           >
+              <Bell size={18} className="text-[var(--color-atelier-terracota)]" />
+              {systemAlerts.length > 0 && (
+                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse border border-white"></span>
+              )}
+           </button>
         </div>
       </header>
 
@@ -597,6 +669,7 @@ export default function AnalyticsPage() {
               handleCompleteTask={handleCompleteTask}
               isIdvService={isIdvService}
               showToast={showToast}
+              handleStartTask={async () => {}} // Não injeta a ação
             />
           )}
 
@@ -656,6 +729,111 @@ export default function AnalyticsPage() {
         isProcessing={isProcessing}
         team={team}
       />
+
+      {/* =========================================================================
+          MODAL DRAWER: ORÁCULO E AUTOMAÇÃO (Painel Lateral do Admin)
+          ========================================================================= */}
+      <AnimatePresence>
+        {isOracleOpen && (
+          <>
+            <motion.div 
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setIsOracleOpen(false)}
+              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[100]"
+            />
+            <motion.div
+              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }}
+              transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+              className="fixed top-0 right-0 w-full max-w-md h-full bg-white shadow-2xl z-[101] flex flex-col border-l border-[var(--color-atelier-grafite)]/10"
+            >
+               {/* Cabeçalho do Drawer */}
+               <div className="p-6 border-b border-[var(--color-atelier-grafite)]/10 flex items-center justify-between bg-gray-50/50 shrink-0">
+                 <div className="flex items-center gap-4">
+                   <div className="w-12 h-12 rounded-2xl bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center">
+                      <Cpu size={24} />
+                   </div>
+                   <div>
+                     <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">Oráculo</h2>
+                     <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1 block">Central de Automação</span>
+                   </div>
+                 </div>
+                 <button onClick={() => setIsOracleOpen(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 transition-colors">
+                   <X size={16} />
+                 </button>
+               </div>
+
+               {/* Conteúdo Deslizável */}
+               <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-8">
+                  
+                  {/* Secção 1: Controlo do Motor */}
+                  <div>
+                     <div className="flex items-center justify-between mb-4">
+                       <h3 className="font-roboto text-[11px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">Motor Operacional</h3>
+                     </div>
+                     <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 flex flex-col gap-5 shadow-sm">
+                        <div className="flex items-center justify-between">
+                           <div className="flex flex-col">
+                             <span className="text-[13px] font-bold text-[var(--color-atelier-grafite)]">Modo de Distribuição</span>
+                             <span className="text-[10px] text-[var(--color-atelier-grafite)]/50 mt-0.5">Alocação de tarefas órfãs</span>
+                           </div>
+                           <span className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest ${engineMode === 'auto' ? 'bg-[var(--color-atelier-terracota)] text-white' : 'bg-gray-200 text-gray-600'}`}>
+                             {engineMode === 'auto' ? 'Automático' : 'HITL (Manual)'}
+                           </span>
+                        </div>
+
+                        {/* Toggle do Engine Mode */}
+                        <div className="flex bg-white border border-gray-200 p-1 rounded-xl shadow-inner">
+                           <button onClick={() => setEngineMode('manual')} className={`flex-1 py-2 rounded-lg font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${engineMode === 'manual' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-sm' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-gray-50'}`}>Manual</button>
+                           <button onClick={() => setEngineMode('auto')} className={`flex-1 py-2 rounded-lg font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${engineMode === 'auto' ? 'bg-[var(--color-atelier-terracota)] text-white shadow-sm' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-gray-50'}`}>Auto</button>
+                        </div>
+                        
+                        <button 
+                          onClick={handleAutoDispatch}
+                          disabled={isProcessing}
+                          className="w-full py-3.5 bg-[var(--color-atelier-grafite)] text-white rounded-xl text-[11px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-sm disabled:opacity-50"
+                        >
+                          {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} fill="currentColor"/>}
+                          Forçar Despacho de Tarefas
+                        </button>
+                     </div>
+                  </div>
+
+                  {/* Secção 2: Caixa de Entrada (Alertas do Sistema) */}
+                  <div>
+                     <div className="flex items-center justify-between mb-4">
+                       <h3 className="font-roboto text-[11px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">Inbox (Anomalias de Sistema)</h3>
+                       {systemAlerts.length > 0 && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-[10px] font-bold">{systemAlerts.length} pendentes</span>}
+                     </div>
+                     
+                     <div className="flex flex-col gap-4">
+                       {systemAlerts.length === 0 ? (
+                          <div className="text-center py-10 opacity-40 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                             <CheckSquare size={32} className="mx-auto mb-3 text-[var(--color-atelier-grafite)]" />
+                             <p className="font-elegant text-2xl">Inbox Limpa.</p>
+                             <p className="text-[11px] font-roboto max-w-[200px] mx-auto mt-1">O motor de IA não detetou desvios de orçamento ou gargalos.</p>
+                          </div>
+                       ) : (
+                          systemAlerts.map(alert => (
+                             <div key={alert.id} className="bg-orange-50 p-5 rounded-2xl border border-orange-100 flex flex-col gap-3 shadow-sm relative overflow-hidden group">
+                                <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-400"></div>
+                                <div className="flex items-start justify-between gap-3">
+                                  <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] leading-tight">{alert.title}</span>
+                                  <button onClick={() => handleCompleteTask(alert.id)} className="w-8 h-8 shrink-0 rounded-full bg-white border border-green-200 text-green-600 flex items-center justify-center hover:bg-green-500 hover:text-white transition-all shadow-sm" title="Aprovar / Resolvido">
+                                    <Check size={14} strokeWidth={3} />
+                                  </button>
+                                </div>
+                                <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/70 whitespace-pre-wrap leading-relaxed">{alert.description}</p>
+                             </div>
+                          ))
+                       )}
+                     </div>
+                  </div>
+
+               </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
     </div>
   );

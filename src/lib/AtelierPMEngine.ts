@@ -19,8 +19,7 @@ function extractNode<T>(node: any): T | null {
 
 export class AtelierPMEngine {
   // ============================================================================
-  // 🚀 OPORTUNIDADE 1: MAGIC NUMBERS -> CONSTANTES DE CONFIGURAÇÃO GERAL
-  // Permite que o CEO ou Painel de Controlo altere a sensibilidade do motor num só local
+  // 🚀 MAGIC NUMBERS -> CONSTANTES DE CONFIGURAÇÃO GERAL
   // ============================================================================
   public static CONFIG = {
     CAPACITY: {
@@ -54,8 +53,6 @@ export class AtelierPMEngine {
   /**
    * ============================================================================
    * 1. LOAD BALANCING & AUTO-ASSIGN INTELIGENTE (Otimização de Capacidade, Foco e EVM)
-   * 🚀 OPORTUNIDADE 3: O sistema agora rejeita alocações a pessoas com histórico mau (SPI) 
-   * no tipo específico da tarefa, procurando um talento mais ágil.
    * ============================================================================
    */
   static async getOptimalAssignee(taskType: string, projectId: string, defaultAssigneeId: string | null, estimatedMinutes: number = 60): Promise<string | null> {
@@ -63,26 +60,22 @@ export class AtelierPMEngine {
       const { data: team } = await supabase.from('profiles').select('id, skills').in('role', ['admin', 'gestor', 'colaborador']);
       if (!team || team.length === 0) return defaultAssigneeId;
 
-      // Filtra quem tem a Skill
       const skilledMembers = team.filter(m => m.skills && m.skills.includes(taskType));
       const candidates = skilledMembers.length > 0 ? skilledMembers : team;
 
       let bestCandidateId = defaultAssigneeId;
       let lowestEffectiveLoad = Number.MAX_VALUE;
       
-      // Janela de foco de 7 dias para evitar falsos positivos de Burnout
       const next7Days = addDays(new Date(), 7).toISOString();
 
-      // Busca dados históricos de EVM (Performance) de toda a equipa para este tipo de tarefa
       const { data: evmData } = await supabase
         .from('tasks')
         .select('assigned_to, estimated_time, actual_time')
         .eq('task_type', taskType)
         .eq('status', 'completed')
-        .gte('completed_at', addDays(new Date(), -90).toISOString()); // Últimos 90 dias
+        .gte('completed_at', addDays(new Date(), -90).toISOString()); 
 
       for (const candidate of candidates) {
-        // 1.1 Avaliação de Carga Atual (Load)
         const { data: pendingTasks } = await supabase
           .from('tasks')
           .select('project_id, estimated_time')
@@ -98,20 +91,18 @@ export class AtelierPMEngine {
           if (t.project_id === projectId) hasContext = true;
         });
 
-        // 1.2 Avaliação de Eficiência Histórica (SPI / EVM)
-        let spiModifier = 1; // 1 = Normal. >1 = Lento/Mau. <1 = Rápido/Excelente.
+        let spiModifier = 1; 
         if (evmData) {
           const myHistory = evmData.filter(t => t.assigned_to === candidate.id);
           if (myHistory.length >= 3) {
              const totalEst = myHistory.reduce((acc, t) => acc + (t.estimated_time || 60), 0);
              const totalAct = myHistory.reduce((acc, t) => acc + (t.actual_time || 60), 0);
-             spiModifier = totalAct / totalEst; // Ex: Demorou 120m numa tarefa de 60m = SPI 2.0 (Péssimo)
+             spiModifier = totalAct / totalEst; 
           }
         }
 
-        // 1.3 Cálculo Final
         const baseLoad = hasContext ? Math.max(0, rawLoad - this.CONFIG.CAPACITY.CONTEXT_SWITCH_BONUS) : rawLoad;
-        const effectiveLoad = baseLoad * spiModifier; // Penaliza candidatos lentos, favorecendo os ágeis
+        const effectiveLoad = baseLoad * spiModifier; 
 
         if (effectiveLoad < lowestEffectiveLoad) {
           lowestEffectiveLoad = effectiveLoad;
@@ -119,7 +110,6 @@ export class AtelierPMEngine {
         }
       }
 
-      // Verificação Final de Burnout do designado
       if (defaultAssigneeId && bestCandidateId !== defaultAssigneeId) {
         const defaultTasks = await supabase.from('tasks')
           .select('estimated_time')
@@ -130,7 +120,7 @@ export class AtelierPMEngine {
         const defaultLoad = defaultTasks.data?.reduce((acc, t) => acc + (t.estimated_time || 60), 0) || 0;
         
         if (defaultLoad + estimatedMinutes > this.CONFIG.CAPACITY.BURNOUT_THRESHOLD) {
-          return bestCandidateId; // Bypass!
+          return bestCandidateId; 
         }
       }
 
@@ -138,6 +128,53 @@ export class AtelierPMEngine {
     } catch (error) {
       console.error("[PM Engine] Erro no Load Balancing Inteligente:", error);
       return defaultAssigneeId;
+    }
+  }
+
+  /**
+   * ============================================================================
+   * 1.5 AUTO-DISPATCHER (Distribuição Autónoma da Linha de Montagem)
+   * NOVO: O Motor agora varre a base de dados procurando tarefas não atribuídas 
+   * e distribui-as autonomamente pelas pessoas da equipa para garantir o fluxo.
+   * ============================================================================
+   */
+  static async distributeUnassignedTasks(projectId?: string) {
+    try {
+      let query = supabase.from('tasks')
+        .select('id, title, task_type, estimated_time, project_id, description')
+        .is('assigned_to', null) // Tarefas "órfãs"
+        .in('status', ['pending'])
+        .order('deadline', { ascending: true }); // Prioriza as que vencem mais cedo
+
+      if (projectId) query = query.eq('project_id', projectId);
+
+      const { data: unassignedTasks, error } = await query;
+      if (error || !unassignedTasks || unassignedTasks.length === 0) return;
+
+      for (const task of unassignedTasks) {
+        const optimalUserId = await this.getOptimalAssignee(
+          task.task_type || 'design', // Recai para 'design' como fallback genérico
+          task.project_id,
+          null,
+          task.estimated_time || 60
+        );
+
+        if (optimalUserId) {
+          // Atualiza a tarefa vinculando o novo responsável e registando no log
+          await supabase.from('tasks')
+            .update({ 
+              assigned_to: optimalUserId,
+              description: task.description 
+                ? `[Auto-Alocado pelo Sistema]\n${task.description}` 
+                : `[Auto-Alocado pelo Sistema]\nTarefa distribuída automaticamente pela IA de gestão baseada na sua capacidade e skills atuais.`
+            })
+            .eq('id', task.id);
+            
+          console.log(`[PM Engine] Despacho Ativo: Tarefa "${task.title}" alocada de forma autónoma.`);
+        }
+      }
+    } catch (error) {
+      console.error("[PM Engine] Erro na distribuição autónoma de tarefas:", error);
     }
   }
 
@@ -173,6 +210,8 @@ export class AtelierPMEngine {
   /**
    * ============================================================================
    * 3. RISK MITIGATION (Schedule Performance Index - SPI Tracker)
+   * CORREÇÃO: O sistema agora detalha QUAIS atividades estão a causar o desvio
+   * diretamente na descrição, para o Gestor poder atuar rápido.
    * ============================================================================
    */
   static async runDailyRiskMitigation(adminId: string) {
@@ -189,24 +228,29 @@ export class AtelierPMEngine {
 
       if (!urgentTasks) return;
 
-      const dangerMap: Record<string, { name: string, totalMinutes: number, tasks: number }> = {};
+      const dangerMap: Record<string, { name: string, totalMinutes: number, tasks: number, specificTasks: string[] }> = {};
       
       urgentTasks.forEach((t: any) => {
         const profileObj = extractNode<{ nome: string }>(t.profiles);
         const name = profileObj?.nome || "Membro Desconhecido";
 
-        if (!dangerMap[t.assigned_to]) dangerMap[t.assigned_to] = { name, totalMinutes: 0, tasks: 0 };
+        if (!dangerMap[t.assigned_to]) dangerMap[t.assigned_to] = { name, totalMinutes: 0, tasks: 0, specificTasks: [] };
         dangerMap[t.assigned_to].totalMinutes += (t.estimated_time || 60);
         dangerMap[t.assigned_to].tasks += 1;
+        dangerMap[t.assigned_to].specificTasks.push(t.title); // Guarda o nome das tarefas para o relatório
       });
 
       for (const [assigneeId, data] of Object.entries(dangerMap)) {
         if (data.totalMinutes > this.CONFIG.CAPACITY.DAILY_MAX_MINUTES) {
+          
+          // Formata a lista de tarefas críticas
+          const taskListStr = data.specificTasks.map(t => `• ${t}`).join('\n');
+          
           await supabase.from('tasks').insert({
             project_id: null, 
             assigned_to: adminId,
             title: `🚨 Gargalo Eminente (SPI < 1): ${data.name}`,
-            description: `Alerta Vermelho: ${data.name} acumula ${(data.totalMinutes / 60).toFixed(1)}h de esforço crítico a vencer nas próximas 48h. Intervenção exigida.`,
+            description: `Alerta Vermelho: ${data.name} acumula ${(data.totalMinutes / 60).toFixed(1)}h de esforço crítico a vencer nas próximas 48h.\n\nATIVIDADES EM ATRASO/RISCO:\n${taskListStr}\n\nIntervenção exigida para reagendar ou redistribuir a carga e proteger os prazos finais.`,
             urgency: true,
             status: 'pending',
             stage: 'Mitigação de Risco',
@@ -314,8 +358,6 @@ export class AtelierPMEngine {
   /**
    * ============================================================================
    * 6. CYCLE TIME TRACKER (INÍCIO DA TAREFA)
-   * 🚀 OPORTUNIDADE 2: Marca o momento exato em que a tarefa começou a ser feita.
-   * Necessário para medir o "Cycle Time" real da equipa contra o "Lead Time".
    * ============================================================================
    */
   static async startTask(taskId: string, userId: string) {
@@ -325,10 +367,10 @@ export class AtelierPMEngine {
         .from('tasks')
         .update({ 
           status: 'in_progress', 
-          started_at: now // *Nota: Garanta que esta coluna 'started_at' existe na tabela 'tasks' no Supabase*
+          started_at: now 
         })
         .eq('id', taskId)
-        .eq('assigned_to', userId); // Garante que só o dono da tarefa a pode iniciar
+        .eq('assigned_to', userId); 
 
       if (error) throw error;
       
@@ -524,12 +566,14 @@ export class AtelierPMEngine {
   /**
    * ============================================================================
    * 12. CALIBRAÇÃO BIDIRECIONAL (Earned Value Management - EVM Loop)
+   * CORREÇÃO DE DUPLICAÇÃO: O motor agora tem memória de curto prazo mais rigorosa.
    * ============================================================================
    */
   static async calibrateUnitEconomics(adminId: string) {
     try {
       const thirtyDaysAgo = addDays(new Date(), -30).toISOString();
 
+      // 1. Puxa as métricas reais dos últimos 30 dias
       const { data: completedTasks } = await supabase
         .from('tasks')
         .select('title, task_type, estimated_time, actual_time')
@@ -567,8 +611,15 @@ export class AtelierPMEngine {
           }
 
           if (alertTitle) {
-            const { data: existingAlerts } = await supabase.from('tasks').select('id').eq('title', alertTitle).gte('created_at', thirtyDaysAgo).limit(1);
+            // 2. VERIFICAÇÃO RIGOROSA: Já emiti este alerta exato recentemente?
+            const { data: existingAlerts } = await supabase
+              .from('tasks')
+              .select('id')
+              .eq('title', alertTitle) // Procura EXATAMENTE este título
+              .eq('stage', 'Otimização Sistémica') // Garante que é um ticket do motor
+              .limit(1);
 
+            // 3. Apenas insere se a resposta for rigorosamente vazia
             if (!existingAlerts || existingAlerts.length === 0) {
               await supabase.from('tasks').insert({
                 project_id: null,
@@ -581,6 +632,7 @@ export class AtelierPMEngine {
                 task_type: 'setup',
                 deadline: addBusinessDays(new Date(), 5).toISOString()
               });
+              console.log(`[PM Engine] EVM Calibrado: Novo Alerta gerado para "${taskName}"`);
             }
           }
         }

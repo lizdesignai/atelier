@@ -33,6 +33,7 @@ interface ProjectsManagerProps {
   handleCompleteTask: (id: string) => void;
   isIdvService: (project: any) => boolean;
   showToast: (msg: string) => void;
+  handleStartTask: (taskId: string, userId: string) => Promise<void>;
 }
 
 export default function ProjectsManager({
@@ -60,7 +61,8 @@ export default function ProjectsManager({
   setEditingTask,
   handleCompleteTask,
   isIdvService,
-  showToast
+  showToast,
+  handleStartTask
 }: ProjectsManagerProps) {
 
   return (

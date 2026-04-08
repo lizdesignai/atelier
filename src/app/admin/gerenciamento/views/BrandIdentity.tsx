@@ -43,7 +43,6 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
   const [labData, setLabData] = useState<any>(null);
 
   // 1. CARREGAMENTO ISOLADO (Lazy Fetching)
-  // Só carrega os dados quando o componente é montado na tela.
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
@@ -96,7 +95,7 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
     fetchData();
   }, [activeProjectId, currentProject]);
 
-  // 2. FUNÇÃO: DEVOLVER BRIEFING
+  // 2. FUNÇÃO: DEVOLVER BRIEFING (Com disparo de Notificação Automática)
   const handleReturnBriefing = async () => {
     if (!briefing || !window.confirm("Tem certeza que deseja devolver este briefing ao cliente para ser refeito?")) return;
     setIsProcessing(true);
@@ -107,8 +106,23 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
         .eq('id', briefing.id);
         
       if (error) throw error;
+
+      // DISPARO DE NOTIFICAÇÃO PARA O CLIENTE
+      const clientEmail = currentProject?.profiles?.email;
+      if (clientEmail) {
+        await fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: clientEmail,
+            type: 'briefing_returned',
+            clientName: currentProject.profiles.nome?.split(' ')[0] || 'Cliente',
+            projectName: currentProject.profiles.nome || 'o seu projeto'
+          })
+        });
+      }
       
-      showToast("Briefing devolvido ao cliente com sucesso.");
+      showToast("Briefing devolvido. O cliente foi notificado por e-mail.");
       setBriefing(null); // Limpa da tela instantaneamente
     } catch (e) {
       showToast("Erro ao devolver briefing.");
@@ -117,12 +131,11 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
     }
   };
 
-  // 3. FUNÇÃO: COMPILAR IA (Novo Endpoint)
+  // 3. FUNÇÃO: COMPILAR IA
   const handleGenerateSourceCode = async () => {
     if (!labData) { showToast("O cliente ainda não preencheu o Laboratório."); return; }
     setIsProcessing(true);
     try {
-      // Rota atualizada conforme a sua instrução
       const res = await fetch('/api/insights/instagram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -141,7 +154,7 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
       await supabase.from('brandbook_laboratory').update({ ai_source_code: data.insight }).eq('id', labData.id);
       await supabase.from('projects').update({ instagram_ai_insight: data.insight }).eq('id', activeProjectId);
       
-      setLabData({ ...labData, ai_source_code: data.insight }); // Atualiza estado local
+      setLabData({ ...labData, ai_source_code: data.insight });
       showToast("Código-Fonte CMO Compilado! ✨");
     } catch (e) { 
       showToast("Erro ao processar a IA."); 
@@ -187,7 +200,6 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
     }
   };
 
-  // Renderização de Loading Modular
   if (isLoading) {
     return (
       <div className="flex h-full min-h-[400px] items-center justify-center glass-panel bg-white/50 rounded-2xl border border-white">
