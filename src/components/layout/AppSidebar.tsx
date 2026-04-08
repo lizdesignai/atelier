@@ -7,21 +7,19 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
 import { 
-  Home, Lock, MessageSquare, Settings, 
-  ChevronLeft, ChevronRight, LogOut, Compass,
-  LayoutDashboard, FolderKanban, Users, Inbox, BarChart3, Shield,
-  Globe2, Camera, CheckCircle2, DollarSign, BrainCircuit, Sparkles, Briefcase, Crosshair
+  Home, Lock, MessageSquare, ChevronLeft, ChevronRight, 
+  Compass, LayoutDashboard, FolderKanban, Users, Inbox, 
+  Globe2, CheckCircle2, DollarSign, Sparkles, Briefcase, Crosshair
 } from "lucide-react";
 
 interface AppSidebarProps {
   userRole: string;
-  handleLogout: () => void;
+  handleLogout: () => void; // Mantido na interface para não quebrar o layout.tsx superior, mas já não é usado aqui
   onHideSidebar: (hidden: boolean) => void;
 }
 
-export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: AppSidebarProps) {
+export default function AppSidebar({ userRole, onHideSidebar }: AppSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [userProfile, setUserProfile] = useState<any>(null);
   const [clientServiceType, setClientServiceType] = useState<string>("Identidade Visual");
   const [isProjectArchived, setIsProjectArchived] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -29,18 +27,16 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   const pathname = usePathname();
   const router = useRouter();
   
-  // HIERARQUIA DE ACESSO (Alteração Cirúrgica)
+  // HIERARQUIA DE ACESSO
   const isTeamMember = ['admin', 'gestor', 'colaborador'].includes(userRole);
   const isManagerOrAdmin = ['admin', 'gestor'].includes(userRole);
   const isAdminOnly = userRole === 'admin';
 
+  // LÓGICA CORE INTACTA
   useEffect(() => {
     const fetchSidebarData = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
-
-      const { data: profile } = await supabase.from('profiles').select('nome, avatar_url, empresa, cargo').eq('id', session.user.id).single();
-      if (profile) setUserProfile(profile);
 
       if (!isTeamMember) {
         const { data: project } = await supabase
@@ -78,7 +74,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
 
         const isInstagram = service === "Gestão de Instagram";
 
-        // BLINDAGEM DE ROTAS (Routing de Segurança)
+        // BLINDAGEM DE ROTAS
         if (shouldArchive) {
           const lockedRoutes = ['/', '/cofre', '/referencias', '/cockpit', '/curadoria', '/cofre-missoes'];
           if (lockedRoutes.includes(pathname)) router.replace('/comunidade');
@@ -102,19 +98,19 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   return (
     <motion.aside 
       initial={false}
-      animate={{ width: isCollapsed ? 100 : 280 }}
-      transition={{ type: "spring", stiffness: 300, damping: 30 }}
+      animate={{ width: isCollapsed ? 88 : 280 }}
+      transition={{ type: "spring", stiffness: 350, damping: 35 }}
       className={`
-        relative z-50 flex flex-col shrink-0
-        bg-white/40 backdrop-blur-3xl border-r border-white/60 
-        shadow-[4px_0_24px_rgba(122,116,112,0.05)]
+        relative z-50 flex flex-col shrink-0 h-screen
+        bg-white/50 backdrop-blur-2xl border-r border-white/60 
+        shadow-[8px_0_30px_rgba(122,116,112,0.03)]
       `}
     >
-      {/* CABEÇALHO DA SIDEBAR */}
-      <div className={`p-8 flex items-center h-32 shrink-0 ${isCollapsed ? 'justify-center' : 'justify-start gap-4'}`}>
-        <div className="w-12 h-12 shrink-0 relative group cursor-pointer">
-          <div className="absolute inset-0 bg-[var(--color-atelier-terracota)]/30 rounded-full blur-lg group-hover:scale-150 transition-transform duration-700 opacity-0 group-hover:opacity-100"></div>
-          <img src="/images/simbolo-rosa.png" alt="Atelier" className="w-full h-full object-contain relative z-10 drop-shadow-md" />
+      {/* CABEÇALHO DA SIDEBAR: LOGO E BRANDING */}
+      <div className={`pt-10 pb-6 px-6 flex items-center h-28 shrink-0 ${isCollapsed ? 'justify-center px-0' : 'justify-start gap-4'}`}>
+        <div className="w-10 h-10 shrink-0 relative group cursor-pointer flex items-center justify-center">
+          <div className="absolute inset-0 bg-[var(--color-atelier-terracota)]/20 rounded-full blur-xl group-hover:scale-150 transition-transform duration-700 opacity-0 group-hover:opacity-100"></div>
+          <img src="/images/simbolo-rosa.png" alt="Atelier" className="w-8 h-8 object-contain relative z-10 drop-shadow-sm transition-transform duration-500 group-hover:scale-105" />
         </div>
         
         <AnimatePresence mode="wait">
@@ -125,8 +121,8 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               exit={{ opacity: 0, x: -10, transition: { duration: 0.1 } }}
               className="flex flex-col overflow-hidden whitespace-nowrap"
             >
-              <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none mb-1">Atelier</span>
-              <span className="font-roboto text-[0.6rem] text-[var(--color-atelier-terracota)] tracking-[0.2em] uppercase font-bold">
+              <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none mb-0.5 tracking-tight">Atelier</span>
+              <span className="font-roboto text-[0.55rem] text-[var(--color-atelier-terracota)] tracking-[0.25em] uppercase font-bold">
                 {isTeamMember ? 'Studio HQ' : 'Portal do Cliente'}
               </span>
             </motion.div>
@@ -134,128 +130,91 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
         </AnimatePresence>
       </div>
 
-      {/* BOTÃO DE COLAPSO */}
+      {/* BOTÃO DE COLAPSO (Design Refinado) */}
       <button 
         onClick={() => setIsCollapsed(!isCollapsed)}
-        className="absolute -right-3.5 top-14 bg-white border border-[var(--color-atelier-grafite)]/10 shadow-[0_4px_12px_rgba(0,0,0,0.05)] text-[var(--color-atelier-grafite)] rounded-full w-7 h-7 flex items-center justify-center cursor-pointer z-50 hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-colors duration-300 hover:border-transparent"
+        className="absolute -right-3.5 top-16 bg-white border border-[var(--color-atelier-grafite)]/10 shadow-[0_4px_12px_rgba(0,0,0,0.06)] text-[var(--color-atelier-grafite)]/60 rounded-full w-7 h-7 flex items-center justify-center cursor-pointer z-50 hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all duration-300 hover:scale-110 hover:border-transparent"
       >
-        {isCollapsed ? <ChevronRight size={14} strokeWidth={3} /> : <ChevronLeft size={14} strokeWidth={3} />}
+        {isCollapsed ? <ChevronRight size={14} strokeWidth={2.5} /> : <ChevronLeft size={14} strokeWidth={2.5} />}
       </button>
 
-      {/* ÁREA DE NAVEGAÇÃO */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-6 custom-scrollbar relative">
+      {/* ÁREA DE NAVEGAÇÃO LÍMPIDA */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-4 custom-scrollbar relative">
         <AnimatePresence>
           {!isCollapsed && (
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              className="text-[0.65rem] uppercase font-bold text-[var(--color-atelier-grafite)]/40 tracking-[0.15em] mb-4 pl-4"
+              className="text-[0.6rem] uppercase font-bold text-[var(--color-atelier-grafite)]/30 tracking-[0.2em] mb-4 pl-4 mt-2"
             >
               {isTeamMember ? 'Operacional' : 'Visão Geral'}
             </motion.div>
           )}
         </AnimatePresence>
         
-        <nav className="flex flex-col gap-1.5 relative">
+        <nav className="flex flex-col gap-2 relative pb-10">
+          
           {/* MENU PARA CLIENTES */}
           {!isTeamMember && (
             <>
               {clientServiceType === "Gestão de Instagram" ? (
                 <>
-                  <NavItem href="/cockpit" icon={<LayoutDashboard size={20} strokeWidth={1.75} />} label="Comece por aqui" collapsed={isCollapsed} active={pathname === '/cockpit'} />
-                  <NavItem href="/brandbook" icon={<Sparkles size={20} strokeWidth={1.75} />} label="Sua Marca" collapsed={isCollapsed} active={pathname === '/brandbook'} />
-                  <NavItem href="/curadoria" icon={<CheckCircle2 size={20} strokeWidth={1.75} />} label="Curadoria" collapsed={isCollapsed} active={pathname === '/curadoria'} />
+                  <NavItem href="/cockpit" icon={<LayoutDashboard size={18} strokeWidth={1.5} />} label="Cockpit" collapsed={isCollapsed} active={pathname === '/cockpit'} />
+                  <NavItem href="/brandbook" icon={<Sparkles size={18} strokeWidth={1.5} />} label="Brandbook" collapsed={isCollapsed} active={pathname === '/brandbook'} />
+                  <NavItem href="/curadoria" icon={<CheckCircle2 size={18} strokeWidth={1.5} />} label="Curadoria" collapsed={isCollapsed} active={pathname === '/curadoria'} />
                 </>
               ) : (
                 <>
-                  <NavItem href="/" icon={<Home size={20} strokeWidth={1.75} />} label="Comece por aqui" collapsed={isCollapsed} active={pathname === '/'} />
-                  <NavItem href="/cofre" icon={<Lock size={20} strokeWidth={1.75} />} label="O Cofre" collapsed={isCollapsed} active={pathname === '/cofre'} />
-                  <NavItem href="/referencias" icon={<Compass size={20} strokeWidth={1.75} />} label="Referências" collapsed={isCollapsed} active={pathname === '/referencias'} />
+                  <NavItem href="/" icon={<Home size={18} strokeWidth={1.5} />} label="Cockpit" collapsed={isCollapsed} active={pathname === '/'} />
+                  <NavItem href="/cofre" icon={<Lock size={18} strokeWidth={1.5} />} label="O Cofre" collapsed={isCollapsed} active={pathname === '/cofre'} />
+                  <NavItem href="/referencias" icon={<Compass size={18} strokeWidth={1.5} />} label="Referências" collapsed={isCollapsed} active={pathname === '/referencias'} />
                 </>
               )}
-              <div className="h-px bg-[var(--color-atelier-grafite)]/5 my-2 w-full"></div>
-              <NavItem href="/canais" icon={<MessageSquare size={20} strokeWidth={1.75} />} label="Canais" collapsed={isCollapsed} active={pathname === '/canais'} />
-              <NavItem href="/comunidade" icon={<Globe2 size={20} strokeWidth={1.75} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
+              
+              <div className="flex items-center justify-center my-3 opacity-20">
+                <div className="w-full h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
+              </div>
+              
+              <NavItem href="/canais" icon={<MessageSquare size={18} strokeWidth={1.5} />} label="Canais" collapsed={isCollapsed} active={pathname === '/canais'} />
+              <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
             </>
           )}
 
-          {/* MENU PARA EQUIPA (Modificado Cirurgicamente) */}
+          {/* MENU PARA EQUIPA DO ESTÚDIO */}
           {isTeamMember && (
             <>
-              {/* Visto por todos (Admin, Gestor, Colaborador) */}
-              <NavItem href="/admin/jtbd" icon={<Crosshair size={20} strokeWidth={1.75} />} label="Focus" collapsed={isCollapsed} active={pathname === '/admin/jtbd'} />
-              <NavItem href="/admin" icon={<LayoutDashboard size={20} strokeWidth={1.75} />} label="Gestão" collapsed={isCollapsed} active={pathname === '/admin'} />
-              <NavItem href="/admin/projetos" icon={<FolderKanban size={20} strokeWidth={1.75} />} label="Estúdio" collapsed={isCollapsed} active={pathname === '/admin/projetos'} />
-              <NavItem href="/admin/inbox" icon={<Inbox size={20} strokeWidth={1.75} />} label="Caixa de Entrada" collapsed={isCollapsed} active={pathname === '/admin/inbox'} />
-              <NavItem href="/comunidade" icon={<Globe2 size={20} strokeWidth={1.75} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
+              {/* Visto por todos */}
+              <NavItem href="/admin/jtbd" icon={<Crosshair size={18} strokeWidth={1.5} />} label="Focus" collapsed={isCollapsed} active={pathname === '/admin/jtbd'} />
+              <NavItem href="/admin" icon={<LayoutDashboard size={18} strokeWidth={1.5} />} label="Gestão" collapsed={isCollapsed} active={pathname === '/admin'} />
+              <NavItem href="/admin/projetos" icon={<FolderKanban size={18} strokeWidth={1.5} />} label="Estúdio" collapsed={isCollapsed} active={pathname === '/admin/projetos'} />
+              <NavItem href="/admin/inbox" icon={<Inbox size={18} strokeWidth={1.5} />} label="Inbox" collapsed={isCollapsed} active={pathname === '/admin/inbox'} />
+              <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
               
-              <div className="h-px bg-[var(--color-atelier-grafite)]/5 my-2 w-full"></div>
+              <div className="flex items-center justify-center my-3 opacity-20">
+                <div className="w-full h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
+              </div>
               
               {/* Visto apenas por Gestor e Admin */}
               {isManagerOrAdmin && (
                 <>
-                  <NavItem href="/admin/clientes" icon={<Users size={20} strokeWidth={1.75} />} label="Base de Clientes" collapsed={isCollapsed} active={pathname === '/admin/clientes'} />
-                  <NavItem href="/admin/analytics" icon={<Briefcase size={20} strokeWidth={1.75} />} label="Analytics" collapsed={isCollapsed} active={pathname === '/admin/analytics'} />
+                  <NavItem href="/admin/clientes" icon={<Users size={18} strokeWidth={1.5} />} label="Clientes" collapsed={isCollapsed} active={pathname === '/admin/clientes'} />
+                  <NavItem href="/admin/analytics" icon={<Briefcase size={18} strokeWidth={1.5} />} label="Analytics" collapsed={isCollapsed} active={pathname === '/admin/analytics'} />
                 </>
               )}
 
-              {/* Visto apenas por Admin (O Dono) */}
+              {/* Visto apenas por Admin */}
               {isAdminOnly && (
-                <NavItem href="/admin/financeiro" icon={<DollarSign size={20} strokeWidth={1.75} />} label="Financeiro" collapsed={isCollapsed} active={pathname === '/admin/financeiro'} />
+                <NavItem href="/admin/financeiro" icon={<DollarSign size={18} strokeWidth={1.5} />} label="Financeiro" collapsed={isCollapsed} active={pathname === '/admin/financeiro'} />
               )}
             </>
           )}
         </nav>
-      </div>
-
-      {/* RODAPÉ DO PERFIL */}
-      <div className="p-6 border-t border-[var(--color-atelier-grafite)]/10 flex flex-col gap-2 shrink-0 bg-white/30">
-        <AnimatePresence>
-          {!isCollapsed && (
-            <motion.div 
-              initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
-              className="flex items-center gap-3 mb-2 p-2.5 rounded-2xl bg-white/60 border border-white shadow-[0_2px_10px_rgba(0,0,0,0.02)] cursor-pointer hover:bg-white hover:shadow-md transition-all group"
-              onClick={() => router.push('/configuracoes')}
-            >
-              <div className="w-10 h-10 rounded-xl overflow-hidden shadow-inner shrink-0 border border-[var(--color-atelier-grafite)]/5 flex items-center justify-center bg-[var(--color-atelier-grafite)] text-white group-hover:scale-105 transition-transform">
-                {userProfile?.avatar_url ? (
-                  <img src={userProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-                ) : (
-                  isTeamMember ? <Shield size={18} /> : <span className="font-elegant text-xl">{userProfile?.nome?.charAt(0) || "U"}</span>
-                )}
-              </div>
-              <div className="flex flex-col overflow-hidden">
-                <span className="font-roboto text-[13px] font-bold text-[var(--color-atelier-grafite)] truncate">
-                  {userProfile?.nome || (isTeamMember ? 'Atelier Team' : 'Cliente')}
-                </span>
-                <span className="font-roboto text-[9px] text-[var(--color-atelier-terracota)] font-bold uppercase tracking-widest truncate">
-                  {/* Etiqueta dinâmica de cargo adaptada para a nova hierarquia */}
-                  {userRole === 'admin' ? 'Administrador' : userRole === 'gestor' ? 'Gestor de Conta' : userRole === 'colaborador' ? 'Membro da Equipa' : 'Cliente Premium'}
-                </span>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <div className="flex flex-col gap-1">
-          <NavItem href="/configuracoes" icon={<Settings size={20} strokeWidth={1.75} />} label="Ajustes" collapsed={isCollapsed} active={pathname === '/configuracoes'} />
-          <button 
-            onClick={handleLogout} 
-            className={`relative flex items-center ${isCollapsed ? 'justify-center' : 'justify-start'} gap-4 p-3 rounded-2xl text-[var(--color-atelier-grafite)]/60 hover:text-red-500 transition-colors duration-300 group w-full overflow-hidden`}
-          >
-            <div className="absolute inset-0 bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl -z-10"></div>
-            <div className="relative z-10 group-hover:-translate-x-1 transition-transform">
-              <LogOut size={20} strokeWidth={1.75} />
-            </div>
-            {!isCollapsed && <span className="relative z-10 font-bold text-[13px] tracking-wide whitespace-nowrap">Desconectar</span>}
-          </button>
-        </div>
       </div>
     </motion.aside>
   );
 }
 
 // ==========================================
-// COMPONENTE DE ITEM DE NAVEGAÇÃO COM FÍSICA
+// COMPONENTE DE ITEM DE NAVEGAÇÃO COM FÍSICA E UX PREMIUM
 // ==========================================
 function NavItem({ href, icon, label, collapsed, active }: { href: string, icon: React.ReactNode, label: string, collapsed: boolean, active: boolean }) {
   return (
@@ -263,27 +222,27 @@ function NavItem({ href, icon, label, collapsed, active }: { href: string, icon:
       href={href} 
       title={collapsed ? label : ""} 
       className={`
-        relative flex items-center ${collapsed ? 'justify-center' : 'justify-start'} gap-4 p-3 rounded-2xl 
-        font-roboto text-[14px] font-bold transition-colors duration-300 group overflow-hidden outline-none
-        ${active ? "text-[var(--color-atelier-terracota)]" : "text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]"}
+        relative flex items-center ${collapsed ? 'justify-center' : 'justify-start pl-4'} gap-4 p-3 rounded-[1rem] 
+        font-roboto text-[13px] transition-colors duration-300 group overflow-hidden outline-none
+        ${active ? "text-[var(--color-atelier-terracota)] font-bold" : "text-[var(--color-atelier-grafite)]/60 font-medium hover:text-[var(--color-atelier-grafite)]"}
       `}
     >
-      {/* PÍLULA MAGNÉTICA (A Máxima Sofisticação Visual) */}
+      {/* PÍLULA MAGNÉTICA (Active State Glassmorphism) */}
       {active && (
         <motion.div
           layoutId="sidebar-active-pill"
-          className="absolute inset-0 bg-white shadow-[0_2px_10px_rgba(0,0,0,0.03)] border border-white rounded-2xl -z-10"
-          transition={{ type: "spring", stiffness: 350, damping: 30 }}
+          className="absolute inset-0 bg-white/80 shadow-[0_2px_12px_rgba(0,0,0,0.04)] border border-white rounded-[1rem] -z-10"
+          transition={{ type: "spring", stiffness: 400, damping: 35 }}
         />
       )}
       
       {/* EFEITO HOVER SECUNDÁRIO */}
       {!active && (
-        <div className="absolute inset-0 bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-2xl -z-10"></div>
+        <div className="absolute inset-0 bg-white/40 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1rem] -z-10"></div>
       )}
 
-      {/* ÍCONE COM MICRO-INTERAÇÃO */}
-      <div className={`relative z-10 flex items-center justify-center transition-transform duration-300 ${!active && 'group-hover:scale-110'}`}>
+      {/* ÍCONE COM MICRO-INTERAÇÃO (Scale e Color Shift) */}
+      <div className={`relative z-10 flex items-center justify-center transition-transform duration-300 ${!active && 'group-hover:scale-110 group-hover:text-[var(--color-atelier-terracota)]/70'}`}>
         {icon}
       </div>
 

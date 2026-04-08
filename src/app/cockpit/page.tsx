@@ -68,16 +68,18 @@ export default function CockpitPage() {
           setCurrentFocus(proj.current_focus || "Liz está a analisar a sua audiência...");
 
           // 3. Buscar Dados de Gargalo (Posts Pendentes)
-          const { count: postsCount } = await supabase.from('social_posts').select('*', { count: 'exact', head: true }).eq('project_id', proj.id).in('status', ['pending_approval', 'needs_revision']);
+          // O Cliente só deve ver o que precisa da SUA aprovação ('pending_approval')
+          const { count: postsCount } = await supabase.from('social_posts').select('*', { count: 'exact', head: true }).eq('project_id', proj.id).eq('status', 'pending_approval');
           setPendingCount(postsCount || 0);
 
           if (proj.type === 'Gestão de Instagram' || proj.service_type === 'Gestão de Instagram') {
-            // 4. Buscar Briefing de Instagram (Ignorando os devolvidos!)
+            
+            // CORREÇÃO CRÍTICA DO BRIEFING: Apanha status que não seja 'returned', mas também abraça os NULLs!
             const { data: brief } = await supabase
               .from('instagram_briefings')
               .select('*')
               .eq('project_id', proj.id)
-              .neq('status', 'returned') // <--- CORREÇÃO AQUI (O FILTRO MÁGICO)
+              .or('status.neq.returned,status.is.null')
               .order('created_at', { ascending: false })
               .limit(1)
               .maybeSingle();
@@ -93,7 +95,8 @@ export default function CockpitPage() {
             setPendingDirections(pendingDirs);
 
             // 7. Buscar Planeamento Editorial Mensal (Ideias de Posts Pendentes de Texto)
-            const { data: plans } = await supabase.from('content_planning').select('*').eq('project_id', proj.id).in('status', ['pending', 'needs_revision']).order('publish_date', { ascending: true });
+            // CORREÇÃO DE UX: O Cliente só vê ideias pendentes. Se estiver 'needs_revision', a bola está com a equipa.
+            const { data: plans } = await supabase.from('content_planning').select('*').eq('project_id', proj.id).eq('status', 'pending').order('publish_date', { ascending: true });
             if (plans) setMonthlyPlan(plans);
           }
         }
@@ -162,10 +165,12 @@ export default function CockpitPage() {
     }
     setIsProcessing(true);
     try {
-      await supabase.from('content_planning').update({ status: 'rejected', feedback: feedback }).eq('id', planId);
+      // CORREÇÃO DA MÁQUINA DE ESTADOS: status volta para 'needs_revision' para a equipa ver no painel!
+      await supabase.from('content_planning').update({ status: 'needs_revision', feedback: feedback }).eq('id', planId);
+      
       setMonthlyPlan(monthlyPlan.filter(p => p.id !== planId));
       setActiveFeedbackId(null);
-      showToast("Feedback enviado. A estratégia será reformulada.");
+      showToast("Feedback enviado. A estratégia voltou para a mesa da equipa de conteúdo.");
     } catch (error) {
       showToast("Erro ao enviar feedback.");
     } finally {

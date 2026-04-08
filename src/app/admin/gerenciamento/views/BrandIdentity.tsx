@@ -49,13 +49,13 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
       try {
         if (!activeProjectId) return;
 
-        // Busca do Briefing Inicial (Garante que não pega os devolvidos 'returned')
+        // Busca do Briefing Inicial (Garante que não pega os devolvidos 'returned', mas aceita NULLs)
         let foundBriefing = null;
         const { data: briefByProj } = await supabase
           .from('instagram_briefings')
           .select('*')
           .eq('project_id', activeProjectId)
-          .neq('status', 'returned') // Filtra os devolvidos
+          .or('status.neq.returned,status.is.null') // <--- CORREÇÃO APLICADA AQUI
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -67,7 +67,7 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
             .from('instagram_briefings')
             .select('*')
             .eq('client_id', currentProject.client_id)
-            .neq('status', 'returned')
+            .or('status.neq.returned,status.is.null') // <--- CORREÇÃO APLICADA AQUI TAMBÉM
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();

@@ -7,6 +7,7 @@ import { Roboto } from "next/font/google";
 import "./globals.css";
 import { supabase } from "../lib/supabase"; 
 import AppSidebar from "../components/layout/AppSidebar";
+import AppHeader from "../components/layout/AppHeader"; // 🧠 INJEÇÃO DO NOVO CABEÇALHO
 import CommandPalette from "../components/global/CommandPalette"; // 🤖 INJEÇÃO DO ASSISTENTE GLOBAL
 
 // INJEÇÃO DA MEMÓRIA GLOBAL (RAM)
@@ -155,11 +156,22 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             />
           )}
 
-          <main className={`flex-1 relative z-10 overflow-hidden flex flex-col ${isLoginPage || isSidebarHidden ? 'p-0' : 'px-6 md:px-12 py-8'}`}>
-            <div className={isLoginPage || isSidebarHidden ? "w-full h-full" : "flex-1 overflow-y-auto custom-scrollbar"}>
-              {!isInitializing ? children : null}
-            </div>
-          </main>
+          {/* MÓDULO PRINCIPAL (CABEÇALHO DE COMANDO E CONTEÚDO) */}
+          <div className="flex-1 flex flex-col h-screen overflow-hidden relative z-10 w-full">
+            
+            {/* CABEÇALHO GLOBAL (SINO E PERFIL) */}
+            {!isLoginPage && userRole && !isSidebarHidden && (
+              <AppHeader handleLogout={handleLogout} />
+            )}
+
+            {/* ÁREA DE CONTEÚDO (ROLAGEM INDEPENDENTE) */}
+            <main className={`flex-1 overflow-hidden flex flex-col ${isLoginPage || isSidebarHidden ? 'p-0' : 'px-6 md:px-12 py-8'}`}>
+              <div className={isLoginPage || isSidebarHidden ? "w-full h-full overflow-y-auto" : "flex-1 overflow-y-auto custom-scrollbar"}>
+                {!isInitializing ? children : null}
+              </div>
+            </main>
+
+          </div>
 
         </GlobalStoreProvider>
 
