@@ -12,6 +12,7 @@
     "@google/generative-ai": "^0.24.1",
     "@react-pdf/renderer": "^4.3.2",
     "@supabase/supabase-js": "^2.100.1",
+    "apify-client": "^2.22.3",
     "date-fns": "^4.1.0",
     "framer-motion": "^12.38.0",
     "html2pdf.js": "^0.14.0",

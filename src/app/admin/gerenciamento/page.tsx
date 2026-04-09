@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabase";
 import { 
   Loader2, ChevronDown, Smartphone, 
-  BrainCircuit, LayoutDashboard, Target, CalendarDays 
+  BrainCircuit, LayoutDashboard, Target, CalendarDays, BarChart3 
 } from "lucide-react";
 
 // ============================================================================
@@ -16,6 +16,7 @@ import MonthlyPlanningDashboard from "./views/MonthlyPlanningDashboard";
 import VisualFlow from "./views/VisualFlow";
 import BrandIdentity from "./views/BrandIdentity";
 import GlobalCalendar from "./views/GlobalCalendar";
+import RelatoriosView from "./views/RelatoriosView"; // 🟢 A NOVA VIEW
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -25,8 +26,8 @@ const showToast = (message: string) => {
 // COMPONENTE INTERNO: O ROTEADOR DAS ABAS (WORKSPACE)
 // ============================================================================
 export function GerenciamentoWorkspace({ activeProjectId, currentProject }: { activeProjectId: string, currentProject: any }) {
-  // Estado centralizado para gerir a navegação entre os módulos
-  const [activeTab, setActiveTab] = useState<'calendario' | 'planeamento_mensal' | 'posts' | 'identidade'>('calendario');
+  // Estado centralizado para gerir a navegação entre os módulos (Agora inclui 'relatorios')
+  const [activeTab, setActiveTab] = useState<'calendario' | 'planeamento_mensal' | 'posts' | 'identidade' | 'relatorios'>('calendario');
 
   return (
     <div className="flex flex-col gap-6 w-full animate-[fadeInUp_0.5s_ease-out] flex-1 min-h-0">
@@ -38,6 +39,7 @@ export function GerenciamentoWorkspace({ activeProjectId, currentProject }: { ac
           { id: 'planeamento_mensal', label: 'Planeamento Estratégico & IA', icon: <BrainCircuit size={14} /> },
           { id: 'posts', label: 'Fluxo de Arte Visual', icon: <LayoutDashboard size={14} /> },
           { id: 'identidade', label: 'DNA da Marca & Briefing', icon: <Target size={14} /> },
+          { id: 'relatorios', label: 'Auditoria C-Level', icon: <BarChart3 size={14} /> }, // 🟢 NOVA ABA REGISTADA
         ].map(tab => (
           <button 
             key={tab.id}
@@ -63,7 +65,6 @@ export function GerenciamentoWorkspace({ activeProjectId, currentProject }: { ac
 
           {activeTab === 'planeamento_mensal' && (
             <motion.div key="planning" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
-              {/* Injetamos as propriedades para que a view saiba que cliente está ativo */}
               <MonthlyPlanningDashboard activeProjectId={activeProjectId} currentProject={currentProject} />
             </motion.div>
           )}
@@ -77,6 +78,13 @@ export function GerenciamentoWorkspace({ activeProjectId, currentProject }: { ac
           {activeTab === 'identidade' && (
             <motion.div key="identidade" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
               <BrandIdentity activeProjectId={activeProjectId} currentProject={currentProject} />
+            </motion.div>
+          )}
+
+          {/* 🟢 RENDERIZAÇÃO DA NOVA VIEW CORRIGIDA */}
+          {activeTab === 'relatorios' && (
+            <motion.div key="relatorios" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
+              <RelatoriosView activeProjectId={activeProjectId} currentProject={currentProject} />
             </motion.div>
           )}
 
@@ -101,7 +109,7 @@ export function GerenciamentoInstagram() {
       try {
         const { data, error } = await supabase
           .from('projects')
-          .select('*, profiles(nome, avatar_url, empresa)')
+          .select('*, profiles(nome, avatar_url, empresa, instagram)')
           .or('service_type.eq.Gestão de Instagram,type.ilike.%Instagram%')
           .in('status', ['active', 'delivered', 'archived'])
           .order('created_at', { ascending: false });

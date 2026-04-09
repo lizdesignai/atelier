@@ -5,12 +5,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
-import { NotificationEngine } from "../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
+import { NotificationEngine } from "../../lib/NotificationEngine"; 
 import { 
   Activity, AlertCircle, ArrowRight, CheckCircle2, 
   Clock, Compass, Sparkles, Loader2, TrendingUp, 
   Target, Camera, LayoutDashboard, SlidersHorizontal, ChevronRight,
-  CalendarDays, MessageSquare, XCircle, Star, Zap
+  CalendarDays, MessageSquare, XCircle, Star, Zap, FileText
 } from "lucide-react";
 import InstagramBriefingModal from "../../components/InstagramBriefingModal";
 
@@ -41,6 +41,9 @@ export default function CockpitPage() {
   const [monthlyPlan, setMonthlyPlan] = useState<any[]>([]);
   const [feedbackText, setFeedbackText] = useState<{ [key: string]: string }>({});
   const [activeFeedbackId, setActiveFeedbackId] = useState<string | null>(null);
+
+  // NOVO: Estado para verificar se há relatórios mensais disponíveis
+  const [hasReports, setHasReports] = useState(false);
 
   // ==========================================
   // ESTADOS T-NPS E UPSELL (Psicologia de Conversão)
@@ -97,6 +100,10 @@ export default function CockpitPage() {
             // 7. Buscar Planeamento Editorial Mensal
             const { data: plans } = await supabase.from('content_planning').select('*').eq('project_id', proj.id).eq('status', 'pending').order('publish_date', { ascending: true });
             if (plans) setMonthlyPlan(plans);
+
+            // 8. Verificar se existem Relatórios Executivos Aprovados
+            const { count: reportsCount } = await supabase.from('monthly_reports').select('*', { count: 'exact', head: true }).eq('project_id', proj.id).eq('status', 'approved');
+            setHasReports((reportsCount || 0) > 0);
           }
         }
       } catch (error) {
@@ -451,12 +458,32 @@ export default function CockpitPage() {
           </motion.div>
 
           {/* ACESSOS RÁPIDOS */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="md:col-span-4 flex flex-col gap-5">
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="md:col-span-4 flex flex-col gap-4">
+            
+            {/* NOVO ACESSO: RELATÓRIOS MENSAIS (Apenas se existirem ou o projeto for IG OS) */}
+            <button 
+              onClick={() => router.push('/cockpit/relatorios')} 
+              className={`flex-1 glass-panel p-6 rounded-[2.5rem] border flex items-center gap-5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-1
+                ${hasReports ? 'bg-white border-[var(--color-atelier-terracota)]/30 scale-[1.02]' : 'bg-white/60 hover:bg-white border-white'}
+              `}
+            >
+              <div className={`w-14 h-14 rounded-[1.2rem] flex items-center justify-center transition-transform shadow-inner border
+                ${hasReports ? 'bg-[var(--color-atelier-terracota)] text-white border-[var(--color-atelier-terracota)] group-hover:rotate-12' : 'bg-white border-white text-[var(--color-atelier-grafite)] group-hover:scale-110'}
+              `}>
+                <FileText size={20}/>
+              </div>
+              <div className="text-left flex-1">
+                <span className={`block font-elegant text-2xl ${hasReports ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]'}`}>Auditoria</span>
+                <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Relatório Mensal</span>
+              </div>
+              <ChevronRight size={20} className={hasReports ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/20 group-hover:text-[var(--color-atelier-terracota)] transition-colors'}/>
+            </button>
+
             <button onClick={() => router.push('/curadoria')} className="flex-1 glass-panel bg-white/60 hover:bg-white p-6 rounded-[2.5rem] border border-white flex items-center gap-5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-1">
-              <div className="w-14 h-14 rounded-[1.2rem] bg-[var(--color-atelier-terracota)]/10 flex items-center justify-center text-[var(--color-atelier-terracota)] group-hover:scale-110 transition-transform shadow-inner"><LayoutDashboard size={20}/></div>
+              <div className="w-14 h-14 rounded-[1.2rem] bg-white border border-white shadow-inner flex items-center justify-center text-[var(--color-atelier-grafite)] group-hover:scale-110 transition-transform"><LayoutDashboard size={20}/></div>
               <div className="text-left flex-1">
                 <span className="block font-elegant text-2xl text-[var(--color-atelier-grafite)]">Brandbook</span>
-                <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Aprovação de Fluxo</span>
+                <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Aprovação Visual</span>
               </div>
               <ChevronRight size={20} className="text-[var(--color-atelier-grafite)]/20 group-hover:text-[var(--color-atelier-terracota)] transition-colors"/>
             </button>
@@ -539,7 +566,6 @@ export default function CockpitPage() {
 
         {/* =========================================================================
             🚀 UPSELL MODAL (PICO DE DOPAMINA)
-            Aparece logo após o cliente dar nota 9 ou 10
             ========================================================================= */}
         <AnimatePresence>
           {showUpsellModal && (

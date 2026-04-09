@@ -126,11 +126,10 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
   };
 
   return (
-    // CORREÇÃO DE LAYOUT: O Header agora ocupa o seu próprio espaço no fluxo (não empurra o conteúdo indevidamente e não se sobrepõe com "absolute top-0").
-    <header className="w-full flex items-center justify-end px-8 z-30 pt-6 pb-2 relative pointer-events-none">
+    <header className="absolute top-0 left-0 w-full h-24 flex items-start justify-end px-8 z-30 pointer-events-none">
       
       {/* Contêiner minimalista flutuante - Apenas pointer-events-auto nesta área */}
-      <div className="flex items-center gap-4 bg-white/40 backdrop-blur-xl border border-white shadow-sm p-2 px-4 rounded-3xl pointer-events-auto relative" ref={dropdownRef}>
+      <div className="flex items-center gap-4 bg-white/40 backdrop-blur-xl border border-white shadow-sm p-2 px-4 rounded-3xl pointer-events-auto mt-6" ref={dropdownRef}>
         
         {/* SINO DE NOTIFICAÇÕES */}
         <div className="relative">

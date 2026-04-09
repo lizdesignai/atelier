@@ -8,11 +8,14 @@ import {
   Users, Search, Filter, Plus, ArrowRight, 
   Mail, Building, Calendar, MoreVertical, 
   CheckCircle2, Clock, AlertCircle, X, Edit2, Trash2, Ban, Loader2,
-  DollarSign, Briefcase, CreditCard, RotateCcw, Percent, Sparkles
+  DollarSign, Briefcase, CreditCard, RotateCcw, Percent, Sparkles, FileSearch
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
 import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
+
+// 🟢 IMPORTAÇÃO DO NOVO MÓDULO DE CONSULTORIA
+import ConsultoriaModal from "./views/Consultoria";
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -85,6 +88,7 @@ export default function BaseClientesPage() {
 
   // Estados dos Modais e Menus
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
+  const [isConsultoriaModalOpen, setIsConsultoriaModalOpen] = useState(false); // 🟢 ESTADO DA CONSULTORIA
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
   // ==========================================
@@ -509,6 +513,14 @@ export default function BaseClientesPage() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* 🟢 NOVO BOTÃO: CONSULTORIA IA */}
+            <button 
+              onClick={() => setIsConsultoriaModalOpen(true)}
+              className="bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] px-6 py-3.5 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)] transition-all shadow-sm items-center gap-2 hidden md:flex"
+            >
+              <FileSearch size={16} className="text-[var(--color-atelier-terracota)]" /> Consultoria
+            </button>
+
             <button 
               onClick={() => setIsAgencyModalOpen(true)}
               className="bg-white/40 border border-white text-[var(--color-atelier-grafite)] px-6 py-3.5 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] hover:bg-white transition-all shadow-sm flex items-center gap-2 hidden md:flex"
@@ -524,8 +536,15 @@ export default function BaseClientesPage() {
           </div>
         </div>
 
-        {/* Botão Agência Mobile */}
-        <div className="md:hidden">
+        {/* Botões Mobile */}
+        <div className="md:hidden flex flex-col gap-2">
+          {/* 🟢 BOTÃO MOBILE CONSULTORIA */}
+          <button 
+            onClick={() => setIsConsultoriaModalOpen(true)}
+            className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] py-3 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 shadow-sm"
+          >
+            <FileSearch size={16} className="text-[var(--color-atelier-terracota)]" /> Consultoria de Alto Valor
+          </button>
           <button 
             onClick={() => setIsAgencyModalOpen(true)}
             className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] py-3 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 shadow-sm"
@@ -1113,6 +1132,12 @@ export default function BaseClientesPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* 🟢 MODAL DE CONSULTORIA DE ALTO VALOR */}
+      <ConsultoriaModal 
+        isOpen={isConsultoriaModalOpen} 
+        onClose={() => setIsConsultoriaModalOpen(false)} 
+      />
 
     </div>
   );
