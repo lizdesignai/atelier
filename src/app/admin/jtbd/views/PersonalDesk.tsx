@@ -66,21 +66,21 @@ export default function PersonalDesk({
           <div className="w-full grid grid-cols-1 md:grid-cols-3 gap-3">
             
             {/* Foco Atual */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center text-center">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center text-center shadow-inner hover:bg-white/10 transition-colors">
               <Target size={16} className="text-[var(--color-atelier-terracota)] mb-1"/>
               <span className="text-[9px] text-white/50 uppercase tracking-widest mb-1">Foco Atual</span>
-              <span className="text-white font-bold text-xs truncate w-full px-2">{currentFocus}</span>
+              <span className="text-white font-bold text-[11px] truncate w-full px-2">{currentFocus}</span>
             </div>
 
             {/* Eficiência */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center text-center">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center text-center shadow-inner hover:bg-white/10 transition-colors">
               <Activity size={16} className="text-[var(--color-atelier-terracota)] mb-1"/>
               <span className="text-[9px] text-white/50 uppercase tracking-widest mb-1">Eficiência</span>
               <span className="text-white font-bold text-sm">{eficiencia}%</span>
             </div>
 
             {/* Carga Visível */}
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center text-center">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center text-center shadow-inner hover:bg-white/10 transition-colors">
               <Clock size={16} className="text-[var(--color-atelier-terracota)] mb-1"/>
               <span className="text-[9px] text-white/50 uppercase tracking-widest mb-1">Carga Visível</span>
               <span className="text-white font-bold text-sm">{cargaFormatada}</span>

@@ -5,11 +5,12 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
+import { NotificationEngine } from "../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
 import { 
   Activity, AlertCircle, ArrowRight, CheckCircle2, 
   Clock, Compass, Sparkles, Loader2, TrendingUp, 
   Target, Camera, LayoutDashboard, SlidersHorizontal, ChevronRight,
-  CalendarDays, MessageSquare, XCircle, Star
+  CalendarDays, MessageSquare, XCircle, Star, Zap
 } from "lucide-react";
 import InstagramBriefingModal from "../../components/InstagramBriefingModal";
 
@@ -42,11 +43,12 @@ export default function CockpitPage() {
   const [activeFeedbackId, setActiveFeedbackId] = useState<string | null>(null);
 
   // ==========================================
-  // ESTADOS T-NPS (Transactional NPS)
+  // ESTADOS T-NPS E UPSELL (Psicologia de Conversão)
   // ==========================================
   const [showNpsModal, setShowNpsModal] = useState(false);
   const [npsScore, setNpsScore] = useState<number | null>(null);
   const [npsFeedback, setNpsFeedback] = useState("");
+  const [showUpsellModal, setShowUpsellModal] = useState(false);
 
   useEffect(() => {
     const fetchCockpitData = async () => {
@@ -68,13 +70,11 @@ export default function CockpitPage() {
           setCurrentFocus(proj.current_focus || "Liz está a analisar a sua audiência...");
 
           // 3. Buscar Dados de Gargalo (Posts Pendentes)
-          // O Cliente só deve ver o que precisa da SUA aprovação ('pending_approval')
           const { count: postsCount } = await supabase.from('social_posts').select('*', { count: 'exact', head: true }).eq('project_id', proj.id).eq('status', 'pending_approval');
           setPendingCount(postsCount || 0);
 
           if (proj.type === 'Gestão de Instagram' || proj.service_type === 'Gestão de Instagram') {
             
-            // CORREÇÃO CRÍTICA DO BRIEFING: Apanha status que não seja 'returned', mas também abraça os NULLs!
             const { data: brief } = await supabase
               .from('instagram_briefings')
               .select('*')
@@ -94,8 +94,7 @@ export default function CockpitPage() {
             const pendingDirs = directions?.filter(d => !d.score || d.score === 0).length || 0;
             setPendingDirections(pendingDirs);
 
-            // 7. Buscar Planeamento Editorial Mensal (Ideias de Posts Pendentes de Texto)
-            // CORREÇÃO DE UX: O Cliente só vê ideias pendentes. Se estiver 'needs_revision', a bola está com a equipa.
+            // 7. Buscar Planeamento Editorial Mensal
             const { data: plans } = await supabase.from('content_planning').select('*').eq('project_id', proj.id).eq('status', 'pending').order('publish_date', { ascending: true });
             if (plans) setMonthlyPlan(plans);
           }
@@ -137,12 +136,21 @@ export default function CockpitPage() {
         client_id: clientId,
         score: npsScore,
         feedback: npsFeedback,
-        // assignee_id fica nulo aqui se não rastrearmos o autor exato do plan, mas a inteligência Sênior do admin irá cruzar isto no JTBD.
       });
-      showToast("Aprovação e Avaliação registadas com sucesso. O Estúdio avança!");
+
       setShowNpsModal(false);
-      setNpsScore(null);
-      setNpsFeedback("");
+
+      // 🧠 O PICO DE DOPAMINA: Se for Promotor (9 ou 10), oferece o Upsell.
+      if (npsScore >= 9) {
+        setTimeout(() => {
+          setShowUpsellModal(true);
+        }, 500); // Delay sutil para a troca de modais parecer elegante
+      } else {
+        showToast("Aprovação e Avaliação registadas com sucesso. O Estúdio avança!");
+        setNpsScore(null);
+        setNpsFeedback("");
+      }
+
     } catch (error) {
       showToast("Erro ao enviar avaliação.");
     } finally {
@@ -157,6 +165,32 @@ export default function CockpitPage() {
     setNpsFeedback("");
   };
 
+  // ==========================================
+  // 🚀 LÓGICA DO UPSELL
+  // ==========================================
+  const handleAcceptUpsell = async () => {
+    setShowUpsellModal(false);
+    showToast("Excelente! A nossa equipa entrará em contacto muito em breve.");
+    
+    // 🔔 SINAL DE FUMO PARA A GESTÃO (LEAD QUENTE)
+    await NotificationEngine.notifyManagement(
+       "🔥 Boiling Lead: Upsell Aceite!",
+       `O cliente ${clientName} (${project?.profiles?.nome}) avaliou-nos com nota ${npsScore} e manifestou interesse em escalar o plano no Cockpit.`,
+       "success",
+       "/admin/clientes"
+    );
+    
+    setNpsScore(null);
+    setNpsFeedback("");
+  };
+
+  const handleDeclineUpsell = () => {
+    setShowUpsellModal(false);
+    showToast("Aprovação registada com sucesso. O Estúdio avança!");
+    setNpsScore(null);
+    setNpsFeedback("");
+  };
+
   const handleRejectPlan = async (planId: string) => {
     const feedback = feedbackText[planId];
     if (!feedback || feedback.trim() === "") {
@@ -165,9 +199,7 @@ export default function CockpitPage() {
     }
     setIsProcessing(true);
     try {
-      // CORREÇÃO DA MÁQUINA DE ESTADOS: status volta para 'needs_revision' para a equipa ver no painel!
       await supabase.from('content_planning').update({ status: 'needs_revision', feedback: feedback }).eq('id', planId);
-      
       setMonthlyPlan(monthlyPlan.filter(p => p.id !== planId));
       setActiveFeedbackId(null);
       showToast("Feedback enviado. A estratégia voltou para a mesa da equipa de conteúdo.");
@@ -221,21 +253,21 @@ export default function CockpitPage() {
             <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] leading-tight tracking-tight">
               {greeting}, <span className="text-[var(--color-atelier-terracota)] italic">{clientName}.</span>
             </h1>
-            <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-3 max-w-lg leading-relaxed">
+            <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-3 max-w-lg leading-relaxed font-medium">
               Bem-vindo ao seu painel de controle executivo. Aqui transformamos estética em dados e conteúdo em equity para a sua marca.
             </p>
           </div>
         </header>
 
         {/* THE FORGE (Painel de Fundição / Tracker de Etapas) */}
-        <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-panel bg-white/70 p-8 md:p-10 rounded-[2.5rem] border border-white shadow-[0_15px_40px_rgba(173,111,64,0.05)] relative overflow-hidden">
+        <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-panel bg-white/60 p-8 md:p-10 rounded-[3rem] border border-white shadow-sm relative overflow-hidden transition-colors hover:bg-white/80">
           <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-atelier-terracota)]/5 rounded-full blur-3xl"></div>
           
           <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-8 relative z-10">The Forge <span className="text-[var(--color-atelier-grafite)]/40 text-xl">/ Tracker de Evolução</span></h2>
           
           <div className="flex flex-col md:flex-row justify-between relative gap-8 md:gap-0 z-10">
-            <div className="hidden md:block absolute top-8 left-16 right-16 h-1 bg-[var(--color-atelier-grafite)]/5 z-0 rounded-full"></div>
-            <div className="hidden md:block absolute top-8 left-16 h-1 bg-gradient-to-r from-[var(--color-atelier-terracota)] to-orange-400 z-0 transition-all duration-1000 rounded-full shadow-sm" style={{ width: `${(currentPhase - 1) * 33}%` }}></div>
+            <div className="hidden md:block absolute top-8 left-16 right-16 h-1.5 bg-[var(--color-atelier-grafite)]/5 z-0 rounded-full shadow-inner"></div>
+            <div className="hidden md:block absolute top-8 left-16 h-1.5 bg-gradient-to-r from-[var(--color-atelier-rose)] to-[var(--color-atelier-terracota)] z-0 transition-all duration-1000 rounded-full shadow-sm" style={{ width: `${(currentPhase - 1) * 33}%` }}></div>
             
             {[
               { step: 1, title: 'Diagnóstico', desc: 'Dossiê de Mercado', icon: <Target size={18}/> },
@@ -244,16 +276,16 @@ export default function CockpitPage() {
               { step: 4, title: 'Governança', desc: 'Oráculo Analytics', icon: <Activity size={18}/> },
             ].map((phase, idx) => (
               <div key={idx} className="relative z-10 flex flex-col items-center gap-4 group">
-                <div className={`w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-700 shadow-sm
+                <div className={`w-16 h-16 rounded-[1.2rem] flex items-center justify-center transition-all duration-700 shadow-sm
                   ${currentPhase > phase.step ? 'bg-[var(--color-atelier-terracota)] text-white border-none scale-105' 
-                  : currentPhase === phase.step ? 'bg-white border-2 border-[var(--color-atelier-terracota)] text-[var(--color-atelier-terracota)] ring-4 ring-[var(--color-atelier-terracota)]/10 scale-110' 
-                  : 'bg-white/50 border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/30'}
+                  : currentPhase === phase.step ? 'bg-white border-2 border-[var(--color-atelier-terracota)] text-[var(--color-atelier-terracota)] shadow-[0_0_20px_rgba(173,111,64,0.2)] scale-110' 
+                  : 'bg-white/50 border border-white text-[var(--color-atelier-grafite)]/30'}
                 `}>
                   {currentPhase > phase.step ? <CheckCircle2 size={24} /> : phase.icon}
                 </div>
                 <div className="text-center">
                   <span className={`block font-roboto text-[12px] font-bold uppercase tracking-widest transition-colors ${currentPhase >= phase.step ? 'text-[var(--color-atelier-grafite)]' : 'text-[var(--color-atelier-grafite)]/40'}`}>{phase.title}</span>
-                  <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 mt-1">{phase.desc}</span>
+                  <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 mt-1 font-medium">{phase.desc}</span>
                 </div>
               </div>
             ))}
@@ -264,7 +296,7 @@ export default function CockpitPage() {
             SECÇÃO: ESTRATÉGIA EDITORIAL MENSAL E APROVAÇÃO
             ========================================================= */}
         {monthlyPlan.length > 0 && (
-          <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass-panel bg-white/70 p-8 md:p-10 rounded-[2.5rem] border border-white shadow-[0_15px_40px_rgba(173,111,64,0.05)]">
+          <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass-panel bg-white/60 p-8 md:p-12 rounded-[3.5rem] border border-white shadow-sm transition-colors hover:bg-white/80">
             <div className="flex items-start justify-between border-b border-[var(--color-atelier-grafite)]/10 pb-6 mb-8">
               <div>
                 <div className="flex items-center gap-2 mb-2">
@@ -272,31 +304,31 @@ export default function CockpitPage() {
                   <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">Estratégia do Mês</span>
                 </div>
                 <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Validação de Copy & Contexto</h2>
-                <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 max-w-2xl leading-relaxed">
+                <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 max-w-2xl leading-relaxed font-medium">
                   Antes de confecionarmos a arte gráfica, validamos a intenção. Aprove os ganchos e as abordagens abaixo para que o estúdio inicie a produção dos ativos visuais.
                 </p>
               </div>
-              <div className="bg-orange-50 text-orange-600 px-4 py-2 rounded-2xl border border-orange-100 flex flex-col items-center justify-center shadow-inner shrink-0">
-                <span className="font-elegant text-2xl leading-none">{monthlyPlan.length}</span>
+              <div className="bg-orange-50 text-orange-600 px-5 py-3 rounded-2xl border border-orange-100 flex flex-col items-center justify-center shadow-inner shrink-0">
+                <span className="font-elegant text-3xl leading-none">{monthlyPlan.length}</span>
                 <span className="font-roboto text-[8px] font-bold uppercase tracking-widest mt-1">Pendentes</span>
               </div>
             </div>
 
             <div className="flex flex-col gap-6">
               {monthlyPlan.map((plan) => (
-                <div key={plan.id} className="bg-white p-6 md:p-8 rounded-[2rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col md:flex-row gap-8">
+                <div key={plan.id} className="bg-white p-6 md:p-10 rounded-[2.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col md:flex-row gap-8 transition-all hover:shadow-md hover:border-[var(--color-atelier-terracota)]/20">
                   
                   {/* Lado Esquerdo: Dados Estratégicos */}
-                  <div className="w-full md:w-1/3 flex flex-col gap-4 border-b md:border-b-0 md:border-r border-[var(--color-atelier-grafite)]/10 pb-6 md:pb-0 md:pr-6 shrink-0">
-                    <div>
+                  <div className="w-full md:w-1/3 flex flex-col gap-5 border-b md:border-b-0 md:border-r border-[var(--color-atelier-grafite)]/10 pb-6 md:pb-0 md:pr-6 shrink-0">
+                    <div className="bg-gray-50/80 p-4 rounded-2xl border border-gray-100">
                       <span className="block font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Data Sugerida</span>
-                      <span className="font-roboto text-[14px] font-medium text-[var(--color-atelier-grafite)]">
+                      <span className="font-roboto text-[14px] font-bold text-[var(--color-atelier-grafite)]">
                         {plan.publish_date ? new Date(plan.publish_date).toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'short' }) : "A definir"}
                       </span>
                     </div>
-                    <div>
+                    <div className="bg-[var(--color-atelier-creme)]/40 p-4 rounded-2xl border border-[var(--color-atelier-terracota)]/10">
                       <span className="block font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Pilar (Tilt)</span>
-                      <span className="inline-block bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg text-[11px] font-bold uppercase tracking-widest">
+                      <span className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)]">
                         {plan.pillar || "Estratégico"}
                       </span>
                     </div>
@@ -304,9 +336,9 @@ export default function CockpitPage() {
 
                   {/* Lado Direito: Copy e Ações */}
                   <div className="flex-1 flex flex-col">
-                    <div className="mb-6">
-                      <h4 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] mb-3 leading-tight">"{plan.hook}"</h4>
-                      <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/70 leading-relaxed whitespace-pre-wrap">
+                    <div className="mb-8">
+                      <h4 className="font-elegant text-2xl md:text-3xl text-[var(--color-atelier-grafite)] mb-4 leading-tight">"{plan.hook}"</h4>
+                      <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium bg-white/40 p-6 rounded-3xl border border-gray-50 shadow-inner">
                         {plan.briefing}
                       </p>
                     </div>
@@ -315,33 +347,33 @@ export default function CockpitPage() {
                       <button 
                         onClick={() => handleApprovePlan(plan.id)}
                         disabled={isProcessing}
-                        className="flex-1 bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] py-3 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest transition-all shadow-md flex items-center justify-center gap-2 hover:-translate-y-0.5 disabled:opacity-50"
+                        className="flex-1 bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] py-4 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] transition-all shadow-md flex items-center justify-center gap-2 hover:-translate-y-0.5 disabled:opacity-50"
                       >
                         <CheckCircle2 size={16} /> Aprovar Ideia
                       </button>
                       
                       <button 
                         onClick={() => setActiveFeedbackId(activeFeedbackId === plan.id ? null : plan.id)}
-                        className="flex-1 bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)] py-3 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest transition-all shadow-sm flex items-center justify-center gap-2"
+                        className="flex-1 bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/60 hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)] py-4 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] transition-all shadow-sm flex items-center justify-center gap-2"
                       >
                         <MessageSquare size={16} /> Solicitar Ajuste
                       </button>
                     </div>
 
-                    {/* Área de Input de Feedback (Aparece ao clicar em Solicitar Ajuste) */}
+                    {/* Área de Input de Feedback */}
                     <AnimatePresence>
                       {activeFeedbackId === plan.id && (
                         <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                          <div className="mt-4 bg-[var(--color-atelier-creme)]/30 p-4 rounded-2xl border border-[var(--color-atelier-grafite)]/10 flex flex-col gap-3">
+                          <div className="mt-4 bg-[var(--color-atelier-creme)]/40 p-5 rounded-3xl border border-[var(--color-atelier-terracota)]/10 flex flex-col gap-3 shadow-inner">
                             <textarea 
                               placeholder="O que devemos ajustar na abordagem deste conteúdo?"
                               value={feedbackText[plan.id] || ""}
                               onChange={(e) => setFeedbackText({...feedbackText, [plan.id]: e.target.value})}
-                              className="w-full bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl p-3 text-[12px] text-[var(--color-atelier-grafite)] resize-none h-20 outline-none shadow-sm custom-scrollbar"
+                              className="w-full bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-2xl p-4 text-[13px] font-medium text-[var(--color-atelier-grafite)] resize-none h-24 outline-none shadow-sm custom-scrollbar transition-colors"
                             />
-                            <div className="flex justify-end gap-2">
-                              <button onClick={() => setActiveFeedbackId(null)} className="px-4 py-2 text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 hover:text-red-500 transition-colors">Cancelar</button>
-                              <button onClick={() => handleRejectPlan(plan.id)} disabled={isProcessing || !feedbackText[plan.id]?.trim()} className="px-6 py-2 bg-red-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-600 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2">
+                            <div className="flex justify-end gap-3 mt-1">
+                              <button onClick={() => setActiveFeedbackId(null)} className="px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)] transition-colors bg-white rounded-xl shadow-sm">Cancelar</button>
+                              <button onClick={() => handleRejectPlan(plan.id)} disabled={isProcessing || !feedbackText[plan.id]?.trim()} className="px-6 py-2.5 bg-red-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-600 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2">
                                 <XCircle size={14} /> Recusar e Enviar Ajuste
                               </button>
                             </div>
@@ -360,7 +392,7 @@ export default function CockpitPage() {
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           
           {/* MÓDULO DE AÇÃO EXIGIDA (Gargalos) */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className={`md:col-span-8 glass-panel p-8 md:p-10 flex flex-col justify-between relative overflow-hidden transition-all duration-500 rounded-[2.5rem] border shadow-sm
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className={`md:col-span-8 glass-panel p-8 md:p-10 flex flex-col justify-between relative overflow-hidden transition-all duration-500 rounded-[3rem] border shadow-sm
             ${(!briefing || pendingCount > 0 || pendingDirections > 0 || pendingMissions > 0 || pendingPlanCount > 0) ? 'bg-white/90 border-orange-200' : 'bg-white/60 border-white'}
           `}>
             
@@ -373,15 +405,15 @@ export default function CockpitPage() {
                   {!briefing ? 'Dossiê de Mercado Pendente' : pendingPlanCount > 0 ? 'Validação de Estratégia Pendente' : pendingDirections > 0 ? 'Brandbook: Avaliação Pendente' : pendingCount > 0 ? 'Curadoria: Aprovações Pendentes' : pendingMissions > 0 ? 'Cofre: Missões Pendentes' : 'Mesa Limpa. Tudo em Dia.'}
                 </h2>
               </div>
-              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 shadow-inner
-                ${(!briefing || pendingCount > 0 || pendingDirections > 0 || pendingMissions > 0 || pendingPlanCount > 0) ? 'bg-orange-50 text-orange-500 border border-orange-100' : 'bg-green-50 text-green-500 border border-green-100'}
+              <div className={`w-16 h-16 rounded-[1.2rem] flex items-center justify-center shrink-0 shadow-inner border
+                ${(!briefing || pendingCount > 0 || pendingDirections > 0 || pendingMissions > 0 || pendingPlanCount > 0) ? 'bg-orange-50 text-orange-500 border-orange-100' : 'bg-green-50 text-green-500 border-green-100'}
               `}>
                 {(!briefing || pendingCount > 0 || pendingDirections > 0 || pendingMissions > 0 || pendingPlanCount > 0) ? <AlertCircle size={28} /> : <CheckCircle2 size={28} />}
               </div>
             </div>
 
             <div>
-              <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/80 mb-8 leading-relaxed max-w-xl">
+              <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/80 mb-8 leading-relaxed max-w-xl font-medium">
                 {!briefing ? 'Para ativarmos o nosso Chief Marketing Officer (IA) e desenharmos o seu Brandbook, precisamos que responda a algumas perguntas estratégicas sobre o seu negócio.' 
                 : pendingPlanCount > 0 ? `Temos ${pendingPlanCount} ideias de conteúdo aguardando a sua aprovação textual na secção acima. Valide para iniciarmos a criação gráfica.`
                 : pendingDirections > 0 ? `O Diretor de Arte enviou ${pendingDirections} direções visuais. A sua avaliação vai calibrar a estética final da sua marca.` 
@@ -391,27 +423,27 @@ export default function CockpitPage() {
               </p>
 
               {!briefing ? (
-                <button onClick={() => setIsBriefingModalOpen(true)} className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] shadow-md hover:-translate-y-0.5">
+                <button onClick={() => setIsBriefingModalOpen(true)} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] shadow-md hover:-translate-y-0.5">
                   Preencher Briefing Agora <ArrowRight size={16} />
                 </button>
               ) : pendingPlanCount > 0 ? (
-                <button onClick={() => window.scrollTo({ top: 400, behavior: 'smooth' })} className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
+                <button onClick={() => window.scrollTo({ top: 400, behavior: 'smooth' })} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
                   Revisar Estratégia <ArrowRight size={16} />
                 </button>
               ) : pendingDirections > 0 ? (
-                <button onClick={() => router.push('/cofre-missoes')} className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
+                <button onClick={() => router.push('/cofre-missoes')} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
                   Acessar Brandbook <ArrowRight size={16} />
                 </button>
               ) : pendingCount > 0 ? (
-                <button onClick={() => router.push('/curadoria')} className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
+                <button onClick={() => router.push('/curadoria')} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
                   Acessar Fluxo de Impacto <ArrowRight size={16} />
                 </button>
               ) : pendingMissions > 0 ? (
-                <button onClick={() => router.push('/cofre-missoes')} className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-orange-500 text-white hover:bg-orange-600 shadow-md hover:-translate-y-0.5">
+                <button onClick={() => router.push('/cofre-missoes')} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-orange-500 text-white hover:bg-orange-600 shadow-md hover:-translate-y-0.5">
                   Abrir Cofre de Missões <ArrowRight size={16} />
                 </button>
               ) : (
-                <button disabled className="px-8 py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/40 cursor-not-allowed">
+                <button disabled className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/40 cursor-not-allowed shadow-sm">
                   Monitorando Ativos <CheckCircle2 size={16} />
                 </button>
               )}
@@ -419,21 +451,21 @@ export default function CockpitPage() {
           </motion.div>
 
           {/* ACESSOS RÁPIDOS */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="md:col-span-4 flex flex-col gap-4">
-            <button onClick={() => router.push('/curadoria')} className="flex-1 glass-panel bg-white/70 hover:bg-white p-6 rounded-[2rem] border border-[var(--color-atelier-grafite)]/5 flex items-center gap-4 transition-all group shadow-sm hover:shadow-md">
-              <div className="w-12 h-12 rounded-xl bg-[var(--color-atelier-terracota)]/10 flex items-center justify-center text-[var(--color-atelier-terracota)] group-hover:scale-110 transition-transform"><LayoutDashboard size={20}/></div>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="md:col-span-4 flex flex-col gap-5">
+            <button onClick={() => router.push('/curadoria')} className="flex-1 glass-panel bg-white/60 hover:bg-white p-6 rounded-[2.5rem] border border-white flex items-center gap-5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-1">
+              <div className="w-14 h-14 rounded-[1.2rem] bg-[var(--color-atelier-terracota)]/10 flex items-center justify-center text-[var(--color-atelier-terracota)] group-hover:scale-110 transition-transform shadow-inner"><LayoutDashboard size={20}/></div>
               <div className="text-left flex-1">
-                <span className="block font-elegant text-xl text-[var(--color-atelier-grafite)]">Brandbook & Curadoria</span>
-                <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest mt-1">Aprovação de Fluxo</span>
+                <span className="block font-elegant text-2xl text-[var(--color-atelier-grafite)]">Brandbook</span>
+                <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Aprovação de Fluxo</span>
               </div>
               <ChevronRight size={20} className="text-[var(--color-atelier-grafite)]/20 group-hover:text-[var(--color-atelier-terracota)] transition-colors"/>
             </button>
             
-            <button onClick={() => router.push('/cofre-missoes')} className="flex-1 glass-panel bg-white/70 hover:bg-white p-6 rounded-[2rem] border border-[var(--color-atelier-grafite)]/5 flex items-center gap-4 transition-all group shadow-sm hover:shadow-md">
-              <div className="w-12 h-12 rounded-xl bg-[var(--color-atelier-grafite)]/5 flex items-center justify-center text-[var(--color-atelier-grafite)] group-hover:scale-110 transition-transform"><Camera size={20}/></div>
+            <button onClick={() => router.push('/cofre-missoes')} className="flex-1 glass-panel bg-white/60 hover:bg-white p-6 rounded-[2.5rem] border border-white flex items-center gap-5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-1">
+              <div className="w-14 h-14 rounded-[1.2rem] bg-white border border-white shadow-inner flex items-center justify-center text-[var(--color-atelier-grafite)] group-hover:scale-110 transition-transform"><Camera size={20}/></div>
               <div className="text-left flex-1">
-                <span className="block font-elegant text-xl text-[var(--color-atelier-grafite)]">Cofre de Missões</span>
-                <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest mt-1">Envio de Material Cru</span>
+                <span className="block font-elegant text-2xl text-[var(--color-atelier-grafite)]">Missões</span>
+                <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Envio de Material</span>
               </div>
               <ChevronRight size={20} className="text-[var(--color-atelier-grafite)]/20 group-hover:text-[var(--color-atelier-terracota)] transition-colors"/>
             </button>
@@ -458,26 +490,26 @@ export default function CockpitPage() {
         <AnimatePresence>
           {showNpsModal && (
             <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-              <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-lg border border-white/50 flex flex-col gap-6 text-center">
-                 <div className="mx-auto w-16 h-16 rounded-full bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center mb-2">
-                   <Star size={28} />
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[var(--color-atelier-grafite)]/60 backdrop-blur-md" />
+              <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="glass-panel bg-white/95 backdrop-blur-xl p-10 md:p-12 rounded-[3.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.15)] relative z-10 w-full max-w-xl border border-white flex flex-col gap-8 text-center">
+                 <div className="mx-auto w-20 h-20 rounded-[1.5rem] bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center shadow-inner">
+                   <Star size={32} />
                  </div>
                  
                  <div>
-                   <h3 className="font-elegant text-3xl md:text-4xl text-[var(--color-atelier-grafite)] mb-2">Como avalia a entrega?</h3>
-                   <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60">De 0 a 10, quão alinhada esta estratégia está com a visão e os valores da sua marca?</p>
+                   <h3 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-3">Como avalia a entrega?</h3>
+                   <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/60 font-medium">De 0 a 10, quão alinhada esta estratégia está com a visão e os valores da sua marca?</p>
                  </div>
                  
-                 <div className="flex justify-between gap-1 md:gap-2 mt-2">
+                 <div className="flex justify-between gap-2 mt-2">
                     {[0,1,2,3,4,5,6,7,8,9,10].map(num => (
                       <button 
                         key={num} 
                         onClick={() => setNpsScore(num)} 
-                        className={`w-8 h-10 md:w-10 md:h-12 rounded-lg font-bold text-[13px] md:text-[15px] transition-all
+                        className={`w-9 h-12 md:w-11 md:h-14 rounded-[1rem] font-bold text-[14px] md:text-[16px] transition-all
                           ${npsScore === num 
-                            ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md scale-110' 
-                            : 'bg-[var(--color-atelier-grafite)]/5 text-[var(--color-atelier-grafite)]/50 hover:bg-[var(--color-atelier-grafite)]/10 hover:text-[var(--color-atelier-grafite)]'
+                            ? 'bg-[var(--color-atelier-terracota)] text-white shadow-lg scale-110 border-transparent' 
+                            : 'bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/50 hover:border-[var(--color-atelier-terracota)]/40 hover:text-[var(--color-atelier-terracota)]'
                           }`}
                       >
                         {num}
@@ -489,15 +521,48 @@ export default function CockpitPage() {
                    value={npsFeedback} 
                    onChange={e => setNpsFeedback(e.target.value)} 
                    placeholder="Deixe um comentário opcional. O que lhe agradou mais? O que podemos refinar?" 
-                   className="w-full bg-[var(--color-atelier-creme)]/50 border border-transparent rounded-xl p-4 text-[13px] text-[var(--color-atelier-grafite)] resize-none h-24 outline-none focus:border-[var(--color-atelier-terracota)]/40 transition-colors custom-scrollbar mt-2" 
+                   className="w-full bg-gray-50/50 border border-[var(--color-atelier-grafite)]/10 rounded-2xl p-5 text-[13px] font-medium text-[var(--color-atelier-grafite)] resize-none h-28 outline-none focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 focus:shadow-sm transition-all custom-scrollbar" 
                  />
 
-                 <div className="flex gap-3 mt-4">
-                   <button onClick={handleSkipNps} className="flex-1 py-3 text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-grafite)] transition-colors">
+                 <div className="flex gap-4 mt-2">
+                   <button onClick={handleSkipNps} className="flex-1 py-4 text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-grafite)] transition-colors rounded-xl hover:bg-gray-50">
                      Pular Avaliação
                    </button>
-                   <button onClick={handleSubmitNps} disabled={npsScore === null || isProcessing} className="flex-1 bg-[var(--color-atelier-grafite)] text-white py-3.5 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-[var(--color-atelier-terracota)] transition-colors disabled:opacity-50 flex justify-center items-center gap-2">
+                   <button onClick={handleSubmitNps} disabled={npsScore === null || isProcessing} className="flex-1 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-[1.2rem] text-[11px] font-bold uppercase tracking-[0.1em] shadow-md hover:bg-[var(--color-atelier-terracota)] transition-colors disabled:opacity-50 flex justify-center items-center gap-2 hover:-translate-y-0.5 disabled:hover:translate-y-0">
                      {isProcessing ? <Loader2 size={16} className="animate-spin"/> : "Enviar Resposta"}
+                   </button>
+                 </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
+
+        {/* =========================================================================
+            🚀 UPSELL MODAL (PICO DE DOPAMINA)
+            Aparece logo após o cliente dar nota 9 ou 10
+            ========================================================================= */}
+        <AnimatePresence>
+          {showUpsellModal && (
+            <div className="fixed inset-0 z-[250] flex items-center justify-center px-4">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[var(--color-atelier-grafite)]/60 backdrop-blur-md" />
+              <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="glass-panel bg-white p-10 md:p-12 rounded-[3.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.2)] relative z-10 w-full max-w-xl border border-white flex flex-col gap-6 text-center">
+                 <div className="mx-auto w-20 h-20 rounded-[1.5rem] bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center mb-2 shadow-inner border border-[var(--color-atelier-terracota)]/20">
+                   <Zap size={32} fill="currentColor" />
+                 </div>
+                 
+                 <div>
+                   <h3 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-4 leading-tight">Pronto para o Próximo Nível?</h3>
+                   <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 leading-relaxed font-medium">
+                     Ficamos felizes que esteja a adorar o nosso trabalho estratégico. Sabia que clientes que delegam 100% da execução crescem em média 3x mais rápido? <br/><br/>Podemos assumir toda a produção gráfica e gestão diária da sua marca.
+                   </p>
+                 </div>
+
+                 <div className="flex flex-col gap-3 mt-4">
+                   <button onClick={handleAcceptUpsell} className="w-full bg-[var(--color-atelier-terracota)] text-white py-5 rounded-[1.5rem] font-bold uppercase tracking-[0.1em] text-[11px] shadow-lg hover:bg-[#8c562e] hover:-translate-y-0.5 transition-all">
+                     Sim, Quero Escalar os Meus Resultados
+                   </button>
+                   <button onClick={handleDeclineUpsell} className="w-full bg-transparent border border-transparent hover:border-gray-100 text-[var(--color-atelier-grafite)]/50 py-4 rounded-[1.5rem] font-bold uppercase tracking-widest text-[10px] hover:text-[var(--color-atelier-grafite)] hover:bg-gray-50 transition-colors">
+                     Manter o meu plano atual
                    </button>
                  </div>
               </motion.div>
@@ -519,25 +584,25 @@ export default function CockpitPage() {
         <div>
           <div className="flex items-center gap-2 mb-2">
             <Compass size={16} className="text-[var(--color-atelier-terracota)]" />
-            <span className="micro-title text-[var(--color-atelier-grafite)]/60 font-bold tracking-widest text-[10px] uppercase">
+            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/60">
               Resumo Executivo
             </span>
           </div>
           <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] leading-tight tracking-tight">
             {greeting}, <span className="text-[var(--color-atelier-terracota)] italic">{clientName}.</span>
           </h1>
-          <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 max-w-md">
-            O seu painel de controlo diário. Sem métricas de vaidade, apenas o que impacta o crescimento da sua marca hoje.
+          <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-3 max-w-md font-medium leading-relaxed">
+            O seu painel de controlo diário. Sem métricas de vaidade, apenas o que impacta a construção da sua marca hoje.
           </p>
         </div>
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-[fadeInUp_0.6s_ease-out]">
         
-        <motion.div whileHover={{ y: -4 }} className={`md:col-span-8 glass-panel p-8 md:p-10 flex flex-col justify-between relative overflow-hidden transition-all duration-500 rounded-[2rem] border
-            ${pendingCount > 0 ? 'bg-white/90 border-orange-200 shadow-[0_15px_40px_rgba(249,115,22,0.08)]' : 'bg-white/60 border-white/40 shadow-sm'}
+        <motion.div whileHover={{ y: -4 }} className={`md:col-span-8 glass-panel p-8 md:p-12 flex flex-col justify-between relative overflow-hidden transition-all duration-500 rounded-[3rem] border
+            ${pendingCount > 0 ? 'bg-white/90 border-orange-200 shadow-[0_20px_50px_rgba(249,115,22,0.08)]' : 'bg-white/60 border-white shadow-sm'}
           `}>
-          {pendingCount > 0 && <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>}
+          {pendingCount > 0 && <div className="absolute top-0 left-0 w-2 h-full bg-orange-500"></div>}
           
           <div className="flex items-start justify-between mb-8">
             <div>
@@ -548,24 +613,24 @@ export default function CockpitPage() {
                 {pendingCount > 0 ? 'Aprovações Pendentes' : 'Tudo em Dia'}
               </h2>
             </div>
-            <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 shadow-inner
-              ${pendingCount > 0 ? 'bg-orange-50 text-orange-500 border border-orange-100' : 'bg-green-50 text-green-500 border border-green-100'}
+            <div className={`w-14 h-14 rounded-[1.2rem] flex items-center justify-center shrink-0 shadow-inner border
+              ${pendingCount > 0 ? 'bg-orange-50 text-orange-500 border-orange-100' : 'bg-green-50 text-green-500 border-green-100'}
             `}>
-              {pendingCount > 0 ? <AlertCircle size={24} /> : <CheckCircle2 size={24} />}
+              {pendingCount > 0 ? <AlertCircle size={28} /> : <CheckCircle2 size={28} />}
             </div>
           </div>
 
           <div>
-            <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/80 mb-6 leading-relaxed">
+            <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/80 mb-8 leading-relaxed font-medium">
               {pendingCount > 0 
-                ? `Existem ${pendingCount} peças criativas aguardando a sua validação. A sua aprovação rápida garante que o cronograma de publicações se mantém intacto.` 
-                : 'Não há publicações a aguardar a sua aprovação neste momento. O estúdio está a produzir as próximas peças.'}
+                ? `Existem ${pendingCount} peças criativas aguardando a sua validação. A sua aprovação rápida garante que o cronograma do projeto se mantém intacto.` 
+                : 'Não há aprovações a aguardar a sua validação neste momento. O estúdio está focado a produzir a próxima vaga de design.'}
             </p>
 
-            <button onClick={() => router.push('/curadoria')} className={`px-6 py-3.5 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all outline-none
+            <button onClick={() => router.push('/curadoria')} className={`px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all outline-none
                 ${pendingCount > 0 
                   ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-md hover:shadow-lg hover:-translate-y-0.5' 
-                  : 'bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)]'}
+                  : 'bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)] shadow-sm hover:shadow-md hover:-translate-y-0.5'}
               `}>
               {pendingCount > 0 ? 'Revisar Conteúdo Agora' : 'Ver Histórico de Curadoria'}
               <ArrowRight size={16} />
@@ -573,60 +638,60 @@ export default function CockpitPage() {
           </div>
         </motion.div>
 
-        <motion.div whileHover={{ y: -4 }} className="md:col-span-4 glass-panel p-8 flex flex-col justify-between bg-white/70 relative overflow-hidden rounded-[2rem] border border-white/50 shadow-sm">
-          <div className="absolute -right-6 -top-6 w-32 h-32 bg-[var(--color-atelier-terracota)]/10 rounded-full blur-2xl"></div>
+        <motion.div whileHover={{ y: -4 }} className="md:col-span-4 glass-panel p-8 md:p-10 flex flex-col justify-between bg-white/60 relative overflow-hidden rounded-[3rem] border border-white shadow-sm transition-colors hover:bg-white/80">
+          <div className="absolute -right-6 -top-6 w-40 h-40 bg-[var(--color-atelier-terracota)]/10 rounded-full blur-3xl pointer-events-none"></div>
           
           <div>
             <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2 flex items-center gap-2">
               <Activity size={12} className="text-[var(--color-atelier-terracota)]"/> Atelier Pulse
             </span>
-            <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] mb-6">Saúde da Marca</h2>
+            <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-6">Saúde da Marca</h2>
           </div>
 
-          <div className="flex flex-col items-center justify-center my-4 relative z-10">
-            <div className="relative w-32 h-32 flex items-center justify-center">
+          <div className="flex flex-col items-center justify-center my-6 relative z-10">
+            <div className="relative w-36 h-36 flex items-center justify-center">
               <svg className="w-full h-full transform -rotate-90">
-                <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-gray-100" />
+                <circle cx="72" cy="72" r="66" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-white drop-shadow-sm" />
                 <motion.circle 
-                  initial={{ strokeDasharray: "0 400" }}
-                  animate={{ strokeDasharray: `${(healthScore / 100) * 364} 400` }}
+                  initial={{ strokeDasharray: "0 414" }}
+                  animate={{ strokeDasharray: `${(healthScore / 100) * 414} 414` }}
                   transition={{ duration: 1.5, ease: "easeOut" }}
-                  cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="6" fill="transparent" 
+                  cx="72" cy="72" r="66" stroke="currentColor" strokeWidth="6" fill="transparent" 
                   strokeLinecap="round"
                   className="text-[var(--color-atelier-terracota)] drop-shadow-md" 
                 />
               </svg>
               <div className="absolute flex flex-col items-center">
-                <span className="font-elegant text-4xl text-[var(--color-atelier-grafite)] leading-none mt-1">{healthScore}</span>
-                <span className="font-roboto text-[9px] font-bold text-[var(--color-atelier-grafite)]/40 uppercase tracking-widest mt-1">/ 100</span>
+                <span className="font-elegant text-5xl text-[var(--color-atelier-grafite)] leading-none mt-1">{healthScore}</span>
+                <span className="font-roboto text-[9px] font-bold text-[var(--color-atelier-grafite)]/40 uppercase tracking-widest mt-1.5">/ 100</span>
               </div>
             </div>
           </div>
 
           <div className="text-center mt-2 relative z-10">
-             <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-roboto text-[9px] font-bold uppercase tracking-widest border border-[var(--color-atelier-terracota)]/20">
+             <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white shadow-sm text-[var(--color-atelier-terracota)] font-roboto text-[10px] font-bold uppercase tracking-widest border border-[var(--color-atelier-terracota)]/10">
                <TrendingUp size={12} /> Crescimento Sólido
              </span>
           </div>
         </motion.div>
 
-        <motion.div whileHover={{ y: -2 }} className="md:col-span-12 glass-panel p-6 md:p-8 bg-white/60 flex flex-col md:flex-row items-start md:items-center gap-6 justify-between border-l-4 border-l-[var(--color-atelier-grafite)] rounded-r-[2rem] rounded-l-lg shadow-sm">
+        <motion.div whileHover={{ y: -2 }} className="md:col-span-12 glass-panel p-6 md:p-8 bg-white/70 flex flex-col md:flex-row items-start md:items-center gap-6 justify-between border-l-4 border-l-[var(--color-atelier-grafite)] rounded-[2rem] rounded-l-lg shadow-sm">
           <div className="flex items-center gap-4">
-            <div className="w-12 h-12 rounded-full bg-[var(--color-atelier-grafite)]/5 flex items-center justify-center shrink-0 border border-[var(--color-atelier-grafite)]/10">
+            <div className="w-14 h-14 rounded-[1rem] bg-white shadow-inner flex items-center justify-center shrink-0 border border-white/50">
               <Clock size={20} className="text-[var(--color-atelier-grafite)]" />
             </div>
             <div>
               <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 block mb-1">
                 Transparência de Estúdio
               </span>
-              <h3 className="font-roboto text-[14px] font-bold text-[var(--color-atelier-grafite)] flex items-center gap-2">
+              <h3 className="font-roboto text-[15px] font-bold text-[var(--color-atelier-grafite)] flex items-center gap-2">
                 Foco Atual: <span className="font-normal text-[var(--color-atelier-terracota)]">{currentFocus}</span>
               </h3>
             </div>
           </div>
           
-          <div className="text-[11px] font-roboto font-medium text-[var(--color-atelier-grafite)]/50 italic flex items-center gap-2 shrink-0 bg-white/50 px-4 py-2 rounded-full">
-            <Sparkles size={14} className="text-[var(--color-atelier-terracota)]" /> Atualizado em tempo real pelo Diretor de Arte
+          <div className="text-[11px] font-roboto font-bold text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest flex items-center gap-2 shrink-0 bg-white px-5 py-2.5 rounded-xl shadow-sm border border-white">
+            <Sparkles size={14} className="text-[var(--color-atelier-terracota)]" /> Atualizado pelo Diretor de Arte
           </div>
         </motion.div>
 

@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabase";
 import { AtelierPMEngine } from "../../../lib/AtelierPMEngine"; 
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
+import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
 import { BrainCircuit, Loader2, Bell, X, Cpu, Play, CheckSquare, Check } from "lucide-react";
 
 // Importações do Núcleo Estático
@@ -193,7 +194,6 @@ export default function AnalyticsPage() {
         }
       }
 
-      // 🚨 REMOVIDA DAQUI A CHAMADA AO MOTOR
     } catch (error) {
       console.error("Erro no Analytics:", error);
       showToast("Erro ao sincronizar Centro de Operações.");
@@ -214,15 +214,24 @@ export default function AnalyticsPage() {
       }
     };
     bootEngine();
-  }, []); // Array de dependências VAZIO para não repetir
+  }, []); 
 
   // ============================================================================
-  // 🚀 GATILHOS DO ATELIER PM ENGINE
+  // 🚀 GATILHOS DO ATELIER PM ENGINE COM NOTIFICAÇÕES (BELL)
   // ============================================================================
   const handleAutoDispatch = async () => {
     setIsProcessing(true);
     try {
       await AtelierPMEngine.distributeUnassignedTasks();
+      
+      // 🔔 NOTIFICAÇÃO: Gestão
+      await NotificationEngine.notifyManagement(
+        "🤖 Despacho Automático Concluído",
+        "O Motor de IA alocou com sucesso as tarefas pendentes na fila da equipa.",
+        "success",
+        "/admin/analytics"
+      );
+
       showToast("Automação executada: O Motor alocou as tarefas pendentes.");
       fetchOperationalData();
     } catch (e) {
@@ -244,7 +253,7 @@ export default function AnalyticsPage() {
   };
 
   // ============================================================================
-  // 🔥 FUNÇÕES DE EXECUÇÃO EM LOTE E LOGÍSTICA (Omitidas para brevidade, mantenha as originais)
+  // 🔥 FUNÇÕES DE EXECUÇÃO EM LOTE E LOGÍSTICA
   // ============================================================================
   const toggleTaskSelection = (id: string) => {
     if (selectedTaskIds.includes(id)) setSelectedTaskIds(selectedTaskIds.filter(tid => tid !== id));
@@ -346,6 +355,16 @@ export default function AnalyticsPage() {
         deadline: new Date(Date.now() + 86400000).toISOString()
       });
       if (error) throw error;
+      
+      // 🔔 NOTIFICAÇÃO: Colaborador Alvo
+      await NotificationEngine.notifyUser(
+        adHocDemand.assigneeId,
+        "🔥 Nova Demanda Ad-Hoc",
+        `Foi-lhe atribuída a demanda imediata: ${adHocDemand.title}`,
+        "warning",
+        "/admin/jtbd"
+      );
+
       showToast("🔥 Demanda injetada na fila do colaborador!");
       setAdHocDemand({ title: "", projectId: "", assigneeId: "", taskType: "", urgency: false });
       fetchOperationalData();
@@ -373,6 +392,16 @@ export default function AnalyticsPage() {
         estimated_time: 120
       });
       if (error) throw error;
+      
+      // 🔔 NOTIFICAÇÃO: Operador de Captação
+      await NotificationEngine.notifyUser(
+        captacaoForm.assigneeId,
+        "📸 Nova Captação Agendada",
+        `Data: ${new Date(captacaoForm.date).toLocaleDateString('pt-PT')}. Local: ${captacaoForm.location}`,
+        "action",
+        "/admin/jtbd"
+      );
+
       showToast("📍 Logística de captação agendada com sucesso!");
       setIsCaptacaoModalOpen(false);
       setCaptacaoForm({ title: "", assigneeId: "", date: "", location: "", notes: "" });
@@ -463,6 +492,22 @@ export default function AnalyticsPage() {
         refreshGlobalData();
       }
 
+      // 🔔 NOTIFICAÇÕES: Gestão e Cliente
+      await NotificationEngine.notifyManagement(
+        "🚀 Pipeline Instanciado",
+        `O ciclo operacional para o projeto ${project.profiles?.nome || 'Cliente'} foi ativado com sucesso.`,
+        "success",
+        "/admin/projetos"
+      );
+      
+      await NotificationEngine.notifyUser(
+        project.client_id,
+        "🔄 Novo Ciclo Operacional",
+        "O Atelier ativou o seu novo ciclo de produção. A nossa equipa já está a trabalhar nos seus novos ativos.",
+        "info",
+        "/cockpit"
+      );
+
       showToast(hasPreviousTasks ? "🔄 Ciclo Mensal Renovado!" : "🚀 Pipeline Inteligente Instanciado!");
       fetchOperationalData();
     } catch (error) {
@@ -545,6 +590,16 @@ export default function AnalyticsPage() {
     try {
       const { error } = await supabase.from('profiles').update({ skills: newSkills }).eq('id', collabId);
       if (error) throw error;
+      
+      // 🔔 NOTIFICAÇÃO: Colaborador com Skill Alterada
+      await NotificationEngine.notifyUser(
+        collabId,
+        "🎖️ Competências Atualizadas",
+        "O seu perfil de skills no estúdio foi recalibrado pela Liderança.",
+        "info",
+        "/admin/jtbd"
+      );
+
       showToast("Competência atualizada no banco de dados.");
     } catch (e) {
       showToast("Erro ao atualizar competências.");
@@ -764,56 +819,56 @@ export default function AnalyticsPage() {
 
                {/* Conteúdo Deslizável */}
                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-8">
-                  
-                  {/* Secção 1: Controlo do Motor */}
-                  <div>
-                     <div className="flex items-center justify-between mb-4">
-                       <h3 className="font-roboto text-[11px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">Motor Operacional</h3>
-                     </div>
-                     <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 flex flex-col gap-5 shadow-sm">
-                        <div className="flex items-center justify-between">
-                           <div className="flex flex-col">
-                             <span className="text-[13px] font-bold text-[var(--color-atelier-grafite)]">Modo de Distribuição</span>
-                             <span className="text-[10px] text-[var(--color-atelier-grafite)]/50 mt-0.5">Alocação de tarefas órfãs</span>
-                           </div>
-                           <span className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest ${engineMode === 'auto' ? 'bg-[var(--color-atelier-terracota)] text-white' : 'bg-gray-200 text-gray-600'}`}>
-                             {engineMode === 'auto' ? 'Automático' : 'HITL (Manual)'}
-                           </span>
-                        </div>
-
-                        {/* Toggle do Engine Mode */}
-                        <div className="flex bg-white border border-gray-200 p-1 rounded-xl shadow-inner">
-                           <button onClick={() => setEngineMode('manual')} className={`flex-1 py-2 rounded-lg font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${engineMode === 'manual' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-sm' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-gray-50'}`}>Manual</button>
-                           <button onClick={() => setEngineMode('auto')} className={`flex-1 py-2 rounded-lg font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${engineMode === 'auto' ? 'bg-[var(--color-atelier-terracota)] text-white shadow-sm' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-gray-50'}`}>Auto</button>
-                        </div>
-                        
-                        <button 
-                          onClick={handleAutoDispatch}
-                          disabled={isProcessing}
-                          className="w-full py-3.5 bg-[var(--color-atelier-grafite)] text-white rounded-xl text-[11px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-sm disabled:opacity-50"
-                        >
-                          {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} fill="currentColor"/>}
-                          Forçar Despacho de Tarefas
-                        </button>
-                     </div>
-                  </div>
-
-                  {/* Secção 2: Caixa de Entrada (Alertas do Sistema) */}
-                  <div>
-                     <div className="flex items-center justify-between mb-4">
-                       <h3 className="font-roboto text-[11px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">Inbox (Anomalias de Sistema)</h3>
-                       {systemAlerts.length > 0 && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-[10px] font-bold">{systemAlerts.length} pendentes</span>}
-                     </div>
-                     
-                     <div className="flex flex-col gap-4">
-                       {systemAlerts.length === 0 ? (
-                          <div className="text-center py-10 opacity-40 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
-                             <CheckSquare size={32} className="mx-auto mb-3 text-[var(--color-atelier-grafite)]" />
-                             <p className="font-elegant text-2xl">Inbox Limpa.</p>
-                             <p className="text-[11px] font-roboto max-w-[200px] mx-auto mt-1">O motor de IA não detetou desvios de orçamento ou gargalos.</p>
+                 
+                 {/* Secção 1: Controlo do Motor */}
+                 <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-roboto text-[11px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">Motor Operacional</h3>
+                    </div>
+                    <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 flex flex-col gap-5 shadow-sm">
+                       <div className="flex items-center justify-between">
+                          <div className="flex flex-col">
+                            <span className="text-[13px] font-bold text-[var(--color-atelier-grafite)]">Modo de Distribuição</span>
+                            <span className="text-[10px] text-[var(--color-atelier-grafite)]/50 mt-0.5">Alocação de tarefas órfãs</span>
                           </div>
-                       ) : (
-                          systemAlerts.map(alert => (
+                          <span className={`px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest ${engineMode === 'auto' ? 'bg-[var(--color-atelier-terracota)] text-white' : 'bg-gray-200 text-gray-600'}`}>
+                            {engineMode === 'auto' ? 'Automático' : 'HITL (Manual)'}
+                          </span>
+                       </div>
+
+                       {/* Toggle do Engine Mode */}
+                       <div className="flex bg-white border border-gray-200 p-1 rounded-xl shadow-inner">
+                          <button onClick={() => setEngineMode('manual')} className={`flex-1 py-2 rounded-lg font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${engineMode === 'manual' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-sm' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-gray-50'}`}>Manual</button>
+                          <button onClick={() => setEngineMode('auto')} className={`flex-1 py-2 rounded-lg font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${engineMode === 'auto' ? 'bg-[var(--color-atelier-terracota)] text-white shadow-sm' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-gray-50'}`}>Auto</button>
+                       </div>
+                       
+                       <button 
+                         onClick={handleAutoDispatch}
+                         disabled={isProcessing}
+                         className="w-full py-3.5 bg-[var(--color-atelier-grafite)] text-white rounded-xl text-[11px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-sm disabled:opacity-50"
+                       >
+                         {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} fill="currentColor"/>}
+                         Forçar Despacho de Tarefas
+                       </button>
+                    </div>
+                 </div>
+
+                 {/* Secção 2: Caixa de Entrada (Alertas do Sistema) */}
+                 <div>
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="font-roboto text-[11px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">Inbox (Anomalias de Sistema)</h3>
+                      {systemAlerts.length > 0 && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-[10px] font-bold">{systemAlerts.length} pendentes</span>}
+                    </div>
+                    
+                    <div className="flex flex-col gap-4">
+                      {systemAlerts.length === 0 ? (
+                         <div className="text-center py-10 opacity-40 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+                            <CheckSquare size={32} className="mx-auto mb-3 text-[var(--color-atelier-grafite)]" />
+                            <p className="font-elegant text-2xl">Inbox Limpa.</p>
+                            <p className="text-[11px] font-roboto max-w-[200px] mx-auto mt-1">O motor de IA não detetou desvios de orçamento ou gargalos.</p>
+                         </div>
+                      ) : (
+                         systemAlerts.map(alert => (
                              <div key={alert.id} className="bg-orange-50 p-5 rounded-2xl border border-orange-100 flex flex-col gap-3 shadow-sm relative overflow-hidden group">
                                 <div className="absolute left-0 top-0 bottom-0 w-1 bg-orange-400"></div>
                                 <div className="flex items-start justify-between gap-3">
@@ -827,7 +882,7 @@ export default function AnalyticsPage() {
                           ))
                        )}
                      </div>
-                  </div>
+                 </div>
 
                </div>
             </motion.div>

@@ -7,6 +7,7 @@ import { supabase } from "../../../lib/supabase";
 import { useRouter } from "next/navigation";
 import { useGlobalStore } from "../../../contexts/GlobalStore";
 import { AtelierCFOEngine } from "../../../lib/AtelierCFOEngine";
+import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
 import { 
   DollarSign, Loader2, Wallet, HeartPulse,
   LayoutDashboard, Download, Edit3, X, ArrowDownRight,
@@ -331,13 +332,30 @@ export default function FinanceiroPage() {
   // ==========================================
   // HANDLERS FINANCEIROS (Ações Globais)
   // ==========================================
-  const handleNotifyClient = async (clientName: string, email: string) => {
+  const handleNotifyClient = async (projectId: string, clientName: string, email: string, amount: number) => {
     setIsProcessing(true);
-    showToast(`A enviar notificação de cobrança para ${email}...`);
-    setTimeout(() => {
-      showToast(`✅ Notificação enviada com sucesso para ${clientName}.`);
+    try {
+      // Vai buscar o client_id através do id do projeto
+      const { data: proj } = await supabase.from('projects').select('client_id').eq('id', projectId).single();
+      
+      if (proj && proj.client_id) {
+        // 🔔 NOTIFICAÇÃO: Aviso de Cobrança ao Cliente (Substitui o toast de mentira)
+        await NotificationEngine.notifyUser(
+          proj.client_id,
+          "⚠️ Fatura Disponível para Liquidação",
+          `A fatura no valor de R$ ${amount.toFixed(2)} já se encontra disponível. Por favor, regularize para não interromper os serviços.`,
+          "warning",
+          "/cockpit"
+        );
+        showToast(`✅ Notificação enviada com sucesso para ${clientName}.`);
+      } else {
+        showToast("Não foi possível localizar a conta do cliente.");
+      }
+    } catch(e) {
+      showToast("Erro ao notificar o cliente.");
+    } finally {
       setIsProcessing(false);
-    }, 1500);
+    }
   };
 
   const handleMarkAsPaid = async (projectId: string) => {
@@ -351,6 +369,25 @@ export default function FinanceiroPage() {
          
          await supabase.from(targetTable).update({ billing_date: nextMonth.toISOString() }).eq('id', projectId);
          
+         // 🔔 NOTIFICAÇÕES: Recibo ao Cliente e Aviso de Caixa à Liderança
+         if (targetItem.entityType === 'project') {
+           const { data: proj } = await supabase.from('projects').select('client_id').eq('id', projectId).single();
+           if (proj && proj.client_id) {
+             await NotificationEngine.notifyUser(
+               proj.client_id,
+               "✅ Pagamento Confirmado",
+               `Confirmamos o recebimento de R$ ${targetItem.amount.toFixed(2)}. O seu ciclo mensal foi renovado!`,
+               "success"
+             );
+           }
+         }
+
+         await NotificationEngine.notifyManagement(
+           "💰 Fatura Liquidada",
+           `A fatura de ${targetItem.client} no valor de R$ ${targetItem.amount.toFixed(2)} entrou em caixa.`,
+           "success"
+         );
+
          setUpcomingBillings(prev => prev.filter(b => b.id !== projectId));
          showToast("💵 Fatura liquidada! Ciclo renovado.");
          refreshGlobalData();
@@ -398,6 +435,15 @@ export default function FinanceiroPage() {
         if (error.code === '23505') showToast("Erro: Este mês já foi fechado.");
         else throw error;
       } else {
+        
+        // 🔔 NOTIFICAÇÃO: Gestão (Fecho de Mês)
+        await NotificationEngine.notifyManagement(
+          "📊 Ciclo Financeiro Fechado",
+          `O mês ${closingMonth} foi consolidado com um EBITDA de R$ ${cfoMetrics.ebitda.ebitdaReal.toFixed(2)}.`,
+          "info",
+          "/admin/financeiro"
+        );
+
         showToast("🔒 Mês Fechado e Consolidado com Sucesso!");
         fetchFinancialData();
       }
@@ -420,7 +466,6 @@ export default function FinanceiroPage() {
   if (isGlobalLoading || isLocalLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   return (
-    // CORREÇÃO DE UI: Removido o h-[calc(100vh-60px)] travado. Agora usa min-h-screen para rolar nativamente.
     <div className="flex flex-col min-h-screen max-w-[1400px] mx-auto relative z-10 pb-20 gap-6 px-4 md:px-0">
       
       {/* HEADER DE COMANDO TRIPLO */}
@@ -439,14 +484,14 @@ export default function FinanceiroPage() {
           </h1>
         </div>
         
-        <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0">
-           <button onClick={() => setActiveView('overview')} className={`px-4 py-3 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeView === 'overview' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)]'}`}>
+        <div className="bg-white/60 border border-white p-1.5 rounded-[1.2rem] shadow-sm flex items-center shrink-0">
+           <button onClick={() => setActiveView('overview')} className={`px-4 py-3 rounded-[1rem] font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeView === 'overview' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)] hover:bg-white'}`}>
              <LayoutDashboard size={14}/> Visão Geral
            </button>
-           <button onClick={() => setActiveView('finance')} className={`px-4 py-3 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeView === 'finance' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)]'}`}>
+           <button onClick={() => setActiveView('finance')} className={`px-4 py-3 rounded-[1rem] font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeView === 'finance' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)] hover:bg-white'}`}>
              <Wallet size={14}/> Financeiro (CFO)
            </button>
-           <button onClick={() => setActiveView('health')} className={`px-4 py-3 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeView === 'health' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)]'}`}>
+           <button onClick={() => setActiveView('health')} className={`px-4 py-3 rounded-[1rem] font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeView === 'health' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)] hover:bg-white'}`}>
              <Medal size={14}/> Performance
            </button>
         </div>
@@ -504,14 +549,14 @@ export default function FinanceiroPage() {
       <AnimatePresence>
         {isOutflowModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 md:px-8">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsOutflowModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-white/20 flex flex-col gap-6">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsOutflowModalOpen(false)} className="absolute inset-0 bg-black/20 backdrop-blur-md" />
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-[var(--color-atelier-grafite)]/10 flex flex-col gap-6">
               <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <div>
                   <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><ArrowDownRight size={24} className="text-red-500"/> Nova Despesa</h3>
                   <p className="font-roboto text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1 font-bold">Lançamento no Fluxo de Caixa</p>
                 </div>
-                <button onClick={() => setIsOutflowModalOpen(false)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] shrink-0 bg-gray-50 p-2 rounded-full"><X size={18}/></button>
+                <button onClick={() => setIsOutflowModalOpen(false)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] shrink-0 bg-gray-50 p-2 rounded-full hover:bg-gray-100 transition-colors"><X size={18}/></button>
               </div>
 
               <form id="outflow-form" onSubmit={handleAddOutflow} className="flex flex-col gap-4">
@@ -546,7 +591,7 @@ export default function FinanceiroPage() {
                 </div>
               </form>
 
-              <button type="submit" form="outflow-form" disabled={isProcessing} className="w-full bg-red-600 text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-red-700 transition-colors flex justify-center items-center gap-2 mt-2 disabled:opacity-50">
+              <button type="submit" form="outflow-form" disabled={isProcessing} className="w-full bg-red-600 text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-red-700 hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2 mt-2 disabled:opacity-50 disabled:hover:translate-y-0">
                 {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle2 size={16}/>} Registrar Despesa
               </button>
             </motion.div>
@@ -558,26 +603,26 @@ export default function FinanceiroPage() {
       <AnimatePresence>
         {isReportModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 md:px-8">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsReportModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-white/20 flex flex-col gap-6">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsReportModalOpen(false)} className="absolute inset-0 bg-black/20 backdrop-blur-md" />
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-[var(--color-atelier-grafite)]/10 flex flex-col gap-6">
               
               <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <div>
                   <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><FileText size={24} className="text-[var(--color-atelier-terracota)]"/> Relatório DRE</h3>
                   <p className="font-roboto text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1 font-bold">Demonstração do Resultado</p>
                 </div>
-                <button onClick={() => setIsReportModalOpen(false)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] shrink-0 bg-gray-50 p-2 rounded-full"><X size={18}/></button>
+                <button onClick={() => setIsReportModalOpen(false)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] shrink-0 bg-gray-50 p-2 rounded-full hover:bg-gray-100 transition-colors"><X size={18}/></button>
               </div>
 
               <div className="flex flex-col gap-4">
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Data Inicial</span>
-                    <input type="date" value={reportPeriod.start} onChange={(e) => setReportPeriod({...reportPeriod, start: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl px-3 py-3.5 text-[13px] outline-none font-bold cursor-pointer" />
+                    <input type="date" value={reportPeriod.start} onChange={(e) => setReportPeriod({...reportPeriod, start: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl px-3 py-3.5 text-[13px] outline-none font-bold cursor-pointer focus:border-[var(--color-atelier-terracota)]/50" />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Data Final</span>
-                    <input type="date" value={reportPeriod.end} onChange={(e) => setReportPeriod({...reportPeriod, end: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl px-3 py-3.5 text-[13px] outline-none font-bold cursor-pointer" />
+                    <input type="date" value={reportPeriod.end} onChange={(e) => setReportPeriod({...reportPeriod, end: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl px-3 py-3.5 text-[13px] outline-none font-bold cursor-pointer focus:border-[var(--color-atelier-terracota)]/50" />
                   </div>
                 </div>
               </div>
@@ -593,7 +638,7 @@ export default function FinanceiroPage() {
                   }, 1500);
                 }} 
                 disabled={isProcessing} 
-                className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-black transition-colors flex justify-center items-center gap-2 mt-2 disabled:opacity-50"
+                className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-black transition-colors flex justify-center items-center gap-2 mt-2 disabled:opacity-50 hover:-translate-y-0.5 disabled:hover:translate-y-0"
               >
                 {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <Download size={16}/>} Gerar PDF
               </button>
@@ -607,37 +652,18 @@ export default function FinanceiroPage() {
       <AnimatePresence>
         {isEditModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 md:px-8">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsEditModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-lg border border-white/20 flex flex-col gap-6">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsEditModalOpen(false)} className="absolute inset-0 bg-black/20 backdrop-blur-md" />
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-lg border border-[var(--color-atelier-grafite)]/10 flex flex-col gap-6">
               
               <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <div>
                   <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><Edit3 size={24} className="text-[var(--color-atelier-terracota)]"/> Editar Contrato</h3>
                   <p className="font-roboto text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1 font-bold">Ajustes Financeiros e de LTV</p>
                 </div>
-                <button onClick={() => setIsEditModalOpen(false)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] shrink-0 bg-gray-50 p-2 rounded-full"><X size={18}/></button>
+                <button onClick={() => setIsEditModalOpen(false)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] shrink-0 bg-gray-50 p-2 rounded-full hover:bg-gray-100 transition-colors"><X size={18}/></button>
               </div>
 
               <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Selecionar Cliente Pendente</span>
-                  <select 
-                    value={projectToEdit?.id || ""} 
-                    onChange={(e) => {
-                      const bill = upcomingBillings.find(b => b.id === e.target.value);
-                      if (bill) {
-                        setProjectToEdit(bill);
-                        setEditFinancialValue(bill.amount.toString());
-                        setEditPackage(bill.service);
-                      }
-                    }} 
-                    className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 font-bold"
-                  >
-                    <option value="">Escolha um cliente da fila...</option>
-                    {upcomingBillings.map(b => <option key={b.id} value={b.id}>{b.client} ({b.type})</option>)}
-                  </select>
-                </div>
-
                 {projectToEdit?.entityType === 'agency' && (
                    <div className="bg-blue-50 border border-blue-200 text-blue-700 p-3 rounded-xl text-[11px] font-bold flex items-center gap-2">
                      <AlertTriangle size={14}/> Agência White-Label (Apenas ajuste de MRR disponível)
@@ -648,14 +674,14 @@ export default function FinanceiroPage() {
                   <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Valor Contratual / MRR Atual (R$)</span>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-[var(--color-atelier-grafite)]/40">R$</span>
-                    <input type="number" placeholder="0.00" value={editFinancialValue} onChange={(e) => setEditFinancialValue(e.target.value)} className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl py-3.5 pl-10 pr-4 text-[14px] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm" />
+                    <input type="number" placeholder="0.00" value={editFinancialValue} onChange={(e) => setEditFinancialValue(e.target.value)} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl py-3.5 pl-10 pr-4 text-[14px] outline-none focus:border-[var(--color-atelier-terracota)]/50 font-bold" />
                   </div>
                 </div>
 
                 {projectToEdit?.entityType !== 'agency' && (
                   <div className="flex flex-col gap-1.5">
                     <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Alterar Pacote / Escopo LTV</span>
-                    <select value={editPackage} onChange={(e) => setEditPackage(e.target.value)} className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm text-[var(--color-atelier-terracota)] font-bold">
+                    <select value={editPackage} onChange={(e) => setEditPackage(e.target.value)} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-terracota)] font-bold cursor-pointer">
                       <option value="" disabled>Manter atual</option>
                       <optgroup label="Gestão de Instagram">
                         <option>Pacote 1</option>
@@ -672,7 +698,7 @@ export default function FinanceiroPage() {
                 )}
               </div>
 
-              <div className="mt-2 bg-blue-50 border border-blue-100 p-4 rounded-xl flex items-start gap-3">
+              <div className="mt-2 bg-blue-50/50 border border-blue-100 p-4 rounded-xl flex items-start gap-3">
                 <Activity size={16} className="text-blue-500 shrink-0 mt-0.5"/>
                 <p className="text-[11px] text-blue-800 leading-relaxed font-medium">As alterações aplicar-se-ão apenas ao próximo ciclo mensal. Para alterar o Workflow estrutural, utilize a aba de Clientes.</p>
               </div>
@@ -692,6 +718,20 @@ export default function FinanceiroPage() {
                     }
                     
                     await supabase.from(targetTable).update(updates).eq('id', projectToEdit.id);
+                    
+                    // 🔔 NOTIFICAÇÃO: Cliente
+                    if (targetTable === 'projects') {
+                      const { data: proj } = await supabase.from('projects').select('client_id').eq('id', projectToEdit.id).single();
+                      if (proj && proj.client_id) {
+                        await NotificationEngine.notifyUser(
+                          proj.client_id,
+                          "💳 Ajuste de Escopo",
+                          "Houve um ajuste nas condições comerciais da sua mensalidade. Reveja com a sua Gestora de Conta.",
+                          "info"
+                        );
+                      }
+                    }
+
                     showToast("Contrato reajustado com sucesso!");
                     setIsEditModalOpen(false);
                     refreshGlobalData();
@@ -702,7 +742,7 @@ export default function FinanceiroPage() {
                   }
                 }} 
                 disabled={isProcessing || !projectToEdit} 
-                className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-[var(--color-atelier-terracota)] transition-colors flex justify-center items-center gap-2 mt-2 disabled:opacity-50"
+                className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2 mt-2 disabled:opacity-50 disabled:hover:translate-y-0"
               >
                 {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle2 size={16}/>} Aplicar Reajuste
               </button>

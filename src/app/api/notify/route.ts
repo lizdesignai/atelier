@@ -35,7 +35,7 @@ function getEmailTemplate(type: string, data: any) {
     case 'new_direction':
       subject = "Nova Direção Visual Disponível para Avaliação";
       title = `Olá, ${clientName}`;
-      message = `A Direção de Arte do Atelier acabou de disponibilizar novas rotas visuais para o projeto <strong>${projectName}</strong>. Aceda à sua mesa de trabalho para avaliar e pontuar.`;
+      message = `A Direção de Arte do Atelier acabou de disponibilizar novas rotas criativas para a sua marca. Aceda à sua mesa de trabalho para avaliar e pontuar.`;
       buttonText = "Avaliar Direção Visual";
       break;
 
@@ -53,6 +53,48 @@ function getEmailTemplate(type: string, data: any) {
       buttonText = "Aceder aos Ativos Finais";
       break;
 
+    case 'vault_new_asset':
+      subject = "📦 Novo Ativo no Cofre";
+      title = `Olá, ${clientName}`;
+      message = `O Atelier adicionou um novo ficheiro de alta resolução ao seu Cofre de Ativos. Acesse para efetuar o download.`;
+      buttonText = "Abrir Cofre";
+      break;
+
+    case 'project_archived':
+      subject = "🔒 Acesso Fechado: Projeto Arquivado";
+      title = `Olá, ${clientName}`;
+      message = `O seu projeto foi oficialmente arquivado no nosso sistema e o seu acesso ao estúdio foi revogado. Agradecemos por confiar a sua marca ao Atelier.`;
+      buttonText = "Ver o meu Legado";
+      break;
+
+    case 'project_reactivated':
+      subject = "🔓 Operação Reativada";
+      title = `Bem-vindo de volta, ${clientName}`;
+      message = `O seu projeto voltou a ficar ativo nas nossas mesas. O seu acesso total ao Cockpit foi restaurado.`;
+      buttonText = "Aceder ao Cockpit";
+      break;
+
+    case 'community_approved_post':
+      subject = "✅ A sua Partilha foi Aprovada!";
+      title = `Olá, ${clientName}`;
+      message = `A sua publicação foi validada pela nossa equipa e já está visível no mural da Comunidade.`;
+      buttonText = "Ver na Comunidade";
+      break;
+
+    case 'community_interaction':
+      subject = "🔔 Nova Interação na sua Publicação";
+      title = `Olá, ${clientName}`;
+      message = `Alguém reagiu ou comentou na sua partilha recente na Comunidade do Atelier. Acesse para manter o networking ativo.`;
+      buttonText = "Ver Interações";
+      break;
+
+    case 'b2b_interest':
+      subject = "🤝 Novo Interesse de Parceria B2B!";
+      title = `Olá, ${clientName}`;
+      message = `Um membro da nossa comunidade manifestou interesse no seu Pitch no Hub de Negócios. Aceda ao portal para entrar em contacto.`;
+      buttonText = "Ver Oportunidade";
+      break;
+
     // -------------------------------------------------------------
     // 2. NOTIFICAÇÕES INTERNAS (ADMIN / GESTOR / EQUIPA)
     // -------------------------------------------------------------
@@ -61,6 +103,76 @@ function getEmailTemplate(type: string, data: any) {
       title = "Atualização de Projeto";
       message = `O cliente <strong>${clientName}</strong> concluiu o preenchimento do Briefing Oficial. A IA do CBO já está pronta para gerar o diagnóstico.`;
       buttonText = "Analisar Dossiê";
+      break;
+
+    case 'upsell_accepted':
+      subject = `🔥 [BOILING LEAD] Upsell Solicitado: ${clientName}`;
+      title = "Novo Sinal de Escala";
+      message = `O cliente <strong>${clientName}</strong> avaliou a entrega positivamente no T-NPS e clicou para delegar/escalar os serviços (Gestão de Instagram). Entre em contacto IMEDIATO.`;
+      buttonText = "Abrir CRM / Cliente";
+      break;
+
+    case 'art_approved':
+      subject = `✅ [CURADORIA] Arte Aprovada: ${clientName}`;
+      title = "Luz Verde";
+      message = `O cliente <strong>${clientName}</strong> efetuou um Double Tap e aprovou a peça visual no Fluxo de Impacto. A arte está pronta para agendamento.`;
+      buttonText = "Avançar Operação";
+      break;
+
+    case 'art_rejected':
+      subject = `❌ [CURADORIA] Arte Recusada: ${clientName}`;
+      title = "Atenção da Direção de Arte";
+      message = `O cliente <strong>${clientName}</strong> recusou uma peça criativa. É necessário rever as diretrizes e alinhar um novo conceito.`;
+      buttonText = "Ver Peça Devolvida";
+      break;
+
+    case 'visual_pin_added':
+      subject = `📍 [MODO FIGMA] Novo Apontamento Visual: ${clientName}`;
+      title = "Revisão Solicitada";
+      message = `O cliente <strong>${clientName}</strong> adicionou um pino (apontamento) na arte gráfica solicitando uma alteração específica.`;
+      buttonText = "Ler Feedback Visual";
+      break;
+
+    case 'direction_evaluated':
+      subject = `📝 [BRANDBOOK] Direção Avaliada: ${clientName}`;
+      title = "Calibragem Estética";
+      message = `O cliente <strong>${clientName}</strong> submeteu a sua pontuação e feedback sobre uma Direção Visual.`;
+      buttonText = "Ver Pontuação";
+      break;
+
+    case 'moodboard_reference_added':
+      subject = `📸 [BRANDBOOK] Nova Referência Adicionada`;
+      title = "Atualização de Moodboard";
+      message = `O cliente <strong>${clientName}</strong> carregou uma nova imagem inspiracional para o seu Cofre de Sinapses.`;
+      buttonText = "Analisar Referência";
+      break;
+
+    case 'client_profile_updated':
+      subject = `📝 [CRM] Dados Atualizados: ${clientName}`;
+      title = "Atualização de Cadastro";
+      message = `O cliente <strong>${clientName}</strong> atualizou os seus dados fiscais, de contacto ou de perfil (Instagram) nas Configurações.`;
+      buttonText = "Abrir Perfil";
+      break;
+
+    case 'chat_activity':
+      subject = `💬 [CANAIS] Nova Mensagem / Anexo de ${clientName}`;
+      title = "Comunicação Ativa";
+      message = `O cliente enviou uma nova mensagem ou ficheiro nos canais de comunicação do projeto.`;
+      buttonText = "Responder ao Cliente";
+      break;
+
+    case 'community_pending_post':
+      subject = `📝 [COMUNIDADE] Moderação Necessária`;
+      title = "Nova Publicação Submetida";
+      message = `Um cliente enviou uma publicação para o mural da comunidade e aguarda a sua aprovação para ficar pública.`;
+      buttonText = "Moderar Publicação";
+      break;
+
+    case 'b2b_new_pitch':
+      subject = `🤝 [HUB B2B] Novo Pitch Adicionado`;
+      title = "Networking Ativo";
+      message = `Um membro do ecossistema publicou uma nova oferta ou procura no Hub de Negócios. Acompanhe a movimentação da rede.`;
+      buttonText = "Ver Hub B2B";
       break;
 
     case 'diary_mention':
@@ -101,14 +213,12 @@ function getEmailTemplate(type: string, data: any) {
           <td align="center">
             <table width="100%" max-width="600" border="0" cellspacing="0" cellpadding="0" style="background-color: #FEF5E6; border-radius: 16px; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.05); max-width: 600px; width: 100%;">
               
-              <!-- HEADER -->
               <tr>
                 <td align="center" style="padding: 40px 20px 20px; border-bottom: 1px solid rgba(92, 75, 60, 0.1);">
                   <h1 style="margin: 0; color: #5c4b3c; font-size: 24px; font-weight: 300; letter-spacing: 2px; text-transform: uppercase;">Atelier OS</h1>
                 </td>
               </tr>
 
-              <!-- BODY -->
               <tr>
                 <td style="padding: 40px 30px;">
                   <h2 style="margin: 0 0 20px; color: #8c6e54; font-size: 20px;">${title}</h2>
@@ -128,7 +238,6 @@ function getEmailTemplate(type: string, data: any) {
                 </td>
               </tr>
 
-              <!-- FOOTER -->
               <tr>
                 <td align="center" style="padding: 20px; background-color: rgba(92, 75, 60, 0.03); border-top: 1px solid rgba(92, 75, 60, 0.1);">
                   <p style="margin: 0; color: #5c4b3c; font-size: 11px; opacity: 0.5; text-transform: uppercase; letter-spacing: 1px;">

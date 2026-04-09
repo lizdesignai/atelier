@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
+import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -211,29 +212,43 @@ export default function BaseClientesPage() {
       const baseDate = billingDate ? new Date(billingDate) : new Date();
       const today = new Date();
 
-      // Substituir o mapeamento antigo por este:
-const tasksToInsert = pipeline.map((t) => {
-  const targetDate = new Date(today);
-  targetDate.setDate(targetDate.getDate() + t.daysOffset);
-  
-  return {
-    project_id: newProject.id,
-    client_id: selectedClientId,
-    // creator_id removido para alinhar com o banco de dados
-    assigned_to: null, 
-    title: t.title,
-    stage: t.stage,
-    task_type: t.type,
-    estimated_time: t.estTime,
-    deadline: targetDate.toISOString(),
-    status: 'pending'
-  };
-});
+      const tasksToInsert = pipeline.map((t) => {
+        const targetDate = new Date(today);
+        targetDate.setDate(targetDate.getDate() + t.daysOffset);
+        
+        return {
+          project_id: newProject.id,
+          client_id: selectedClientId,
+          assigned_to: null, 
+          title: t.title,
+          stage: t.stage,
+          task_type: t.type,
+          estimated_time: t.estTime,
+          deadline: targetDate.toISOString(),
+          status: 'pending'
+        };
+      });
 
       if (tasksToInsert.length > 0) {
         const { error: tasksError } = await supabase.from('tasks').insert(tasksToInsert);
         if (tasksError) throw tasksError;
       }
+
+      // 🔔 NOTIFICAÇÕES: Cliente e Gestão
+      await NotificationEngine.notifyUser(
+        selectedClientId,
+        "🎉 Bem-vindo ao Atelier",
+        "A sua mesa de trabalho foi ativada. Pode agora aceder ao seu Cockpit executivo.",
+        "success",
+        "/cockpit"
+      );
+
+      await NotificationEngine.notifyManagement(
+        "📜 Novo Contrato Firmado",
+        `Um novo projeto de ${serviceType} foi instanciado com sucesso.`,
+        "info",
+        "/admin/projetos"
+      );
 
       showToast("✨ Projeto forjado e Pipeline Instanciado no JTBD!");
       setIsNewClientModalOpen(false);
@@ -310,7 +325,6 @@ const tasksToInsert = pipeline.map((t) => {
              tasksToInsert.push({
                agency_id: agency.id,
                subclient_id: sub.id,
-               // 💡 creator_id removido para evitar Erro 400
                title: `Produção (Agência): ${sub.name} - Demanda ${i}/${sub.deliverables_count}`,
                stage: "Produção Contínua",
                task_type: "design", 
@@ -327,7 +341,15 @@ const tasksToInsert = pipeline.map((t) => {
         }
       }
 
-      showToast("✨ Agência forjada com sucesso!");
+      // 🔔 NOTIFICAÇÃO: Gestão
+      await NotificationEngine.notifyManagement(
+        "🏢 Nova Operação White-Label",
+        `A agência ${agencyName} foi registada com ${agencySubclients.length} perfis ativos.`,
+        "info",
+        "/admin/analytics"
+      );
+
+      showToast("✨ Agência adicionada com sucesso!");
       setIsAgencyModalOpen(false);
       setAgencyName("");
       setAgencyFinancialValue("");
@@ -364,7 +386,17 @@ const tasksToInsert = pipeline.map((t) => {
       if (!confirm) return;
       const { error } = await supabase.from('projects').update({ status: 'archived' }).eq('id', project.id);
       if (error) showToast("Erro ao suspender projeto.");
-      else { showToast("Projeto suspenso com sucesso."); refreshGlobalData(); }
+      else { 
+        // 🔔 NOTIFICAÇÃO: Cliente
+        await NotificationEngine.notifyUser(
+          project.client_id,
+          "⏸️ Operação Suspensa",
+          "O seu acesso ao estúdio e operação foram temporariamente suspensos.",
+          "warning"
+        );
+        showToast("Projeto suspenso com sucesso."); 
+        refreshGlobalData(); 
+      }
       return;
     }
 
@@ -373,7 +405,18 @@ const tasksToInsert = pipeline.map((t) => {
       if (!confirm) return;
       const { error } = await supabase.from('projects').update({ status: 'active' }).eq('id', project.id);
       if (error) showToast("Erro ao reativar projeto.");
-      else { showToast("Projeto reativado com sucesso."); refreshGlobalData(); }
+      else { 
+        // 🔔 NOTIFICAÇÃO: Cliente
+        await NotificationEngine.notifyUser(
+          project.client_id,
+          "▶️ Operação Retomada",
+          "O seu acesso ao estúdio foi reativado. Bem-vindo de volta.",
+          "success",
+          "/cockpit"
+        );
+        showToast("Projeto reativado com sucesso."); 
+        refreshGlobalData(); 
+      }
       return;
     }
 
@@ -403,6 +446,14 @@ const tasksToInsert = pipeline.map((t) => {
 
       if (error) throw error;
       
+      // 🔔 NOTIFICAÇÃO: Cliente
+      await NotificationEngine.notifyUser(
+        projectToEdit.client_id,
+        "💳 Atualização Contratual",
+        "Os dados financeiros e/ou datas de cobrança do seu projeto foram atualizados.",
+        "info"
+      );
+
       showToast("Dados contratuais atualizados com sucesso!");
       setIsEditModalOpen(false);
       refreshGlobalData();
@@ -440,7 +491,7 @@ const tasksToInsert = pipeline.map((t) => {
       
       {/* ==========================================
           1. CABEÇALHO DO CRM E FILTROS FIXOS
-          ========================================== */}
+          ========================================================== */}
       <header className="shrink-0 flex flex-col gap-6 animate-[fadeInUp_0.5s_ease-out]">
         <div className="flex justify-between items-end mt-6">
           <div>
@@ -460,13 +511,13 @@ const tasksToInsert = pipeline.map((t) => {
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setIsAgencyModalOpen(true)}
-              className="bg-transparent border border-[var(--color-atelier-grafite)]/20 text-[var(--color-atelier-grafite)] px-6 py-3.5 rounded-full font-roboto font-bold uppercase tracking-widest text-[11px] hover:bg-[var(--color-atelier-grafite)] hover:text-[var(--color-atelier-creme)] transition-all duration-300 shadow-sm flex items-center gap-2 hidden md:flex"
+              className="bg-white/40 border border-white text-[var(--color-atelier-grafite)] px-6 py-3.5 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] hover:bg-white transition-all shadow-sm flex items-center gap-2 hidden md:flex"
             >
               <Briefcase size={16} /> Nova Agência
             </button>
             <button 
               onClick={() => setIsNewClientModalOpen(true)}
-              className="bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] px-6 py-3.5 rounded-full font-roboto font-bold uppercase tracking-widest text-[11px] hover:bg-[var(--color-atelier-terracota)] transition-all duration-300 shadow-[0_10px_20px_rgba(122,116,112,0.2)] hover:shadow-[0_15px_30px_rgba(173,111,64,0.3)] hover:-translate-y-0.5 flex items-center gap-2"
+              className="bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] px-6 py-3.5 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] hover:bg-[var(--color-atelier-terracota)] transition-all shadow-md hover:-translate-y-0.5 flex items-center gap-2"
             >
               <Plus size={16} /> Novo Contrato
             </button>
@@ -477,13 +528,13 @@ const tasksToInsert = pipeline.map((t) => {
         <div className="md:hidden">
           <button 
             onClick={() => setIsAgencyModalOpen(true)}
-            className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] py-3 rounded-xl font-roboto font-bold uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 shadow-sm"
+            className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] py-3 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 shadow-sm"
           >
             <Briefcase size={16} /> Registar Agência Parceira
           </button>
         </div>
 
-        <div className="glass-panel p-2 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4 bg-white/50 border border-white">
+        <div className="glass-panel p-2 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4">
           <div className="relative w-full md:w-[350px] group/search">
             <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-atelier-grafite)]/40 group-focus-within/search:text-[var(--color-atelier-terracota)] transition-colors" />
             <input 
@@ -491,7 +542,7 @@ const tasksToInsert = pipeline.map((t) => {
               placeholder="Pesquisar por nome ou empresa..." 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white/60 border border-transparent focus:bg-white focus:border-[var(--color-atelier-terracota)]/30 rounded-xl py-2.5 pl-11 pr-4 text-[13px] text-[var(--color-atelier-grafite)] outline-none transition-all shadow-sm"
+              className="w-full bg-white/60 border border-transparent focus:bg-white focus:border-[var(--color-atelier-terracota)]/30 rounded-[1rem] py-2.5 pl-11 pr-4 text-[13px] text-[var(--color-atelier-grafite)] outline-none transition-all shadow-sm"
             />
           </div>
 
@@ -507,9 +558,9 @@ const tasksToInsert = pipeline.map((t) => {
       {/* ==========================================
           2. A LISTA DE CLIENTES E PROJETOS
           ========================================== */}
-      <div className="flex-1 glass-panel rounded-[2.5rem] bg-white/40 border border-white/60 flex flex-col overflow-hidden shadow-[0_15px_40px_rgba(122,116,112,0.05)] animate-[fadeInUp_0.8s_ease-out_0.2s_both]">
+      <div className="flex-1 glass-panel flex flex-col overflow-hidden shadow-sm animate-[fadeInUp_0.8s_ease-out_0.2s_both]">
         
-        <div className="grid grid-cols-12 gap-4 px-8 py-5 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 backdrop-blur-md shrink-0">
+        <div className="grid grid-cols-12 gap-4 px-8 py-5 border-b border-[var(--color-atelier-grafite)]/10 bg-white/40 shrink-0">
           <div className="col-span-4 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Identificação</div>
           <div className="col-span-3 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Status de Operação</div>
           <div className="col-span-3 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Progresso Unitário</div>
@@ -531,7 +582,7 @@ const tasksToInsert = pipeline.map((t) => {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.4, delay: index * 0.05 }}
-                  className="grid grid-cols-12 gap-4 px-4 py-4 rounded-[1.5rem] bg-white/50 border border-transparent hover:border-white hover:bg-white hover:shadow-[0_10px_30px_rgba(173,111,64,0.08)] transition-all items-center group cursor-pointer"
+                  className="grid grid-cols-12 gap-4 px-4 py-4 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 hover:border-[var(--color-atelier-terracota)]/30 hover:bg-white hover:shadow-sm transition-all items-center group cursor-pointer"
                   onClick={(e) => {
                     if (openMenuId === project.id) return;
                     handleManageClient(project.profiles?.nome || "Cliente", project.service_type || "Projeto");
@@ -588,7 +639,7 @@ const tasksToInsert = pipeline.map((t) => {
                         )}
                       </span>
                     </div>
-                    <div className="h-1.5 w-full bg-black/5 rounded-full overflow-hidden">
+                    <div className="h-1.5 w-full bg-black/5 rounded-full overflow-hidden shadow-inner">
                       <div 
                         className={`h-full rounded-full transition-all duration-1000 ${project.status === 'delivered' || project.calculatedProgress === 100 ? 'bg-green-500' : 'bg-gradient-to-r from-[var(--color-atelier-rose)] to-[var(--color-atelier-terracota)]'}`}
                         style={{ width: `${project.status === 'delivered' ? 100 : project.calculatedProgress}%` }}
@@ -606,7 +657,7 @@ const tasksToInsert = pipeline.map((t) => {
                         e.stopPropagation(); 
                         setOpenMenuId(openMenuId === project.id ? null : project.id);
                       }}
-                      className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all shadow-sm ${openMenuId === project.id ? 'bg-[var(--color-atelier-terracota)] text-white border-transparent' : 'bg-white border-white/50 text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] hover:border-[var(--color-atelier-terracota)]/30 group-hover:bg-white'}`}
+                      className={`w-10 h-10 rounded-xl border flex items-center justify-center transition-all shadow-sm ${openMenuId === project.id ? 'bg-[var(--color-atelier-terracota)] text-white border-transparent' : 'bg-white border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] hover:border-[var(--color-atelier-terracota)]/30 group-hover:bg-white'}`}
                     >
                       <MoreVertical size={16} />
                     </button>
@@ -647,7 +698,7 @@ const tasksToInsert = pipeline.map((t) => {
                         e.stopPropagation();
                         router.push('/admin/projetos');
                       }}
-                      className="bg-transparent border border-[var(--color-atelier-terracota)]/30 text-[var(--color-atelier-terracota)] px-5 py-2.5 rounded-xl font-roboto font-bold uppercase tracking-widest text-[10px] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm flex items-center gap-2 group-hover:border-transparent"
+                      className="bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/60 px-5 py-2.5 rounded-[1rem] font-roboto font-bold uppercase tracking-widest text-[10px] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm flex items-center gap-2 group-hover:border-transparent"
                     >
                       JTBD <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
                     </button>
@@ -762,7 +813,7 @@ const tasksToInsert = pipeline.map((t) => {
                   type="submit" 
                   form="edit-contract-form"
                   disabled={isEditing}
-                  className="w-full bg-[var(--color-atelier-terracota)] text-[var(--color-atelier-creme)] py-4 rounded-2xl font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[#8c562e] transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
+                  className="w-full bg-[var(--color-atelier-terracota)] text-white py-4 rounded-[1.2rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[#8c562e] transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-2 hover:-translate-y-0.5 disabled:hover:translate-y-0"
                 >
                   {isEditing ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                   Salvar Alterações Contratuais
@@ -807,7 +858,7 @@ const tasksToInsert = pipeline.map((t) => {
               <div className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-8">
                 <form id="new-contract-form" onSubmit={handleCreateProject} className="flex flex-col gap-8">
                   
-                  <div className="bg-white/40 p-6 rounded-3xl border border-white">
+                  <div className="glass-panel p-6 border border-white">
                     <h3 className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] mb-4 flex items-center gap-2">
                       <Users size={14} className="text-[var(--color-atelier-terracota)]"/> 1. Atribuição de Cliente
                     </h3>
@@ -816,7 +867,7 @@ const tasksToInsert = pipeline.map((t) => {
                         required 
                         value={selectedClientId} 
                         onChange={(e) => setSelectedClientId(e.target.value)}
-                        className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm font-bold text-[var(--color-atelier-grafite)] cursor-pointer"
+                        className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-4 py-3 text-[13px] outline-none shadow-sm font-bold text-[var(--color-atelier-grafite)] cursor-pointer"
                       >
                         <option value="" disabled>-- Selecione um cliente da base --</option>
                         {availableClients.map(client => (
@@ -826,7 +877,7 @@ const tasksToInsert = pipeline.map((t) => {
                     </div>
                   </div>
 
-                  <div className="bg-white/40 p-6 rounded-3xl border border-white">
+                  <div className="glass-panel p-6 border border-white">
                     <h3 className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] mb-4 flex items-center gap-2">
                       <Sparkles size={14} className="text-[var(--color-atelier-terracota)]"/> 2. Estrutura do Serviço
                     </h3>
@@ -834,18 +885,18 @@ const tasksToInsert = pipeline.map((t) => {
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div className="flex flex-col gap-2">
                         <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 pl-1">Área Core</label>
-                        <div className="flex bg-white rounded-xl p-1 shadow-sm border border-transparent">
+                        <div className="flex bg-white/60 rounded-[1.2rem] p-1 shadow-sm border border-transparent">
                           <button 
                             type="button"
                             onClick={() => setServiceType("Identidade Visual")}
-                            className={`flex-1 py-2.5 rounded-lg font-roboto text-[11px] font-bold uppercase tracking-widest transition-all ${serviceType === "Identidade Visual" ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-[var(--color-atelier-grafite)]/5'}`}
+                            className={`flex-1 py-2.5 rounded-[1rem] font-roboto text-[11px] font-bold uppercase tracking-widest transition-all ${serviceType === "Identidade Visual" ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white'}`}
                           >
                             Identidade Visual
                           </button>
                           <button 
                             type="button"
                             onClick={() => setServiceType("Gestão de Instagram")}
-                            className={`flex-1 py-2.5 rounded-lg font-roboto text-[11px] font-bold uppercase tracking-widest transition-all ${serviceType === "Gestão de Instagram" ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-[var(--color-atelier-grafite)]/5'}`}
+                            className={`flex-1 py-2.5 rounded-[1rem] font-roboto text-[11px] font-bold uppercase tracking-widest transition-all ${serviceType === "Gestão de Instagram" ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white'}`}
                           >
                             Instagram
                           </button>
@@ -857,7 +908,7 @@ const tasksToInsert = pipeline.map((t) => {
                         <select 
                           value={projectPackage}
                           onChange={(e) => setProjectPackage(e.target.value)}
-                          className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm font-bold text-[var(--color-atelier-terracota)] cursor-pointer h-full"
+                          className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-4 py-3 text-[13px] outline-none shadow-sm font-bold text-[var(--color-atelier-terracota)] cursor-pointer h-full"
                         >
                           {serviceType === "Identidade Visual" ? (
                             <>
@@ -878,7 +929,7 @@ const tasksToInsert = pipeline.map((t) => {
                     </div>
                   </div>
 
-                  <div className="bg-[var(--color-atelier-terracota)]/5 p-6 rounded-3xl border border-[var(--color-atelier-terracota)]/20 relative overflow-hidden">
+                  <div className="bg-[var(--color-atelier-terracota)]/5 p-6 rounded-[2rem] border border-[var(--color-atelier-terracota)]/20 relative overflow-hidden">
                     <h3 className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mb-4 flex items-center gap-2 relative z-10">
                       <DollarSign size={14} /> 3. Financeiro & Ciclo
                     </h3>
@@ -949,7 +1000,7 @@ const tasksToInsert = pipeline.map((t) => {
                   type="submit" 
                   form="new-contract-form"
                   disabled={isSubmitting || !selectedClientId}
-                  className="w-full bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] py-4 rounded-2xl font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all shadow-[0_10px_20px_rgba(122,116,112,0.15)] disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-2"
+                  className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-[1.2rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all shadow-[0_10px_20px_rgba(122,116,112,0.15)] disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
                   Validar Contrato e Gerar Tarefas (Auto-Deploy)
@@ -996,7 +1047,7 @@ const tasksToInsert = pipeline.map((t) => {
                 <form id="new-agency-form" onSubmit={handleCreateAgency} className="flex flex-col gap-8">
                   
                   {/* Dados Base da Agência */}
-                  <div className="bg-white/40 p-6 rounded-3xl border border-white">
+                  <div className="glass-panel p-6 border border-white">
                     <h3 className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] mb-4 flex items-center gap-2">
                       <Briefcase size={14} className="text-[var(--color-atelier-terracota)]"/> 1. Dados da Agência
                     </h3>
@@ -1020,7 +1071,7 @@ const tasksToInsert = pipeline.map((t) => {
                   </div>
 
                   {/* Subclientes e Demandas */}
-                  <div className="bg-[var(--color-atelier-terracota)]/5 p-6 rounded-3xl border border-[var(--color-atelier-terracota)]/20">
+                  <div className="bg-[var(--color-atelier-terracota)]/5 p-6 rounded-[2rem] border border-[var(--color-atelier-terracota)]/20">
                     <div className="flex justify-between items-center mb-4">
                       <h3 className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] flex items-center gap-2">
                         <Users size={14} /> 2. Perfis Geridos & Demanda
@@ -1033,7 +1084,7 @@ const tasksToInsert = pipeline.map((t) => {
                     <div className="flex flex-col gap-4">
                       {agencySubclients.map((sub, index) => (
                         <div key={index} className="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm border border-transparent focus-within:border-[var(--color-atelier-terracota)]/30 transition-colors">
-                          <input type="text" placeholder="Nome do Perfil/Cliente" required value={sub.name} onChange={(e)=>handleSubclientChange(index, 'name', e.target.value)} className="flex-1 bg-transparent outline-none text-[13px] font-medium" />
+                          <input type="text" placeholder="Nome do Perfil/Cliente" required value={sub.name} onChange={(e)=>handleSubclientChange(index, 'name', e.target.value)} className="flex-1 bg-transparent outline-none text-[13px] font-medium pl-2" />
                           <div className="w-px h-6 bg-[var(--color-atelier-grafite)]/10"></div>
                           <input type="number" placeholder="Posts" required min="1" value={sub.deliverables_count} onChange={(e)=>handleSubclientChange(index, 'deliverables_count', parseInt(e.target.value))} className="w-20 bg-transparent outline-none text-[13px] font-bold text-center" />
                           <button type="button" onClick={()=>handleRemoveSubclient(index)} disabled={agencySubclients.length === 1} className="text-red-400 hover:text-red-600 disabled:opacity-30 pr-2 transition-colors">
@@ -1051,7 +1102,7 @@ const tasksToInsert = pipeline.map((t) => {
                   type="submit" 
                   form="new-agency-form" 
                   disabled={isSubmitting || !agencyName} 
-                  className="w-full bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] py-4 rounded-2xl font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all shadow-[0_10px_20px_rgba(122,116,112,0.15)] disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-2"
+                  className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-[1.2rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all shadow-[0_10px_20px_rgba(122,116,112,0.15)] disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} 
                   Salvar Agência e Injetar Demandas
@@ -1079,7 +1130,7 @@ function FilterButton({ label, active, onClick }: { label: string, active: boole
         px-5 py-2.5 rounded-xl font-roboto font-bold uppercase tracking-widest text-[10px] transition-all whitespace-nowrap
         ${active 
           ? 'bg-[var(--color-atelier-terracota)] text-white shadow-[0_4px_10px_rgba(173,111,64,0.3)]' 
-          : 'bg-transparent text-[var(--color-atelier-grafite)]/60 hover:bg-white hover:text-[var(--color-atelier-grafite)] border border-transparent hover:border-white'
+          : 'bg-white border border-[var(--color-atelier-grafite)]/5 text-[var(--color-atelier-grafite)]/60 hover:bg-white hover:text-[var(--color-atelier-grafite)] hover:border-[var(--color-atelier-terracota)]/20 shadow-sm'
         }
       `}
     >
@@ -1097,7 +1148,7 @@ function StatusBadge({ icon: Icon, text, color }: { icon: any, text: string, col
   };
 
   return (
-    <div className={`px-2.5 py-1 rounded-md border flex items-center gap-1.5 font-roboto text-[9px] uppercase tracking-widest font-black ${colorStyles[color]}`}>
+    <div className={`px-2.5 py-1 rounded-lg border flex items-center gap-1.5 font-roboto text-[9px] uppercase tracking-widest font-black ${colorStyles[color]}`}>
       <Icon size={10} strokeWidth={2.5} /> {text}
     </div>
   );

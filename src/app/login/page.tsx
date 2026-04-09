@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Lock, Fingerprint, ShieldCheck, Mail, KeyRound, UserPlus, User, Building2, Package } from "lucide-react";
+import { Lock, Fingerprint, ShieldCheck, Mail, KeyRound, UserPlus, User, Building2, Package, Instagram, Loader2 } from "lucide-react";
 import { supabase } from "../../lib/supabase"; // Conexão com o Supabase
 
 // Função para disparar os Toasts Globais
@@ -20,6 +20,7 @@ export default function LoginPage() {
   const [nome, setNome] = useState("");
   const [empresa, setEmpresa] = useState("");
   const [servico, setServico] = useState("");
+  const [instagram, setInstagram] = useState(""); // 🟢 NOVO: Estado para o Instagram
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [isAuthenticating, setIsAuthenticating] = useState(false);
@@ -32,6 +33,14 @@ export default function LoginPage() {
     
     // 1. LIMPEZA DE DADOS (Correção do erro "Email invalid" devido a espaços)
     const cleanEmail = email.trim();
+    
+    // 1.1 Formatar o Instagram (se preenchido, garantir que começa com '@')
+    let cleanInstagram = instagram.trim();
+    if (cleanInstagram && !cleanInstagram.startsWith('@') && !cleanInstagram.includes('instagram.com/')) {
+      cleanInstagram = `@${cleanInstagram}`;
+    } else if (cleanInstagram.includes('instagram.com/')) {
+      cleanInstagram = `@${cleanInstagram.split('instagram.com/')[1].split('/')[0]}`;
+    }
     
     try {
       // 2. GARANTIR SESSÃO LIMPA (Protegido contra "Failed to fetch" silenciosamente)
@@ -92,8 +101,9 @@ export default function LoginPage() {
           options: {
             data: {
               nome: nome,
-              empresa: empresa, // Salva a empresa no metadata
-              role: newRole
+              empresa: empresa, 
+              role: newRole,
+              instagram: cleanInstagram // 🟢 NOVO: Passa o Instagram para o auth metadata
             }
           }
         });
@@ -130,7 +140,7 @@ export default function LoginPage() {
 
   return (
     // O Container Master (Ocupa 100% da tela, sem rolagem)
-    <div className="relative w-full h-screen overflow-hidden bg-[var(--color-atelier-creme)] flex items-center justify-center font-roboto selection:bg-[var(--color-atelier-terracota)] selection:text-white">
+    <div className="relative w-full h-screen overflow-hidden bg-[#faf7f2] flex items-center justify-center font-roboto selection:bg-[var(--color-atelier-terracota)] selection:text-white">
       
       {/* ==========================================
           1. LUZES VOLUMÉTRICAS (Os Orbs Flutuantes)
@@ -153,9 +163,9 @@ export default function LoginPage() {
         initial={{ opacity: 0, y: 30, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 w-full max-w-[440px] px-6"
+        className="relative z-10 w-full max-w-[460px] px-6"
       >
-        <div className="bg-white/40 backdrop-blur-2xl border border-white/60 p-10 md:p-12 rounded-[3rem] shadow-[0_30px_60px_rgba(122,116,112,0.12)] flex flex-col items-center relative overflow-hidden group transition-all duration-500">
+        <div className="bg-white/50 backdrop-blur-2xl border border-white p-10 md:p-12 rounded-[3.5rem] shadow-[0_30px_60px_rgba(122,116,112,0.15)] flex flex-col items-center relative overflow-hidden group transition-all duration-500">
           
           <div className="absolute top-0 left-0 right-0 h-[1px] bg-gradient-to-r from-transparent via-white to-transparent opacity-80"></div>
 
@@ -183,7 +193,7 @@ export default function LoginPage() {
           {/* ==========================================
               3. O FORMULÁRIO MAGNÉTICO INTEGRADO
               ========================================== */}
-          <form onSubmit={handleAuth} className="w-full flex flex-col gap-5">
+          <form onSubmit={handleAuth} className="w-full flex flex-col gap-4">
             
             <AnimatePresence mode="popLayout">
               {!isLoginMode && (
@@ -192,27 +202,39 @@ export default function LoginPage() {
                   animate={{ opacity: 1, height: "auto", overflow: 'visible' }} 
                   exit={{ opacity: 0, height: 0, overflow: 'hidden' }}
                   transition={{ duration: 0.3 }}
-                  className="flex flex-col gap-5"
+                  className="flex flex-col gap-4"
                 >
                   <div className="relative group/input">
-                    <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors">
+                    <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors z-10">
                       <User size={18} strokeWidth={1.5} />
                     </div>
                     <input 
                       type="text" required={!isLoginMode} value={nome} onChange={(e) => setNome(e.target.value)}
                       placeholder="O seu Nome" 
-                      className="w-full bg-white/60 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-full py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 outline-none transition-all shadow-sm focus:shadow-[0_10px_20px_rgba(173,111,64,0.08)]"
+                      className="w-full bg-white/70 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 outline-none transition-all shadow-sm focus:shadow-[0_10px_30px_rgba(173,111,64,0.08)]"
                     />
                   </div>
 
                   <div className="relative group/input">
-                    <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors">
+                    <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors z-10">
                       <Building2 size={18} strokeWidth={1.5} />
                     </div>
                     <input 
                       type="text" required={!isLoginMode} value={empresa} onChange={(e) => setEmpresa(e.target.value)}
                       placeholder="Nome da Marca/Empresa" 
-                      className="w-full bg-white/60 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-full py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 outline-none transition-all shadow-sm focus:shadow-[0_10px_20px_rgba(173,111,64,0.08)]"
+                      className="w-full bg-white/70 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 outline-none transition-all shadow-sm focus:shadow-[0_10px_30px_rgba(173,111,64,0.08)]"
+                    />
+                  </div>
+
+                  {/* 🟢 NOVO CAMPO: INSTAGRAM NO CADASTRO */}
+                  <div className="relative group/input">
+                    <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors z-10">
+                      <Instagram size={18} strokeWidth={1.5} />
+                    </div>
+                    <input 
+                      type="text" value={instagram} onChange={(e) => setInstagram(e.target.value)}
+                      placeholder="Instagram (Ex: @suamarca)" 
+                      className="w-full bg-white/70 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 outline-none transition-all shadow-sm focus:shadow-[0_10px_30px_rgba(173,111,64,0.08)]"
                     />
                   </div>
 
@@ -222,7 +244,7 @@ export default function LoginPage() {
                     </div>
                     <select 
                       required={!isLoginMode} value={servico} onChange={(e) => setServico(e.target.value)}
-                      className={`w-full bg-white/60 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-full py-4 pl-14 pr-6 text-[14px] outline-none transition-all shadow-sm focus:shadow-[0_10px_20px_rgba(173,111,64,0.08)] appearance-none cursor-pointer ${servico ? 'text-[var(--color-atelier-grafite)]' : 'text-[var(--color-atelier-grafite)]/40'}`}
+                      className={`w-full bg-white/70 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] py-4 pl-14 pr-6 text-[14px] outline-none transition-all shadow-sm focus:shadow-[0_10px_30px_rgba(173,111,64,0.08)] appearance-none cursor-pointer ${servico ? 'text-[var(--color-atelier-grafite)] font-medium' : 'text-[var(--color-atelier-grafite)]/40'}`}
                     >
                       <option value="" disabled>Qual serviço foi contratado?</option>
                       <option value="Identidade Visual">Identidade Visual</option>
@@ -234,30 +256,30 @@ export default function LoginPage() {
             </AnimatePresence>
 
             <div className="relative group/input">
-              <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors">
+              <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors z-10">
                 <Mail size={18} strokeWidth={1.5} />
               </div>
               <input 
                 type="email" required value={email} onChange={(e) => setEmail(e.target.value)}
                 placeholder="E-mail de Acesso" 
-                className="w-full bg-white/60 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-full py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 outline-none transition-all shadow-sm focus:shadow-[0_10px_20px_rgba(173,111,64,0.08)]"
+                className="w-full bg-white/70 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 outline-none transition-all shadow-sm focus:shadow-[0_10px_30px_rgba(173,111,64,0.08)]"
               />
             </div>
 
             <div className="relative group/input">
-              <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors">
+              <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors z-10">
                 <KeyRound size={18} strokeWidth={1.5} />
               </div>
               <input 
                 type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
                 placeholder="Chave de Segurança" 
-                className="w-full bg-white/60 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-full py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 outline-none transition-all shadow-sm focus:shadow-[0_10px_20px_rgba(173,111,64,0.08)]"
+                className="w-full bg-white/70 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 outline-none transition-all shadow-sm focus:shadow-[0_10px_30px_rgba(173,111,64,0.08)]"
               />
             </div>
 
-            <div className="flex justify-between items-center px-2 mt-1 mb-2">
+            <div className="flex justify-between items-center px-2 mt-1 mb-3">
               <label className="flex items-center gap-2 cursor-pointer group/check">
-                <div className="w-4 h-4 rounded border border-[var(--color-atelier-grafite)]/30 group-hover/check:border-[var(--color-atelier-terracota)] flex items-center justify-center transition-colors">
+                <div className="w-4 h-4 rounded border border-[var(--color-atelier-grafite)]/30 group-hover/check:border-[var(--color-atelier-terracota)] flex items-center justify-center transition-colors bg-white/50">
                   <div className="w-2 h-2 rounded-sm bg-transparent group-hover/check:bg-[var(--color-atelier-terracota)]/50 transition-colors"></div>
                 </div>
                 <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 group-hover/check:text-[var(--color-atelier-grafite)] transition-colors">Lembrar acesso</span>
@@ -268,9 +290,9 @@ export default function LoginPage() {
                 onClick={() => {
                   setIsLoginMode(!isLoginMode);
                   // Reseta os campos ao alternar modos para evitar envios errados
-                  setNome(""); setEmpresa(""); setServico("");
+                  setNome(""); setEmpresa(""); setServico(""); setInstagram("");
                 }}
-                className="text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-grafite)] transition-colors"
+                className="text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-grafite)] transition-colors bg-white/40 px-3 py-1.5 rounded-full border border-white"
               >
                 {isLoginMode ? "Criar Conta?" : "Já tem chave?"}
               </button>
@@ -280,15 +302,15 @@ export default function LoginPage() {
             <button 
               type="submit" disabled={isAuthenticating}
               className={`
-                w-full relative overflow-hidden rounded-full font-roboto font-bold uppercase tracking-[0.2em] text-[12px] h-14 flex items-center justify-center gap-3 transition-all duration-500
+                w-full relative overflow-hidden rounded-[1.5rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] h-14 flex items-center justify-center gap-3 transition-all duration-500 shadow-md
                 ${isAuthenticating 
-                  ? 'bg-transparent border border-[var(--color-atelier-terracota)] text-[var(--color-atelier-terracota)]' 
-                  : 'bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] hover:bg-[var(--color-atelier-terracota)] hover:text-white hover:shadow-[0_15px_30px_rgba(173,111,64,0.3)] hover:-translate-y-1'
+                  ? 'bg-white border border-[var(--color-atelier-terracota)]/40 text-[var(--color-atelier-terracota)] shadow-none' 
+                  : 'bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] hover:shadow-[0_15px_30px_rgba(173,111,64,0.3)] hover:-translate-y-1'
                 }
               `}
             >
               {isAuthenticating ? (
-                <><Fingerprint size={18} className="animate-pulse" /><span>Sincronizando...</span></>
+                <><Loader2 size={18} className="animate-spin" /><span>Sincronizando...</span></>
               ) : isLoginMode ? (
                 <><Lock size={16} /> Entrar no Cofre</>
               ) : (

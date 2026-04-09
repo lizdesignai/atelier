@@ -31,19 +31,19 @@ export function GerenciamentoWorkspace({ activeProjectId, currentProject }: { ac
   return (
     <div className="flex flex-col gap-6 w-full animate-[fadeInUp_0.5s_ease-out] flex-1 min-h-0">
       
-      {/* MENU DE NAVEGAÇÃO MODULAR */}
-      <div className="glass-panel bg-white/70 p-2 rounded-2xl flex gap-2 overflow-x-auto custom-scrollbar shrink-0 border border-white shadow-sm">
+      {/* MENU DE NAVEGAÇÃO MODULAR (Glass Pill) */}
+      <div className="glass-panel p-2 rounded-[1.5rem] flex gap-2 overflow-x-auto custom-scrollbar shrink-0 shadow-sm border border-white">
         {[
-          { id: 'calendario', label: 'Analytics & Calendário', icon: <CalendarDays size={16} /> },
-          { id: 'planeamento_mensal', label: 'Planeamento Estratégico & IA', icon: <BrainCircuit size={16} /> },
-          { id: 'posts', label: 'Fluxo de Arte Visual', icon: <LayoutDashboard size={16} /> },
-          { id: 'identidade', label: 'DNA da Marca & Briefing', icon: <Target size={16} /> },
+          { id: 'calendario', label: 'Analytics & Calendário', icon: <CalendarDays size={14} /> },
+          { id: 'planeamento_mensal', label: 'Planeamento Estratégico & IA', icon: <BrainCircuit size={14} /> },
+          { id: 'posts', label: 'Fluxo de Arte Visual', icon: <LayoutDashboard size={14} /> },
+          { id: 'identidade', label: 'DNA da Marca & Briefing', icon: <Target size={14} /> },
         ].map(tab => (
           <button 
             key={tab.id}
             onClick={() => setActiveTab(tab.id as any)}
-            className={`px-5 py-3 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap
-              ${activeTab === tab.id ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white hover:text-[var(--color-atelier-terracota)]'}
+            className={`px-5 py-3 rounded-[1rem] font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-2 transition-all whitespace-nowrap
+              ${activeTab === tab.id ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md scale-[1.02]' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/60 hover:text-[var(--color-atelier-grafite)]'}
             `}
           >
             {tab.icon} {tab.label}
@@ -124,12 +124,12 @@ export function GerenciamentoInstagram() {
   const currentProject = dbProjects.find(p => p.id === activeProjectId);
 
   if (isLoading) {
-    return <div className="flex h-[100vh] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
+    return <div className="flex h-screen items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
   }
 
   if (!currentProject) {
     return (
-      <div className="flex flex-col items-center justify-center h-[100vh] gap-4 opacity-50">
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)] gap-4 opacity-40">
         <Smartphone size={48} className="text-[var(--color-atelier-grafite)]" />
         <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Nenhum Cliente Ativo.</h2>
       </div>
@@ -137,12 +137,12 @@ export function GerenciamentoInstagram() {
   }
 
   return (
-    <div className="flex flex-col h-[100vh] max-w-[1400px] mx-auto relative z-10 pt-8 pb-6 px-4 gap-6">
+    <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pt-8 pb-6 px-4 gap-6">
       
       {/* CABEÇALHO SUPERIOR (SELEÇÃO DE CLIENTE) */}
       <header className="flex justify-between items-end shrink-0 animate-[fadeInUp_0.5s_ease-out] relative z-20">
         <div className="flex items-center gap-6">
-          <div className="w-16 h-16 rounded-[1.5rem] bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-terracota)]/20 shadow-sm flex items-center justify-center text-[var(--color-atelier-terracota)] font-elegant text-3xl overflow-hidden shrink-0">
+          <div className="w-16 h-16 rounded-[1.5rem] bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-terracota)]/20 shadow-sm flex items-center justify-center text-[var(--color-atelier-terracota)] font-elegant text-3xl overflow-hidden shrink-0 transition-transform hover:scale-105">
              {currentProject.profiles?.avatar_url ? (
                <img src={currentProject.profiles.avatar_url} alt="Avatar" className="w-full h-full object-cover opacity-90" />
              ) : (
@@ -151,14 +151,14 @@ export function GerenciamentoInstagram() {
           </div>
           <div className="relative">
             <div className="flex items-center gap-3 mb-1">
-              <span className={`px-3 py-1 rounded-full text-[9px] uppercase tracking-widest font-bold border 
+              <span className={`px-3 py-1 rounded-lg text-[9px] uppercase tracking-widest font-bold border shadow-inner
                 ${currentProject.status === 'archived' ? 'bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] border-[var(--color-atelier-grafite)]/20' 
                 : currentProject.status === 'delivered' ? 'bg-orange-500/10 text-orange-700 border-orange-500/20' 
                 : 'bg-green-500/10 text-green-700 border-green-500/20'}`}>
                 {currentProject.status === 'archived' ? 'Arquivado' : currentProject.status === 'delivered' ? 'Entregue' : 'Ativo'}
               </span>
-              <span className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] flex items-center gap-1">
-                <Smartphone size={12}/> Gestão de Instagram (Dashboard)
+              <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] flex items-center gap-1">
+                <Smartphone size={12}/> Gestão de Instagram
               </span>
             </div>
             
@@ -169,22 +169,22 @@ export function GerenciamentoInstagram() {
               </h1>
             </div>
             
-            {/* DROPDOWN DE CLIENTES */}
+            {/* DROPDOWN DE CLIENTES - Glassmorphism Premium */}
             <AnimatePresence>
               {isClientMenuOpen && (
                 <motion.div 
                   initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.2 }}
                   className="absolute top-[110%] left-0 w-[300px] bg-white/90 backdrop-blur-xl border border-white shadow-[0_20px_50px_rgba(122,116,112,0.15)] rounded-2xl overflow-hidden z-50 flex flex-col py-2"
                 >
-                  <div className="px-4 py-2 border-b border-[var(--color-atelier-grafite)]/5 text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">Selecione o Cliente</div>
+                  <div className="px-4 py-2 border-b border-[var(--color-atelier-grafite)]/5 text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">Selecione o Cliente</div>
                   <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
                     {dbProjects.map(p => (
                       <div 
                         key={p.id} 
                         onClick={() => { setActiveProjectId(p.id); setIsClientMenuOpen(false); }}
-                        className={`px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors ${p.id === activeProjectId ? 'bg-[var(--color-atelier-terracota)]/5' : 'hover:bg-white'}`}
+                        className={`px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors ${p.id === activeProjectId ? 'bg-[var(--color-atelier-terracota)]/5' : 'hover:bg-[var(--color-atelier-grafite)]/5'}`}
                       >
-                        <div className="w-8 h-8 rounded-full border border-[var(--color-atelier-terracota)]/20 bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)] flex items-center justify-center overflow-hidden text-xs font-bold shrink-0">
+                        <div className="w-8 h-8 rounded-xl border border-[var(--color-atelier-terracota)]/20 bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)] flex items-center justify-center overflow-hidden text-xs font-bold shrink-0 shadow-inner">
                           {p.profiles?.avatar_url ? <img src={p.profiles.avatar_url} alt="" className="w-full h-full object-cover" /> : p.profiles?.nome?.charAt(0)}
                         </div>
                         <div className="flex flex-col truncate">

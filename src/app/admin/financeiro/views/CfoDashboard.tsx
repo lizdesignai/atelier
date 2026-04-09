@@ -22,7 +22,7 @@ interface CfoDashboardProps {
   setClosingMonth: (val: string) => void;
   unitEconomics: any[];
   formatCurrency: (value: number) => string;
-  handleNotifyClient: (client: string, email: string) => void;
+  handleNotifyClient: (projectId: string, clientName: string, email: string, amount: number) => void;
   handleMarkAsPaid: (id: string) => void;
   handlePayOutflow: (id: string) => void;
   handleCloseMonth: () => void;
@@ -62,13 +62,13 @@ export default function CfoDashboard({
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 shrink-0">
         
         {/* WIDGET 1: MRR & RISCO */}
-        <div className={`glass-panel p-6 flex flex-col justify-between h-36 relative overflow-hidden transition-colors ${metrics.churnRiskAmount > 0 ? 'bg-white/90 border-orange-200' : 'bg-white/60 border-white'}`}>
+        <div className={`glass-panel p-6 flex flex-col justify-between h-36 relative overflow-hidden transition-colors ${metrics.churnRiskAmount > 0 ? 'bg-white/90 border-orange-200' : 'bg-white/40 border-white'}`}>
           {metrics.churnRiskAmount > 0 && <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>}
           <div className="flex justify-between items-start">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${metrics.churnRiskAmount > 0 ? 'bg-orange-500/10 text-orange-600' : 'bg-blue-500/10 text-blue-600'}`}>
+            <div className={`w-10 h-10 rounded-[1rem] flex items-center justify-center shadow-inner ${metrics.churnRiskAmount > 0 ? 'bg-orange-500/10 text-orange-600' : 'bg-blue-500/10 text-blue-600 border border-blue-500/20'}`}>
               <TrendingUp size={18} />
             </div>
-            <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-md ${metrics.churnRiskAmount > 0 ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
+            <span className={`text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-lg shadow-sm ${metrics.churnRiskAmount > 0 ? 'bg-orange-50 text-orange-600 border border-orange-100' : 'bg-blue-50 text-blue-600 border border-blue-100'}`}>
               MRR Global
             </span>
           </div>
@@ -86,10 +86,10 @@ export default function CfoDashboard({
         </div>
 
         {/* WIDGET 2: CUSTOS FIXOS / SANGRIA */}
-        <div className="glass-panel p-6 flex flex-col justify-between h-36 bg-red-50/50 border-red-100 relative overflow-hidden group">
+        <div className="glass-panel p-6 flex flex-col justify-between h-36 bg-red-50/40 border-red-100 relative overflow-hidden group hover:bg-red-50/60 transition-colors">
           <div className="flex justify-between items-start">
-            <div className="w-10 h-10 rounded-xl bg-red-500/10 text-red-600 flex items-center justify-center"><ArrowDownRight size={18} /></div>
-            <span className="text-[9px] font-bold uppercase tracking-widest text-red-600 bg-red-100 border border-red-200 px-2 py-1 rounded-md">Custos Fixos</span>
+            <div className="w-10 h-10 rounded-[1rem] bg-red-500/10 text-red-600 border border-red-500/20 flex items-center justify-center shadow-inner"><ArrowDownRight size={18} /></div>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-red-600 bg-red-50 border border-red-200 px-2.5 py-1 rounded-lg shadow-sm">Custos Fixos</span>
           </div>
           <div>
             <span className="font-elegant text-4xl text-red-900 leading-none">{formatCurrency(cfoMetrics.totalOutflows)}</span>
@@ -98,11 +98,11 @@ export default function CfoDashboard({
         </div>
 
         {/* WIDGET 3: EBITDA LÍQUIDO */}
-        <div className="glass-panel p-6 flex flex-col justify-between h-36 bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)]/20 relative overflow-hidden group">
+        <div className="glass-panel p-6 flex flex-col justify-between h-36 bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)]/20 relative overflow-hidden group hover:bg-[var(--color-atelier-terracota)]/10 transition-colors">
           <div className="absolute -right-10 -top-10 w-32 h-32 bg-[var(--color-atelier-terracota)]/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
           <div className="flex justify-between items-start relative z-10">
-            <div className="w-10 h-10 rounded-xl bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center"><BrainCircuit size={18} /></div>
-            <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] bg-white/50 border border-white px-2 py-1 rounded-md">Margem: {cfoMetrics.ebitda.ebitdaMargin}%</span>
+            <div className="w-10 h-10 rounded-[1rem] bg-white/60 border border-white text-[var(--color-atelier-terracota)] flex items-center justify-center shadow-inner"><BrainCircuit size={18} /></div>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] bg-white/50 border border-white px-2.5 py-1 rounded-lg shadow-sm">Margem: {cfoMetrics.ebitda.ebitdaMargin}%</span>
           </div>
           <div className="relative z-10">
             <span className="font-elegant text-4xl text-[var(--color-atelier-terracota)] leading-none">{formatCurrency(cfoMetrics.ebitda.ebitdaReal)}</span>
@@ -114,8 +114,8 @@ export default function CfoDashboard({
         <div className="glass-panel p-6 flex flex-col justify-between h-36 bg-[var(--color-atelier-grafite)] border-[var(--color-atelier-grafite)] text-white relative overflow-hidden group">
           <div className="absolute inset-0 opacity-10 bg-[url('/noise.png')] mix-blend-overlay"></div>
           <div className="flex justify-between items-start relative z-10">
-            <div className="w-10 h-10 rounded-xl bg-white/10 text-white flex items-center justify-center"><ShieldAlert size={18} /></div>
-            <span className="text-[9px] font-bold uppercase tracking-widest text-white bg-white/20 border border-white/20 px-2 py-1 rounded-md">Runway</span>
+            <div className="w-10 h-10 rounded-[1rem] bg-white/10 text-white flex items-center justify-center border border-white/10 shadow-inner"><ShieldAlert size={18} /></div>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] bg-white/90 border border-white px-2.5 py-1 rounded-lg shadow-sm">Runway</span>
           </div>
           <div className="flex items-end gap-2 relative z-10">
             <span className="font-elegant text-5xl leading-none">{cfoMetrics.runway}</span>
@@ -126,7 +126,7 @@ export default function CfoDashboard({
       </div>
 
       {/* FORECASTING DE RECEITA LÍQUIDA (MÓDULO CFO) */}
-      <div className="glass-panel bg-white/60 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm shrink-0">
+      <div className="glass-panel bg-white/40 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm shrink-0">
         <div className="flex justify-between items-end border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-6">
           <div>
             <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><TrendingUp size={20} className="text-[var(--color-atelier-terracota)]"/> Forecasting (Net Cash)</h3>
@@ -134,18 +134,18 @@ export default function CfoDashboard({
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="bg-white p-6 rounded-2xl border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden">
-            <div className="absolute top-0 w-full h-1 bg-[var(--color-atelier-grafite)]/20"></div>
+          <div className="bg-white/80 hover:bg-white transition-colors p-6 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden group">
+            <div className="absolute top-0 w-full h-1 bg-[var(--color-atelier-grafite)]/20 group-hover:h-1.5 transition-all"></div>
             <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2">Próximos 30 Dias</span>
             <span className={`font-elegant text-4xl ${cfoMetrics.forecast.days30 < 0 ? 'text-red-500' : 'text-[var(--color-atelier-grafite)]'}`}>{formatCurrency(cfoMetrics.forecast.days30)}</span>
           </div>
-          <div className="bg-white p-6 rounded-2xl border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden">
-            <div className="absolute top-0 w-full h-1 bg-[var(--color-atelier-terracota)]/40"></div>
+          <div className="bg-white/80 hover:bg-white transition-colors p-6 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden group">
+            <div className="absolute top-0 w-full h-1 bg-[var(--color-atelier-terracota)]/40 group-hover:h-1.5 transition-all"></div>
             <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2">Próximos 60 Dias</span>
             <span className={`font-elegant text-4xl ${cfoMetrics.forecast.days60 < 0 ? 'text-red-500' : 'text-[var(--color-atelier-terracota)]'}`}>{formatCurrency(cfoMetrics.forecast.days60)}</span>
           </div>
-          <div className="bg-white p-6 rounded-2xl border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden">
-            <div className="absolute top-0 w-full h-1 bg-green-400/50"></div>
+          <div className="bg-white/80 hover:bg-white transition-colors p-6 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col items-center justify-center text-center relative overflow-hidden group">
+            <div className="absolute top-0 w-full h-1 bg-green-400/50 group-hover:h-1.5 transition-all"></div>
             <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2">Próximos 90 Dias</span>
             <span className={`font-elegant text-4xl ${cfoMetrics.forecast.days90 < 0 ? 'text-red-500' : 'text-green-700'}`}>{formatCurrency(cfoMetrics.forecast.days90)}</span>
           </div>
@@ -156,18 +156,18 @@ export default function CfoDashboard({
       <div className="flex flex-col lg:flex-row gap-6 shrink-0 h-[450px]">
         
         {/* RECEBÍVEIS (Upcoming Billings) */}
-        <div className="flex-1 glass-panel bg-white/60 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden">
+        <div className="flex-1 glass-panel bg-white/40 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden">
           <div className="flex justify-between items-center border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-6 shrink-0">
             <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Recebíveis (Entradas)</h3>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4">
             {upcomingBillings.map((bill, i) => (
-              <div key={`bill-${bill.id}-${i}`} className="bg-white/80 p-5 rounded-2xl border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col gap-4 relative overflow-hidden group shrink-0 hover:border-blue-200 transition-colors">
+              <div key={`bill-${bill.id}-${i}`} className="bg-white/80 p-5 rounded-[1.2rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col gap-4 relative overflow-hidden group shrink-0 hover:border-blue-200 hover:shadow-md transition-all">
                 {bill.risk && <div className="absolute top-0 right-0 bg-orange-500 text-white text-[8px] font-bold uppercase tracking-widest px-2 py-1 rounded-bl-lg flex items-center gap-1"><AlertTriangle size={8}/> Risco</div>}
                 
                 <div className="flex items-center justify-between mt-1">
                   <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${bill.entityType === 'agency' ? 'bg-blue-50 text-blue-500' : bill.type.includes('MRR') ? 'bg-blue-50 text-blue-500' : 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)]'}`}><CreditCard size={18} /></div>
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 border border-white/50 shadow-inner ${bill.entityType === 'agency' ? 'bg-blue-50 text-blue-500' : bill.type.includes('MRR') ? 'bg-blue-50 text-blue-500' : 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)]'}`}><CreditCard size={18} /></div>
                     <div className="flex flex-col pr-2">
                       <span className="font-roboto font-bold text-[14px] text-[var(--color-atelier-grafite)] truncate max-w-[150px]">{bill.client}</span>
                       <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mt-0.5 truncate max-w-[150px]">{bill.type}</span>
@@ -176,16 +176,17 @@ export default function CfoDashboard({
                   <button onClick={() => openEditModal(bill)} className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/30 hover:text-[var(--color-atelier-terracota)] flex items-center gap-1 transition-colors"><Edit3 size={14}/></button>
                 </div>
 
-                <div className="flex justify-between items-end bg-gray-50 p-3 rounded-xl border border-gray-100">
+                <div className="flex justify-between items-end bg-gray-50/80 p-3 rounded-xl border border-gray-100">
                   <span className="text-[10px] uppercase font-bold tracking-widest text-orange-600 flex items-center gap-1"><Clock size={12}/> {bill.date === 'Na Entrega' ? 'Entrega' : new Date(bill.date).toLocaleDateString('pt-BR')}</span>
                   <span className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">{formatCurrency(bill.amount)}</span>
                 </div>
                 
-                <div className="flex gap-2">
-                  <button onClick={() => handleNotifyClient(bill.client, bill.email)} disabled={isProcessing} className="flex-1 bg-white border border-[var(--color-atelier-grafite)]/20 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:border-blue-300 hover:text-blue-600 transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+                <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity h-0 group-hover:h-auto overflow-hidden">
+                  {/* UPDATE DA TIPAGEM: Injeta ID, Client, Email, Amount */}
+                  <button onClick={() => handleNotifyClient(bill.id, bill.client, bill.email, bill.amount)} disabled={isProcessing} className="flex-1 bg-white border border-[var(--color-atelier-grafite)]/20 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:border-blue-300 hover:text-blue-600 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-1.5 shadow-sm mt-2 disabled:opacity-50">
                     <Mail size={12} /> Notificar
                   </button>
-                  <button onClick={() => handleMarkAsPaid(bill.id)} disabled={isProcessing} className="flex-1 bg-green-500 text-white py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-green-600 transition-colors flex items-center justify-center gap-1.5 shadow-sm">
+                  <button onClick={() => handleMarkAsPaid(bill.id)} disabled={isProcessing} className="flex-1 bg-green-500 text-white py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-green-600 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-1.5 shadow-sm mt-2 disabled:opacity-50">
                     <CheckCircle2 size={12} /> Liquidar
                   </button>
                 </div>
@@ -201,16 +202,16 @@ export default function CfoDashboard({
         </div>
 
         {/* DESPESAS (Outflows) */}
-        <div className="flex-1 glass-panel bg-white/60 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden">
+        <div className="flex-1 glass-panel bg-white/40 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden">
           <div className="flex justify-between items-center border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-6 shrink-0">
             <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Contas a Pagar (Saídas)</h3>
             <button onClick={() => setIsOutflowModalOpen(true)} className="bg-[var(--color-atelier-terracota)] text-white px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-[#8c562e] transition-colors flex items-center gap-1 shadow-sm"><Plus size={12}/> Nova</button>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3">
             {outflows.map((outflow, i) => (
-              <div key={`out-${outflow.id}-${i}`} className={`bg-white p-4 rounded-2xl border flex items-center justify-between shadow-sm transition-colors ${outflow.status === 'paid' ? 'border-green-100 opacity-60' : 'border-red-100 hover:border-red-300'}`}>
+              <div key={`out-${outflow.id}-${i}`} className={`bg-white/80 p-4 rounded-[1.2rem] border flex items-center justify-between shadow-sm transition-all hover:shadow-md ${outflow.status === 'paid' ? 'border-green-100 opacity-60' : 'border-red-100 hover:border-red-300'}`}>
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${outflow.status === 'paid' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-inner border border-white/50 ${outflow.status === 'paid' ? 'bg-green-50 text-green-600' : 'bg-red-50 text-red-600'}`}>
                     {outflow.status === 'paid' ? <CheckCircle2 size={16}/> : <ArrowDownRight size={16}/>}
                   </div>
                   <div className="flex flex-col">
@@ -244,7 +245,7 @@ export default function CfoDashboard({
       <div className="flex flex-col lg:flex-row gap-6 shrink-0">
         
         {/* ALOCAÇÃO (Módulo Inteligente) */}
-        <div className="flex-1 glass-panel bg-white/60 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden min-w-[50%]">
+        <div className="flex-1 glass-panel bg-white/40 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden min-w-[50%]">
           <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-6">
             <div>
               <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] mb-1 flex items-center gap-2"><Zap size={20} className="text-yellow-500 fill-yellow-500"/> Alocação de Capital</h3>
@@ -259,15 +260,15 @@ export default function CfoDashboard({
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="bg-white p-5 rounded-2xl border border-[var(--color-atelier-grafite)]/5 shadow-sm text-center">
+            <div className="bg-white/80 p-5 rounded-2xl border border-[var(--color-atelier-grafite)]/5 shadow-sm text-center transition-all hover:bg-white hover:scale-[1.02]">
               <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2 block">Blindagem (Reserva)</span>
               <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">{formatCurrency(cfoMetrics.allocation.reserva)}</span>
             </div>
-            <div className="bg-blue-50 p-5 rounded-2xl border border-blue-100 shadow-sm text-center">
+            <div className="bg-blue-50/80 p-5 rounded-2xl border border-blue-100 shadow-sm text-center transition-all hover:bg-blue-50 hover:scale-[1.02]">
               <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-blue-600/70 mb-2 block">Tráfego & Growth</span>
               <span className="font-elegant text-3xl text-blue-900">{formatCurrency(cfoMetrics.allocation.growth)}</span>
             </div>
-            <div className="bg-green-50 p-5 rounded-2xl border border-green-100 shadow-sm text-center">
+            <div className="bg-green-50/80 p-5 rounded-2xl border border-green-100 shadow-sm text-center transition-all hover:bg-green-50 hover:scale-[1.02]">
               <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-green-600/70 mb-2 block">Dividendos Sócios</span>
               <span className="font-elegant text-3xl text-green-900">{formatCurrency(cfoMetrics.allocation.dividendos)}</span>
             </div>
@@ -275,8 +276,8 @@ export default function CfoDashboard({
         </div>
 
         {/* FECHAMENTO DE MÊS (Congelamento) */}
-        <div className="w-full lg:w-[400px] glass-panel bg-[var(--color-atelier-grafite)] text-white p-8 flex flex-col rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden shrink-0 relative group">
-          <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[var(--color-atelier-terracota)]/20 rounded-full blur-3xl pointer-events-none"></div>
+        <div className="w-full lg:w-[400px] glass-panel bg-[var(--color-atelier-grafite)] text-white p-8 flex flex-col rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden shrink-0 relative group hover:shadow-3xl transition-shadow">
+          <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[var(--color-atelier-terracota)]/20 rounded-full blur-3xl pointer-events-none group-hover:bg-[var(--color-atelier-terracota)]/30 transition-colors"></div>
           <div className="flex justify-between items-center border-b border-white/10 pb-4 mb-6 shrink-0 relative z-10">
               <h3 className="font-elegant text-2xl">Ciclo de Faturamento</h3>
               <Lock size={18} className="text-[var(--color-atelier-terracota)]" />
@@ -305,7 +306,7 @@ export default function CfoDashboard({
               <button 
                 onClick={handleCloseMonth}
                 disabled={isProcessing}
-                className="w-full mt-2 bg-[var(--color-atelier-terracota)] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[11px] shadow-lg hover:bg-white hover:text-[var(--color-atelier-grafite)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full mt-2 bg-[var(--color-atelier-terracota)] text-white py-4 rounded-[1.2rem] font-bold uppercase tracking-widest text-[11px] shadow-lg hover:bg-white hover:text-[var(--color-atelier-grafite)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:bg-[var(--color-atelier-terracota)] disabled:hover:text-white"
               >
                 {isProcessing ? <Loader2 className="animate-spin" size={16}/> : <Lock size={16}/>} Fechar Ciclo Financeiro
               </button>
@@ -329,7 +330,7 @@ export default function CfoDashboard({
             const isElastic = eco.margin < 30 && eco.tNps >= 90; 
             
             return (
-              <div key={`${eco.id}-${i}`} className="bg-white/80 p-5 rounded-2xl border border-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 group relative overflow-hidden shrink-0 hover:shadow-md transition-shadow">
+              <div key={`${eco.id}-${i}`} className="bg-white/80 p-5 rounded-[1.2rem] border border-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4 group relative overflow-hidden shrink-0 hover:shadow-md transition-shadow">
                 <div className={`absolute top-0 left-0 w-1.5 h-full bg-${q.color}-500`}></div>
                 
                 <div className="flex flex-col pl-3 md:w-1/3">
@@ -352,7 +353,7 @@ export default function CfoDashboard({
                       <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-0.5">Esforço Realizado</span>
                       <span className="font-roboto text-[14px] font-medium text-[var(--color-atelier-grafite)]/80">{eco.actualHours}h <span className="text-[10px] opacity-60 ml-1">(Teto: {eco.estimatedHours}h)</span></span>
                     </div>
-                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-bold border ${eco.tNps >= 90 ? 'bg-green-50 text-green-700 border-green-200' : eco.tNps >= 70 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
+                    <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[1rem] text-[11px] font-bold border shadow-inner ${eco.tNps >= 90 ? 'bg-green-50 text-green-700 border-green-200' : eco.tNps >= 70 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
                       {eco.tNps >= 90 ? <TrendingUp size={12}/> : <ArrowDownRight size={12}/>} T-NPS: {eco.tNps}
                     </div>
                 </div>
@@ -363,7 +364,7 @@ export default function CfoDashboard({
                       <span className="font-elegant text-2xl text-[var(--color-atelier-terracota)] leading-none">{formatCurrency(eco.profit)}</span>
                       <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${eco.margin >= 60 ? 'bg-green-100 text-green-700 border-green-200' : eco.margin >= 40 ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : 'bg-red-100 text-red-700 border-red-200'}`}>{eco.margin}%</span>
                     </div>
-                    <span className={`text-[9px] mt-2 font-bold uppercase tracking-widest text-${q.color}-600 bg-${q.color}-50 px-2 py-1 rounded-md`}>Ação CFO: {q.action}</span>
+                    <span className={`text-[9px] mt-2 font-bold uppercase tracking-widest text-${q.color}-600 bg-${q.color}-50 px-2.5 py-1 rounded-lg border border-${q.color}-100`}>Ação CFO: {q.action}</span>
                 </div>
               </div>
             )

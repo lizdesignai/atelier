@@ -133,48 +133,103 @@ export class AtelierPMEngine {
 
   /**
    * ============================================================================
-   * 1.5 AUTO-DISPATCHER (Distribuição Autónoma da Linha de Montagem)
-   * NOVO: O Motor agora varre a base de dados procurando tarefas não atribuídas 
-   * e distribui-as autonomamente pelas pessoas da equipa para garantir o fluxo.
+   * 1.5 AUTO-DISPATCHER (Just-In-Time Allocation / Despoluição Diária)
+   * NOVO: O Motor agora adota uma abordagem "Lean". Ele esconde o backlog futuro
+   * e aloca diariamente apenas o que DEVE ser feito hoje, respeitando o limite
+   * de 8 horas por colaborador. Se alguém estiver sobrecarregado, a tarefa
+   * transborda para o próximo colega com capacidade.
    * ============================================================================
    */
-  static async distributeUnassignedTasks(projectId?: string) {
+  static async executeDailyWorkloadAllocation() {
     try {
-      let query = supabase.from('tasks')
-        .select('id, title, task_type, estimated_time, project_id, description')
-        .is('assigned_to', null) // Tarefas "órfãs"
-        .in('status', ['pending'])
-        .order('deadline', { ascending: true }); // Prioriza as que vencem mais cedo
+      const now = new Date();
 
-      if (projectId) query = query.eq('project_id', projectId);
+      // Puxa TODAS as tarefas não concluídas
+      const { data: allTasks } = await supabase
+        .from('tasks')
+        .select('*')
+        .in('status', ['pending', 'in_progress']);
 
-      const { data: unassignedTasks, error } = await query;
-      if (error || !unassignedTasks || unassignedTasks.length === 0) return;
+      if (!allTasks || allTasks.length === 0) return;
 
-      for (const task of unassignedTasks) {
+      const loadMap: Record<string, any[]> = {};
+      const tasksToAllocate: any[] = [];
+      const tasksToHibernate: string[] = [];
+
+      allTasks.forEach(task => {
+        if (!task.deadline) return;
+
+        // Calcula quantos dias de esforço a tarefa exige (8h = 480 mins)
+        const taskDays = Math.max(1, Math.ceil((task.estimated_time || 60) / 480));
+        
+        // Data limite máxima para iniciar a tarefa (ex: se demora 2 dias e vence sexta, tem de começar quarta)
+        const mustStartBy = addBusinessDays(new Date(task.deadline), -taskDays);
+
+        if (now >= mustStartBy) {
+          // A TAREFA DEVE SER FEITA HOJE (ou já está atrasada)
+          if (!task.assigned_to) {
+            tasksToAllocate.push(task);
+          } else {
+            if (!loadMap[task.assigned_to]) loadMap[task.assigned_to] = [];
+            loadMap[task.assigned_to].push(task);
+          }
+        } else {
+          // TAREFA FUTURA (Hibernação)
+          // Se está pendente na mesa de alguém, retiramos para não causar ansiedade/clutter (12 posts de uma vez)
+          if (task.assigned_to && task.status === 'pending') {
+            tasksToHibernate.push(task.id);
+          }
+        }
+      });
+
+      // 1. HIBERNAÇÃO (Despoluição do JTBD do colaborador)
+      if (tasksToHibernate.length > 0) {
+        await supabase.from('tasks').update({ assigned_to: null }).in('id', tasksToHibernate);
+        console.log(`[PM Engine] Hibernação: ${tasksToHibernate.length} tarefas futuras removidas do JTBD diário.`);
+      }
+
+      // 2. MAPEAMENTO E CORTE DE SOBRECARGA
+      for (const [assigneeId, tasks] of Object.entries(loadMap)) {
+        // Ordena as tarefas da pessoa por prioridade (WSJF)
+        tasks.sort((a, b) => (b.priority_score || 0) - (a.priority_score || 0));
+
+        let dailyLoad = 0;
+        for (const task of tasks) {
+          const time = task.estimated_time || 60;
+          if (dailyLoad + time > this.CONFIG.CAPACITY.DAILY_MAX_MINUTES) {
+            // Colaborador estourou as 8h de hoje. Arranca a tarefa dele e põe na fila global de alocação.
+            tasksToAllocate.push(task);
+          } else {
+            dailyLoad += time;
+          }
+        }
+      }
+
+      // 3. ALOCAÇÃO JUST-IN-TIME (O que transbordou ou estava órfão)
+      for (const task of tasksToAllocate) {
         const optimalUserId = await this.getOptimalAssignee(
-          task.task_type || 'design', // Recai para 'design' como fallback genérico
+          task.task_type || 'design',
           task.project_id,
-          null,
+          null, // Força a procurar a pessoa com menor carga real HOJE
           task.estimated_time || 60
         );
 
-        if (optimalUserId) {
-          // Atualiza a tarefa vinculando o novo responsável e registando no log
+        if (optimalUserId && optimalUserId !== task.assigned_to) {
           await supabase.from('tasks')
             .update({ 
               assigned_to: optimalUserId,
               description: task.description 
-                ? `[Auto-Alocado pelo Sistema]\n${task.description}` 
-                : `[Auto-Alocado pelo Sistema]\nTarefa distribuída automaticamente pela IA de gestão baseada na sua capacidade e skills atuais.`
+                ? `[Daily JIT Allocation]\nAlocada hoje para evitar gargalos. Prazo a cumprir.\n\n${task.description}`
+                : `[Daily JIT Allocation]\nAlocada hoje para evitar gargalos. Prazo a cumprir.`
             })
             .eq('id', task.id);
-            
-          console.log(`[PM Engine] Despacho Ativo: Tarefa "${task.title}" alocada de forma autónoma.`);
+          
+          console.log(`[PM Engine] Despacho Diário: Tarefa "${task.title}" alocada para ${optimalUserId}.`);
         }
       }
+
     } catch (error) {
-      console.error("[PM Engine] Erro na distribuição autónoma de tarefas:", error);
+      console.error("[PM Engine] Erro na alocação diária de carga de trabalho:", error);
     }
   }
 
@@ -294,7 +349,7 @@ export class AtelierPMEngine {
         costOfDelay += (ltvValue * this.CONFIG.WSJF.LTV_WEIGHT); 
 
         const hoursLeft = differenceInHours(new Date(task.deadline), now);
-        if (hoursLeft <= 0) costOfDelay += this.CONFIG.WSJF.LATE_PENALTY;      
+        if (hoursLeft <= 0) costOfDelay += this.CONFIG.WSJF.LATE_PENALTY;       
         else if (hoursLeft <= 24) costOfDelay += this.CONFIG.WSJF.TODAY_PENALTY; 
         else if (hoursLeft <= 72) costOfDelay += this.CONFIG.WSJF.SHORT_TERM_PENALTY; 
 

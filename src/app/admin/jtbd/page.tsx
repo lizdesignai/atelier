@@ -5,6 +5,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../../lib/supabase";
 import { AtelierPMEngine } from "../../../lib/AtelierPMEngine";
 import { CalendarEngine } from "../../../lib/CalendarEngine";
+import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
 import { Loader2, Plus, Flame, User } from "lucide-react";
 
 // VIEWS E COMPONENTES
@@ -201,6 +202,18 @@ export default function JTBDPage() {
       });
 
       if (error) throw error;
+      
+      // 🔔 NOTIFICAÇÃO: Disparo Direto (Lançar Granada)
+      if (adHocForm.assigneeId !== currentUser.id) {
+         await NotificationEngine.notifyUser(
+           adHocForm.assigneeId,
+           "🔥 Nova Demanda Urgente",
+           `A gestão atribuiu-lhe a seguinte tarefa com prioridade máxima: ${adHocForm.title}`,
+           "warning",
+           "/admin/jtbd"
+         );
+      }
+
       showToast("🔥 Granada injetada com sucesso!");
       setIsAdHocModalOpen(false);
       setAdHocForm({ title: "", projectId: "", assigneeId: "", estTime: 60, deadline: "", description: "" });
@@ -212,7 +225,7 @@ export default function JTBDPage() {
     }
   };
 
-  if (isLoading) return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
+  if (isLoading) return <div className="flex h-full min-h-[400px] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   const viewedUser = team.find(t => t.id === viewingUserId) || currentUser;
   const allUserTasks = allTasks.filter(t => t.assigned_to === viewingUserId);
@@ -230,12 +243,14 @@ export default function JTBDPage() {
   const isViewingSelf = viewingUserId === currentUser?.id;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1500px] mx-auto relative z-10 px-4 md:px-0 overflow-hidden">
+    // 1. Removido o 'overflow-hidden' desta linha para deixar o Kanban respirar
+    <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1500px] mx-auto relative z-10 px-4 md:px-0">
       
-      <div className="flex flex-col xl:flex-row gap-6 w-full mt-6 h-full min-h-0">
+      <div className="flex flex-col xl:flex-row gap-6 w-full mt-6 h-full flex-1 min-h-0">
         
         {/* COLUNA ESQUERDA (SIDEBAR COMPACTA) */}
-        <div className="flex flex-col gap-6 w-full xl:w-[340px] shrink-0 h-[calc(100vh-80px)] overflow-y-auto custom-scrollbar pr-2 pb-6">
+        {/* 2. Mantemos o pr-2 e a custom-scrollbar para que ESTA coluna role se tiver muitos itens */}
+        <div className="flex flex-col gap-6 w-full xl:w-[340px] shrink-0 h-full overflow-y-auto custom-scrollbar pr-2 pb-6">
           
           <PersonalDesk 
             viewedUser={viewedUser}
@@ -255,7 +270,8 @@ export default function JTBDPage() {
         </div>
 
         {/* COLUNA DIREITA (CHÃO DE FÁBRICA KANBAN - OCUPA TODA A ALTURA) */}
-        <div className="flex-1 min-w-0 flex flex-col h-[calc(100vh-80px)] pb-6">
+        {/* 3. A caixa do Daily Kanban agora flui sem cortes */}
+        <div className="flex-1 flex flex-col h-full pb-6 relative z-10">
           <DailyKanban 
             pendingTasks={pendingTasks}
             inProgressTasks={inProgressTasks}
@@ -299,13 +315,13 @@ export default function JTBDPage() {
               <button 
                 key={user.id} 
                 onClick={() => setViewingUserId(user.id)} 
-                className={`flex items-center gap-3 px-4 py-2 rounded-full shadow-md transition-all border ${viewingUserId === user.id ? 'bg-[var(--color-atelier-grafite)] text-white border-[var(--color-atelier-grafite)]' : 'bg-white text-gray-700 border-gray-200 hover:bg-gray-50 hover:scale-105'}`}
+                className={`flex items-center gap-3 px-4 py-2 rounded-full shadow-md transition-all border ${viewingUserId === user.id ? 'bg-[var(--color-atelier-grafite)] text-white border-[var(--color-atelier-grafite)]' : 'bg-white text-[var(--color-atelier-grafite)] border-white/50 hover:bg-gray-50 hover:scale-105'}`}
               >
                 <span className="text-sm font-bold">{user.nome.split(" ")[0]}</span>
                 {user.avatar_url ? (
-                  <img src={user.avatar_url} className="w-7 h-7 rounded-full object-cover border border-white/20" alt={user.nome} />
+                  <img src={user.avatar_url} className="w-7 h-7 rounded-full object-cover border border-white/20 shadow-inner" alt={user.nome} />
                 ) : (
-                  <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center text-gray-500"><User size={14}/></div>
+                  <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 shadow-inner"><User size={14}/></div>
                 )}
               </button>
             ))}

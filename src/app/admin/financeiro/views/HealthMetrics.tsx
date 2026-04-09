@@ -35,20 +35,20 @@ export default function HealthMetrics({
       
       {/* WIDGETS DE DESTAQUE (Média NPS, On-Time, Top Performer) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
-        <div className="glass-panel p-8 bg-white/60 rounded-[2.5rem] flex flex-col gap-4 border border-white items-center text-center justify-center shadow-sm">
-          <div className="w-14 h-14 rounded-2xl bg-green-500/10 text-green-600 flex items-center justify-center mb-2"><Star size={24} /></div>
+        <div className="glass-panel p-8 bg-white/40 rounded-[2.5rem] flex flex-col gap-4 border border-white items-center text-center justify-center shadow-sm hover:bg-white/50 transition-colors">
+          <div className="w-14 h-14 rounded-2xl bg-green-500/10 text-green-600 flex items-center justify-center mb-2 border border-green-500/20 shadow-inner"><Star size={24} /></div>
           <span className="font-elegant text-5xl text-[var(--color-atelier-grafite)] leading-none">{overviewData.avgNps}</span>
           <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Média Global de T-NPS</span>
         </div>
         
-        <div className="glass-panel p-8 bg-white/60 rounded-[2.5rem] flex flex-col gap-4 border border-white items-center text-center justify-center shadow-sm">
-          <div className="w-14 h-14 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center mb-2"><Activity size={24} /></div>
+        <div className="glass-panel p-8 bg-white/40 rounded-[2.5rem] flex flex-col gap-4 border border-white items-center text-center justify-center shadow-sm hover:bg-white/50 transition-colors">
+          <div className="w-14 h-14 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center mb-2 border border-blue-500/20 shadow-inner"><Activity size={24} /></div>
           <span className="font-elegant text-5xl text-[var(--color-atelier-grafite)] leading-none">94%</span>
           <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Entregas no Prazo (On-Time)</span>
         </div>
 
-        <div className="glass-panel p-8 bg-[var(--color-atelier-terracota)]/5 border border-[var(--color-atelier-terracota)]/20 rounded-[2.5rem] flex flex-col items-center text-center justify-center shadow-sm">
-          <div className="w-14 h-14 rounded-full bg-[var(--color-atelier-terracota)] text-white flex items-center justify-center mb-4 shadow-lg"><Medal size={24} /></div>
+        <div className="glass-panel p-8 bg-[var(--color-atelier-terracota)]/5 border border-[var(--color-atelier-terracota)]/20 rounded-[2.5rem] flex flex-col items-center text-center justify-center shadow-sm hover:bg-[var(--color-atelier-terracota)]/10 transition-colors">
+          <div className="w-14 h-14 rounded-full bg-[var(--color-atelier-terracota)] text-white flex items-center justify-center mb-4 shadow-lg border border-white/50"><Medal size={24} /></div>
           <span className="font-roboto text-[14px] font-bold text-[var(--color-atelier-grafite)]">{teamHealth[0]?.nome || "Membro"}</span>
           <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mt-1">Top Performer do Mês</span>
         </div>
@@ -68,15 +68,15 @@ export default function HealthMetrics({
               const progress = Math.min((member.perf.exp_points / nextLevelExp) * 100, 100);
               
               return (
-                <div key={member.id} className="bg-white/80 p-5 rounded-2xl border border-white shadow-sm flex flex-col md:flex-row items-center gap-6 relative">
-                  <div className="absolute top-0 left-0 bg-[var(--color-atelier-grafite)] text-white w-6 h-6 rounded-br-lg flex items-center justify-center text-[10px] font-bold">#{index + 1}</div>
+                <div key={member.id} className="bg-white/80 p-5 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 hover:border-[var(--color-atelier-terracota)]/30 hover:bg-white shadow-sm flex flex-col md:flex-row items-center gap-6 relative transition-all group">
+                  <div className="absolute top-0 left-0 bg-[var(--color-atelier-grafite)] text-white w-6 h-6 rounded-br-lg rounded-tl-[1.5rem] flex items-center justify-center text-[10px] font-bold shadow-sm">#{index + 1}</div>
                   
-                  <div className="flex items-center gap-4 w-full md:w-1/3 shrink-0 pl-4">
-                    <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-inner border border-[var(--color-atelier-terracota)]/20 bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)] flex items-center justify-center font-elegant text-2xl">
+                  <div className="flex items-center gap-4 w-full md:w-1/3 shrink-0 pl-4 mt-2 md:mt-0">
+                    <div className="w-14 h-14 rounded-2xl overflow-hidden shadow-inner border border-white/50 bg-gray-50 text-[var(--color-atelier-terracota)] flex items-center justify-center font-elegant text-2xl shrink-0 group-hover:scale-105 transition-transform">
                       {member.avatar_url ? <img src={member.avatar_url} className="w-full h-full object-cover" alt="" /> : member.nome.charAt(0)}
                     </div>
                     <div className="flex flex-col">
-                      <span className="font-roboto font-bold text-[14px] text-[var(--color-atelier-grafite)]">{member.nome}</span>
+                      <span className="font-roboto font-bold text-[14px] text-[var(--color-atelier-grafite)] truncate">{member.nome}</span>
                       <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">{member.perf.level_name}</span>
                     </div>
                   </div>
@@ -84,10 +84,15 @@ export default function HealthMetrics({
                   <div className="flex-1 w-full flex flex-col gap-2">
                     <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">
                       <span>Experiência (EXP)</span>
-                      <span>{member.perf.exp_points} / {nextLevelExp}</span>
+                      <span className="text-[var(--color-atelier-terracota)]">{member.perf.exp_points} / {nextLevelExp}</span>
                     </div>
-                    <div className="h-2.5 w-full bg-[var(--color-atelier-grafite)]/5 rounded-full overflow-hidden shadow-inner">
-                      <motion.div initial={{ width: 0 }} animate={{ width: `${progress}%` }} transition={{ duration: 1 }} className="h-full bg-gradient-to-r from-[var(--color-atelier-rose)] to-[var(--color-atelier-terracota)] rounded-full"></motion.div>
+                    <div className="h-2 w-full bg-[var(--color-atelier-grafite)]/5 rounded-full overflow-hidden shadow-inner">
+                      <motion.div 
+                        initial={{ width: 0 }} 
+                        animate={{ width: `${progress}%` }} 
+                        transition={{ duration: 1, delay: 0.2 }} 
+                        className="h-full bg-gradient-to-r from-[var(--color-atelier-rose)] to-[var(--color-atelier-terracota)] rounded-full"
+                      />
                     </div>
                   </div>
 
@@ -108,7 +113,7 @@ export default function HealthMetrics({
         </div>
 
         {/* FEEDBACKS T-NPS RECENTES */}
-        <div className="lg:col-span-4 glass-panel bg-white/60 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden h-[450px]">
+        <div className="lg:col-span-4 glass-panel bg-white/40 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden h-[450px]">
           <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-6 flex items-center justify-between shrink-0">
             <span>Feedbacks (T-NPS)</span>
             <HeartPulse size={20} className="text-[var(--color-atelier-terracota)]" />
@@ -122,13 +127,13 @@ export default function HealthMetrics({
               </div>
             ) : (
               recentNps.map((nps, i) => (
-                <div key={i} className="bg-white/80 p-5 rounded-2xl border border-white shadow-sm flex flex-col gap-3">
+                <div key={i} className="bg-white/80 hover:bg-white p-5 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col gap-3 transition-colors">
                   <div className="flex justify-between items-start">
-                    <div className="flex flex-col">
-                      <span className="font-roboto font-bold text-[12px] text-[var(--color-atelier-grafite)]">{nps.client}</span>
-                      <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-0.5">Resp: {nps.member}</span>
+                    <div className="flex flex-col pr-2">
+                      <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] leading-tight">{nps.client}</span>
+                      <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-1">Resp: {nps.member}</span>
                     </div>
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold ${nps.score >= 9 ? 'bg-green-100 text-green-700' : nps.score >= 7 ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'}`}>
+                    <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shadow-inner ${nps.score >= 9 ? 'bg-green-100 text-green-700 border border-green-200' : nps.score >= 7 ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>
                       {nps.score}
                     </div>
                   </div>

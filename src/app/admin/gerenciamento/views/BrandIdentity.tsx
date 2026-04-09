@@ -7,6 +7,7 @@ import {
 import { pdf } from '@react-pdf/renderer';
 import InstagramBriefingPDF from "../../../../components/pdf/InstagramBriefingPDF";
 import BrandbookPDF from "../../../../components/pdf/BrandbookPDF";
+import { NotificationEngine } from "../../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
 
 // Dicionários locais para traduzir as escolhas do cliente no painel
 const SEMIOTICS_MAP: Record<string, { A: string, B: string }> = {
@@ -55,7 +56,7 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
           .from('instagram_briefings')
           .select('*')
           .eq('project_id', activeProjectId)
-          .or('status.neq.returned,status.is.null') // <--- CORREÇÃO APLICADA AQUI
+          .or('status.neq.returned,status.is.null') 
           .order('created_at', { ascending: false })
           .limit(1)
           .maybeSingle();
@@ -67,7 +68,7 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
             .from('instagram_briefings')
             .select('*')
             .eq('client_id', currentProject.client_id)
-            .or('status.neq.returned,status.is.null') // <--- CORREÇÃO APLICADA AQUI TAMBÉM
+            .or('status.neq.returned,status.is.null')
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
@@ -107,7 +108,7 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
         
       if (error) throw error;
 
-      // DISPARO DE NOTIFICAÇÃO PARA O CLIENTE
+      // DISPARO DE E-MAIL
       const clientEmail = currentProject?.profiles?.email;
       if (clientEmail) {
         await fetch('/api/notify', {
@@ -121,8 +122,19 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
           })
         });
       }
+
+      // 🔔 NOTIFICAÇÃO: Tocar sino do Cliente (In-App)
+      if (currentProject?.client_id) {
+         await NotificationEngine.notifyUser(
+           currentProject.client_id,
+           "⚠️ Briefing Devolvido (Revisão Necessária)",
+           "O Estúdio solicita mais profundidade nas suas respostas. Por favor, reveja e reenvie o seu Dossiê de Marca.",
+           "action",
+           "/cockpit"
+         );
+      }
       
-      showToast("Briefing devolvido. O cliente foi notificado por e-mail.");
+      showToast("Briefing devolvido. O cliente foi notificado por e-mail e painel.");
       setBriefing(null); // Limpa da tela instantaneamente
     } catch (e) {
       showToast("Erro ao devolver briefing.");
@@ -155,6 +167,15 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
       await supabase.from('projects').update({ instagram_ai_insight: data.insight }).eq('id', activeProjectId);
       
       setLabData({ ...labData, ai_source_code: data.insight });
+
+      // 🔔 NOTIFICAÇÃO: Liderança
+      await NotificationEngine.notifyManagement(
+        "🧠 Dossiê IA Compilado",
+        `A Inteligência Artificial completou o perfil matricial do projeto de ${currentProject.profiles?.nome}.`,
+        "success",
+        "/admin/gerenciamento"
+      );
+
       showToast("Código-Fonte CMO Compilado! ✨");
     } catch (e) { 
       showToast("Erro ao processar a IA."); 
@@ -202,7 +223,7 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
 
   if (isLoading) {
     return (
-      <div className="flex h-full min-h-[400px] items-center justify-center glass-panel bg-white/50 rounded-2xl border border-white">
+      <div className="flex h-full min-h-[400px] items-center justify-center glass-panel bg-white/40 rounded-2xl border border-white">
         <Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" />
       </div>
     );
@@ -215,18 +236,18 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
           COLUNA ESQUERDA: BRIEFING INICIAL
           ========================================================= */}
       <div className="w-full xl:w-1/2 flex flex-col h-full overflow-hidden">
-        <div className="glass-panel bg-white/80 p-8 rounded-[2.5rem] border border-white shadow-sm flex flex-col h-full relative overflow-hidden">
+        <div className="glass-panel bg-white/60 p-8 rounded-[2.5rem] border border-white shadow-sm flex flex-col h-full relative overflow-hidden transition-colors hover:bg-white/80">
            
            <div className="flex flex-wrap justify-between items-center border-b border-[var(--color-atelier-grafite)]/10 pb-6 mb-6 shrink-0 gap-4">
              <div>
                <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Briefing de Operação</h2>
-               <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest mt-1">Dados de entrada do cliente.</p>
+               <p className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest mt-1 font-bold">Dados de entrada do cliente</p>
              </div>
              <div className="flex gap-2">
-               <button onClick={handleReturnBriefing} disabled={!briefing || isProcessing} className="bg-red-50 text-red-600 px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50">
+               <button onClick={handleReturnBriefing} disabled={!briefing || isProcessing} className="bg-red-50 text-red-600 px-4 py-2.5 rounded-[1rem] text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50">
                  {isProcessing ? <Loader2 size={14} className="animate-spin"/> : <RotateCcw size={14}/>} Devolver
                </button>
-               <button onClick={handleDownloadBriefingPDF} disabled={!briefing} className="bg-[var(--color-atelier-grafite)] text-white px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[var(--color-atelier-terracota)] transition-all flex items-center gap-2 shadow-sm disabled:opacity-50">
+               <button onClick={handleDownloadBriefingPDF} disabled={!briefing} className="bg-[var(--color-atelier-grafite)] text-white px-5 py-2.5 rounded-[1rem] text-[10px] font-bold uppercase tracking-widest hover:bg-[var(--color-atelier-terracota)] transition-all flex items-center gap-2 shadow-md disabled:opacity-50 hover:-translate-y-0.5">
                  <Download size={14}/> PDF
                </button>
              </div>
@@ -237,29 +258,29 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
                <div className="flex flex-col items-center justify-center h-full opacity-40 py-10">
                  <FileText size={48} className="mb-4 text-[var(--color-atelier-grafite)]" />
                  <p className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Briefing Ausente</p>
-                 <p className="font-roboto text-[12px] text-center mt-2 max-w-sm">O cliente ainda não preencheu o formulário ou o documento foi devolvido para revisão.</p>
+                 <p className="font-roboto text-[12px] text-center mt-2 max-w-sm font-medium">O cliente ainda não preencheu o formulário ou o documento foi devolvido para revisão.</p>
                </div>
              ) : (
-               <div className="flex flex-col gap-6 pb-6">
-                 <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 shadow-sm">
+               <div className="flex flex-col gap-5 pb-6">
+                 <div className="bg-white/80 p-6 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm transition-all hover:shadow-md">
                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Visão do Negócio</span>
-                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap">{briefing.business_vision || "Não preenchido."}</p>
+                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium">{briefing.business_vision || "Não preenchido."}</p>
                  </div>
-                 <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 shadow-sm">
+                 <div className="bg-white/80 p-6 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm transition-all hover:shadow-md">
                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Público-Alvo</span>
-                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap">{briefing.target_audience || "Não preenchido."}</p>
+                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium">{briefing.target_audience || "Não preenchido."}</p>
                  </div>
-                 <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 shadow-sm">
+                 <div className="bg-white/80 p-6 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm transition-all hover:shadow-md">
                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Concorrentes</span>
-                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap">{briefing.competitors || "Não preenchido."}</p>
+                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium">{briefing.competitors || "Não preenchido."}</p>
                  </div>
-                 <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 shadow-sm">
+                 <div className="bg-white/80 p-6 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm transition-all hover:shadow-md">
                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Diferencial (Unique Value)</span>
-                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap">{briefing.unique_value || "Não preenchido."}</p>
+                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium">{briefing.unique_value || "Não preenchido."}</p>
                  </div>
-                 <div className="bg-gray-50/50 p-6 rounded-2xl border border-gray-100 shadow-sm">
+                 <div className="bg-white/80 p-6 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm transition-all hover:shadow-md">
                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Referências e Estilo</span>
-                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap">{briefing.references || "Não preenchido."}</p>
+                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium">{briefing.references || "Não preenchido."}</p>
                  </div>
                </div>
              )}
@@ -273,32 +294,32 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
       <div className="w-full xl:w-1/2 flex flex-col h-full overflow-hidden">
         <div className="flex flex-col gap-6 h-full overflow-y-auto custom-scrollbar pr-2 pb-6">
           
-          <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white/70 p-6 md:p-8 rounded-[2.5rem] border border-white shadow-sm shrink-0 gap-4">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white/60 p-6 md:p-8 rounded-[2.5rem] border border-white shadow-sm shrink-0 gap-4 transition-colors hover:bg-white/80">
              <div>
                <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">DNA da Marca (Lab)</h2>
-               <p className="font-roboto text-xs text-[var(--color-atelier-grafite)]/50 mt-1 uppercase tracking-widest font-bold">Laboratório de Expressão do Cliente.</p>
+               <p className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 mt-1.5 uppercase tracking-widest font-bold">Laboratório de Expressão do Cliente.</p>
              </div>
              <div className="flex gap-2 w-full md:w-auto">
-               <button onClick={handleGenerateSourceCode} disabled={isProcessing || !labData} className="flex-1 md:flex-none px-4 py-2.5 bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] rounded-xl font-roboto text-[10px] uppercase tracking-widest font-bold flex items-center justify-center gap-2 shadow-md disabled:opacity-50">
+               <button onClick={handleGenerateSourceCode} disabled={isProcessing || !labData} className="flex-1 md:flex-none px-5 py-3 bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] rounded-[1rem] font-roboto text-[10px] uppercase tracking-widest font-bold flex items-center justify-center gap-2 shadow-md disabled:opacity-50 transition-colors hover:-translate-y-0.5 disabled:hover:translate-y-0">
                  {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Compilar IA
                </button>
-               <button onClick={handleDownloadBrandbookPDF} disabled={!labData} className="flex-1 md:flex-none px-4 py-2.5 bg-white border border-[var(--color-atelier-terracota)]/30 text-[var(--color-atelier-terracota)] hover:bg-[var(--color-atelier-terracota)] hover:text-white rounded-xl font-roboto text-[10px] uppercase tracking-widest font-bold flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 transition-colors">
+               <button onClick={handleDownloadBrandbookPDF} disabled={!labData} className="flex-1 md:flex-none px-5 py-3 bg-white/80 border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/60 hover:bg-[var(--color-atelier-terracota)] hover:text-white rounded-[1rem] font-roboto text-[10px] uppercase tracking-widest font-bold flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 transition-colors hover:border-transparent">
                  <Download size={14} /> Brandbook
                </button>
              </div>
           </div>
 
           {!labData ? (
-             <div className="glass-panel bg-white/40 border border-white p-10 rounded-[2.5rem] flex flex-col items-center justify-center text-center h-[300px] shadow-sm shrink-0 opacity-50">
+             <div className="glass-panel bg-white/40 border border-white p-10 rounded-[2.5rem] flex flex-col items-center justify-center text-center h-[300px] shadow-sm shrink-0 opacity-60">
                <Target size={48} className="text-[var(--color-atelier-terracota)] mb-4" />
                <p className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Laboratório Vazio</p>
-               <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/60 mt-2">Aguardando o preenchimento do Brandbook pelo cliente.</p>
+               <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">Aguardando o preenchimento do Brandbook pelo cliente.</p>
              </div>
           ) : (
             <>
               {labData.ai_source_code && (
-                <div className="bg-[var(--color-atelier-creme)]/50 p-6 md:p-8 rounded-[2.5rem] border border-[var(--color-atelier-terracota)]/20 shadow-inner shrink-0">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mb-4 block">Estratégia Extraída (CMO)</span>
+                <div className="bg-[var(--color-atelier-creme)]/60 p-6 md:p-8 rounded-[2.5rem] border border-[var(--color-atelier-terracota)]/20 shadow-inner shrink-0">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mb-4 block flex items-center gap-1.5"><BrainCircuit size={12}/> Estratégia Extraída (CMO)</span>
                   <div className="text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed whitespace-pre-wrap font-medium">
                     {labData.ai_source_code}
                   </div>
@@ -307,23 +328,23 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
 
               {/* Matriz e Semiótica em Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 shrink-0">
-                <div className="glass-panel bg-white/80 p-6 rounded-[2rem] border border-white shadow-sm">
+                <div className="glass-panel bg-white/60 p-6 rounded-[2rem] border border-white shadow-sm transition-colors hover:bg-white/80">
                   <h3 className="font-elegant text-xl text-[var(--color-atelier-grafite)] mb-4 border-b border-[var(--color-atelier-grafite)]/10 pb-3">1. Matriz de Alocação</h3>
                   <div className="flex flex-col gap-4">
-                    <div className="flex justify-between items-center text-xs border-b border-gray-100 pb-2"><span className="font-bold text-[var(--color-atelier-grafite)]">Autoridade Técnica</span> <span className="text-[var(--color-atelier-terracota)] font-bold text-base">{labData.tilt_technical}%</span></div>
-                    <div className="flex justify-between items-center text-xs border-b border-gray-100 pb-2"><span className="font-bold text-[var(--color-atelier-grafite)]">Cultura/Operação</span> <span className="text-[var(--color-atelier-terracota)] font-bold text-base">{labData.tilt_culture}%</span></div>
-                    <div className="flex justify-between items-center text-xs border-b border-gray-100 pb-2"><span className="font-bold text-[var(--color-atelier-grafite)]">Status/Lifestyle</span> <span className="text-[var(--color-atelier-terracota)] font-bold text-base">{labData.tilt_status}%</span></div>
-                    <div className="flex justify-between items-center text-xs"><span className="font-bold text-[var(--color-atelier-grafite)]">Comunidade/Tribo</span> <span className="text-[var(--color-atelier-terracota)] font-bold text-base">{labData.tilt_community}%</span></div>
+                    <div className="flex justify-between items-center text-xs border-b border-[var(--color-atelier-grafite)]/5 pb-2"><span className="font-bold text-[var(--color-atelier-grafite)]/80">Autoridade Técnica</span> <span className="text-[var(--color-atelier-terracota)] font-bold text-[14px]">{labData.tilt_technical}%</span></div>
+                    <div className="flex justify-between items-center text-xs border-b border-[var(--color-atelier-grafite)]/5 pb-2"><span className="font-bold text-[var(--color-atelier-grafite)]/80">Cultura/Operação</span> <span className="text-[var(--color-atelier-terracota)] font-bold text-[14px]">{labData.tilt_culture}%</span></div>
+                    <div className="flex justify-between items-center text-xs border-b border-[var(--color-atelier-grafite)]/5 pb-2"><span className="font-bold text-[var(--color-atelier-grafite)]/80">Status/Lifestyle</span> <span className="text-[var(--color-atelier-terracota)] font-bold text-[14px]">{labData.tilt_status}%</span></div>
+                    <div className="flex justify-between items-center text-xs"><span className="font-bold text-[var(--color-atelier-grafite)]/80">Comunidade/Tribo</span> <span className="text-[var(--color-atelier-terracota)] font-bold text-[14px]">{labData.tilt_community}%</span></div>
                   </div>
                 </div>
 
-                <div className="glass-panel bg-white/80 p-6 rounded-[2rem] border border-white shadow-sm">
+                <div className="glass-panel bg-white/60 p-6 rounded-[2rem] border border-white shadow-sm transition-colors hover:bg-white/80">
                   <h3 className="font-elegant text-xl text-[var(--color-atelier-grafite)] mb-4 border-b border-[var(--color-atelier-grafite)]/10 pb-3">2. Semiótica Visual</h3>
                   <div className="flex flex-col gap-3">
                     {Object.entries(labData.semiotics_choices || {}).map(([key, val]) => (
                       <div key={key} className="text-xs">
-                        <span className="font-bold uppercase text-[9px] text-[var(--color-atelier-grafite)]/50 block mb-0.5">{SEMIOTICS_MAP[key] ? key : key}</span>
-                        <span className="text-[var(--color-atelier-terracota)] font-medium">{SEMIOTICS_MAP[key]?.[val as 'A'|'B'] || (val as string)}</span>
+                        <span className="font-bold uppercase text-[9px] text-[var(--color-atelier-grafite)]/40 block mb-0.5">{SEMIOTICS_MAP[key] ? key : key}</span>
+                        <span className="text-[var(--color-atelier-terracota)] font-bold">{SEMIOTICS_MAP[key]?.[val as 'A'|'B'] || (val as string)}</span>
                       </div>
                     ))}
                   </div>
@@ -331,13 +352,13 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
               </div>
 
               {/* Tom de Voz */}
-              <div className="glass-panel bg-white/80 p-6 rounded-[2rem] border border-white shadow-sm shrink-0">
+              <div className="glass-panel bg-white/60 p-6 rounded-[2.5rem] border border-white shadow-sm shrink-0 transition-colors hover:bg-white/80">
                 <h3 className="font-elegant text-xl text-[var(--color-atelier-grafite)] mb-4 border-b border-[var(--color-atelier-grafite)]/10 pb-3">3. Teatro de Operações (Voz)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {Object.entries(labData.voice_scenarios || {}).map(([key, val]) => (
-                    <div key={key} className="text-xs bg-[var(--color-atelier-creme)]/30 p-4 rounded-xl border border-[var(--color-atelier-grafite)]/5 shadow-sm">
-                      <span className="font-bold uppercase text-[8px] text-[var(--color-atelier-grafite)]/50 block mb-1.5">Cenário: {key === 'price' ? 'Objeção de Preço' : key === 'failure' ? 'Gestão de Crise' : 'Celebração'}</span>
-                      <span className="text-[var(--color-atelier-terracota)] font-bold">{VOICE_MAP[val as string] || (val as string)}</span>
+                    <div key={key} className="text-xs bg-white/80 p-4 rounded-[1.2rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm">
+                      <span className="font-bold uppercase text-[8px] text-[var(--color-atelier-grafite)]/40 block mb-1.5">Cenário: {key === 'price' ? 'Objeção de Preço' : key === 'failure' ? 'Gestão de Crise' : 'Celebração'}</span>
+                      <span className="text-[var(--color-atelier-terracota)] font-bold text-[13px] leading-tight block">{VOICE_MAP[val as string] || (val as string)}</span>
                     </div>
                   ))}
                 </div>
@@ -345,15 +366,15 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
 
               {/* Cofre Visual */}
               {labData.synapses_vault && labData.synapses_vault.length > 0 && (
-                <div className="glass-panel bg-white/80 p-6 rounded-[2rem] border border-white shadow-sm shrink-0">
+                <div className="glass-panel bg-white/60 p-6 rounded-[2.5rem] border border-white shadow-sm shrink-0 transition-colors hover:bg-white/80">
                   <h3 className="font-elegant text-xl text-[var(--color-atelier-grafite)] mb-4 border-b border-[var(--color-atelier-grafite)]/10 pb-3">4. Gatilhos Visuais</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {labData.synapses_vault.map((syn: any, i: number) => (
-                      <div key={i} className="relative rounded-xl overflow-hidden shadow-sm aspect-square group border-2 border-white">
+                      <div key={i} className="relative rounded-[1.2rem] overflow-hidden shadow-sm aspect-square group border border-white">
                         <img src={syn.url} className="w-full h-full object-cover" alt="ref" />
-                        <div className="absolute inset-0 bg-black/80 p-3 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
+                        <div className="absolute inset-0 bg-black/70 p-3 flex flex-col items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-sm">
                           <Target size={16} className="text-[var(--color-atelier-terracota)] mb-1" />
-                          <p className="text-white text-[9px] text-center italic font-medium">"{syn.reason}"</p>
+                          <p className="text-white text-[9px] text-center italic font-medium leading-relaxed">"{syn.reason}"</p>
                         </div>
                       </div>
                     ))}

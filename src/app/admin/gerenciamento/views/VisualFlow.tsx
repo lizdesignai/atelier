@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../../../../lib/supabase";
 import { UploadCloud, Loader2, Send, Trash2, MapPin, Clock, CheckCircle2 } from "lucide-react";
+import { NotificationEngine } from "../../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
 
 interface VisualFlowProps {
   activeProjectId: string;
@@ -122,6 +123,15 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
         await supabase.from('content_planning').update({ status: 'completed' }).eq('id', selectedPlanId);
       }
 
+      // 🔔 NOTIFICAÇÃO: Disparo para o Cliente
+      await NotificationEngine.notifyUser(
+        currentProject.client_id,
+        "🎨 Nova Arte Pronta para Aprovação",
+        "O estúdio enviou uma nova peça gráfica para a sua mesa. Pode aprovar ou solicitar ajustes no Cockpit.",
+        "action",
+        "/cockpit"
+      );
+
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Arte gráfica enviada para a mesa do cliente!" }));
       
       // Limpa os campos e recarrega a lista
@@ -157,7 +167,7 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
   // Renderização de Loading Modular
   if (isLoading) {
     return (
-      <div className="flex h-full min-h-[400px] items-center justify-center glass-panel bg-white/50 rounded-2xl border border-white">
+      <div className="flex h-full min-h-[400px] items-center justify-center glass-panel bg-white/40 rounded-2xl border border-white">
         <Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" />
       </div>
     );
@@ -167,48 +177,48 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
     <div className="flex flex-col md:flex-row gap-6 h-full min-h-0 pb-4">
       
       {/* COLUNA ESQUERDA: FORMULÁRIO DE SUBMISSÃO */}
-      <div className="w-full md:w-1/3 glass-panel bg-white/80 p-8 rounded-[2rem] flex flex-col gap-5 shadow-sm h-fit shrink-0 border border-white overflow-y-auto custom-scrollbar max-h-full">
-        <div className="border-b border-[var(--color-atelier-grafite)]/5 pb-4 mb-2 shrink-0">
+      <div className="w-full md:w-1/3 glass-panel bg-white/60 p-8 rounded-[2.5rem] flex flex-col gap-5 shadow-sm h-fit shrink-0 border border-white overflow-y-auto custom-scrollbar max-h-full transition-colors hover:bg-white/80">
+        <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-2 shrink-0">
           <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Submeter Arte</h3>
-          <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest mt-1">Vincular Design ao Copy</p>
+          <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest mt-1 font-bold">Vincular Design ao Copy</p>
         </div>
 
-        <div className="flex flex-col gap-1 shrink-0">
+        <div className="flex flex-col gap-1.5 shrink-0">
           <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Ideia Aprovada (Opcional)</span>
-          <select value={selectedPlanId} onChange={(e) => setSelectedPlanId(e.target.value)} className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[12px] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm">
-            <option value="">Apenas fazer upload sem ideia prévia...</option>
+          <select value={selectedPlanId} onChange={(e) => setSelectedPlanId(e.target.value)} className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[12px] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm text-[var(--color-atelier-grafite)] font-bold cursor-pointer transition-colors">
+            <option value="" className="text-gray-400">Apenas fazer upload sem ideia prévia...</option>
             {approvedPlans.map(plan => (
               <option key={plan.id} value={plan.id}>"{plan.hook}" - {plan.pillar}</option>
             ))}
           </select>
         </div>
         
-        <label className="w-full h-48 bg-white border-2 border-dashed border-[var(--color-atelier-grafite)]/20 hover:border-[var(--color-atelier-terracota)]/50 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-colors relative overflow-hidden group shadow-inner shrink-0 mt-2">
+        <label className="w-full h-48 bg-white/80 border-2 border-dashed border-[var(--color-atelier-grafite)]/20 hover:border-[var(--color-atelier-terracota)]/50 rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-colors relative overflow-hidden group shadow-inner shrink-0 mt-2">
           <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => setNewPostImage(e.target.files?.[0] || null)} />
           {newPostImage ? (
             <img src={URL.createObjectURL(newPostImage)} className="w-full h-full object-cover" alt="Preview" />
           ) : (
             <>
               <UploadCloud size={32} className="text-[var(--color-atelier-grafite)]/30 mb-3 group-hover:scale-110 group-hover:text-[var(--color-atelier-terracota)] transition-all" />
-              <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 group-hover:text-[var(--color-atelier-terracota)]">Upload da Arte Gráfica</span>
+              <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 group-hover:text-[var(--color-atelier-terracota)] transition-colors">Upload da Arte Gráfica</span>
             </>
           )}
         </label>
 
-        <div className="flex flex-col gap-1 flex-1 min-h-0 shrink-0 mt-2">
+        <div className="flex flex-col gap-1.5 flex-1 min-h-0 shrink-0 mt-2">
           <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Copy / Legenda</span>
           <textarea 
             placeholder="Escreva a copy que acompanha esta arte..." 
             value={newPostCaption} 
             onChange={(e) => setNewPostCaption(e.target.value)} 
-            className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] resize-none h-32 md:min-h-[120px] outline-none focus:border-[var(--color-atelier-terracota)]/50 custom-scrollbar shadow-sm" 
+            className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 rounded-[1.2rem] p-4 text-[13px] resize-none h-32 md:min-h-[120px] outline-none focus:border-[var(--color-atelier-terracota)]/50 custom-scrollbar shadow-sm transition-colors text-[var(--color-atelier-grafite)] font-medium" 
           />
         </div>
 
         <button 
           onClick={handleCreatePost} 
           disabled={isProcessing || !newPostImage} 
-          className="w-full bg-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)] text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50 shadow-md shrink-0"
+          className="w-full bg-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)] text-white py-4 rounded-[1.2rem] text-[11px] font-bold uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-2 mt-2 disabled:opacity-50 shadow-md shrink-0 hover:-translate-y-0.5 disabled:hover:translate-y-0"
         >
           {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} Disparar para Cliente
         </button>
@@ -221,16 +231,16 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
           const postPins = pins.filter(pin => pin.post_id === post.id);
           
           return (
-            <div key={post.id} className="glass-panel bg-white/70 p-6 rounded-[2.5rem] flex flex-col md:flex-row gap-6 border border-white shadow-sm relative group shrink-0">
+            <div key={post.id} className="glass-panel bg-white/40 p-6 rounded-[2.5rem] flex flex-col md:flex-row gap-6 border border-white shadow-sm relative group shrink-0 transition-colors hover:bg-white/60">
               {/* Botão de Excluir */}
-              <button onClick={() => handleDeletePost(post.id)} className="absolute top-4 right-4 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity bg-white p-2 rounded-full shadow-md z-10">
+              <button onClick={() => handleDeletePost(post.id)} className="absolute top-6 right-6 text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity bg-white p-2 rounded-full shadow-md z-10 border border-red-50">
                 <Trash2 size={14}/>
               </button>
               
               {/* Imagem e Status */}
-              <div className="w-32 h-40 rounded-2xl overflow-hidden shrink-0 border border-[var(--color-atelier-grafite)]/5 shadow-inner relative">
+              <div className="w-32 h-40 rounded-[1.5rem] overflow-hidden shrink-0 border border-white shadow-md relative bg-gray-50">
                 <img src={post.image_url} alt="Post" className="w-full h-full object-cover" />
-                <div className={`absolute top-2 left-2 backdrop-blur-md px-2 py-1 rounded text-[9px] font-bold uppercase tracking-widest border shadow-sm
+                <div className={`absolute top-2 left-2 backdrop-blur-xl px-2.5 py-1 rounded-lg text-[9px] font-bold uppercase tracking-widest border shadow-sm
                   ${post.status === 'approved' ? 'bg-green-500/90 border-green-400 text-white' : post.status === 'needs_revision' ? 'bg-orange-500/90 border-orange-400 text-white' : 'bg-black/60 border-white/20 text-white'}
                 `}>
                   {post.status === 'approved' ? 'Aprovado' : post.status === 'needs_revision' ? 'Ajustes' : 'Pendente'}
@@ -238,27 +248,30 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
               </div>
               
               {/* Informações e Feedback */}
-              <div className="flex flex-col flex-1 justify-center min-w-0">
-                <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/80 leading-relaxed mb-4 truncate italic">
+              <div className="flex flex-col flex-1 justify-center min-w-0 pt-2">
+                <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/80 leading-relaxed mb-4 truncate italic font-medium pr-10">
                   {post.caption?.substring(0, 80) || "Arte visual enviada sem legenda..."}
                 </p>
                 
                 {postPins.length > 0 ? (
-                  <div className="bg-[var(--color-atelier-creme)]/80 p-4 rounded-xl border border-[var(--color-atelier-terracota)]/20 shadow-sm mt-auto max-h-32 overflow-y-auto custom-scrollbar">
+                  <div className="bg-[var(--color-atelier-creme)]/50 p-4 rounded-2xl border border-[var(--color-atelier-terracota)]/20 shadow-inner mt-auto max-h-32 overflow-y-auto custom-scrollbar">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] flex items-center gap-1.5 mb-2">
                       <MapPin size={12}/> Pinos do Cliente (Ajustes)
                     </span>
                     <ul className="flex flex-col gap-2">
                       {postPins.map((pin, i) => (
-                        <li key={pin.id} className="text-[11px] text-[var(--color-atelier-grafite)] flex gap-2 items-start bg-white p-2 rounded-lg shadow-sm">
+                        <li key={pin.id} className="text-[11px] text-[var(--color-atelier-grafite)] flex gap-2 items-start bg-white p-2.5 rounded-xl shadow-sm border border-transparent hover:border-[var(--color-atelier-terracota)]/20 transition-colors font-medium">
                           <span className="font-black text-[var(--color-atelier-terracota)] mt-0.5">{i + 1}.</span> {pin.comment}
                         </li>
                       ))}
                     </ul>
                   </div>
                 ) : (
-                  <div className="bg-white/50 p-4 rounded-xl border border-white flex items-center gap-2 justify-center opacity-60">
-                    <Clock size={14}/> <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Aguardando revisão ou aprovado sem ajustes.</span>
+                  <div className="bg-white/60 p-4 rounded-2xl border border-white flex items-center gap-2 justify-center opacity-80 shadow-sm mt-auto">
+                    <Clock size={14} className="text-[var(--color-atelier-grafite)]/50"/> 
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60">
+                      Aguardando revisão ou aprovado sem ajustes.
+                    </span>
                   </div>
                 )}
               </div>
@@ -271,7 +284,7 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
           <div className="glass-panel bg-white/40 border border-white p-10 rounded-[2.5rem] flex flex-col items-center justify-center text-center h-[300px] shadow-sm shrink-0">
             <CheckCircle2 size={48} className="text-[var(--color-atelier-terracota)]/30 mb-4" />
             <p className="font-elegant text-3xl text-[var(--color-atelier-grafite)]/50">Fluxo Vazio</p>
-            <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/40 mt-2">Nenhuma arte gráfica no fluxo ativo deste cliente.</p>
+            <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/40 mt-2 font-medium">Nenhuma arte gráfica no fluxo ativo deste cliente.</p>
           </div>
         )}
       </div>
