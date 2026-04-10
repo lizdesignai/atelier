@@ -649,7 +649,7 @@ export class AtelierPMEngine {
   /**
    * ============================================================================
    * 12. CALIBRAÇÃO BIDIRECIONAL (Earned Value Management - EVM Loop)
-   * 🟢 CORREÇÃO: O motor agora usa .ilike() para buscar o alerta, travando o spam.
+   * 🟢 CORREÇÃO DEFINITIVA: Match feito em memória para evitar quebras do ILIKE com caracteres especiais.
    * ============================================================================
    */
   static async calibrateUnitEconomics(adminId: string) {
@@ -664,6 +664,15 @@ export class AtelierPMEngine {
         .gte('completed_at', thirtyDaysAgo);
 
       if (!completedTasks || completedTasks.length === 0) return;
+
+      // 2. Busca TODOS os alertas de sistema já abertos (para validação em memória)
+      const { data: openAlerts } = await supabase
+        .from('tasks')
+        .select('title')
+        .eq('stage', 'Otimização Sistémica')
+        .neq('status', 'completed');
+        
+      const existingAlertTitles = openAlerts ? openAlerts.map(a => a.title) : [];
 
       const metricsMap: Record<string, { count: number, totalEst: number, totalAct: number }> = {};
 
@@ -694,15 +703,10 @@ export class AtelierPMEngine {
           }
 
           if (alertTitle) {
-            // 2. CORREÇÃO DA VERIFICAÇÃO RIGOROSA: Usa ILIKE para apanhar variações do mesmo alerta
-            const { data: existingAlerts } = await supabase
-              .from('tasks')
-              .select('id')
-              .ilike('title', `%Desvio de EVM%${taskName}%`) 
-              .limit(1);
+            // 3. Verificação Robusta em Memória: Se algum alerta aberto JÁ contiver o nome desta tarefa, abortamos.
+            const isAlertAlreadyOpen = existingAlertTitles.some(title => title.includes(taskName));
 
-            // 3. Apenas insere se a resposta for rigorosamente vazia
-            if (!existingAlerts || existingAlerts.length === 0) {
+            if (!isAlertAlreadyOpen) {
               await supabase.from('tasks').insert({
                 project_id: null,
                 assigned_to: adminId,
