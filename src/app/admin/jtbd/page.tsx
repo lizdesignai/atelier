@@ -57,6 +57,27 @@ export default function JTBDPage() {
     setCurrentWeek(getOffsetWeek(weekOffset));
   }, [weekOffset]);
 
+  useEffect(() => {
+  const bootEngine = async () => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      const adminId = session.user.id; // Or fetch a specific admin ID
+
+      // Run daily maintenance tasks in the background without blocking UI
+      Promise.all([
+        AtelierPMEngine.executeDailyWorkloadAllocation(),
+        AtelierPMEngine.runDailyRiskMitigation(adminId),
+        AtelierPMEngine.calibrateUnitEconomics(adminId)
+      ]).catch(console.error);
+    } catch (e) {
+      console.error("Engine boot failed", e);
+    }
+  };
+
+  bootEngine();
+}, []);
+
   // Fetch Inicial
   useEffect(() => {
     fetchJTBDData();

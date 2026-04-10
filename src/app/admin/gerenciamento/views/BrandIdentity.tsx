@@ -43,48 +43,75 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
   const [briefing, setBriefing] = useState<any>(null);
   const [labData, setLabData] = useState<any>(null);
 
-  // 1. CARREGAMENTO ISOLADO (Lazy Fetching)
+  // 1. CARREGAMENTO ISOLADO E BLINDADO (Lazy Fetching)
   useEffect(() => {
     const fetchData = async () => {
       setIsLoading(true);
       try {
-        if (!activeProjectId) return;
+        if (!activeProjectId && !currentProject?.client_id) return;
 
-        // Busca do Briefing Inicial (Garante que não pega os devolvidos 'returned', mas aceita NULLs)
+        // 1. Busca do Briefing Inicial (Protegido contra sintaxe falha de IS NULL)
         let foundBriefing = null;
-        const { data: briefByProj } = await supabase
-          .from('instagram_briefings')
-          .select('*')
-          .eq('project_id', activeProjectId)
-          .or('status.neq.returned,status.is.null') 
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+        
+        if (activeProjectId) {
+          const { data: briefByProj } = await supabase
+            .from('instagram_briefings')
+            .select('*')
+            .eq('project_id', activeProjectId)
+            // Forma correta e segura de excluir devolvidos ou apanhar nulos
+            .not('status', 'eq', 'returned') 
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
 
-        foundBriefing = briefByProj;
+          if (briefByProj) foundBriefing = briefByProj;
+        }
 
+        // Se não encontrou pelo projeto, procura pelo Cliente
         if (!foundBriefing && currentProject?.client_id) {
           const { data: briefByClient } = await supabase
             .from('instagram_briefings')
             .select('*')
             .eq('client_id', currentProject.client_id)
-            .or('status.neq.returned,status.is.null')
+            .not('status', 'eq', 'returned')
             .order('created_at', { ascending: false })
             .limit(1)
             .maybeSingle();
-          foundBriefing = briefByClient;
+            
+          if (briefByClient) foundBriefing = briefByClient;
         }
 
         setBriefing(foundBriefing);
 
-        // Busca do Laboratório da Marca
-        const { data: lab } = await supabase
-          .from('brandbook_laboratory')
-          .select('*')
-          .eq('project_id', activeProjectId)
-          .maybeSingle();
+        // 2. Busca do Laboratório da Marca (Procura Redundante)
+        let foundLab = null;
         
-        if (lab) setLabData(lab);
+        if (activeProjectId) {
+          const { data: labByProj } = await supabase
+            .from('brandbook_laboratory')
+            .select('*')
+            .eq('project_id', activeProjectId)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+            
+          if (labByProj) foundLab = labByProj;
+        }
+
+        // Se não encontrou pelo projeto (comum se o cliente submeteu sem o projeto estar 100% linkado)
+        if (!foundLab && currentProject?.client_id) {
+          const { data: labByClient } = await supabase
+            .from('brandbook_laboratory')
+            .select('*')
+            .eq('client_id', currentProject.client_id)
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+            
+          if (labByClient) foundLab = labByClient;
+        }
+        
+        setLabData(foundLab);
 
       } catch (error) {
         console.error("Erro ao carregar Identidade da Marca:", error);

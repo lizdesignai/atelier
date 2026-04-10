@@ -194,24 +194,36 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
 
       if (profileError) throw new Error(`Erro DB Profiles: ${profileError.message}`);
 
-      // Grava Cérebro da IA (Upsert Blindado)
-      if (consultingData.brand_archetype || formData.instagram) {
-        const leadPayload = {
-          email: formData.email, nome: formData.nome, telefone: formData.telefone, 
-          instagram: formData.instagram, nicho: formData.nicho,
-          ai_brand_archetype: consultingData.brand_archetype, ai_visual_diagnosis: consultingData.visual_diagnosis,
-          ai_tone_of_voice: consultingData.tone_of_voice, ai_stories_strategy: consultingData.stories_strategy,
-          ai_content_pillars: consultingData.content_pillars.split('\n').filter(Boolean),
-          strategic_justification: consultingData.strategic_justification, market_positioning: consultingData.market_positioning
-        };
+      if (consultingData.brand_archetype || formData.instagram || formData.email) {
+        
+        // Asseguramos que o email é o identificador mestre.
+        const targetEmail = formData.email || clientProfile.email;
 
-        if (leadRecordId) {
-          const { error: leadErr } = await supabase.from('leads').update(leadPayload).eq('id', leadRecordId);
-          if (leadErr) throw new Error(`Erro DB Leads (Update): ${leadErr.message}`);
-        } else {
-          // Fallback para Inserir caso a Inteligência seja nova
-          const { data, error: leadErr } = await supabase.from('leads').insert({ ...leadPayload, status: 'contacted' }).select().single();
-          if (leadErr) throw new Error(`Erro DB Leads (Insert): ${leadErr.message}`);
+        if (targetEmail) {
+          const leadPayload = {
+            email: targetEmail, // Usado para matching de conflito
+            nome: formData.nome, 
+            telefone: formData.telefone, 
+            instagram: formData.instagram, 
+            nicho: formData.nicho,
+            status: 'contacted', // Define o status caso seja criado agora
+            ai_brand_archetype: consultingData.brand_archetype, 
+            ai_visual_diagnosis: consultingData.visual_diagnosis,
+            ai_tone_of_voice: consultingData.tone_of_voice, 
+            ai_stories_strategy: consultingData.stories_strategy,
+            ai_content_pillars: consultingData.content_pillars ? consultingData.content_pillars.split('\n').filter(Boolean) : [],
+            strategic_justification: consultingData.strategic_justification, 
+            market_positioning: consultingData.market_positioning
+          };
+
+          // O '.upsert' diz: Tenta inserir. Se houver conflito na coluna 'email', faz update em vez de dar erro.
+          const { data, error: leadErr } = await supabase
+            .from('leads')
+            .upsert(leadPayload, { onConflict: 'email' }) 
+            .select()
+            .single();
+
+          if (leadErr) throw new Error(`Erro DB Leads (Upsert): ${leadErr.message}`);
           if (data) setLeadRecordId(data.id);
         }
       }
