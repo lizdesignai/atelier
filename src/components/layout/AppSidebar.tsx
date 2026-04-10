@@ -5,12 +5,12 @@ import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "../../lib/supabase";
 import { 
   Home, Lock, MessageSquare, ChevronLeft, ChevronRight, 
   Compass, LayoutDashboard, FolderKanban, Users, Inbox, 
-  Globe2, CheckCircle2, DollarSign, Sparkles, Briefcase, Crosshair
+  Globe2, CheckCircle2, DollarSign, Sparkles, Briefcase, Crosshair, LogOut
 } from "lucide-react";
+import { supabase } from "../../lib/supabase"; // Note: Adjust the import path if necessary based on your project structure
 
 interface AppSidebarProps {
   userRole: string;
@@ -18,7 +18,7 @@ interface AppSidebarProps {
   onHideSidebar: (hidden: boolean) => void;
 }
 
-export default function AppSidebar({ userRole, onHideSidebar }: AppSidebarProps) {
+export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: AppSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [clientServiceType, setClientServiceType] = useState<string>("Identidade Visual");
   const [isProjectArchived, setIsProjectArchived] = useState(false);
@@ -140,7 +140,8 @@ export default function AppSidebar({ userRole, onHideSidebar }: AppSidebarProps)
       </button>
 
       {/* ÁREA DE NAVEGAÇÃO LÍMPIDA */}
-      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2 custom-scrollbar relative">
+      {/* 🟢 Adicionado flex e flex-col aqui para que o mt-auto funcione */}
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2 custom-scrollbar relative flex flex-col">
         <AnimatePresence>
           {!isCollapsed && (
             <motion.div 
@@ -152,7 +153,7 @@ export default function AppSidebar({ userRole, onHideSidebar }: AppSidebarProps)
           )}
         </AnimatePresence>
         
-        <nav className="flex flex-col gap-1.5 relative pb-8">
+        <nav className="flex flex-col gap-1.5 relative pb-8 flex-1">
           
           {/* MENU PARA CLIENTES */}
           {!isTeamMember && (
@@ -208,6 +209,35 @@ export default function AppSidebar({ userRole, onHideSidebar }: AppSidebarProps)
               )}
             </>
           )}
+
+          {/* 🟢 BOTÃO DE DESCONECTAR (Ajustado com mt-auto e cores vermelhas) */}
+          <button 
+            onClick={handleLogout}
+            title={isCollapsed ? "Desconectar" : ""} 
+            className={`
+              mt-auto relative flex items-center ${isCollapsed ? 'justify-center' : 'justify-start pl-4'} gap-4 p-3 rounded-[1.2rem] 
+              font-roboto text-[13px] transition-colors duration-300 group outline-none cursor-pointer
+              text-red-500/80 font-medium hover:text-red-600
+            `}
+          >
+            <div className="absolute inset-0 bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity rounded-[1.2rem] -z-10"></div>
+            <div className="relative z-10 flex items-center justify-center transition-transform duration-300 group-hover:scale-110">
+              <LogOut size={18} strokeWidth={1.5} />
+            </div>
+            <AnimatePresence mode="wait">
+              {!isCollapsed && (
+                <motion.span 
+                  initial={{ opacity: 0, x: -5 }} 
+                  animate={{ opacity: 1, x: 0 }} 
+                  exit={{ opacity: 0, x: -5, transition: { duration: 0.1 } }}
+                  className="relative z-10 tracking-wide whitespace-nowrap pt-0.5 font-bold"
+                >
+                  Desconectar
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </button>
+
         </nav>
       </div>
     </motion.aside>

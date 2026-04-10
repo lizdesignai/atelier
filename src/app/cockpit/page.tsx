@@ -13,6 +13,7 @@ import {
   CalendarDays, MessageSquare, XCircle, Star, Zap, FileText
 } from "lucide-react";
 import InstagramBriefingModal from "../../components/InstagramBriefingModal";
+import MissionsVaultModal from "../../components/MissionsVaultModal";
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -44,6 +45,9 @@ export default function CockpitPage() {
 
   // NOVO: Estado para verificar se há relatórios mensais disponíveis
   const [hasReports, setHasReports] = useState(false);
+
+  // ESTADO: COFRE DE MISSÕES
+  const [isMissionsModalOpen, setIsMissionsModalOpen] = useState(false);
 
   // ==========================================
   // ESTADOS T-NPS E UPSELL (Psicologia de Conversão)
@@ -438,7 +442,7 @@ export default function CockpitPage() {
                   Revisar Estratégia <ArrowRight size={16} />
                 </button>
               ) : pendingDirections > 0 ? (
-                <button onClick={() => router.push('/cofre-missoes')} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
+                <button onClick={() => setIsMissionsModalOpen(true)} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
                   Acessar Brandbook <ArrowRight size={16} />
                 </button>
               ) : pendingCount > 0 ? (
@@ -446,7 +450,7 @@ export default function CockpitPage() {
                   Acessar Fluxo de Impacto <ArrowRight size={16} />
                 </button>
               ) : pendingMissions > 0 ? (
-                <button onClick={() => router.push('/cofre-missoes')} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-orange-500 text-white hover:bg-orange-600 shadow-md hover:-translate-y-0.5">
+                <button onClick={() => setIsMissionsModalOpen(true)} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-orange-500 text-white hover:bg-orange-600 shadow-md hover:-translate-y-0.5">
                   Abrir Cofre de Missões <ArrowRight size={16} />
                 </button>
               ) : (
@@ -488,7 +492,7 @@ export default function CockpitPage() {
               <ChevronRight size={20} className="text-[var(--color-atelier-grafite)]/20 group-hover:text-[var(--color-atelier-terracota)] transition-colors"/>
             </button>
             
-            <button onClick={() => router.push('/cofre-missoes')} className="flex-1 glass-panel bg-white/60 hover:bg-white p-6 rounded-[2.5rem] border border-white flex items-center gap-5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-1">
+            <button onClick={() => setIsMissionsModalOpen(true)} className="flex-1 glass-panel bg-white/60 hover:bg-white p-6 rounded-[2.5rem] border border-white flex items-center gap-5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-1">
               <div className="w-14 h-14 rounded-[1.2rem] bg-white border border-white shadow-inner flex items-center justify-center text-[var(--color-atelier-grafite)] group-hover:scale-110 transition-transform"><Camera size={20}/></div>
               <div className="text-left flex-1">
                 <span className="block font-elegant text-2xl text-[var(--color-atelier-grafite)]">Missões</span>
@@ -509,6 +513,14 @@ export default function CockpitPage() {
             setIsBriefingModalOpen(false);
             window.location.reload(); 
           }} 
+        />
+
+        <MissionsVaultModal 
+          isOpen={isMissionsModalOpen} 
+          onClose={() => setIsMissionsModalOpen(false)} 
+          projectId={project.id} 
+          clientId={clientId} 
+          clientName={clientName} 
         />
 
         {/* =========================================================================

@@ -8,21 +8,21 @@ import {
   Users, Search, Filter, Plus, ArrowRight, 
   Mail, Building, Calendar, MoreVertical, 
   CheckCircle2, Clock, AlertCircle, X, Edit2, Trash2, Ban, Loader2,
-  DollarSign, Briefcase, CreditCard, RotateCcw, Percent, Sparkles, FileSearch
+  DollarSign, Briefcase, CreditCard, RotateCcw, Percent, Sparkles, FileSearch, User, Settings
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
-import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
-import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
+import { useGlobalStore } from "../../../contexts/GlobalStore"; 
+import { NotificationEngine } from "../../../lib/NotificationEngine"; 
 
-// 🟢 IMPORTAÇÃO DO NOVO MÓDULO DE CONSULTORIA
 import ConsultoriaModal from "./views/Consultoria";
+import ClientSettingsModal from "./views/ClientSettingsModal";
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
 };
 
 // ============================================================================
-// DICIONÁRIOS DO SISTEMA ZERO-TOUCH & PIPELINES (Espelhado do Analytics)
+// DICIONÁRIOS DO SISTEMA ZERO-TOUCH & PIPELINES
 // ============================================================================
 const IDV_PIPELINE = [
   { stage: "Setup & Onboarding", type: "setup", title: "Formulário de cadastro & Contrato", daysOffset: 0, estTime: 30 },
@@ -77,23 +77,20 @@ export default function BaseClientesPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("all"); 
 
-  // 🧠 CONSUMO DIRETO DA MEMÓRIA GLOBAL
-  const { activeProjects, isGlobalLoading, refreshGlobalData } = useGlobalStore();
+  const { activeProjects, isGlobalLoading, refreshGlobalData, setActiveProjectId } = useGlobalStore();
 
-  // Estados Locais Modificados
   const [enrichedProjects, setEnrichedProjects] = useState<any[]>([]);
   const [availableClients, setAvailableClients] = useState<any[]>([]);
   const [isLocalLoading, setIsLocalLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Estados dos Modais e Menus
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
-  const [isConsultoriaModalOpen, setIsConsultoriaModalOpen] = useState(false); // 🟢 ESTADO DA CONSULTORIA
+  const [isConsultoriaModalOpen, setIsConsultoriaModalOpen] = useState(false); 
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  
+  const [isClientSettingsModalOpen, setIsClientSettingsModalOpen] = useState(false);
+  const [clientToEdit, setClientToEdit] = useState<any>(null);
 
-  // ==========================================
-  // ESTADOS: CRIAR NOVO PROJETO
-  // ==========================================
   const [selectedClientId, setSelectedClientId] = useState("");
   const [serviceType, setServiceType] = useState<"Identidade Visual" | "Gestão de Instagram">("Identidade Visual");
   const [projectPackage, setProjectPackage] = useState("Identidade Visual Premium");
@@ -103,18 +100,12 @@ export default function BaseClientesPage() {
   const [paymentSplit, setPaymentSplit] = useState("50/50");
   const [billingDate, setBillingDate] = useState("");
 
-  // ==========================================
-  // ESTADOS: CRIAR NOVA AGÊNCIA (WHITE-LABEL)
-  // ==========================================
   const [isAgencyModalOpen, setIsAgencyModalOpen] = useState(false);
   const [agencyName, setAgencyName] = useState("");
   const [agencyFinancialValue, setAgencyFinancialValue] = useState("");
   const [agencyBillingDate, setAgencyBillingDate] = useState("");
   const [agencySubclients, setAgencySubclients] = useState<{ name: string; deliverables_count: number }[]>([{ name: "", deliverables_count: 1 }]);
 
-  // ==========================================
-  // ESTADOS: EDITAR PROJETO FINANCEIRO
-  // ==========================================
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState<any>(null);
   const [editFinancialValue, setEditFinancialValue] = useState("");
@@ -123,33 +114,64 @@ export default function BaseClientesPage() {
   const [editBillingDate, setEditBillingDate] = useState("");
   const [isEditing, setIsEditing] = useState(false);
 
-  // ==========================================
-  // BUSCAR DADOS PARALELOS (READ)
-  // ==========================================
   useEffect(() => {
     if (isGlobalLoading) return;
 
     const fetchLocalData = async () => {
       setIsLocalLoading(true);
       try {
-        const [ { data: tasksData }, { data: clientsData } ] = await Promise.all([
+        const [ { data: tasksData }, { data: profilesData }, { data: agenciesData } ] = await Promise.all([
           supabase.from('tasks').select('project_id, status'),
-          supabase.from('profiles').select('id, nome, email').eq('role', 'client')
+          supabase.from('profiles').select('*').in('role', ['client', 'lead']),
+          supabase.from('agencies').select('*')
         ]);
 
-        if (clientsData) setAvailableClients(clientsData);
+        if (profilesData) {
+          setAvailableClients(profilesData.filter(p => p.role === 'client'));
+        }
 
+        let enriched = [];
+        
         if (activeProjects) {
-          const enriched = activeProjects.map(p => {
+          enriched = activeProjects.map(p => {
             const pTasks = tasksData?.filter(t => t.project_id === p.id) || [];
             const totalTasks = pTasks.length;
             const completedTasks = pTasks.filter(t => t.status === 'completed').length;
             const progress = totalTasks === 0 ? 0 : Math.round((completedTasks / totalTasks) * 100);
 
-            return { ...p, calculatedProgress: progress };
+            return { ...p, calculatedProgress: progress, isLead: false, isAgency: false };
           });
-          setEnrichedProjects(enriched);
         }
+
+        const leadsData = profilesData?.filter(p => p.role === 'lead') || [];
+        const leadsMapped = leadsData.map(lead => ({
+          id: `lead-${lead.id}`, 
+          client_id: lead.id,
+          isLead: true,
+          isAgency: false,
+          profiles: lead,
+          status: 'lead', 
+          type: 'Lead (Prospecção)',
+          calculatedProgress: 0,
+          created_at: lead.created_at
+        }));
+
+        const agenciesMapped = (agenciesData || []).map(agency => ({
+          id: `agency-${agency.id}`, 
+          client_id: agency.id,
+          isLead: false,
+          isAgency: true,
+          profiles: { nome: agency.name, empresa: "Agência Parceira (White-Label)", avatar_url: null },
+          status: agency.status, 
+          type: 'Agência Parceira',
+          financial_value: agency.financial_value,
+          billing_date: agency.billing_date,
+          calculatedProgress: 0,
+          created_at: agency.created_at
+        }));
+
+        setEnrichedProjects([...enriched, ...leadsMapped, ...agenciesMapped].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
+
       } catch (error) {
         console.error("Erro local ao buscar dados do CRM:", error);
       } finally {
@@ -171,9 +193,6 @@ export default function BaseClientesPage() {
     }
   }, [serviceType]);
 
-  // ============================================================================
-  // CRIAR PROJETO E AUTO-DEPLOY DE PIPELINE (Zero-Touch)
-  // ============================================================================
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedClientId) {
@@ -185,7 +204,6 @@ export default function BaseClientesPage() {
     try {
       const { data: { session } } = await supabase.auth.getSession();
 
-      // 1. CRIA O PROJETO (Contrato)
       const projectPayload = {
         client_id: selectedClientId,
         service_type: serviceType,
@@ -205,7 +223,6 @@ export default function BaseClientesPage() {
       const { data: newProject, error: projError } = await supabase.from('projects').insert(projectPayload).select().single();
       if (projError) throw projError;
       
-      // 2. SELECIONA O PIPELINE E FAZ O DEPLOY
       let pipeline: any[] = [];
       if (serviceType === 'Identidade Visual') {
         pipeline = IDV_PIPELINE;
@@ -238,7 +255,6 @@ export default function BaseClientesPage() {
         if (tasksError) throw tasksError;
       }
 
-      // 🔔 NOTIFICAÇÕES: Cliente e Gestão
       await NotificationEngine.notifyUser(
         selectedClientId,
         "🎉 Bem-vindo ao Atelier",
@@ -262,16 +278,12 @@ export default function BaseClientesPage() {
       
       refreshGlobalData();
     } catch (error) {
-      console.error("Erro ao criar:", error);
       showToast("Erro ao criar projeto. Verifique as tabelas do banco.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // ============================================================================
-  // CRIAR AGÊNCIA E AUTO-DEPLOY DE SUB-CLIENTES (White-Label)
-  // ============================================================================
   const handleAddSubclient = () => {
     setAgencySubclients([...agencySubclients, { name: "", deliverables_count: 1 }]);
   };
@@ -292,7 +304,6 @@ export default function BaseClientesPage() {
 
     setIsSubmitting(true);
     try {
-      // 1. Cria Agência
       const { data: agency, error: agencyError } = await supabase.from('agencies').insert({
         name: agencyName,
         financial_value: agencyFinancialValue ? parseFloat(agencyFinancialValue) : 0,
@@ -302,7 +313,6 @@ export default function BaseClientesPage() {
 
       if (agencyError) throw agencyError;
 
-      // 2. Cria Subclientes e gera Tarefas (Analytics)
       if (agencySubclients.length > 0) {
         const subclientsToInsert = agencySubclients.map(sub => ({
           agency_id: agency.id,
@@ -317,7 +327,6 @@ export default function BaseClientesPage() {
 
         if (subError) throw subError;
 
-        // 3. Distribuição das Tarefas de Agência
         const tasksToInsert: any[] = [];
         const baseDate = agencyBillingDate ? new Date(agencyBillingDate) : new Date();
 
@@ -345,7 +354,6 @@ export default function BaseClientesPage() {
         }
       }
 
-      // 🔔 NOTIFICAÇÃO: Gestão
       await NotificationEngine.notifyManagement(
         "🏢 Nova Operação White-Label",
         `A agência ${agencyName} foi registada com ${agencySubclients.length} perfis ativos.`,
@@ -362,18 +370,25 @@ export default function BaseClientesPage() {
       
       refreshGlobalData(); 
     } catch (error) {
-      console.error("Erro ao criar agência:", error);
       showToast("Erro ao criar operação de agência.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // ==========================================
-  // AÇÕES DO MENU (EDITAR, SUSPENDER, APAGAR)
-  // ==========================================
   const handleMenuAction = async (action: string, project: any) => {
     setOpenMenuId(null);
+
+    if (action === 'EditarCliente') {
+      // 🟢 CORREÇÃO: Injetamos o ID e o Email que a listagem omitiu por otimização
+      setClientToEdit({ 
+        ...project.profiles, 
+        id: project.client_id,
+        email: project.profiles?.email || project.email || ""
+      });
+      setIsClientSettingsModalOpen(true);
+      return;
+    }
 
     if (action === 'Editar') {
       setProjectToEdit(project);
@@ -386,104 +401,117 @@ export default function BaseClientesPage() {
     }
 
     if (action === 'Suspender') {
-      const confirm = window.confirm(`Deseja suspender o acesso do cliente ${project.profiles?.nome}? Eles não poderão aceder ao estúdio.`);
+      const confirm = window.confirm(`Deseja suspender a operação?`);
       if (!confirm) return;
-      const { error } = await supabase.from('projects').update({ status: 'archived' }).eq('id', project.id);
-      if (error) showToast("Erro ao suspender projeto.");
-      else { 
-        // 🔔 NOTIFICAÇÃO: Cliente
-        await NotificationEngine.notifyUser(
-          project.client_id,
-          "⏸️ Operação Suspensa",
-          "O seu acesso ao estúdio e operação foram temporariamente suspensos.",
-          "warning"
-        );
-        showToast("Projeto suspenso com sucesso."); 
-        refreshGlobalData(); 
+      
+      if (project.isAgency) {
+        await supabase.from('agencies').update({ status: 'archived' }).eq('id', project.client_id);
+      } else {
+        await supabase.from('projects').update({ status: 'archived' }).eq('id', project.id);
+        await NotificationEngine.notifyUser(project.client_id, "⏸️ Operação Suspensa", "O seu acesso ao estúdio e operação foram temporariamente suspensos.", "warning");
       }
+      showToast("Operação suspensa com sucesso."); 
+      refreshGlobalData(); 
       return;
     }
 
     if (action === 'Reativar') {
-      const confirm = window.confirm(`Deseja reativar o projeto de ${project.profiles?.nome}?`);
+      const confirm = window.confirm(`Deseja reativar a operação?`);
       if (!confirm) return;
-      const { error } = await supabase.from('projects').update({ status: 'active' }).eq('id', project.id);
-      if (error) showToast("Erro ao reativar projeto.");
-      else { 
-        // 🔔 NOTIFICAÇÃO: Cliente
-        await NotificationEngine.notifyUser(
-          project.client_id,
-          "▶️ Operação Retomada",
-          "O seu acesso ao estúdio foi reativado. Bem-vindo de volta.",
-          "success",
-          "/cockpit"
-        );
-        showToast("Projeto reativado com sucesso."); 
-        refreshGlobalData(); 
+
+      if (project.isAgency) {
+        await supabase.from('agencies').update({ status: 'active' }).eq('id', project.client_id);
+      } else {
+        await supabase.from('projects').update({ status: 'active' }).eq('id', project.id);
+        await NotificationEngine.notifyUser(project.client_id, "▶️ Operação Retomada", "O seu acesso ao estúdio foi reativado.", "success", "/cockpit");
       }
+      showToast("Operação reativada com sucesso."); 
+      refreshGlobalData(); 
       return;
     }
 
     if (action === 'Apagar') {
-      const confirm = window.confirm("ATENÇÃO: Deseja apagar este contrato e todas as tarefas permanentemente?");
+      const confirm = window.confirm("ATENÇÃO: Deseja apagar permanentemente?");
       if (!confirm) return;
-      const { error } = await supabase.from('projects').delete().eq('id', project.id);
-      if (error) showToast("Erro ao apagar contrato.");
-      else { showToast("Contrato apagado permanentemente."); refreshGlobalData(); }
+
+      if (project.isAgency) {
+         await supabase.from('agencies').delete().eq('id', project.client_id);
+      } else if (project.isLead) {
+         await supabase.from('leads').delete().eq('id', project.client_id);
+      } else {
+         await supabase.from('projects').delete().eq('id', project.id);
+      }
+      
+      showToast("Apagado permanentemente."); 
+      refreshGlobalData(); 
       return;
     }
   };
 
-  // GRAVAR EDIÇÕES FINANCEIRAS
   const handleEditSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!projectToEdit) return;
 
     setIsEditing(true);
     try {
-      const { error } = await supabase.from('projects').update({
-        financial_value: editFinancialValue ? parseFloat(editFinancialValue) : 0,
-        payment_method: editPaymentMethod,
-        payment_split: editPaymentSplit,
-        billing_date: editBillingDate || null
-      }).eq('id', projectToEdit.id);
+      if (projectToEdit.isAgency) {
+        await supabase.from('agencies').update({
+          financial_value: editFinancialValue ? parseFloat(editFinancialValue) : 0,
+          billing_date: editBillingDate || null
+        }).eq('id', projectToEdit.client_id);
+      } else {
+        await supabase.from('projects').update({
+          financial_value: editFinancialValue ? parseFloat(editFinancialValue) : 0,
+          payment_method: editPaymentMethod,
+          payment_split: editPaymentSplit,
+          billing_date: editBillingDate || null
+        }).eq('id', projectToEdit.id);
 
-      if (error) throw error;
-      
-      // 🔔 NOTIFICAÇÃO: Cliente
-      await NotificationEngine.notifyUser(
-        projectToEdit.client_id,
-        "💳 Atualização Contratual",
-        "Os dados financeiros e/ou datas de cobrança do seu projeto foram atualizados.",
-        "info"
-      );
+        await NotificationEngine.notifyUser(
+          projectToEdit.client_id,
+          "💳 Atualização Contratual",
+          "Os dados financeiros e/ou datas de cobrança do seu projeto foram atualizados.",
+          "info"
+        );
+      }
 
-      showToast("Dados contratuais atualizados com sucesso!");
+      showToast("Dados atualizados com sucesso!");
       setIsEditModalOpen(false);
       refreshGlobalData();
     } catch (error) {
-      showToast("Erro ao atualizar o projeto.");
+      showToast("Erro ao atualizar.");
     } finally {
       setIsEditing(false);
     }
   };
 
-  // Filtragem local otimizada
+  // 🟢 ORDENAÇÃO APLICADA: Leads para o fundo, Projetos ativos no topo, ordenado por data
   const filteredClients = enrichedProjects.filter(project => {
     const nome = project.profiles?.nome || "";
     const empresa = project.profiles?.empresa || "";
     
     const matchesSearch = nome.toLowerCase().includes(searchQuery.toLowerCase()) || 
                           empresa.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesStatus = filterStatus === "all" || project.status === filterStatus;
+                          
+    let matchesStatus = false;
+    if (filterStatus === "all") matchesStatus = true;
+    else if (filterStatus === "lead") matchesStatus = project.isLead === true;
+    else if (filterStatus === "agency") matchesStatus = project.isAgency === true;
+    else matchesStatus = project.status === filterStatus && !project.isLead && !project.isAgency;
     
     return matchesSearch && matchesStatus;
-  });
+  }).sort((a, b) => {
+    // 1. Leads sempre no fundo se a vista for 'all'
+    if (a.isLead && !b.isLead) return 1;
+    if (!a.isLead && b.isLead) return -1;
+    
+    // 2. Projetos ativos primeiro
+    if (a.status === 'active' && b.status !== 'active') return -1;
+    if (a.status !== 'active' && b.status === 'active') return 1;
 
-  const handleManageClient = (clientName: string, service: string) => {
-    showToast(`A aceder à área de ${service} de ${clientName}...`);
-    router.push('/admin/projetos');
-  };
+    // 3. Mais recentes
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 
   const formatDate = (dateString: string) => {
     if(!dateString) return "Indefinido";
@@ -491,11 +519,8 @@ export default function BaseClientesPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6">
+    <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6 overflow-hidden">
       
-      {/* ==========================================
-          1. CABEÇALHO DO CRM E FILTROS FIXOS
-          ========================================================== */}
       <header className="shrink-0 flex flex-col gap-6 animate-[fadeInUp_0.5s_ease-out]">
         <div className="flex justify-between items-end mt-6">
           <div>
@@ -513,7 +538,6 @@ export default function BaseClientesPage() {
           </div>
 
           <div className="flex items-center gap-3">
-            {/* 🟢 NOVO BOTÃO: CONSULTORIA IA */}
             <button 
               onClick={() => setIsConsultoriaModalOpen(true)}
               className="bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] px-6 py-3.5 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)] transition-all shadow-sm items-center gap-2 hidden md:flex"
@@ -536,9 +560,7 @@ export default function BaseClientesPage() {
           </div>
         </div>
 
-        {/* Botões Mobile */}
         <div className="md:hidden flex flex-col gap-2">
-          {/* 🟢 BOTÃO MOBILE CONSULTORIA */}
           <button 
             onClick={() => setIsConsultoriaModalOpen(true)}
             className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] py-3 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 shadow-sm"
@@ -567,22 +589,21 @@ export default function BaseClientesPage() {
 
           <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto custom-scrollbar pb-1 md:pb-0 px-1">
             <FilterButton label="Todos" active={filterStatus === 'all'} onClick={() => setFilterStatus('all')} />
+            <FilterButton label="Leads" active={filterStatus === 'lead'} onClick={() => setFilterStatus('lead')} />
+            <FilterButton label="Agências (B2B)" active={filterStatus === 'agency'} onClick={() => setFilterStatus('agency')} />
             <FilterButton label="Em Forja (Ativos)" active={filterStatus === 'active'} onClick={() => setFilterStatus('active')} />
             <FilterButton label="Pendentes" active={filterStatus === 'pending'} onClick={() => setFilterStatus('pending')} />
-            <FilterButton label="Legado (Concluídos / Suspensos)" active={filterStatus === 'archived'} onClick={() => setFilterStatus('archived')} />
+            <FilterButton label="Legado" active={filterStatus === 'archived'} onClick={() => setFilterStatus('archived')} />
           </div>
         </div>
       </header>
 
-      {/* ==========================================
-          2. A LISTA DE CLIENTES E PROJETOS
-          ========================================== */}
       <div className="flex-1 glass-panel flex flex-col overflow-hidden shadow-sm animate-[fadeInUp_0.8s_ease-out_0.2s_both]">
         
         <div className="grid grid-cols-12 gap-4 px-8 py-5 border-b border-[var(--color-atelier-grafite)]/10 bg-white/40 shrink-0">
           <div className="col-span-4 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Identificação</div>
           <div className="col-span-3 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Status de Operação</div>
-          <div className="col-span-3 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Progresso Unitário</div>
+          <div className="col-span-3 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Progresso / Origem</div>
           <div className="col-span-2 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50 text-right">Ação</div>
         </div>
 
@@ -604,13 +625,23 @@ export default function BaseClientesPage() {
                   className="grid grid-cols-12 gap-4 px-4 py-4 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 hover:border-[var(--color-atelier-terracota)]/30 hover:bg-white hover:shadow-sm transition-all items-center group cursor-pointer"
                   onClick={(e) => {
                     if (openMenuId === project.id) return;
-                    handleManageClient(project.profiles?.nome || "Cliente", project.service_type || "Projeto");
+                    if (project.isLead || project.isAgency) {
+                      setClientToEdit(project.profiles);
+                      setIsClientSettingsModalOpen(true);
+                    } else {
+                      showToast(`A aceder ao JTBD de ${project.profiles?.nome}...`);
+                      // 🟢 CORREÇÃO: Diz à GlobalStore qual é o projeto ANTES de mudar de rota
+                      setActiveProjectId(project.id);
+                      router.push('/admin/projetos');
+                    }
                   }}
                 >
                   
                   {/* 1. Avatar e Identificação */}
                   <div className="col-span-4 flex items-center gap-4">
-                    <div className="w-12 h-12 rounded-2xl bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-terracota)] font-elegant text-2xl flex items-center justify-center shrink-0 shadow-inner group-hover:scale-105 transition-transform overflow-hidden">
+                    <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center shrink-0 shadow-inner group-hover:scale-105 transition-transform overflow-hidden font-elegant text-2xl
+                      ${project.isLead ? 'bg-purple-50 text-purple-600 border-purple-200' : project.isAgency ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)] border-[var(--color-atelier-terracota)]/20'}
+                    `}>
                       {project.profiles?.avatar_url ? (
                         <img src={project.profiles.avatar_url} className="w-full h-full object-cover" alt="avatar" />
                       ) : (
@@ -619,54 +650,86 @@ export default function BaseClientesPage() {
                     </div>
                     <div className="flex flex-col overflow-hidden">
                       <span className="font-roboto font-bold text-[15px] text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors truncate">
-                        {project.profiles?.nome || "Cliente Sem Nome"}
+                        {project.profiles?.nome || "Sem Nome"}
                       </span>
                       <div className="flex items-center gap-3 mt-1">
                         <span className="flex items-center gap-1 font-roboto text-[11px] text-[var(--color-atelier-grafite)]/60 truncate">
-                          <Building size={12} /> {project.profiles?.empresa || "Sem Empresa"}
+                          <Building size={12} /> {project.profiles?.empresa || (project.isLead ? "Lead" : "Agência Parceira")}
                         </span>
-                        <span className="hidden xl:flex items-center gap-1 font-roboto text-[11px] text-[var(--color-atelier-grafite)]/40 truncate">
-                          <Mail size={12} /> {project.profiles?.email}
-                        </span>
+                        {!project.isAgency && (
+                          <span className="hidden xl:flex items-center gap-1 font-roboto text-[11px] text-[var(--color-atelier-grafite)]/40 truncate">
+                            <Mail size={12} /> {project.profiles?.email}
+                          </span>
+                        )}
                       </div>
                     </div>
                   </div>
 
                   {/* 2. Status */}
                   <div className="col-span-3 flex flex-col justify-center items-start gap-2">
-                    {project.status === 'active' && <StatusBadge icon={Clock} text="Em Forja" color="terracota" />}
-                    {project.status === 'pending' && <StatusBadge icon={AlertCircle} text="Ação Pendente" color="orange" />}
-                    {project.status === 'delivered' && <StatusBadge icon={CheckCircle2} text="Entregue" color="green" />}
-                    {project.status === 'archived' && <StatusBadge icon={Ban} text="Suspenso" color="gray" />}
+                    {project.isLead ? (
+                      <StatusBadge icon={User} text="Potencial Cliente" color="gray" />
+                    ) : project.isAgency ? (
+                      <StatusBadge icon={Briefcase} text="Operação White-Label" color="gray" />
+                    ) : (
+                      <>
+                        {project.status === 'active' && <StatusBadge icon={Clock} text="Em Forja" color="terracota" />}
+                        {project.status === 'pending' && <StatusBadge icon={AlertCircle} text="Ação Pendente" color="orange" />}
+                        {project.status === 'delivered' && <StatusBadge icon={CheckCircle2} text="Entregue" color="green" />}
+                        {project.status === 'archived' && <StatusBadge icon={Ban} text="Suspenso" color="gray" />}
+                      </>
+                    )}
                     
                     <span className="font-roboto text-[12px] font-bold text-[var(--color-atelier-grafite)]/70 truncate w-full pr-4">
-                      {project.instagram_package || project.type}
+                      {project.isLead ? "Consultoria Estratégica" : project.isAgency ? "Demandas em Lote" : (project.instagram_package || project.type)}
                     </span>
                   </div>
 
-                  {/* 3. Escopo e Progresso Automático Baseado em Tarefas Unitárias */}
+                  {/* 3. Escopo e Progresso */}
                   <div className="col-span-3 flex flex-col justify-center pr-8">
-                    <div className="flex justify-between items-end mb-1.5">
-                      <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)]/70 truncate mr-2">
-                        Workflow Progress
-                      </span>
-                      <span className="font-roboto text-[12px] font-bold text-[var(--color-atelier-grafite)] flex items-center gap-1">
-                        {project.status === 'delivered' || project.calculatedProgress === 100 ? (
-                          <><CheckCircle2 size={12} className="text-green-500"/> 100%</>
-                        ) : (
-                          <><Sparkles size={12} className="text-[var(--color-atelier-terracota)] opacity-50"/> {project.calculatedProgress}%</>
-                        )}
-                      </span>
-                    </div>
-                    <div className="h-1.5 w-full bg-black/5 rounded-full overflow-hidden shadow-inner">
-                      <div 
-                        className={`h-full rounded-full transition-all duration-1000 ${project.status === 'delivered' || project.calculatedProgress === 100 ? 'bg-green-500' : 'bg-gradient-to-r from-[var(--color-atelier-rose)] to-[var(--color-atelier-terracota)]'}`}
-                        style={{ width: `${project.status === 'delivered' ? 100 : project.calculatedProgress}%` }}
-                      ></div>
-                    </div>
-                    <div className="flex items-center gap-1 mt-2 text-[10px] text-[var(--color-atelier-grafite)]/40 uppercase tracking-widest font-bold">
-                      <Calendar size={10} /> Ciclo (Billing): {formatDate(project.billing_date)}
-                    </div>
+                    {project.isLead ? (
+                      <div className="flex flex-col gap-1">
+                        <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-purple-500/70 truncate mr-2">
+                          Origem do Contacto
+                        </span>
+                        <span className="font-roboto text-[12px] font-bold text-[var(--color-atelier-grafite)] flex items-center gap-1.5">
+                          <FileSearch size={12} className="text-purple-500" /> Capturado via Consultoria
+                        </span>
+                      </div>
+                    ) : project.isAgency ? (
+                      <div className="flex flex-col gap-1">
+                        <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-blue-500/70 truncate mr-2">
+                          MRR / Ciclo
+                        </span>
+                        <span className="font-roboto text-[12px] font-bold text-[var(--color-atelier-grafite)] flex items-center gap-1.5">
+                          <DollarSign size={12} className="text-blue-500" /> R$ {project.financial_value}
+                        </span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="flex justify-between items-end mb-1.5">
+                          <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)]/70 truncate mr-2">
+                            Workflow Progress
+                          </span>
+                          <span className="font-roboto text-[12px] font-bold text-[var(--color-atelier-grafite)] flex items-center gap-1">
+                            {project.status === 'delivered' || project.calculatedProgress === 100 ? (
+                              <><CheckCircle2 size={12} className="text-green-500"/> 100%</>
+                            ) : (
+                              <><Sparkles size={12} className="text-[var(--color-atelier-terracota)] opacity-50"/> {project.calculatedProgress}%</>
+                            )}
+                          </span>
+                        </div>
+                        <div className="h-1.5 w-full bg-black/5 rounded-full overflow-hidden shadow-inner">
+                          <div 
+                            className={`h-full rounded-full transition-all duration-1000 ${project.status === 'delivered' || project.calculatedProgress === 100 ? 'bg-green-500' : 'bg-gradient-to-r from-[var(--color-atelier-rose)] to-[var(--color-atelier-terracota)]'}`}
+                            style={{ width: `${project.status === 'delivered' ? 100 : project.calculatedProgress}%` }}
+                          ></div>
+                        </div>
+                        <div className="flex items-center gap-1 mt-2 text-[10px] text-[var(--color-atelier-grafite)]/40 uppercase tracking-widest font-bold">
+                          <Calendar size={10} /> Ciclo (Billing): {formatDate(project.billing_date)}
+                        </div>
+                      </>
+                    )}
                   </div>
 
                   {/* 4. Ações (Botões Funcionais) */}
@@ -690,37 +753,50 @@ export default function BaseClientesPage() {
                           className="absolute top-[110%] right-[60px] w-52 bg-white/90 backdrop-blur-xl border border-white shadow-[0_20px_50px_rgba(122,116,112,0.15)] rounded-2xl overflow-hidden z-50 flex flex-col py-2"
                           onClick={(e) => e.stopPropagation()}
                         >
-                          <button onClick={() => handleMenuAction('Editar', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors w-full text-left">
-                            <DollarSign size={14} /> Editar Financeiro
-                          </button>
-                          
-                          {project.status === 'archived' ? (
-                            <button onClick={() => handleMenuAction('Reativar', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-blue-600 hover:bg-blue-50 transition-colors w-full text-left">
-                              <RotateCcw size={14} /> Reativar Projeto
+                          {!project.isAgency && (
+                            <button onClick={() => handleMenuAction('EditarCliente', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors w-full text-left">
+                              <Settings size={14} /> Editar Perfil
                             </button>
-                          ) : (
-                            <button onClick={() => handleMenuAction('Suspender', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors w-full text-left">
-                              <Ban size={14} /> Suspender Acesso
-                            </button>
+                          )}
+
+                          {(!project.isLead || project.isAgency) && (
+                            <>
+                              <button onClick={() => handleMenuAction('Editar', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors w-full text-left">
+                                <DollarSign size={14} /> Editar Financeiro
+                              </button>
+                              
+                              {project.status === 'archived' ? (
+                                <button onClick={() => handleMenuAction('Reativar', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-blue-600 hover:bg-blue-50 transition-colors w-full text-left">
+                                  <RotateCcw size={14} /> Reativar Operação
+                                </button>
+                              ) : (
+                                <button onClick={() => handleMenuAction('Suspender', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors w-full text-left">
+                                  <Ban size={14} /> Suspender Acesso
+                                </button>
+                              )}
+                            </>
                           )}
                           
                           <div className="h-px bg-[var(--color-atelier-grafite)]/10 my-1 w-full"></div>
                           <button onClick={() => handleMenuAction('Apagar', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-red-500 hover:bg-red-50 transition-colors w-full text-left">
-                            <Trash2 size={14} /> Apagar Contrato
+                            <Trash2 size={14} /> {project.isLead ? 'Apagar Lead' : project.isAgency ? 'Apagar Agência' : 'Apagar Contrato'}
                           </button>
                         </motion.div>
                       )}
                     </AnimatePresence>
 
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        router.push('/admin/projetos');
-                      }}
-                      className="bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/60 px-5 py-2.5 rounded-[1rem] font-roboto font-bold uppercase tracking-widest text-[10px] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm flex items-center gap-2 group-hover:border-transparent"
-                    >
-                      JTBD <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
-                    </button>
+                    {(!project.isLead && !project.isAgency) && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveProjectId(project.id);
+                          router.push('/admin/projetos');
+                        }}
+                        className="bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/60 px-5 py-2.5 rounded-[1rem] font-roboto font-bold uppercase tracking-widest text-[10px] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm flex items-center gap-2 group-hover:border-transparent"
+                      >
+                        JTBD <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+                    )}
                   </div>
 
                 </motion.div>
@@ -729,8 +805,8 @@ export default function BaseClientesPage() {
               {filteredClients.length === 0 && (
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center h-40 text-center">
                   <Search size={32} className="text-[var(--color-atelier-grafite)]/20 mb-3" />
-                  <p className="font-elegant text-2xl text-[var(--color-atelier-grafite)]/50">Nenhum contrato encontrado.</p>
-                  <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 mt-1">Registe um novo projeto para gerir a carteira de clientes.</p>
+                  <p className="font-elegant text-2xl text-[var(--color-atelier-grafite)]/50">Nenhum registo encontrado.</p>
+                  <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 mt-1">Registe um novo projeto ou capte leads via Consultoria.</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -742,7 +818,7 @@ export default function BaseClientesPage() {
           MODAL DE EDIÇÃO (APENAS FINANCEIRO)
           ========================================== */}
       <AnimatePresence>
-        {isEditModalOpen && projectToEdit && (
+        {isEditModalOpen && projectToEdit && !projectToEdit.isLead && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-8">
             <motion.div 
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
@@ -788,31 +864,36 @@ export default function BaseClientesPage() {
                         </div>
                       </div>
 
-                      <div className="flex flex-col gap-2">
-                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Método</label>
-                        <select 
-                          value={editPaymentMethod} onChange={(e) => setEditPaymentMethod(e.target.value)}
-                          className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)] font-medium cursor-pointer"
-                        >
-                          <option>Transferência Bancária</option>
-                          <option>Pix</option>
-                          <option>Cartão de Crédito (Stripe)</option>
-                          <option>Dinheiro (Internacional)</option>
-                        </select>
-                      </div>
+                      {/* Esconder campos que não se aplicam a Agências */}
+                      {!projectToEdit.isAgency && (
+                        <>
+                          <div className="flex flex-col gap-2">
+                            <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Método</label>
+                            <select 
+                              value={editPaymentMethod} onChange={(e) => setEditPaymentMethod(e.target.value)}
+                              className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)] font-medium cursor-pointer"
+                            >
+                              <option>Transferência Bancária</option>
+                              <option>Pix</option>
+                              <option>Cartão de Crédito (Stripe)</option>
+                              <option>Dinheiro (Internacional)</option>
+                            </select>
+                          </div>
 
-                      <div className="flex flex-col gap-2">
-                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Modelo de Pagamento</label>
-                        <select 
-                          value={editPaymentSplit} onChange={(e) => setEditPaymentSplit(e.target.value)}
-                          className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)] font-medium cursor-pointer"
-                        >
-                          <option>50% Entrada / 50% Entrega</option>
-                          <option>30% / 30% / 40%</option>
-                          <option>100% Antecipado</option>
-                          <option>Faturado ao fim do mês</option>
-                        </select>
-                      </div>
+                          <div className="flex flex-col gap-2">
+                            <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Modelo de Pagamento</label>
+                            <select 
+                              value={editPaymentSplit} onChange={(e) => setEditPaymentSplit(e.target.value)}
+                              className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)] font-medium cursor-pointer"
+                            >
+                              <option>50% Entrada / 50% Entrega</option>
+                              <option>30% / 30% / 40%</option>
+                              <option>100% Antecipado</option>
+                              <option>Faturado ao fim do mês</option>
+                            </select>
+                          </div>
+                        </>
+                      )}
 
                       <div className="flex flex-col gap-2">
                         <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1 flex items-center gap-1"><Calendar size={10}/> Data de Cobrança</label>
@@ -1137,6 +1218,13 @@ export default function BaseClientesPage() {
       <ConsultoriaModal 
         isOpen={isConsultoriaModalOpen} 
         onClose={() => setIsConsultoriaModalOpen(false)} 
+      />
+
+      {/* 🟢 MODAL DE EDIÇÃO DE CLIENTE/LEAD */}
+      <ClientSettingsModal 
+        isOpen={isClientSettingsModalOpen}
+        onClose={() => setIsClientSettingsModalOpen(false)}
+        clientProfile={clientToEdit}
       />
 
     </div>

@@ -10,6 +10,8 @@ interface GlobalStoreContextType {
   activeProjects: any[];
   isGlobalLoading: boolean;
   refreshGlobalData: () => Promise<void>; // Para forçar uma atualização silenciosa quando alteramos algo
+  activeProjectId: string | null;
+  setActiveProjectId: (id: string | null) => void;
 }
 
 const GlobalStoreContext = createContext<GlobalStoreContextType | undefined>(undefined);
@@ -19,6 +21,9 @@ export function GlobalStoreProvider({ children }: { children: React.ReactNode })
   const [userProfile, setUserProfile] = useState<any | null>(null);
   const [activeProjects, setActiveProjects] = useState<any[]>([]);
   const [isGlobalLoading, setIsGlobalLoading] = useState(true);
+  
+  // 🟢 CORREÇÃO: Criação do estado que faltava no Provider
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
 
   // A Lógica de Fetching Paralelo e Definitivo
   const fetchGlobalData = async () => {
@@ -58,7 +63,15 @@ export function GlobalStoreProvider({ children }: { children: React.ReactNode })
   }, []);
 
   return (
-    <GlobalStoreContext.Provider value={{ userProfile, activeProjects, isGlobalLoading, refreshGlobalData: fetchGlobalData }}>
+    // 🟢 CORREÇÃO: Exportação do activeProjectId e setActiveProjectId no value do Provider
+    <GlobalStoreContext.Provider value={{ 
+      userProfile, 
+      activeProjects, 
+      isGlobalLoading, 
+      refreshGlobalData: fetchGlobalData,
+      activeProjectId,
+      setActiveProjectId
+    }}>
       {children}
     </GlobalStoreContext.Provider>
   );

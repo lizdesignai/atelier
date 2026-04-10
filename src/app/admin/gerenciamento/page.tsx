@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabase";
 import { 
   Loader2, ChevronDown, Smartphone, 
-  BrainCircuit, LayoutDashboard, Target, CalendarDays, BarChart3 
+  BrainCircuit, LayoutDashboard, Target, CalendarDays, BarChart3, Users, Camera
 } from "lucide-react";
 
 // ============================================================================
@@ -16,7 +16,8 @@ import MonthlyPlanningDashboard from "./views/MonthlyPlanningDashboard";
 import VisualFlow from "./views/VisualFlow";
 import BrandIdentity from "./views/BrandIdentity";
 import GlobalCalendar from "./views/GlobalCalendar";
-import RelatoriosView from "./views/RelatoriosView"; // 🟢 A NOVA VIEW
+import RelatoriosView from "./views/RelatoriosView"; 
+import MissionsView from "./views/MissionsView";
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -26,8 +27,8 @@ const showToast = (message: string) => {
 // COMPONENTE INTERNO: O ROTEADOR DAS ABAS (WORKSPACE)
 // ============================================================================
 export function GerenciamentoWorkspace({ activeProjectId, currentProject }: { activeProjectId: string, currentProject: any }) {
-  // Estado centralizado para gerir a navegação entre os módulos (Agora inclui 'relatorios')
-  const [activeTab, setActiveTab] = useState<'calendario' | 'planeamento_mensal' | 'posts' | 'identidade' | 'relatorios'>('calendario');
+  // Estado centralizado (Agora inclui 'leads_auditorias')
+  const [activeTab, setActiveTab] = useState<'calendario' | 'planeamento_mensal' | 'posts' | 'identidade' | 'relatorios' | 'missoes'>('calendario');
 
   return (
     <div className="flex flex-col gap-6 w-full animate-[fadeInUp_0.5s_ease-out] flex-1 min-h-0">
@@ -39,7 +40,8 @@ export function GerenciamentoWorkspace({ activeProjectId, currentProject }: { ac
           { id: 'planeamento_mensal', label: 'Planeamento Estratégico & IA', icon: <BrainCircuit size={14} /> },
           { id: 'posts', label: 'Fluxo de Arte Visual', icon: <LayoutDashboard size={14} /> },
           { id: 'identidade', label: 'DNA da Marca & Briefing', icon: <Target size={14} /> },
-          { id: 'relatorios', label: 'Auditoria C-Level', icon: <BarChart3 size={14} /> }, // 🟢 NOVA ABA REGISTADA
+          { id: 'relatorios', label: 'Auditoria C-Level', icon: <BarChart3 size={14} /> },
+          { id: 'missoes', label: 'Missões & Cofre', icon: <Camera size={14} /> },
         ].map(tab => (
           <button 
             key={tab.id}
@@ -81,12 +83,17 @@ export function GerenciamentoWorkspace({ activeProjectId, currentProject }: { ac
             </motion.div>
           )}
 
-          {/* 🟢 RENDERIZAÇÃO DA NOVA VIEW CORRIGIDA */}
           {activeTab === 'relatorios' && (
             <motion.div key="relatorios" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
               <RelatoriosView activeProjectId={activeProjectId} currentProject={currentProject} />
             </motion.div>
           )}
+
+          {activeTab === 'missoes' && (
+  <motion.div key="missoes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
+    <MissionsView activeProjectId={activeProjectId} currentProject={currentProject} />
+  </motion.div>
+)}
 
         </AnimatePresence>
       </div>
@@ -135,6 +142,9 @@ export function GerenciamentoInstagram() {
     return <div className="flex h-screen items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
   }
 
+  // Permite que a tela renderize mesmo sem projetos ativos se a aba for leads_auditorias,
+  // mas como o router precisa de um currentProject para o header, mantemos a verificação padrão.
+  // A aba de LeadsAuditoriasView vai puxar os dados de forma independente da tabela `leads`.
   if (!currentProject) {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)] gap-4 opacity-40">
@@ -177,7 +187,7 @@ export function GerenciamentoInstagram() {
               </h1>
             </div>
             
-            {/* DROPDOWN DE CLIENTES - Glassmorphism Premium */}
+            {/* DROPDOWN DE CLIENTES */}
             <AnimatePresence>
               {isClientMenuOpen && (
                 <motion.div 

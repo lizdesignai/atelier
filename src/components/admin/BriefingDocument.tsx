@@ -80,7 +80,7 @@ export default function BriefingDocument({ clientBriefing, projectName }: Briefi
 
       {/* RODAPÉ */}
       <div style={{ marginTop: '60px', paddingTop: '20px', borderTop: '1px solid #e5e5e5', textAlign: 'center' }}>
-        <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '2px', color: '#999999' }}>Atelier Liz Design • Documento Estratégico Confidencial</p>
+        <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '2px', color: '#999999' }}>Atelier LizDesign • Documento Estratégico Confidencial</p>
       </div>
     </div>
   );
