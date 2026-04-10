@@ -134,17 +134,12 @@ export class AtelierPMEngine {
   /**
    * ============================================================================
    * 1.5 AUTO-DISPATCHER (Just-In-Time Allocation / Despoluição Diária)
-   * NOVO: O Motor agora adota uma abordagem "Lean". Ele esconde o backlog futuro
-   * e aloca diariamente apenas o que DEVE ser feito hoje, respeitando o limite
-   * de 8 horas por colaborador. Se alguém estiver sobrecarregado, a tarefa
-   * transborda para o próximo colega com capacidade.
    * ============================================================================
    */
   static async executeDailyWorkloadAllocation() {
     try {
       const now = new Date();
 
-      // Puxa TODAS as tarefas não concluídas
       const { data: allTasks } = await supabase
         .from('tasks')
         .select('*')
@@ -159,14 +154,10 @@ export class AtelierPMEngine {
       allTasks.forEach(task => {
         if (!task.deadline) return;
 
-        // Calcula quantos dias de esforço a tarefa exige (8h = 480 mins)
         const taskDays = Math.max(1, Math.ceil((task.estimated_time || 60) / 480));
-        
-        // Data limite máxima para iniciar a tarefa (ex: se demora 2 dias e vence sexta, tem de começar quarta)
         const mustStartBy = addBusinessDays(new Date(task.deadline), -taskDays);
 
         if (now >= mustStartBy) {
-          // A TAREFA DEVE SER FEITA HOJE (ou já está atrasada)
           if (!task.assigned_to) {
             tasksToAllocate.push(task);
           } else {
@@ -174,30 +165,24 @@ export class AtelierPMEngine {
             loadMap[task.assigned_to].push(task);
           }
         } else {
-          // TAREFA FUTURA (Hibernação)
-          // Se está pendente na mesa de alguém, retiramos para não causar ansiedade/clutter (12 posts de uma vez)
           if (task.assigned_to && task.status === 'pending') {
             tasksToHibernate.push(task.id);
           }
         }
       });
 
-      // 1. HIBERNAÇÃO (Despoluição do JTBD do colaborador)
       if (tasksToHibernate.length > 0) {
         await supabase.from('tasks').update({ assigned_to: null }).in('id', tasksToHibernate);
         console.log(`[PM Engine] Hibernação: ${tasksToHibernate.length} tarefas futuras removidas do JTBD diário.`);
       }
 
-      // 2. MAPEAMENTO E CORTE DE SOBRECARGA
       for (const [assigneeId, tasks] of Object.entries(loadMap)) {
-        // Ordena as tarefas da pessoa por prioridade (WSJF)
         tasks.sort((a, b) => (b.priority_score || 0) - (a.priority_score || 0));
 
         let dailyLoad = 0;
         for (const task of tasks) {
           const time = task.estimated_time || 60;
           if (dailyLoad + time > this.CONFIG.CAPACITY.DAILY_MAX_MINUTES) {
-            // Colaborador estourou as 8h de hoje. Arranca a tarefa dele e põe na fila global de alocação.
             tasksToAllocate.push(task);
           } else {
             dailyLoad += time;
@@ -205,12 +190,11 @@ export class AtelierPMEngine {
         }
       }
 
-      // 3. ALOCAÇÃO JUST-IN-TIME (O que transbordou ou estava órfão)
       for (const task of tasksToAllocate) {
         const optimalUserId = await this.getOptimalAssignee(
           task.task_type || 'design',
           task.project_id,
-          null, // Força a procurar a pessoa com menor carga real HOJE
+          null, 
           task.estimated_time || 60
         );
 
@@ -230,6 +214,53 @@ export class AtelierPMEngine {
 
     } catch (error) {
       console.error("[PM Engine] Erro na alocação diária de carga de trabalho:", error);
+    }
+  }
+
+  /**
+   * ============================================================================
+   * 1.8 DISTRIBUIÇÃO MANUAL / FORÇADA (Para resolver erros de Vercel/Analytics)
+   * 🟢 CORREÇÃO: Método inserido para suprir a chamada na interface de Analytics
+   * ============================================================================
+   */
+  static async distributeUnassignedTasks() {
+    try {
+      const { data: unassignedTasks, error: taskError } = await supabase
+        .from('tasks')
+        .select('*')
+        .is('assigned_to', null)
+        .in('status', ['pending', 'needs_revision']);
+
+      if (taskError) throw taskError;
+      if (!unassignedTasks || unassignedTasks.length === 0) return true;
+
+      const { data: teamMembers, error: teamError } = await supabase
+        .from('profiles')
+        .select('id, role')
+        .in('role', ['admin', 'gestor', 'colaborador']);
+
+      if (teamError) throw teamError;
+      if (!teamMembers || teamMembers.length === 0) return false;
+
+      const updates = [];
+      let memberIndex = 0;
+
+      for (const task of unassignedTasks) {
+        updates.push({
+          id: task.id,
+          assigned_to: teamMembers[memberIndex].id,
+          status: 'in_progress'
+        });
+        memberIndex = (memberIndex + 1) % teamMembers.length;
+      }
+
+      const { error: updateError } = await supabase.from('tasks').upsert(updates);
+      if (updateError) throw updateError;
+      
+      return true;
+    } catch (error) {
+      console.error("[PM Engine] Erro na distribuição forçada:", error);
+      throw error;
     }
   }
 
@@ -265,8 +296,6 @@ export class AtelierPMEngine {
   /**
    * ============================================================================
    * 3. RISK MITIGATION (Schedule Performance Index - SPI Tracker)
-   * CORREÇÃO: O sistema agora detalha QUAIS atividades estão a causar o desvio
-   * diretamente na descrição, para o Gestor poder atuar rápido.
    * ============================================================================
    */
   static async runDailyRiskMitigation(adminId: string) {
@@ -292,13 +321,12 @@ export class AtelierPMEngine {
         if (!dangerMap[t.assigned_to]) dangerMap[t.assigned_to] = { name, totalMinutes: 0, tasks: 0, specificTasks: [] };
         dangerMap[t.assigned_to].totalMinutes += (t.estimated_time || 60);
         dangerMap[t.assigned_to].tasks += 1;
-        dangerMap[t.assigned_to].specificTasks.push(t.title); // Guarda o nome das tarefas para o relatório
+        dangerMap[t.assigned_to].specificTasks.push(t.title); 
       });
 
       for (const [assigneeId, data] of Object.entries(dangerMap)) {
         if (data.totalMinutes > this.CONFIG.CAPACITY.DAILY_MAX_MINUTES) {
           
-          // Formata a lista de tarefas críticas
           const taskListStr = data.specificTasks.map(t => `• ${t}`).join('\n');
           
           await supabase.from('tasks').insert({
@@ -437,7 +465,7 @@ export class AtelierPMEngine {
 
   /**
    * ============================================================================
-   * 7. PONTOS DE INTERVENÇÃO 4 E 5: GATILHOS GENÉRICOS (COM ROLLBACK TRANSACTIONS)
+   * 7. PONTOS DE INTERVENÇÃO 4 E 5: GATILHOS GENÉRICOS
    * ============================================================================
    */
   static async triggerSystemAction(projectId: string, actionType: string, userId: string, adminId?: string) {
@@ -621,7 +649,7 @@ export class AtelierPMEngine {
   /**
    * ============================================================================
    * 12. CALIBRAÇÃO BIDIRECIONAL (Earned Value Management - EVM Loop)
-   * CORREÇÃO DE DUPLICAÇÃO: O motor agora tem memória de curto prazo mais rigorosa.
+   * 🟢 CORREÇÃO: O motor agora usa .ilike() para buscar o alerta, travando o spam.
    * ============================================================================
    */
   static async calibrateUnitEconomics(adminId: string) {
@@ -666,12 +694,11 @@ export class AtelierPMEngine {
           }
 
           if (alertTitle) {
-            // 2. VERIFICAÇÃO RIGOROSA: Já emiti este alerta exato recentemente?
+            // 2. CORREÇÃO DA VERIFICAÇÃO RIGOROSA: Usa ILIKE para apanhar variações do mesmo alerta
             const { data: existingAlerts } = await supabase
               .from('tasks')
               .select('id')
-              .eq('title', alertTitle) // Procura EXATAMENTE este título
-              .eq('stage', 'Otimização Sistémica') // Garante que é um ticket do motor
+              .ilike('title', `%Desvio de EVM%${taskName}%`) 
               .limit(1);
 
             // 3. Apenas insere se a resposta for rigorosamente vazia
