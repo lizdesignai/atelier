@@ -14,7 +14,7 @@ import { supabase } from "../../lib/supabase"; // Note: Adjust the import path i
 
 interface AppSidebarProps {
   userRole: string;
-  handleLogout: () => void;
+  handleLogout?: () => void;
   onHideSidebar: (hidden: boolean) => void;
 }
 
@@ -212,7 +212,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
 
           {/* 🟢 BOTÃO DE DESCONECTAR (Ajustado com mt-auto e cores vermelhas) */}
           <button 
-            onClick={handleLogout}
+            onClick={() => handleLogout && handleLogout()}
             title={isCollapsed ? "Desconectar" : ""} 
             className={`
               mt-auto relative flex items-center ${isCollapsed ? 'justify-center' : 'justify-start pl-4'} gap-4 p-3 rounded-[1.2rem] 
