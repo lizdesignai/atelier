@@ -13,6 +13,7 @@ import {
 import { supabase } from "../../../lib/supabase";
 import { useGlobalStore } from "../../../contexts/GlobalStore"; 
 import { NotificationEngine } from "../../../lib/NotificationEngine"; 
+import { AtelierPMEngine } from "../../../lib/AtelierPMEngine";
 
 import ConsultoriaModal from "./views/Consultoria";
 import ClientSettingsModal from "./views/ClientSettingsModal";
