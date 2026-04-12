@@ -102,42 +102,67 @@ export default function ConsultoriaModal({ isOpen, onClose }: ConsultoriaModalPr
     }, 2500);
 
     try {
-      // 🟢 AQUI BATEREMOS NA NOSSA API REAL:
-      /*
-      const res = await fetch('/api/consultoria/generate', { method: 'POST', body: JSON.stringify(formData) });
-      const data = await res.json();
-      setResult(data.insight);
-      */
-
-      // SIMULAÇÃO:
-      await new Promise(resolve => setTimeout(resolve, 12000));
-      clearInterval(interval);
-      
-      setResult({
-        brand_archetype: "O Governante / O Criador",
-        visual_diagnosis: "Atualmente, o perfil carece de intencionalidade visual. O uso excessivo de templates genéricos enfraquece a perceção de valor. É necessário adotar uma estética mais editorial, utilizando respiros (negative space) e uma paleta de cores restrita que transmita sofisticação e urgência.",
-        tone_of_voice: "Sofisticado, Direto e Imperativo. A comunicação deve abandonar a passividade e assumir a postura de um especialista que 'prescreve' a solução, e não de alguém que 'pede' atenção. Menos jargões técnicos, mais foco na transformação final do cliente.",
-        content_pillars: [
-          "Desconstrução de Mitos (Quebra de Padrão do Nicho)",
-          "Bastidores do Processo (Autoridade Silenciosa)",
-          "Estudos de Caso Dissecados (Prova Social Técnica)"
-        ],
-        stories_strategy: "Transição do modelo 'panfleto' para o modelo 'documentário'. Iniciar o dia com um hook (gancho) contextual da rotina, seguido de uma lição técnica curta (micro-learning) e finalizar com um CTA suave (Direct Message)."
+      // 🟢 CHAMADA REAL À API DE IA
+      const res = await fetch('/api/ai/consultoria/generate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+           nome: formData.nome,
+           instagram: formData.instagram,
+           nicho: formData.nicho,
+           telefone: formData.telefone
+        })
       });
 
-      // Gravação no CRM (Simulada)
-      // await supabase.from('leads').insert({...});
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(data.error || "Falha ao comunicar com o Motor de IA.");
+      }
+
+      // A API deve devolver exatamente o objeto estruturado dentro de data.insight
+      const generatedInsights = data.insight;
+
+      clearInterval(interval);
+      setResult(generatedInsights);
+
+      setResult(generatedInsights);
+
+      // 🟢 GRAVAÇÃO REAL NO CRM (Tabela Leads)
+      // O Upsert usa o email ou o instagram como chave para não duplicar clientes
+      const leadPayload = {
+        nome: formData.nome,
+        email: formData.email || `${formData.instagram.replace('@', '')}@lead.temp`, // Garante um email único caso o utilizador não forneça
+        telefone: formData.telefone,
+        instagram: formData.instagram,
+        nicho: formData.nicho,
+        status: 'prospect', // Status inicial para uma lead vinda da Consultoria
+        ai_brand_archetype: generatedInsights.brand_archetype,
+        ai_visual_diagnosis: generatedInsights.visual_diagnosis,
+        ai_tone_of_voice: generatedInsights.tone_of_voice,
+        ai_stories_strategy: generatedInsights.stories_strategy,
+        ai_content_pillars: generatedInsights.content_pillars
+      };
+
+      const { error: dbError } = await supabase
+        .from('leads')
+        .upsert(leadPayload, { onConflict: 'email' }); // Assegure-se que a coluna 'email' ou 'instagram' está definida como UNIQUE no Supabase se quiser evitar duplicações absolutas
+
+      if (dbError) {
+         throw new Error(`Falha ao gravar no banco: ${dbError.message}`);
+      }
 
       // Inicializa o Chat
       setChatMessages([{ role: 'ai', text: `Olá! Forjei a primeira versão do Dossiê de ${formData.nome}. Como Diretor de Estratégia, estou à disposição para refinar qualquer texto. O que deseja ajustar?` }]);
       
       setStep(3);
-      showToast("Auditoria Estratégica concluída com sucesso!");
+      showToast("Auditoria Estratégica concluída e gravada com sucesso!");
 
     } catch (error: any) {
       clearInterval(interval);
+      console.error("Erro na Auditoria:", error);
       showToast(`Erro na análise: ${error.message}`);
-      setStep(1);
+      setStep(1); // Volta ao formulário em caso de erro na BD
     }
   };
 

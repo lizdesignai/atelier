@@ -186,27 +186,38 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
          throw new Error("ID do Perfil Ausente. Por favor, recarregue a página.");
       }
 
-      // Grava Perfil Básico e expõe erros reais da DB
-      const { error: profileError } = await supabase.from('profiles').update({
-        nome: formData.nome, telefone: formData.telefone, empresa: formData.empresa,
-        instagram: formData.instagram, nicho: formData.nicho
-      }).eq('id', clientProfile.id);
+      // Grava Perfil Básico: Mapeamento Duplo (instagram e username) para garantir que a base de dados não ignora a informação
+      const { data: updatedProfile, error: profileError } = await supabase
+        .from('profiles')
+        .update({
+          nome: formData.nome, 
+          telefone: formData.telefone, 
+          empresa: formData.empresa,
+          instagram: formData.instagram, 
+          username: formData.instagram, // 👈 SOLUÇÃO: Sincroniza o instagram com a coluna username da tabela
+          nicho: formData.nicho
+        })
+        .eq('id', clientProfile.id)
+        .select();
 
       if (profileError) throw new Error(`Erro DB Profiles: ${profileError.message}`);
+      
+      // Se a query rodou mas retornou um array vazio, RLS bloqueou!
+      if (!updatedProfile || updatedProfile.length === 0) {
+        throw new Error("Acesso Negado: RLS Bloqueou a atualização. Execute as Policies de Admin.");
+      }
 
       if (consultingData.brand_archetype || formData.instagram || formData.email) {
-        
-        // Asseguramos que o email é o identificador mestre.
         const targetEmail = formData.email || clientProfile.email;
 
         if (targetEmail) {
           const leadPayload = {
-            email: targetEmail, // Usado para matching de conflito
+            email: targetEmail, 
             nome: formData.nome, 
             telefone: formData.telefone, 
             instagram: formData.instagram, 
             nicho: formData.nicho,
-            status: 'contacted', // Define o status caso seja criado agora
+            status: 'contacted', 
             ai_brand_archetype: consultingData.brand_archetype, 
             ai_visual_diagnosis: consultingData.visual_diagnosis,
             ai_tone_of_voice: consultingData.tone_of_voice, 
@@ -216,19 +227,21 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
             market_positioning: consultingData.market_positioning
           };
 
-          // O '.upsert' diz: Tenta inserir. Se houver conflito na coluna 'email', faz update em vez de dar erro.
           const { data, error: leadErr } = await supabase
             .from('leads')
             .upsert(leadPayload, { onConflict: 'email' }) 
             .select()
             .single();
 
-          if (leadErr) throw new Error(`Erro DB Leads (Upsert): ${leadErr.message}`);
-          if (data) setLeadRecordId(data.id);
+          if (leadErr) {
+            console.warn("Aviso (Leads): Ocorreu um erro ao sincronizar o perfil com a tabela Leads. A tabela Profiles foi atualizada.", leadErr);
+          } else if (data) {
+            setLeadRecordId(data.id);
+          }
         }
       }
 
-      showToast("✨ Dossiê guardado e selado com sucesso!");
+      showToast("Atualização feita com sucesso!");
       setTimeout(() => { onClose(); window.location.reload(); }, 1200); 
     } catch (error: any) {
       console.error("Erro Crítico no Save:", error);

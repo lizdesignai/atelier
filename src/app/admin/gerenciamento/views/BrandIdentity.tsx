@@ -289,25 +289,40 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
                </div>
              ) : (
                <div className="flex flex-col gap-5 pb-6">
+                 {/* CORREÇÃO: Leitura direcionada ao JSON answers que o Modal salvou */}
                  <div className="bg-white/80 p-6 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm transition-all hover:shadow-md">
-                   <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Visão do Negócio</span>
-                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium">{briefing.business_vision || "Não preenchido."}</p>
+                   <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Visão do Negócio (O Núcleo & Endgame)</span>
+                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium">
+                     {briefing.answers?.produto_ancora ? `Produto Âncora: ${briefing.answers.produto_ancora}\n\nGatilho de Compra: ${briefing.answers.gatilho_compra === 'Outro' ? briefing.answers.gatilho_compra_outro : briefing.answers.gatilho_compra}\n\nPonto de Chegada (Endgame): ${briefing.answers.ponto_chegada}` : (briefing.business_vision || "Não preenchido.")}
+                   </p>
                  </div>
+                 
                  <div className="bg-white/80 p-6 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm transition-all hover:shadow-md">
-                   <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Público-Alvo</span>
-                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium">{briefing.target_audience || "Não preenchido."}</p>
+                   <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Público-Alvo (Cliente Ideal)</span>
+                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium">
+                     {briefing.answers?.cliente_ideal || briefing.target_audience || "Não preenchido."}
+                   </p>
                  </div>
+                 
                  <div className="bg-white/80 p-6 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm transition-all hover:shadow-md">
-                   <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Concorrentes</span>
-                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium">{briefing.competitors || "Não preenchido."}</p>
+                   <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Concorrentes (Inimigo Comum)</span>
+                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium">
+                     {briefing.answers?.inimigo_comum || briefing.competitors || "Não preenchido."}
+                   </p>
                  </div>
+                 
                  <div className="bg-white/80 p-6 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm transition-all hover:shadow-md">
-                   <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Diferencial (Unique Value)</span>
-                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium">{briefing.unique_value || "Não preenchido."}</p>
+                   <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Diferencial (Padrão de Excelência)</span>
+                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium">
+                     {briefing.answers?.padrao_excelencia || briefing.unique_value || "Não preenchido."}
+                   </p>
                  </div>
+                 
                  <div className="bg-white/80 p-6 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm transition-all hover:shadow-md">
-                   <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Referências e Estilo</span>
-                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium">{briefing.references || "Não preenchido."}</p>
+                   <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Referências, Estilo e Voz</span>
+                   <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium">
+                     {briefing.answers?.persona_marca ? `Persona da Marca: ${briefing.answers.persona_marca}\n\nEstado do Arsenal Visual: ${briefing.answers.arsenal_visual}` : (briefing.references || "Não preenchido.")}
+                   </p>
                  </div>
                </div>
              )}

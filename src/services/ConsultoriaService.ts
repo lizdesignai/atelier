@@ -17,8 +17,8 @@ export interface ConsultoriaOutput {
   tone_of_voice: string;
   stories_strategy: string;
   content_pillars: string[];
-  strategic_justification: string; // Justificativa científica/acadêmica
-  market_positioning: string;      // Posicionamento de Elite (Oceano Azul)
+  strategic_justification: string; 
+  market_positioning: string;      
 }
 
 interface DeepDataLake {
@@ -54,16 +54,16 @@ export class ConsultoriaService {
     const handle = input.instagram.replace('@', '').trim();
 
     try {
-      // 1. DATA LAKE INGESTION (Coleta exaustiva de dados brutos)
+      // 1. DATA LAKE INGESTION (Resiliente: não quebra a aplicação se os scrapers falharem)
       const [meta, deepContent] = await Promise.all([
         this.fetchProfileMeta(handle),
         this.fetchHeavyContent(handle)
       ]);
 
-      // 2. SEMANTIC DATA PROCESSING (Transformação de dados brutos em inteligência)
+      // 2. SEMANTIC DATA PROCESSING
       const lake = this.buildDataLake(meta, deepContent);
 
-      // 3. AI STRATEGIC ORCHESTRATION (Gemini 1.5 Pro como CMO de Elite)
+      // 3. AI STRATEGIC ORCHESTRATION
       const report = await this.executeStrategicAnalysis(input, lake);
 
       return report;
@@ -75,39 +75,65 @@ export class ConsultoriaService {
   }
 
   private async fetchProfileMeta(handle: string) {
-    const response = await fetch(`https://instagram-scraper-api2.p.rapidapi.com/v1/info?username_or_id_or_url=${handle}`, {
-      method: 'GET',
-      headers: {
-        'x-rapidapi-key': this.rapidApiKey,
-        'x-rapidapi-host': 'instagram-scraper-api2.p.rapidapi.com'
-      }
-    });
-    const json = await response.json();
-    return json.data;
+    if (!this.rapidApiKey) return null; // Evita falha se não houver chave
+    try {
+      const response = await fetch(`https://instagram-scraper-api2.p.rapidapi.com/v1/info?username_or_id_or_url=${handle}`, {
+        method: 'GET',
+        headers: {
+          'x-rapidapi-key': this.rapidApiKey,
+          'x-rapidapi-host': 'instagram-scraper-api2.p.rapidapi.com'
+        }
+      });
+      if (!response.ok) return null;
+      const json = await response.json();
+      return json.data;
+    } catch (error) {
+      console.warn(`[Scraper Warning] Falha ao obter Metadados do perfil @${handle}`);
+      return null;
+    }
   }
 
   private async fetchHeavyContent(handle: string) {
-    // Aumentamos o limite para 25 posts para análise de padrão estatístico real
-    const run = await this.apify.actor('apify/instagram-profile-scraper').call({
-      usernames: [handle],
-      resultsLimit: 25 
-    });
-    const { items } = await this.apify.dataset(run.defaultDatasetId).listItems();
-    return items;
+    if (!process.env.APIFY_API_TOKEN) return []; // Evita falha se não houver chave
+    try {
+      const run = await this.apify.actor('apify/instagram-profile-scraper').call({
+        usernames: [handle],
+        resultsLimit: 25 
+      });
+      const { items } = await this.apify.dataset(run.defaultDatasetId).listItems();
+      return items || [];
+    } catch (error) {
+      console.warn(`[Scraper Warning] Falha ao obter Inventário de Conteúdo de @${handle}`);
+      return [];
+    }
   }
 
   private buildDataLake(meta: any, items: any[]): DeepDataLake {
-    const profile = items[0];
+    // Fallback gracioso se não houver dados
+    if (!items || items.length === 0) {
+       return {
+         profile: meta || null,
+         engagementStats: {
+           realEngagementRate: "0.00",
+           retentionPower: "Análise Ausente (Modo de Projeção Teórica Ativado)",
+           sentimentAnalysis: "Extraída com base nos padrões industriais do nicho"
+         },
+         contentInventory: [],
+         rawBio: meta?.biography || "Não foi possível extrair a biografia atual."
+       };
+    }
+
+    const profile = items[0] || {};
     const posts = items.map(item => ({
-      type: item.type,
+      type: item.type || 'unknown',
       copy: item.caption || '',
       performance: (item.likesCount || 0) + (item.commentsCount || 0),
-      visualPattern: item.displayUrl
+      visualPattern: item.displayUrl || ''
     }));
 
     // Cálculos de BI
     const totalFollowers = meta?.follower_count || profile.followersCount || 1;
-    const avgInteraction = posts.reduce((acc, curr) => acc + curr.performance, 0) / posts.length;
+    const avgInteraction = posts.length > 0 ? (posts.reduce((acc, curr) => acc + curr.performance, 0) / posts.length) : 0;
     const er = ((avgInteraction / totalFollowers) * 100).toFixed(2);
 
     return {
@@ -118,15 +144,21 @@ export class ConsultoriaService {
         sentimentAnalysis: "Extraída dinamicamente pelo oráculo"
       },
       contentInventory: posts,
-      rawBio: meta?.biography || profile.biography
+      rawBio: meta?.biography || profile.biography || ""
     };
   }
 
   private async executeStrategicAnalysis(input: ConsultoriaInput, lake: DeepDataLake): Promise<ConsultoriaOutput> {
+    if (!this.ai) throw new Error("Chave de API do Gemini não configurada.");
+
     const model = this.ai.getGenerativeModel({ 
       model: "gemini-1.5-pro", 
       generationConfig: { responseMimeType: "application/json", temperature: 0.2 } 
     });
+
+    const inventoryText = lake.contentInventory.length > 0 
+      ? lake.contentInventory.map(p => `- [${p.type}] Feedback: ${p.performance} interações | Texto: ${p.copy.substring(0, 150)}...`).join('\n')
+      : "Dados de conteúdo inacessíveis. Projete a estratégia assumindo que o cliente precisa de uma reestruturação absoluta a partir do zero.";
 
     const prompt = `
       Você é o Diretor de Estratégia (CMO) do Atelier OS, uma consultoria de Branding e Marketing de Resposta Direta de Ultra-Luxo.
@@ -144,29 +176,35 @@ export class ConsultoriaService {
       - Nicho: ${input.nicho}
       - Bio Atual: "${lake.rawBio}"
       - Taxa de Engajamento Real: ${lake.engagementStats.realEngagementRate}% (Referência: <1% é crítico, >3% é autoridade).
-      - Inventário de Conteúdo (Amostra de 25 posts):
-      ${lake.contentInventory.map(p => `- [${p.type}] Feedback: ${p.performance} interações | Texto: ${p.copy.substring(0, 150)}...`).join('\n')}
+      - Inventário de Conteúdo:
+      ${inventoryText}
 
-      ESTRUTURA DE SAÍDA (JSON):
+      ESTRUTURA DE SAÍDA EXIGIDA (Retorne ESTRITAMENTE o JSON abaixo):
       {
         "brand_archetype": "Defina o Arquétipo Mestre e a Sombra Arquetípica que o cliente está manifestando sem saber. Justifique com base no comportamento observado.",
         "visual_diagnosis": "Mergulho profundo na semiótica. Analise o ruído visual atual. Prescreva paleta de cores hexadecimais, família tipográfica e diretrizes de composição editorial para transacionar valor de luxo. Proíba o uso de elementos 'populares' que barateiam a marca.",
         "tone_of_voice": "Prescreva a voz da marca. Use conceitos de Linguística e Psicologia Comportamental. O tom deve ser prescritivo, soberano e magnético. Como ela deve tratar as objeções do nicho de ${input.nicho}?",
-        "content_pillars": ["Gere 3 pilares autorais com nomes imponentes. Cada pilar deve ter uma justificativa estratégica baseada na Pirâmide de Consciência."],
+        "content_pillars": ["Pilar Autoral 1: Justificativa", "Pilar Autoral 2: Justificativa", "Pilar Autoral 3: Justificativa"],
         "stories_strategy": "Crie um protocolo de 24 horas (Manhã/Tarde/Noite). Use frameworks de 'Storytelling de Bastidor Intencional' para converter audiência em leads qualificados via Direct.",
-        "strategic_justification": "Aqui reside o peso do documento. Escreva um texto longo (mínimo 600 palavras) fundamentando cientificamente por que as mudanças acima são necessárias. Cite referências de marketing e comportamento humano. O cliente deve sentir que está diante de um tratado de estratégia.",
+        "strategic_justification": "Aqui reside o peso do documento. Escreva um texto longo (mínimo 400 palavras) fundamentando cientificamente por que as mudanças acima são necessárias. Cite referências de marketing e comportamento humano.",
         "market_positioning": "Defina o 'Oceano Azul' deste cliente. Como ele se torna incomparável frente aos concorrentes diretos? Qual é a Proposta Única de Valor (UVP) de elite que ele deve assumir agora?"
       }
 
       REGRAS DE OURO:
+      - O formato de resposta DEVE ser um objeto JSON válido.
       - Proibido usar palavras como 'incrível', 'jornada', 'sonhos'. Use 'tração', 'equity', 'posicionamento dominante', 'estímulo semiótico'.
       - O texto deve ser denso, intelectualmente estimulante e autoritário.
-      - Se o engajamento estiver baixo, seja letal no diagnóstico: aponte a falta de relevância e a negligência estratégica.
     `;
 
     const result = await model.generateContent(prompt);
-    const response = JSON.parse(result.response.text());
+    
+    // Extrai o texto da resposta
+    let rawResponse = result.response.text();
+    
+    // 🛡️ Limpeza Defensiva: O Gemini por vezes envolve o JSON em backticks markdown mesmo pedindo MIME type json
+    rawResponse = rawResponse.replace(/```json/g, '').replace(/```/g, '').trim();
 
+    const response = JSON.parse(rawResponse);
     return response as ConsultoriaOutput;
   }
 }
