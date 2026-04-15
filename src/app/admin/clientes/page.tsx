@@ -1076,6 +1076,7 @@ export default function BaseClientesPage() {
                           ) : (
                             <>
                               <option>100% Antecipado (Mensal)</option>
+                              <option>50% Entrada / 50% Entrega</option>
                               <option>Faturado ao fim do mês</option>
                             </>
                           )}
