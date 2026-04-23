@@ -5,10 +5,11 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion"; 
 import { 
   Lock, Unlock, Clock, Download, ArrowRight, 
-  Sparkles, Fingerprint, Layers, Eye, HeartHandshake, Loader2, Star, Zap
+  Sparkles, Fingerprint, Layers, Eye, HeartHandshake, Loader2, Star, Zap,
+  Briefcase
 } from "lucide-react";
 import { supabase } from "../../lib/supabase"; 
-import { NotificationEngine } from "../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
+import { NotificationEngine } from "../../lib/NotificationEngine";
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -19,85 +20,92 @@ export default function CofrePage() {
   const [daysLeft, setDaysLeft] = useState<number | '--'>('--');
   const [isUnlocked, setIsUnlocked] = useState(false);
   
-  // Estados para dados de contexto do NPS
-  const [projectId, setProjectId] = useState<string | null>(null);
   const [clientId, setClientId] = useState<string | null>(null);
   const [clientName, setClientName] = useState<string>("Cliente");
 
-  // ==========================================
-  // ESTADOS T-NPS E UPSELL (Psicologia de Conversão)
-  // ==========================================
+  // 🟢 NOVO: Suporte a Múltiplos Projetos
+  const [allProjects, setAllProjects] = useState<any[]>([]);
+  const [activeProject, setActiveProject] = useState<any>(null);
+
   const [showNpsModal, setShowNpsModal] = useState(false);
   const [npsScore, setNpsScore] = useState<number | null>(null);
   const [npsFeedback, setNpsFeedback] = useState("");
   const [showUpsellModal, setShowUpsellModal] = useState(false);
   const [isProcessingNps, setIsProcessingNps] = useState(false);
 
-  // Busca a Data Limite do Projeto Real
   useEffect(() => {
-    const fetchDeadline = async () => {
+    const fetchProjectsAndDeadline = async () => {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
       
       setClientId(session.user.id);
 
-      const { data: project } = await supabase
+      // 1. Busca TODOS os projetos ativos do cliente
+      const { data: projects } = await supabase
         .from('projects')
-        .select('id, data_limite, profiles(nome)')
+        .select('id, name, type, data_limite, profiles(nome)')
         .eq('client_id', session.user.id)
         .in('status', ['active', 'delivered'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
+        .order('created_at', { ascending: false });
 
-      if (project) {
-        setProjectId(project.id);
+      if (projects && projects.length > 0) {
+        setAllProjects(projects);
         
-        // CORREÇÃO: Extraímos o perfil independentemente de o Supabase o devolver como Array ou Objeto
-        const perfil: any = Array.isArray(project.profiles) ? project.profiles[0] : project.profiles;
+        // 2. Define o projeto ativo (Pode ser alterado depois no Dropdown)
+        setActiveProject(projects[0]);
+
+        // 3. Define o nome do Cliente (apenas 1 vez)
+        const perfil: any = Array.isArray(projects[0].profiles) ? projects[0].profiles[0] : projects[0].profiles;
         if (perfil?.nome) {
           setClientName(perfil.nome.split(' ')[0]);
         }
-
-        if (project.data_limite) {
-          // Matemática para calcular os dias restantes
-          const today = new Date();
-          const deadline = new Date(project.data_limite);
-          // Zera as horas para comparar apenas os dias
-          today.setHours(0, 0, 0, 0);
-          deadline.setHours(0, 0, 0, 0);
-          
-          const diffTime = deadline.getTime() - today.getTime();
-          const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-
-          if (diffDays <= 0) {
-            setDaysLeft(0);
-            setIsUnlocked(true);
-          } else {
-            setDaysLeft(diffDays);
-            setIsUnlocked(false);
-          }
-        } else {
-          // Se não tiver data, fica bloqueado e pausado
-          setDaysLeft('--');
-          setIsUnlocked(false);
-        }
+      } else {
+        setIsLoading(false);
+        return;
       }
-      setIsLoading(false);
     };
 
-    fetchDeadline();
+    fetchProjectsAndDeadline();
   }, []);
+
+  // 4. Recalcula os Dias e o Desbloqueio sempre que o activeProject mudar
+  useEffect(() => {
+    if (!activeProject) return;
+
+    if (activeProject.data_limite) {
+      const today = new Date();
+      const deadline = new Date(activeProject.data_limite);
+      today.setHours(0, 0, 0, 0);
+      deadline.setHours(0, 0, 0, 0);
+      
+      const diffTime = deadline.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (diffDays <= 0) {
+        setDaysLeft(0);
+        setIsUnlocked(true);
+      } else {
+        setDaysLeft(diffDays);
+        setIsUnlocked(false);
+      }
+    } else {
+      setDaysLeft('--');
+      setIsUnlocked(false);
+    }
+    
+    setIsLoading(false);
+  }, [activeProject]);
+
 
   // ==========================================
   // MOTORES DE AVALIAÇÃO E UPSELL
   // ==========================================
   const handleSubmitNps = async () => {
-    if (npsScore === null || !projectId || !clientId) return;
+    if (npsScore === null || !activeProject || !clientId) return;
     setIsProcessingNps(true);
     try {
       await supabase.from('t_nps_scores').insert({
-        project_id: projectId,
+        project_id: activeProject.id,
         client_id: clientId,
         score: npsScore,
         feedback: npsFeedback,
@@ -105,17 +113,13 @@ export default function CofrePage() {
 
       setShowNpsModal(false);
 
-      // 🧠 O PICO DE DOPAMINA: Se for Promotor (9 ou 10), oferece o Upsell.
       if (npsScore >= 9) {
-        setTimeout(() => {
-          setShowUpsellModal(true);
-        }, 500); // Delay sutil para a troca de modais parecer elegante
+        setTimeout(() => setShowUpsellModal(true), 500); 
       } else {
         showToast("A sua avaliação foi registada com sucesso. Muito obrigado pela confiança!");
         setNpsScore(null);
         setNpsFeedback("");
       }
-
     } catch (error) {
       showToast("Erro ao enviar avaliação.");
     } finally {
@@ -133,10 +137,9 @@ export default function CofrePage() {
     setShowUpsellModal(false);
     showToast("Excelente decisão! A nossa equipa entrará em contacto muito em breve.");
     
-    // 🔔 SINAL DE FUMO PARA A GESTÃO (LEAD QUENTE)
     await NotificationEngine.notifyManagement(
        "🔥 Boiling Lead: Escala Pós-IDV (Upsell)",
-       `O cliente ${clientName} retirou a Identidade Visual do Cofre, avaliou-nos com nota ${npsScore} e manifestou interesse em delegar o Instagram.`,
+       `O cliente ${clientName} retirou a Identidade Visual do Cofre (Proj: ${activeProject?.name || activeProject?.type}), avaliou com nota ${npsScore} e manifestou interesse em delegar o Instagram.`,
        "success",
        "/admin/clientes"
     );
@@ -152,8 +155,7 @@ export default function CofrePage() {
     setNpsFeedback("");
   };
 
-  // Lógica Visual do Cofre Baseada no Tempo
-  // Consideramos 30 dias como o máximo para o cálculo visual de 100% desfocado.
+  // Lógica Visual do Cofre
   const numericDaysLeft = typeof daysLeft === 'number' ? daysLeft : 30;
   const clampedDays = Math.min(Math.max(numericDaysLeft, 0), 30);
   const progressRatio = Math.max(0, 1 - (clampedDays / 30)); 
@@ -164,6 +166,16 @@ export default function CofrePage() {
 
   if (isLoading) {
     return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
+  }
+
+  if (!activeProject) {
+    return (
+      <div className="flex flex-col items-center justify-center h-[calc(100vh-80px)] text-center px-4">
+        <Lock size={48} className="text-[var(--color-atelier-grafite)]/20 mb-4" />
+        <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Cofre Vazio</h2>
+        <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/50 mt-2">Você não possui nenhum projeto ativo ou entregue no momento.</p>
+      </div>
+    );
   }
 
   return (
@@ -185,6 +197,24 @@ export default function CofrePage() {
           >
             <div className="relative w-full h-full max-h-[800px] rounded-[4rem] overflow-hidden flex flex-col items-center justify-center border border-white/40 shadow-[0_40px_100px_rgba(122,116,112,0.15)]">
               
+              {/* 🟢 NOVO: Dropdown de Múltiplos Projetos (Cofre Trancado) */}
+              {allProjects.length > 1 && (
+                <div className="absolute top-6 left-1/2 -translate-x-1/2 z-30">
+                  <div className="bg-white/40 backdrop-blur-md border border-white px-4 py-2 rounded-full shadow-sm flex items-center gap-2">
+                    <Briefcase size={14} className="text-[var(--color-atelier-terracota)]" />
+                    <select 
+                      className="bg-transparent text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] outline-none cursor-pointer"
+                      value={activeProject.id}
+                      onChange={(e) => setActiveProject(allProjects.find(p => p.id === e.target.value))}
+                    >
+                      {allProjects.map(p => (
+                        <option key={p.id} value={p.id}>{p.type === 'idv' ? 'Identidade Visual' : p.type} {p.name ? `- ${p.name}` : ''}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+              )}
+
               <div 
                 className="absolute inset-0 bg-cover bg-center scale-110"
                 style={{ 
@@ -203,7 +233,6 @@ export default function CofrePage() {
               ></div>
 
               <div className="relative z-10 flex flex-col items-center text-center p-12">
-                
                 <motion.div 
                   animate={{ scale: [1, 1.05, 1], opacity: [0.8, 1, 0.8] }}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
@@ -217,7 +246,7 @@ export default function CofrePage() {
                   O Segredo <br/><span className="text-[var(--color-atelier-terracota)] italic">em Forja.</span>
                 </h1>
                 
-                <p className="font-roboto text-[16px] text-[var(--color-atelier-grafite)]/60 max-w-md leading-[1.8] mb-12">
+                <p className="font-roboto text-[16px] text-[var(--color-atelier-grafite)]/60 max-w-md leading-[1.8] mb-12 font-medium">
                   A sua obra-prima está sendo lapidada no escuro. As formas estão nascendo, as cores estão aquecendo.
                 </p>
 
@@ -229,7 +258,6 @@ export default function CofrePage() {
                     {daysLeft} {daysLeft !== '--' && <span className="text-3xl text-[var(--color-atelier-grafite)]/40 ml-1 tracking-normal font-sans">Dias</span>}
                   </span>
                 </div>
-
               </div>
             </div>
           </motion.div>
@@ -251,16 +279,32 @@ export default function CofrePage() {
               className="fixed inset-0 bg-white z-50 pointer-events-none"
             ></motion.div>
 
-            {/* Cabeçalho Compacto */}
+            {/* Cabeçalho Compacto e Dropdown */}
             <header className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
               <div>
-                <motion.div 
-                  initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.8, type: "spring" }}
-                  className="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/20 text-green-700 px-4 py-1.5 rounded-full mb-4 shadow-sm"
-                >
-                  <Unlock size={14} strokeWidth={2.5} />
-                  <span className="font-roboto text-[10px] uppercase tracking-[0.2em] font-black">Identidade Desbloqueada</span>
-                </motion.div>
+                <div className="flex items-center gap-3 mb-4">
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 1, scale: 1 }} transition={{ delay: 0.8, type: "spring" }}
+                    className="inline-flex items-center gap-2 bg-green-500/10 border border-green-500/20 text-green-700 px-4 py-1.5 rounded-full shadow-sm"
+                  >
+                    <Unlock size={14} strokeWidth={2.5} />
+                    <span className="font-roboto text-[10px] uppercase tracking-[0.2em] font-black">Identidade Desbloqueada</span>
+                  </motion.div>
+
+                  {/* 🟢 NOVO: Dropdown de Múltiplos Projetos (Cofre Aberto) */}
+                  {allProjects.length > 1 && (
+                    <select 
+                      className="bg-white/50 backdrop-blur-sm border border-[var(--color-atelier-grafite)]/10 text-[10px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] px-3 py-1.5 rounded-full outline-none cursor-pointer shadow-sm hover:border-[var(--color-atelier-terracota)]/40 transition-colors"
+                      value={activeProject.id}
+                      onChange={(e) => setActiveProject(allProjects.find(p => p.id === e.target.value))}
+                    >
+                      {allProjects.map(p => (
+                        <option key={p.id} value={p.id}>{p.type === 'idv' ? 'Identidade Visual' : p.type} {p.name ? `- ${p.name}` : ''}</option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+                
                 <h1 className="font-elegant text-5xl md:text-[4rem] text-[var(--color-atelier-grafite)] tracking-tight leading-none">
                   O seu <span className="text-[var(--color-atelier-terracota)] italic">novo legado.</span>
                 </h1>
@@ -270,10 +314,9 @@ export default function CofrePage() {
               </p>
             </header>
 
-            {/* Grid No-Scroll (Preenche a altura restante) */}
+            {/* Grid No-Scroll */}
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0 pb-6">
               
-              {/* O Brandbook (Ocupa 7 colunas e toda a altura) */}
               <motion.div 
                 initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 1, duration: 0.8 }}
                 className="lg:col-span-7 glass-panel p-3 rounded-[2.5rem] relative group flex flex-col h-[400px] lg:h-full border border-white shadow-sm"
@@ -293,13 +336,11 @@ export default function CofrePage() {
                 </div>
               </motion.div>
 
-              {/* Coluna da Direita (Arquivos e Feedback) - 5 Colunas */}
               <motion.div 
                 initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 1.2, duration: 0.8 }}
                 className="lg:col-span-5 flex flex-col gap-6 h-[500px] lg:h-full overflow-y-auto custom-scrollbar"
               >
-                {/* Painel de Arquivos */}
-                <div className="glass-panel p-8 rounded-[2.5rem] flex flex-col gap-5 border border-white shadow-sm">
+                <div className="glass-panel p-8 rounded-[2.5rem] flex flex-col gap-5 border border-white shadow-sm shrink-0">
                   <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2 mb-2">
                     Seus Ativos <Sparkles size={16} className="text-[var(--color-atelier-terracota)]" />
                   </h3>
@@ -333,8 +374,7 @@ export default function CofrePage() {
                   </div>
                 </div>
 
-                {/* Mural de Feedback Compacto e Magnético (Induz à ação e aciona o NPS) */}
-                <div className="glass-panel p-8 rounded-[2.5rem] flex-1 flex flex-col justify-center items-center text-center bg-gradient-to-br from-[var(--color-atelier-grafite)] to-[#363330] group relative overflow-hidden shadow-sm min-h-[250px]">
+                <div className="glass-panel p-8 rounded-[2.5rem] flex-1 flex flex-col justify-center items-center text-center bg-gradient-to-br from-[var(--color-atelier-grafite)] to-[#363330] group relative overflow-hidden shadow-sm min-h-[250px] shrink-0">
                   <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/stardust.png')] opacity-10"></div>
                   <div className="absolute right-[-20%] bottom-[-20%] w-[250px] h-[250px] bg-[var(--color-atelier-terracota)]/40 rounded-full blur-[60px] group-hover:bg-[var(--color-atelier-terracota)]/60 transition-colors duration-1000"></div>
                   
@@ -360,9 +400,6 @@ export default function CofrePage() {
         )}
       </AnimatePresence>
 
-      {/* =========================================================================
-          MODAL T-NPS (Micro-Gatilho de Qualidade e Satisfação)
-          ========================================================================= */}
       <AnimatePresence>
         {showNpsModal && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
@@ -413,10 +450,6 @@ export default function CofrePage() {
         )}
       </AnimatePresence>
 
-      {/* =========================================================================
-          🚀 UPSELL MODAL (PICO DE DOPAMINA)
-          Aparece logo após o cliente dar nota 9 ou 10 no NPS
-          ========================================================================= */}
       <AnimatePresence>
         {showUpsellModal && (
           <div className="fixed inset-0 z-[250] flex items-center justify-center px-4">

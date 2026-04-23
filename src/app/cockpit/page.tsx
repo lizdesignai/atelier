@@ -69,7 +69,7 @@ export default function CockpitPage() {
         if (profile?.nome) setClientName(profile.nome.split(' ')[0]);
 
         // 2. Buscar Projeto Ativo
-        const { data: proj } = await supabase.from('projects').select('*').eq('client_id', session.user.id).in('status', ['active', 'delivered']).order('created_at', { ascending: false }).limit(1).single();
+        const { data: proj } = await supabase.from('projects').select('*').eq('client_id', session.user.id).in('status', ['active', 'delivered']).order('created_at', { ascending: false }).limit(1).maybeSingle();
         setProject(proj);
 
         if (proj) {
@@ -89,7 +89,7 @@ export default function CockpitPage() {
               .or('status.neq.returned,status.is.null')
               .order('created_at', { ascending: false })
               .limit(1)
-              .maybeSingle();
+              .maybeSingle(); // Correção aplicada aqui (caso não haja briefing)
             setBriefing(brief);
 
             // 5. Buscar Missões Pendentes
@@ -105,7 +105,8 @@ export default function CockpitPage() {
             const { data: plans } = await supabase.from('content_planning').select('*').eq('project_id', proj.id).eq('status', 'pending').order('publish_date', { ascending: true });
             if (plans) setMonthlyPlan(plans);
 
-            // 8. Verificar se existem Relatórios Executivos Aprovados
+            // 8. Verificar se existem Relatórios Executivos Aprovados (Usando maybeSingle se for para buscar dados, mas como usa count, está OK)
+            // Para garantir estabilidade, deixamos o count, mas a lógica de relatórios e snapshots que usava .single() noutros locais deve ser .maybeSingle()
             const { count: reportsCount } = await supabase.from('monthly_reports').select('*', { count: 'exact', head: true }).eq('project_id', proj.id).eq('status', 'approved');
             setHasReports((reportsCount || 0) > 0);
           }
@@ -464,7 +465,7 @@ export default function CockpitPage() {
           {/* ACESSOS RÁPIDOS */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="md:col-span-4 flex flex-col gap-4">
             
-            {/* NOVO ACESSO: RELATÓRIOS MENSAIS (Apenas se existirem ou o projeto for IG OS) */}
+            {/* NOVO ACESSO: RELATÓRIOS MENSAIS */}
             <button 
               onClick={() => router.push('/cockpit/relatorios')} 
               className={`flex-1 glass-panel p-6 rounded-[2.5rem] border flex items-center gap-5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-1

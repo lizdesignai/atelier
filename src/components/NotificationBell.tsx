@@ -61,9 +61,6 @@ export default function NotificationBell() {
             const newNotif = payload.new;
             setNotifications(prev => [newNotif, ...prev]);
             setUnreadCount(prev => prev + 1);
-            
-            // Opcional: Pode disparar um som aqui
-            // new Audio('/notification.mp3').play().catch(() => {});
           }
         )
         .on(
@@ -92,17 +89,22 @@ export default function NotificationBell() {
   }, []);
 
   const handleNotificationClick = async (notif: any) => {
-    // 1. Marca como lida
+    // 1. Marca como lida no estado local imediatamente para feedback visual rápido
     if (!notif.is_read) {
-      await NotificationEngine.markAsRead(notif.id);
       setNotifications(prev => prev.map(n => n.id === notif.id ? { ...n, is_read: true } : n));
       setUnreadCount(prev => Math.max(0, prev - 1));
+      
+      // Envia para o servidor em background
+      NotificationEngine.markAsRead(notif.id).catch(err => console.error("Erro ao marcar como lida:", err));
     }
 
     // 2. Navega para a ação (se existir) e fecha o painel
     if (notif.action_url) {
       setIsOpen(false);
-      router.push(notif.action_url);
+      // Adicionamos um pequeno timeout para garantir que o painel fecha antes da navegação forçar re-render
+      setTimeout(() => {
+        router.push(notif.action_url);
+      }, 100);
     }
   };
 
@@ -199,6 +201,7 @@ export default function NotificationBell() {
                     className={`
                       w-full text-left p-5 flex items-start gap-4 transition-all border-b border-[var(--color-atelier-grafite)]/5 relative
                       ${!notif.is_read ? 'bg-white hover:bg-gray-50/80' : 'bg-transparent hover:bg-white/50 opacity-70'}
+                      ${notif.action_url ? 'cursor-pointer hover:shadow-md z-10' : 'cursor-default'}
                     `}
                   >
                     {!notif.is_read && <div className="absolute left-0 top-0 h-full w-1 bg-[var(--color-atelier-terracota)]"></div>}

@@ -167,7 +167,34 @@ interface InstagramBriefingPDFProps {
 }
 
 export default function InstagramBriefingPDF({ data, clientName, aiInsight }: InstagramBriefingPDFProps) {
-  if (!data) return null;
+  // Blindagem 1: Garante que o componente não explode se não houver dados
+  if (!data) {
+    console.warn("[PDF Engine] Dados não fornecidos para geração do PDF.");
+    return null;
+  }
+
+// Blindagem 2: Parsing seguro do JSON caso o Supabase devolva os 'answers' como string
+  let safeData: any = {}; // 🟢 A SOLUÇÃO: Declarar como 'any' para o TS não reclamar das propriedades
+  if (typeof data === 'string') {
+    try { safeData = JSON.parse(data); } catch (e) { console.error("Erro ao fazer parse do Briefing JSON:", e); }
+  } else {
+    safeData = data;
+  }
+
+  // Garantia de propriedades para não renderizar `undefined` no PDF
+  const produtoAncora = safeData?.produto_ancora || "Não preenchido.";
+  const clienteIdeal = safeData?.cliente_ideal || "Não preenchido.";
+  const gatilhoCompra = safeData?.gatilho_compra === 'Outro' 
+    ? (safeData?.gatilho_compra_outro || "Gatilho customizado não especificado.") 
+    : (safeData?.gatilho_compra || "Não preenchido.");
+  
+  const inimigoComum = safeData?.inimigo_comum || "Não preenchido.";
+  const padraoExcelencia = safeData?.padrao_excelencia || "Não preenchido.";
+  
+  const personaMarca = safeData?.persona_marca || "Não preenchido.";
+  const arsenalVisual = safeData?.arsenal_visual || "Não preenchido.";
+  const pontoChegada = safeData?.ponto_chegada || "Não preenchido.";
+
 
   const renderAiInsight = (text: string) => {
     if (!text) return null;
@@ -179,12 +206,12 @@ export default function InstagramBriefingPDF({ data, clientName, aiInsight }: In
       let textContent = cleanLine.replace(/\*\*/g, '');
 
       if (cleanLine.startsWith('###')) {
-        return <Text key={index} style={styles.aiH3}>{textContent.replace('###', '').trim()}</Text>;
+        return <Text key={`h3-${index}`} style={styles.aiH3}>{textContent.replace('###', '').trim()}</Text>;
       }
       if (cleanLine.startsWith('-')) {
-        return <Text key={index} style={styles.aiBullet}>• {textContent.replace('-', '').trim()}</Text>;
+        return <Text key={`bullet-${index}`} style={styles.aiBullet}>• {textContent.replace('-', '').trim()}</Text>;
       }
-      return <Text key={index} style={styles.aiP}>{textContent}</Text>;
+      return <Text key={`p-${index}`} style={styles.aiP}>{textContent}</Text>;
     });
   };
 
@@ -196,7 +223,7 @@ export default function InstagramBriefingPDF({ data, clientName, aiInsight }: In
       <Page size="A4" style={styles.coverPage}>
         <Image src="/images/simbolo-rosa.png" style={styles.coverLogo} />
         <Text style={styles.coverTitle}>Dossiê de Mercado</Text>
-        <Text style={styles.coverSubtitle}>{clientName}</Text>
+        <Text style={styles.coverSubtitle}>{clientName || "Cliente Atelier"}</Text>
         <Text style={styles.coverDate}>{currentDate} • Atelier LizDesign</Text>
       </Page>
 
@@ -221,17 +248,17 @@ export default function InstagramBriefingPDF({ data, clientName, aiInsight }: In
           
           <View style={styles.questionBox}>
             <Text style={styles.label}>Produto Âncora</Text>
-            <Text style={styles.value}>{data.produto_ancora}</Text>
+            <Text style={styles.value}>{produtoAncora}</Text>
           </View>
 
           <View style={styles.questionBox}>
             <Text style={styles.label}>A Regra de Pareto (Cliente Ideal)</Text>
-            <Text style={styles.value}>{data.cliente_ideal}</Text>
+            <Text style={styles.value}>{clienteIdeal}</Text>
           </View>
 
           <View style={styles.questionBox}>
             <Text style={styles.label}>O Gatilho de Compra</Text>
-            <Text style={styles.value}>{data.gatilho_compra === 'Outro' ? data.gatilho_compra_outro : data.gatilho_compra}</Text>
+            <Text style={styles.value}>{gatilhoCompra}</Text>
           </View>
         </View>
 
@@ -241,12 +268,12 @@ export default function InstagramBriefingPDF({ data, clientName, aiInsight }: In
           
           <View style={styles.questionBox}>
             <Text style={styles.label}>O Inimigo Comum</Text>
-            <Text style={styles.value}>{data.inimigo_comum}</Text>
+            <Text style={styles.value}>{inimigoComum}</Text>
           </View>
 
           <View style={styles.questionBox}>
             <Text style={styles.label}>Padrão de Excelência</Text>
-            <Text style={styles.value}>{data.padrao_excelencia}</Text>
+            <Text style={styles.value}>{padraoExcelencia}</Text>
           </View>
         </View>
 
@@ -256,12 +283,12 @@ export default function InstagramBriefingPDF({ data, clientName, aiInsight }: In
           
           <View style={styles.questionBox}>
             <Text style={styles.label}>Persona da Marca</Text>
-            <Text style={styles.value}>{data.persona_marca}</Text>
+            <Text style={styles.value}>{personaMarca}</Text>
           </View>
 
           <View style={styles.questionBox}>
             <Text style={styles.label}>Estado do Arsenal Visual</Text>
-            <Text style={styles.value}>{data.arsenal_visual}</Text>
+            <Text style={styles.value}>{arsenalVisual}</Text>
           </View>
         </View>
 
@@ -271,7 +298,7 @@ export default function InstagramBriefingPDF({ data, clientName, aiInsight }: In
           
           <View style={styles.questionBox}>
             <Text style={styles.label}>Ponto de Chegada (Métricas de Vitória)</Text>
-            <Text style={styles.value}>{data.ponto_chegada}</Text>
+            <Text style={styles.value}>{pontoChegada}</Text>
           </View>
         </View>
 

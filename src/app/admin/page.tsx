@@ -29,152 +29,153 @@ export default function AdminDashboard() {
   const [churnRadar, setChurnRadar] = useState<any[]>([]);
   const [weeklyCompleted, setWeeklyCompleted] = useState(0);
 
-  // NOVO MOTOR: Track Record & Autoridade Global
   const [globalImpact, setGlobalImpact] = useState({
     views: 0,
     followers: 0,
     engagement: 0,
-    activeEcosystem: 0 // A soma real de todas as frentes da agência
+    activeEcosystem: 0 
   });
+
+  // Extraímos a função de geração para fora do useEffect para que o Realtime a possa invocar
+  const generateExecutiveReport = async () => {
+    try {
+      let calculatedMRR = 0;
+      let calculatedLTV = 0;
+
+      activeProjects.forEach(proj => {
+        const val = Number(proj.financial_value || 0);
+        if (proj.status === 'active' && proj.payment_recurrence === 'Mensal') {
+          calculatedMRR += val;
+          calculatedLTV += (val * 6); 
+        } else {
+          calculatedLTV += val;
+        }
+      });
+      
+      setMrr(calculatedMRR);
+      setTotalLTV(calculatedLTV);
+
+      const { data: allActiveProjects } = await supabase
+        .from('projects')
+        .select('type')
+        .eq('status', 'active');
+        
+      const idvClients = allActiveProjects?.filter(p => p.type === 'idv' || p.type === 'identidade_visual').length || 0;
+      const igClients = allActiveProjects?.filter(p => p.type === 'instagram' || p.type === 'gestao_instagram').length || 0;
+
+      const [ { count: agencyCount }, { count: subclientCount } ] = await Promise.all([
+        supabase.from('agencies').select('id', { count: 'exact', head: true }),
+        supabase.from('agency_subclients').select('id', { count: 'exact', head: true })
+      ]);
+
+      const totalEcosystem = idvClients + igClients + (agencyCount || 0) + (subclientCount || 0);
+
+      let totalViews = 4250000;
+      let totalFollowers = 128000;
+      let avgEngagement = 8.4;
+
+      try {
+        const { data: metricsData, error: metricsError } = await supabase
+          .from('track_record')
+          .select('total_views, total_followers, avg_engagement')
+          .maybeSingle();
+
+        if (metricsData && !metricsError) {
+          totalViews = metricsData.total_views;
+          totalFollowers = metricsData.total_followers;
+          avgEngagement = metricsData.avg_engagement;
+        }
+      } catch (e) {
+        console.warn("Tabela de track record não encontrada. Usando fallback visual.");
+      }
+
+      setGlobalImpact({
+        views: totalViews,
+        followers: totalFollowers,
+        engagement: avgEngagement,
+        activeEcosystem: totalEcosystem > 0 ? totalEcosystem : activeProjects.length 
+      });
+
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const sevenDaysAgo = new Date();
+      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+      const { data: tasksData } = await supabase
+        .from('tasks')
+        .select('id, project_id, assigned_to, status, completed_at, profiles!assigned_to(nome)')
+        .in('status', ['completed', 'pending', 'in_progress'])
+        .gte('created_at', thirtyDaysAgo.toISOString());
+
+      if (tasksData) {
+        const completedLast7Days = tasksData.filter(t => t.status === 'completed' && t.completed_at && new Date(t.completed_at) >= sevenDaysAgo);
+        setWeeklyCompleted(completedLast7Days.length);
+
+        const teamStats: Record<string, number> = {};
+        completedLast7Days.forEach((t: any) => {
+          const name = Array.isArray(t.profiles) ? t.profiles[0]?.nome : t.profiles?.nome;
+          if (name) {
+            teamStats[name] = (teamStats[name] || 0) + 1;
+          }
+        });
+        
+        const sortedTeam = Object.entries(teamStats)
+          .map(([name, tasks]) => ({ name, tasks }))
+          .sort((a, b) => b.tasks - a.tasks)
+          .slice(0, 3);
+        setTeamEfficiency(sortedTeam);
+
+        const churnAlerts: any[] = [];
+        
+        activeProjects.forEach(proj => {
+          const projectTasks = tasksData.filter(t => t.project_id === proj.id);
+          const recentDeliveries = projectTasks.filter(t => t.status === 'completed' && t.completed_at && new Date(t.completed_at) >= sevenDaysAgo);
+          
+          if (recentDeliveries.length === 0) {
+            const pending = projectTasks.filter(t => t.status !== 'completed').length;
+            churnAlerts.push({
+              id: proj.id,
+              client: proj.profiles?.nome || 'Cliente',
+              type: proj.type,
+              pendingCount: pending,
+              riskLevel: pending > 0 ? 'high' : 'medium'
+            });
+          }
+        });
+        
+        setChurnRadar(churnAlerts.sort((a, b) => (b.riskLevel === 'high' ? 1 : -1)));
+      }
+
+    } catch (error) {
+      console.error("Erro ao gerar Relatório Executivo:", error);
+    } finally {
+      setIsDashboardLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (isGlobalLoading) return;
 
-    const generateExecutiveReport = async () => {
-      setIsDashboardLoading(true);
-      try {
-        let calculatedMRR = 0;
-        let calculatedLTV = 0;
+    // A. Carregamento Inicial
+    generateExecutiveReport();
 
-        // 1. Cálculos Financeiros
-        activeProjects.forEach(proj => {
-          const val = Number(proj.financial_value || 0);
-          if (proj.status === 'active' && proj.payment_recurrence === 'Mensal') {
-            calculatedMRR += val;
-            calculatedLTV += (val * 6); // LTV projetado 6 meses
-          } else {
-            calculatedLTV += val;
-          }
-        });
-        
-        setMrr(calculatedMRR);
-        setTotalLTV(calculatedLTV);
+    // B. MODO DE TEMPO REAL: Radar e Eficiência reagem instantaneamente a mudanças na base de dados
+    const channel = supabase.channel('radar-sync')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
+        console.log("Mudança de Tarefa detetada! A recalcular Radar e Eficiência...", payload);
+        generateExecutiveReport();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, (payload) => {
+        console.log("Mudança de Projeto detetada! A recalcular MRR e Ecossistema...", payload);
+        generateExecutiveReport();
+      })
+      .subscribe();
 
-        // 2. CÁLCULO REAL DO ECOSSISTEMA ATIVO (IDV + IG + Agências + Subclientes)
-        // Busca projetos ativos para separar por tipo
-        const { data: allActiveProjects } = await supabase
-          .from('projects')
-          .select('type')
-          .eq('status', 'active');
-          
-        const idvClients = allActiveProjects?.filter(p => p.type === 'idv' || p.type === 'identidade_visual').length || 0;
-        const igClients = allActiveProjects?.filter(p => p.type === 'instagram' || p.type === 'gestao_instagram').length || 0;
-
-        // Busca direta nas tabelas de agências e subclientes para contabilização exata do Ecossistema
-        const [ { count: agencyCount }, { count: subclientCount } ] = await Promise.all([
-          supabase.from('agencies').select('id', { count: 'exact', head: true }),
-          supabase.from('agency_subclients').select('id', { count: 'exact', head: true })
-        ]);
-
-        const totalEcosystem = idvClients + igClients + (agencyCount || 0) + (subclientCount || 0);
-
-        // 3. INTEGRAÇÃO REAL DE MÉTRICAS GLOBAIS (O Track Record)
-        let totalViews = 0;
-        let totalFollowers = 0;
-        let avgEngagement = 0;
-
-        try {
-          // AQUI PREPARAMOS A QUERY PARA A SUA TABELA DE MÉTRICAS
-          // Exemplo: Uma tabela 'track_record' que consolida as métricas da agência
-          const { data: metricsData, error: metricsError } = await supabase
-            .from('track_record')
-            .select('total_views, total_followers, avg_engagement')
-            .single();
-
-          if (metricsData && !metricsError) {
-            totalViews = metricsData.total_views;
-            totalFollowers = metricsData.total_followers;
-            avgEngagement = metricsData.avg_engagement;
-          } else {
-            // FALLBACK DE DEMONSTRAÇÃO (Enquanto a tabela 'track_record' não é preenchida/criada)
-            totalViews = 4250000; 
-            totalFollowers = 128000; 
-            avgEngagement = 8.4;
-          }
-        } catch (e) {
-          console.warn("Tabela de track record não encontrada. Usando fallback visual.");
-          totalViews = 4250000; totalFollowers = 128000; avgEngagement = 8.4;
-        }
-
-        setGlobalImpact({
-          views: totalViews,
-          followers: totalFollowers,
-          engagement: avgEngagement,
-          activeEcosystem: totalEcosystem > 0 ? totalEcosystem : activeProjects.length // Fallback de segurança
-        });
-
-        // 4. Query Única para Produtividade e Risco
-        const thirtyDaysAgo = new Date();
-        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-        
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-        const { data: tasksData } = await supabase
-          .from('tasks')
-          .select('id, project_id, assigned_to, status, completed_at, profiles!assigned_to(nome)')
-          .in('status', ['completed', 'pending', 'in_progress'])
-          .gte('created_at', thirtyDaysAgo.toISOString());
-
-        if (tasksData) {
-          // A. Produtividade da Equipe nos últimos 7 dias
-          const completedLast7Days = tasksData.filter(t => t.status === 'completed' && t.completed_at && new Date(t.completed_at) >= sevenDaysAgo);
-          setWeeklyCompleted(completedLast7Days.length);
-
-          const teamStats: Record<string, number> = {};
-          completedLast7Days.forEach((t: any) => {
-            const name = Array.isArray(t.profiles) ? t.profiles[0]?.nome : t.profiles?.nome;
-            if (name) {
-              teamStats[name] = (teamStats[name] || 0) + 1;
-            }
-          });
-          
-          const sortedTeam = Object.entries(teamStats)
-            .map(([name, tasks]) => ({ name, tasks }))
-            .sort((a, b) => b.tasks - a.tasks)
-            .slice(0, 3);
-          setTeamEfficiency(sortedTeam);
-
-          // B. Radar de Churn (Clientes sem entregas recentes)
-          const churnAlerts: any[] = [];
-          
-          activeProjects.forEach(proj => {
-            const projectTasks = tasksData.filter(t => t.project_id === proj.id);
-            const recentDeliveries = projectTasks.filter(t => t.status === 'completed' && t.completed_at && new Date(t.completed_at) >= sevenDaysAgo);
-            
-            if (recentDeliveries.length === 0) {
-              const pending = projectTasks.filter(t => t.status !== 'completed').length;
-              churnAlerts.push({
-                id: proj.id,
-                client: proj.profiles?.nome || 'Cliente',
-                type: proj.type,
-                pendingCount: pending,
-                riskLevel: pending > 0 ? 'high' : 'medium'
-              });
-            }
-          });
-          
-          setChurnRadar(churnAlerts.sort((a, b) => (b.riskLevel === 'high' ? 1 : -1)));
-        }
-
-      } catch (error) {
-        console.error("Erro ao gerar Relatório Executivo:", error);
-      } finally {
-        setIsDashboardLoading(false);
-      }
+    return () => {
+      supabase.removeChannel(channel);
     };
 
-    generateExecutiveReport();
   }, [activeProjects, isGlobalLoading]);
 
   const formatNumber = (num: number) => {
