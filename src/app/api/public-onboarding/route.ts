@@ -2,37 +2,43 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// 🛡️ INICIALIZAÇÃO DE SERVIDOR SEGURA (Ignora RLS para escrita de sistema)
-// ATENÇÃO: Certifique-se de que tem estas variáveis no seu ficheiro .env ou .env.local
+// 🛡️ CABEÇALHOS CORS OBRIGATÓRIOS E AGRESSIVOS
+// Atenção: Use "*" apenas para testar se funciona. Se funcionar, troque pelo seu domínio real 'https://www.lizdesign.com.br'
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*', 
+  'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info, apikey, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version',
+  'Access-Control-Max-Age': '86400', // Faz cache do Preflight por 24h
+};
+
+// 1. O GUARDA PREFLIGHT (Trata o OPTIONS obrigatoriamente)
+export async function OPTIONS() {
+  return NextResponse.json({}, { status: 200, headers: corsHeaders });
+}
+
+// 2. INICIALIZAÇÃO SEGURA DO SUPABASE ADMIN
+// Se faltarem estas chaves no .env, a API quebra silenciosamente
+if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  console.error("ERRO CRÍTICO: Variáveis de ambiente Supabase ausentes!");
+}
+
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY! 
 );
 
-// 🛡️ CABEÇALHOS CORS: Permitem que o seu HTML externo se comunique com esta API
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*', // Pode mudar para 'https://www.lizdesign.com.br' em produção para mais segurança
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type, Authorization, Accept, Accept-Version',
-};
-
-// 🛡️ O GUARDA DE FRONTEIRA: Responde à requisição "Preflight" do navegador
-export async function OPTIONS() {
-  return NextResponse.json({}, { headers: corsHeaders });
-}
-
+// 3. O PROCESSADOR POST
 export async function POST(request: Request) {
   try {
     const data = await request.json();
     
-    // Desestruturação limpa do Payload enviado pelo frontend
     const { 
       nome, email, whatsapp, instagram, 
       produto_ancora, cliente_ideal, gatilho_compra, gatilho_compra_outro, inimigo_comum, padrao_excelencia, persona_marca, arsenal_visual, ponto_chegada,
       tilt_technical, tilt_culture, tilt_status, tilt_community, semiotics_choices, voice_scenarios 
     } = data;
 
-    // 1. Validação Rigorosa
+    // Validação Mínima
     if (!email || !instagram) {
       return NextResponse.json(
         { error: 'Email e Instagram são obrigatórios.' }, 
@@ -40,11 +46,10 @@ export async function POST(request: Request) {
       );
     }
 
-    // 2. Tentar Associar a um Cliente/Projeto Existente (Matchmaking)
     let clientId = null;
     let projectId = null;
 
-    // Procura na tabela de profiles por email OU instagram
+    // Busca o Cliente
     const { data: profile } = await supabaseAdmin
       .from('profiles')
       .select('id')
@@ -55,7 +60,6 @@ export async function POST(request: Request) {
     if (profile?.id) {
       clientId = profile.id;
       
-      // Se achou o cliente, tenta achar o projeto ativo mais recente de Instagram ou IDV
       const { data: project } = await supabaseAdmin
         .from('projects')
         .select('id')
@@ -70,8 +74,6 @@ export async function POST(request: Request) {
       }
     }
 
-    // 3. Preparar o JSON de Respostas do Briefing
-    // (Juntamos os dados de contacto aqui para caso seja um registo órfão)
     const briefingAnswers = {
       nome, whatsapp, email, instagram,
       produto_ancora, cliente_ideal,
@@ -79,15 +81,13 @@ export async function POST(request: Request) {
       inimigo_comum, padrao_excelencia, persona_marca, arsenal_visual, ponto_chegada
     };
 
-    // 4. Inserção Dupla (Base de Dados)
-    // O Promise.all faz as duas inserções em simultâneo para máxima performance
+    // Inserção Dupla
     const [briefingRes, labRes] = await Promise.all([
       supabaseAdmin.from('instagram_briefings').insert({
         client_id: clientId, 
         project_id: projectId,
         answers: briefingAnswers,
         status: 'submitted',
-        // Adicionamos um identificador caso não haja clientId
         created_by_email: email 
       }),
       supabaseAdmin.from('brandbook_laboratory').insert({
@@ -96,32 +96,30 @@ export async function POST(request: Request) {
         tilt_technical, tilt_culture, tilt_status, tilt_community,
         semiotics_choices,
         voice_scenarios,
-        // Adicionamos um identificador caso não haja clientId
         created_by_email: email
       })
     ]);
 
-    // 5. Tratamento de Erros Isolado (Ajuda muito no debug)
     if (briefingRes.error) {
-      console.error("[API Onboarding] Erro ao salvar Briefing:", briefingRes.error);
+      console.error("[API Onboarding] Erro Briefing:", briefingRes.error);
       throw new Error(`Falha ao gravar núcleo do negócio: ${briefingRes.error.message}`);
     }
     
     if (labRes.error) {
-      console.error("[API Onboarding] Erro ao salvar Brandbook:", labRes.error);
+      console.error("[API Onboarding] Erro Brandbook:", labRes.error);
       throw new Error(`Falha ao gravar escolhas visuais: ${labRes.error.message}`);
     }
 
-    // 6. Resposta de Sucesso com Cabeçalhos CORS
+    // SUCESSO!
     return NextResponse.json(
       { success: true, message: 'Dossiê processado com segurança.' }, 
-      { headers: corsHeaders }
+      { status: 200, headers: corsHeaders }
     );
 
   } catch (error: any) {
     console.error("[Public Onboarding API Error]:", error);
     
-    // Garantir que devolvemos sempre JSON, mesmo no erro
+    // ERRO! Garante que os cabeçalhos CORS vão junto com a mensagem de falha
     return NextResponse.json(
       { error: error.message || 'Erro interno do servidor ao processar o Dossiê.' }, 
       { status: 500, headers: corsHeaders }
