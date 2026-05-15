@@ -3,11 +3,13 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { consultoriaService } from '@/services/ConsultoriaService';
 
-// 🛡️ INICIALIZAÇÃO DE SERVIDOR SEGURA (Ignora RLS)
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!
-);
+// 🛡️ RECUPERAÇÃO DAS VARIÁVEIS (Com o nome exato da Vercel e Fallback de segurança)
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY1 || '';
+
+// 🛡️ INICIALIZAÇÃO DE CLIENTE
+// O fallback impede que o processo de Build da Vercel falhe prematuramente
+const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
 export async function POST(request: Request) {
   try {
@@ -25,18 +27,23 @@ export async function POST(request: Request) {
 
     // 3. Atualização Segura no Banco de Dados (Se o frontend passar o ID da consultoria)
     if (consultoriaId) {
-      const { error: updateError } = await supabaseAdmin
-        .from('consultorias')
-        .update({ 
-            ai_analysis: insight,
-            status: 'analisada',
-            updated_at: new Date().toISOString()
-        })
-        .eq('id', consultoriaId);
+      // Proteção extra: só tentamos gravar se as credenciais do Supabase existirem
+      if (!supabaseUrl || !supabaseKey) {
+         console.warn("[Consultoria] Aviso: Credenciais do Supabase ausentes no ambiente. Ignorando gravação na BD.");
+      } else {
+        const { error: updateError } = await supabaseAdmin
+          .from('consultorias')
+          .update({ 
+              ai_analysis: insight,
+              status: 'analisada',
+              updated_at: new Date().toISOString()
+          })
+          .eq('id', consultoriaId);
 
-      if (updateError) {
-        console.error("[Consultoria] Erro ao salvar análise no banco:", updateError);
-        // Não quebramos o fluxo aqui, apenas registamos o erro para depuração
+        if (updateError) {
+          console.error("[Consultoria] Erro ao salvar análise no banco:", updateError);
+          // Não quebramos o fluxo aqui, apenas registamos o erro para depuração
+        }
       }
     }
 
