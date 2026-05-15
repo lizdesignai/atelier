@@ -6,7 +6,7 @@ import { consultoriaService } from '@/services/ConsultoriaService';
 // 🛡️ INICIALIZAÇÃO DE SERVIDOR SEGURA (Ignora RLS)
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY!
 );
 
 export async function POST(request: Request) {
