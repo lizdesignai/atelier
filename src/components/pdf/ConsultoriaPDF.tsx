@@ -86,7 +86,7 @@ const styles = StyleSheet.create({
     color: '#ad6f40',
   },
 
-  // CAIXAS DE DESTAQUE (Diagnóstico Visual & Arquétipo)
+  // CAIXAS DE DESTAQUE (Arquétipo)
   primaryBox: {
     backgroundColor: '#ffffff',
     padding: 30,
@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   
-  // CAIXAS SECUNDÁRIAS (Tom de Voz & Stories)
+  // CAIXAS SECUNDÁRIAS (Textos Livres Dinâmicos)
   secondaryBox: {
     backgroundColor: '#fcfaf8',
     padding: 25,
@@ -175,6 +175,8 @@ export interface ConsultoriaResult {
   tone_of_voice: string;
   stories_strategy: string;
   content_pillars: string[];
+  strategic_justification: string;
+  market_positioning: string;
 }
 
 interface ConsultoriaPDFProps {
@@ -189,9 +191,9 @@ export default function ConsultoriaPDF({ clientName, instagram, nicho, result }:
 
   const currentDate = new Date().toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
 
-  // Utilitário para quebrar textos em parágrafos caso a IA retorne blocos longos com \n
+  // Utilitário para quebrar textos em parágrafos preservando quebras de linha manuais
   const renderText = (text: string) => {
-    if (!text) return null;
+    if (!text) return <Text style={styles.paragraph}>Não definido.</Text>;
     return text.split('\n').map((line, idx) => {
       if (!line.trim()) return null;
       return <Text key={idx} style={[styles.paragraph, { marginBottom: 6 }]}>{line.trim()}</Text>;
@@ -209,10 +211,10 @@ export default function ConsultoriaPDF({ clientName, instagram, nicho, result }:
         <Text style={styles.coverDate}>{currentDate} • Atelier Liz Design</Text>
       </Page>
 
-      {/* CONTEÚDO PRINCIPAL */}
+      {/* CONTEÚDO PRINCIPAL (Paginação Inteligente e Contínua) */}
       <Page size="A4" style={styles.page}>
         <View style={styles.header} fixed>
-          <Text style={styles.headerTitle}>Diagnóstico de Autoridade</Text>
+          <Text style={styles.headerTitle}>Dossiê de Posicionamento</Text>
           <Image src="/images/simbolo-rosa.png" style={{ width: 24, height: 24, opacity: 0.5 }} />
         </View>
 
@@ -220,43 +222,63 @@ export default function ConsultoriaPDF({ clientName, instagram, nicho, result }:
         <View style={styles.primaryBox} wrap={false}>
           <Text style={styles.boxTitle}>Arquétipo de Marca Recomendado</Text>
           <Text style={{ fontFamily: 'Elegant', fontSize: 22, color: '#1a1a1a', marginBottom: 8 }}>
-            {result.brand_archetype.split('-')[0] || result.brand_archetype}
+            {result.brand_archetype ? result.brand_archetype.split('-')[0] : 'Indefinido'}
           </Text>
-          <Text style={styles.paragraph}>
-            {result.brand_archetype.includes('-') ? result.brand_archetype.split('-')[1].trim() : ''}
-          </Text>
+          {result.brand_archetype && result.brand_archetype.includes('-') && (
+            <Text style={styles.paragraph}>
+              {result.brand_archetype.split('-').slice(1).join('-').trim()}
+            </Text>
+          )}
         </View>
 
-        {/* 2. DIAGNÓSTICO VISUAL */}
-        <View style={styles.secondaryBox} wrap={false}>
+        {/* 2. JUSTIFICATIVA ESTRATÉGICA (Oceano Azul) */}
+        {result.strategic_justification && (
+          <View style={styles.secondaryBox}>
+            <Text style={styles.boxTitle}>Justificativa Estratégica (Oceano Azul)</Text>
+            {renderText(result.strategic_justification)}
+          </View>
+        )}
+
+        {/* 3. POSICIONAMENTO DE MERCADO */}
+        {result.market_positioning && (
+          <View style={styles.secondaryBox}>
+            <Text style={styles.boxTitle}>Posicionamento de Mercado</Text>
+            {renderText(result.market_positioning)}
+          </View>
+        )}
+
+        {/* 4. DIAGNÓSTICO VISUAL */}
+        <View style={styles.secondaryBox}>
           <Text style={styles.boxTitle}>Diagnóstico Visual e Estético</Text>
           {renderText(result.visual_diagnosis)}
         </View>
 
-        {/* 3. TOM DE VOZ */}
-        <View style={styles.secondaryBox} wrap={false}>
+        {/* 5. TOM DE VOZ */}
+        <View style={styles.secondaryBox}>
           <Text style={styles.boxTitle}>Tom de Voz (Brand Persona)</Text>
           {renderText(result.tone_of_voice)}
         </View>
 
-        {/* 4. ESTRATÉGIA DE STORIES */}
-        <View style={styles.secondaryBox} wrap={false}>
+        {/* 6. ESTRATÉGIA DE STORIES */}
+        <View style={styles.secondaryBox}>
           <Text style={styles.boxTitle}>Dinâmica de Conversão (Stories)</Text>
           {renderText(result.stories_strategy)}
         </View>
 
-        {/* 5. PILARES DE CONTEÚDO */}
-        <View style={styles.pillarsSection} wrap={false}>
-          <Text style={styles.boxTitle}>Táticas & Pilares de Conteúdo</Text>
-          {result.content_pillars.map((pillar, index) => (
-            <View key={index} style={styles.pillarItem}>
-              <Text style={styles.pillarNumber}>0{index + 1}</Text>
-              <Text style={styles.pillarText}>{pillar}</Text>
-            </View>
-          ))}
-        </View>
+        {/* 7. PILARES DE CONTEÚDO */}
+        {result.content_pillars && result.content_pillars.length > 0 && (
+          <View style={styles.pillarsSection} wrap={false}>
+            <Text style={styles.boxTitle}>Táticas & Pilares de Conteúdo</Text>
+            {result.content_pillars.map((pillar, index) => (
+              <View key={index} style={styles.pillarItem}>
+                <Text style={styles.pillarNumber}>0{index + 1}</Text>
+                <Text style={styles.pillarText}>{pillar}</Text>
+              </View>
+            ))}
+          </View>
+        )}
 
-        {/* RODAPÉ (Repetido em todas as páginas) */}
+        {/* RODAPÉ (Repetido em todas as páginas via fixed) */}
         <View style={styles.footer} fixed>
           <Text style={styles.footerText}>Atelier LizDesign</Text>
           <Text style={styles.footerText}>Documento Confidencial</Text>

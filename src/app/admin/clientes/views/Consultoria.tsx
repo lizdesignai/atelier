@@ -1,12 +1,12 @@
 // src/app/admin/clientes/views/Consultoria.tsx
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  X, Sparkles, FileSearch, Instagram, User, Mail, 
+  X, FileSearch, Instagram, User, Mail, 
   Phone, Target, Loader2, CheckCircle2, Download, 
-  ChevronRight, BrainCircuit, LineChart, Edit3, Send, Bot
+  Save, Edit3, Layers, FileText, ChevronRight, ChevronLeft, Sparkles
 } from "lucide-react";
 
 import { pdf } from '@react-pdf/renderer';
@@ -23,7 +23,9 @@ interface ConsultoriaResult {
   visual_diagnosis: string;
   tone_of_voice: string;
   stories_strategy: string;
-  content_pillars: string[];
+  content_pillars: string; // Controlado via textarea com 1 pilar por linha
+  strategic_justification: string;
+  market_positioning: string;
 }
 
 const showToast = (message: string) => {
@@ -32,195 +34,158 @@ const showToast = (message: string) => {
 
 export default function ConsultoriaModal({ isOpen, onClose }: ConsultoriaModalProps) {
   // ==========================================
-  // ESTADOS DO FORMULÁRIO E FLUXO
+  // ESTADOS DE OPERAÇÃO E BLUEPRINT
   // ==========================================
-  const [step, setStep] = useState<1 | 2 | 3>(1);
-  const [formData, setFormData] = useState({
-    nome: "", email: "", telefone: "", instagram: "", nicho: ""
-  });
-
-  const [loadingText, setLoadingText] = useState("Inicializando o Motor de IA...");
-  const [result, setResult] = useState<ConsultoriaResult | null>(null);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [isSaving, setIsSaving] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
 
-  // ==========================================
-  // ESTADOS DO COPILOTO (CHAT IA)
-  // ==========================================
-  const [chatInput, setChatInput] = useState("");
-  const [isChatting, setIsChatting] = useState(false);
-  const [chatMessages, setChatMessages] = useState<{role: 'ai' | 'user', text: string}[]>([]);
-  const chatScrollRef = useRef<HTMLDivElement>(null);
+  const [formData, setFormData] = useState({
+    nome: "",
+    email: "",
+    telefone: "",
+    instagram: "",
+    nicho: ""
+  });
 
-  // Auto-scroll do chat
-  useEffect(() => {
-    if (chatScrollRef.current) {
-      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight;
+  const [strategicBlueprint, setStrategicBlueprint] = useState<ConsultoriaResult>({
+    brand_archetype: "",
+    visual_diagnosis: "",
+    tone_of_voice: "",
+    stories_strategy: "",
+    content_pillars: "",
+    strategic_justification: "",
+    market_positioning: ""
+  });
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+
+  const scrollToTop = () => {
+    if (scrollContainerRef.current) {
+      scrollContainerRef.current.scrollTo({ top: 0, behavior: 'smooth' });
     }
-  }, [chatMessages, isChatting]);
+  };
 
   const handleClose = () => {
-    if (step === 2) {
-      const confirm = window.confirm("A IA está a processar a auditoria. Tem a certeza que deseja cancelar?");
-      if (!confirm) return;
-    }
-    setTimeout(() => { 
-      setStep(1); 
-      setResult(null); 
-      setFormData({nome:"", email:"", telefone:"", instagram:"", nicho:""});
-      setChatMessages([]);
-    }, 300);
+    if (isSaving || isExporting) return;
+    setStep(1);
+    setFormData({ nome: "", email: "", telefone: "", instagram: "", nicho: "" });
+    setStrategicBlueprint({
+      brand_archetype: "",
+      visual_diagnosis: "",
+      tone_of_voice: "",
+      stories_strategy: "",
+      content_pillars: "",
+      strategic_justification: "",
+      market_positioning: ""
+    });
     onClose();
   };
 
   // ==========================================
-  // MOTOR DE GERAÇÃO INICIAL
+  // VALIDAÇÕES TÁTICAS DE ETAPAS
   // ==========================================
-  const handleRunConsulting = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!formData.instagram || !formData.nicho) {
-      showToast("Instagram e Nicho são obrigatórios."); return;
+  const validateStep1 = () => {
+    if (!formData.nome.trim() || !formData.instagram.trim() || !formData.nicho.trim()) {
+      showToast("Nome, Instagram e Nicho de Atuação são obrigatórios para a fundação.");
+      return false;
     }
+    return true;
+  };
 
-    setStep(2);
-    
-    const loadingPhases = [
-      "A extrair métricas e conteúdos do perfil @",
-      "Aplicando frameworks de Marketing de Resposta Direta...",
-      "Analisando semiótica, paleta de cores e design...",
-      "Construindo diagnóstico de Autoridade e Tom de Voz...",
-      "A redigir o Plano Estratégico Final..."
-    ];
+  const handleAdvance = () => {
+    if (validateStep1()) {
+      setStep(2);
+      scrollToTop();
+    }
+  };
 
-    let currentPhase = 0;
-    const interval = setInterval(() => {
-      currentPhase++;
-      if (currentPhase < loadingPhases.length) {
-        setLoadingText(loadingPhases[currentPhase].replace("@", `@${formData.instagram.replace('@', '')}`));
-      } else {
-        clearInterval(interval);
-      }
-    }, 2500);
+  const handleBack = () => {
+    setStep(1);
+    scrollToTop();
+  };
+
+  // ==========================================
+  // COFRE DE DADOS: PERSISTÊNCIA DIRETA (CRM)
+  // ==========================================
+  const handleSaveConsulting = async () => {
+    if (!validateStep1()) return;
+    setIsSaving(true);
+    showToast("A selar Dossiê Estratégico no cofre do CRM...");
 
     try {
-      // 🟢 CHAMADA REAL À API DE IA
-      const res = await fetch('/api/ai/consultoria/generate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-           nome: formData.nome,
-           instagram: formData.instagram,
-           nicho: formData.nicho,
-           telefone: formData.telefone
-        })
-      });
+      // Tratamento Lean dos Pilares: Quebra a string por quebras de linha e remove buffers vazios
+      const pillarsArray = strategicBlueprint.content_pillars
+        .split('\n')
+        .map(p => p.trim())
+        .filter(p => p.length > 0);
 
-      const data = await res.json();
+      const targetEmail = formData.email.trim() || `${formData.instagram.replace('@', '').trim()}@lead.temp`;
 
-      if (!res.ok) {
-        throw new Error(data.error || "Falha ao comunicar com o Motor de IA.");
-      }
-
-      // A API deve devolver exatamente o objeto estruturado dentro de data.insight
-      const generatedInsights = data.insight;
-
-      clearInterval(interval);
-      setResult(generatedInsights);
-
-      setResult(generatedInsights);
-
-      // 🟢 GRAVAÇÃO REAL NO CRM (Tabela Leads)
-      // O Upsert usa o email ou o instagram como chave para não duplicar clientes
       const leadPayload = {
-        nome: formData.nome,
-        email: formData.email || `${formData.instagram.replace('@', '')}@lead.temp`, // Garante um email único caso o utilizador não forneça
-        telefone: formData.telefone,
-        instagram: formData.instagram,
-        nicho: formData.nicho,
-        status: 'prospect', // Status inicial para uma lead vinda da Consultoria
-        ai_brand_archetype: generatedInsights.brand_archetype,
-        ai_visual_diagnosis: generatedInsights.visual_diagnosis,
-        ai_tone_of_voice: generatedInsights.tone_of_voice,
-        ai_stories_strategy: generatedInsights.stories_strategy,
-        ai_content_pillars: generatedInsights.content_pillars
+        nome: formData.nome.trim(),
+        email: targetEmail,
+        telefone: formData.telefone.trim(),
+        instagram: formData.instagram.trim(),
+        nicho: formData.nicho.trim(),
+        status: 'prospect', // Status padrão de entrada no pipeline do Atelier OS
+        ai_brand_archetype: strategicBlueprint.brand_archetype,
+        ai_visual_diagnosis: strategicBlueprint.visual_diagnosis,
+        ai_tone_of_voice: strategicBlueprint.tone_of_voice,
+        ai_stories_strategy: strategicBlueprint.stories_strategy,
+        ai_content_pillars: pillarsArray,
+        strategic_justification: strategicBlueprint.strategic_justification,
+        market_positioning: strategicBlueprint.market_positioning,
+        updated_at: new Date().toISOString()
       };
 
       const { error: dbError } = await supabase
         .from('leads')
-        .upsert(leadPayload, { onConflict: 'email' }); // Assegure-se que a coluna 'email' ou 'instagram' está definida como UNIQUE no Supabase se quiser evitar duplicações absolutas
+        .upsert(leadPayload, { onConflict: 'email' });
 
-      if (dbError) {
-         throw new Error(`Falha ao gravar no banco: ${dbError.message}`);
-      }
+      if (dbError) throw dbError;
 
-      // Inicializa o Chat
-      setChatMessages([{ role: 'ai', text: `Olá! Forjei a primeira versão do Dossiê de ${formData.nome}. Como Diretor de Estratégia, estou à disposição para refinar qualquer texto. O que deseja ajustar?` }]);
-      
-      setStep(3);
-      showToast("Auditoria Estratégica concluída e gravada com sucesso!");
-
+      showToast("✨ Dossiê consolidado com sucesso na base de dados!");
     } catch (error: any) {
-      clearInterval(interval);
-      console.error("Erro na Auditoria:", error);
-      showToast(`Erro na análise: ${error.message}`);
-      setStep(1); // Volta ao formulário em caso de erro na BD
-    }
-  };
-
-  // ==========================================
-  // MOTOR DE REFINAMENTO (CHAT COPILOTO)
-  // ==========================================
-  const handleChatSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!chatInput.trim() || !result) return;
-
-    const userMessage = chatInput;
-    setChatMessages(prev => [...prev, { role: 'user', text: userMessage }]);
-    setChatInput("");
-    setIsChatting(true);
-
-    try {
-      // 🟢 AQUI BATEREMOS NA API DE EDIÇÃO DO GEMINI
-      // Enviamos o `result` atual + a `userMessage` e a IA devolve o JSON modificado
-      /*
-      const res = await fetch('/api/consultoria/refine', {
-        method: 'POST',
-        body: JSON.stringify({ currentData: result, prompt: userMessage })
-      });
-      const data = await res.json();
-      setResult(data.updatedInsight);
-      setChatMessages(prev => [...prev, { role: 'ai', text: data.aiResponse }]);
-      */
-
-      // SIMULAÇÃO DO REFINAMENTO:
-      await new Promise(resolve => setTimeout(resolve, 3000));
-      
-      // Simula a IA a alterar o texto
-      setResult(prev => prev ? {
-        ...prev,
-        tone_of_voice: prev.tone_of_voice + "\n\n(Ajustado: Inserir tons mais imponentes e misteriosos conforme solicitado)."
-      } : null);
-
-      setChatMessages(prev => [...prev, { role: 'ai', text: "Feito! Refinei o Tom de Voz para refletir a nova diretriz de luxo e mistério. O editor já foi atualizado à esquerda." }]);
-
-    } catch (error) {
-      setChatMessages(prev => [...prev, { role: 'ai', text: "Ocorreu um erro de comunicação com os servidores. Tente novamente." }]);
+      console.error("Erro ao salvar Dossiê:", error);
+      showToast(`Falha operacional: ${error.message || "Verifique as permissões da BD."}`);
     } finally {
-      setIsChatting(false);
+      setIsSaving(false);
     }
   };
 
+  // ==========================================
+  // EMISSÃO VETORIAL: EXPORTAÇÃO DO PDF
+  // ==========================================
   const handleExportPDF = async () => {
-    if (!result) return;
     setIsExporting(true);
-    showToast("A forjar Documento Oficial da Consultoria...");
-    
+    showToast("Compilando Dossiê Executivo de Alta Resolução...");
+
     try {
-      const doc = <ConsultoriaPDF 
-        clientName={formData.nome} 
-        instagram={formData.instagram} 
-        nicho={formData.nicho} 
-        result={result} 
-      />;
+      const pillarsArray = strategicBlueprint.content_pillars
+        .split('\n')
+        .map(p => p.trim())
+        .filter(p => p.length > 0);
+
+      // Mapeamento do resultado para injeção no motor de PDF do Atelier
+      const formattedResult = {
+        brand_archetype: strategicBlueprint.brand_archetype,
+        visual_diagnosis: strategicBlueprint.visual_diagnosis,
+        tone_of_voice: strategicBlueprint.tone_of_voice,
+        stories_strategy: strategicBlueprint.stories_strategy,
+        content_pillars: pillarsArray,
+        strategic_justification: strategicBlueprint.strategic_justification,
+        market_positioning: strategicBlueprint.market_positioning
+      };
+
+      const doc = (
+        <ConsultoriaPDF 
+          clientName={formData.nome.trim()} 
+          instagram={formData.instagram.trim()} 
+          nicho={formData.nicho.trim()} 
+          result={formattedResult as any} 
+        />
+      );
 
       const asPdf = pdf(doc);
       const blob = await asPdf.toBlob();
@@ -228,13 +193,14 @@ export default function ConsultoriaModal({ isOpen, onClose }: ConsultoriaModalPr
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Auditoria_${formData.nome.replace(/\s+/g, '_')}.pdf`;
+      link.download = `Auditoria_${formData.nome.trim().replace(/\s+/g, '_')}.pdf`;
       link.click();
       URL.revokeObjectURL(url);
 
-      showToast("PDF Exportado com sucesso!");
-    } catch (error) {
-      showToast("Erro ao exportar PDF vetorial.");
+      showToast("PDF Estratégico exportado com sucesso!");
+    } catch (error: any) {
+      console.error("Erro na compilação do PDF:", error);
+      showToast("Erro crítico na geração vetorial do documento.");
     } finally {
       setIsExporting(false);
     }
@@ -244,273 +210,270 @@ export default function ConsultoriaModal({ isOpen, onClose }: ConsultoriaModalPr
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-8">
+          {/* Overlay do Background */}
           <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            initial={{ opacity: 0 }} 
+            animate={{ opacity: 1 }} 
+            exit={{ opacity: 0 }}
             className="absolute inset-0 bg-[var(--color-atelier-grafite)]/60 backdrop-blur-md"
-            onClick={step !== 2 ? handleClose : undefined} 
+            onClick={handleClose} 
           />
           
+          {/* Corpo Estrutural do Painel */}
           <motion.div 
             initial={{ opacity: 0, scale: 0.95, y: 20 }} 
             animate={{ opacity: 1, scale: 1, y: 0 }} 
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            // 🟢 AUMENTO DE LARGURA PARA ACOMODAR O SPLIT-SCREEN DO PASSO 3
-            className={`relative w-full ${step === 3 ? 'max-w-[1300px]' : 'max-w-[850px]'} h-[90vh] bg-[var(--color-atelier-creme)] rounded-[2.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.3)] border border-white flex flex-col overflow-hidden transition-all duration-500`}
+            className={`relative w-full ${step === 2 ? 'max-w-[1300px]' : 'max-w-[850px]'} h-[90vh] bg-[var(--color-atelier-creme)] rounded-[2.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.3)] border border-white flex flex-col overflow-hidden transition-all duration-500`}
           >
-            {/* HEADER DO MODAL */}
+            {/* HEADER EXECUTIVO CENTRALIZADO */}
             <div className="p-6 md:p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 backdrop-blur-xl flex justify-between items-start shrink-0 z-20">
               <div>
                 <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-3">
                   <FileSearch size={28} className="text-[var(--color-atelier-terracota)]" /> 
-                  Consultoria de Alto Valor
+                  Mesa de Auditoria de Alto Valor
                 </h2>
                 <p className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-2 flex items-center gap-2">
-                  <BrainCircuit size={12}/> Auditoria Autônoma de Autoridade (IA)
+                  <Layers size={12}/> {step === 1 ? "Etapa 1: Triagem e Dossiê Cadastral" : "Etapa 2: Conselho de Direção e Matriz de Posicionamento"}
                 </p>
               </div>
-              <button onClick={handleClose} disabled={step === 2} className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors shadow-sm border border-white/50 disabled:opacity-30">
+              <button 
+                onClick={handleClose} 
+                className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors shadow-sm border border-white/50"
+              >
                 <X size={18} />
               </button>
             </div>
 
-            {/* CORPO DO MODAL */}
-            <div className="flex-1 overflow-hidden bg-gradient-to-b from-transparent to-white/40 relative flex flex-col">
+            {/* CONTEÚDO DINÂMICO DOS WORKSPACES */}
+            <div ref={scrollContainerRef} className="flex-1 overflow-y-auto custom-scrollbar p-6 md:p-10 bg-gradient-to-b from-transparent to-white/40">
               <AnimatePresence mode="wait">
                 
-                {/* ESTADO 1: FORMULÁRIO DE ENTRADA */}
+                {/* WORKSPACE 1: IDENTIFICAÇÃO DO PROSPECT */}
                 {step === 1 && (
-                  <motion.div key="form" initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="p-6 md:p-10 overflow-y-auto custom-scrollbar h-full">
-                    <form id="consultoria-form" onSubmit={handleRunConsulting} className="flex flex-col gap-8 max-w-4xl mx-auto">
-                      
-                      <div className="bg-white/80 p-8 rounded-[2rem] border border-white shadow-sm flex flex-col md:flex-row gap-8 items-center">
-                        <div className="w-24 h-24 rounded-full bg-[var(--color-atelier-terracota)]/10 flex items-center justify-center shrink-0 border-4 border-white shadow-inner">
-                          <Instagram size={36} className="text-[var(--color-atelier-terracota)]" />
+                  <motion.div 
+                    key="step1" 
+                    initial={{ opacity: 0, x: -25 }} 
+                    animate={{ opacity: 1, x: 0 }} 
+                    exit={{ opacity: 0, x: 25 }} 
+                    className="flex flex-col gap-8 max-w-4xl mx-auto w-full"
+                  >
+                    <div className="bg-white/80 p-8 rounded-[2rem] border border-white shadow-sm flex flex-col md:flex-row gap-8 items-center">
+                      <div className="w-24 h-24 rounded-[1.5rem] bg-[var(--color-atelier-terracota)]/10 flex items-center justify-center shrink-0 border border-[var(--color-atelier-terracota)]/20 shadow-inner">
+                        <Instagram size={36} className="text-[var(--color-atelier-terracota)]" />
+                      </div>
+                      <div>
+                        <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] mb-2">Fundação da Consultoria</h3>
+                        <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/70 font-medium leading-relaxed">
+                          Insira as coordenadas cadastrais do prospect abaixo. A engenharia do Atelier OS isolará este perfil no banco de dados para que possa forjar e estruturar manualmente o Dossiê de Intervenção focado em percepção de valor e posicionamento de elite.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-8 rounded-[2.5rem] border border-gray-100 shadow-sm flex flex-col gap-6">
+                      <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] border-b border-gray-50 pb-3">Dados de Comunicação</h4>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="flex flex-col gap-2">
+                          <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-gray-500 pl-1">Nome Completo *</label>
+                          <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300"><User size={16}/></span>
+                            <input type="text" required value={formData.nome} onChange={(e) => setFormData({...formData, nome: e.target.value})} className="w-full bg-gray-50/50 border border-transparent focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl py-3.5 pl-11 pr-4 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none shadow-sm transition-all" placeholder="Ex: Rodrigo Santos" />
+                          </div>
                         </div>
-                        <div>
-                          <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] mb-2">Preparação do Oráculo</h3>
-                          <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/70 font-medium leading-relaxed">
-                            Insira os dados do potencial cliente. O nosso motor irá varrer o Instagram dele e aplicar frameworks avançados de Copywriting e Branding para gerar um relatório de intervenção focado na criação de percepção de valor.
-                          </p>
+
+                        <div className="flex flex-col gap-2">
+                          <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-gray-500 pl-1">Instagram (@) *</label>
+                          <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300"><Instagram size={16}/></span>
+                            <input type="text" required value={formData.instagram} onChange={(e) => setFormData({...formData, instagram: e.target.value})} className="w-full bg-gray-50/50 border border-transparent focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl py-3.5 pl-11 pr-4 text-[13px] font-bold text-[var(--color-atelier-grafite)] outline-none shadow-sm transition-all" placeholder="@usuario" />
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                          <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-gray-500 pl-1">Nicho de Atuação *</label>
+                          <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300"><Target size={16}/></span>
+                            <input type="text" required value={formData.nicho} onChange={(e) => setFormData({...formData, nicho: e.target.value})} className="w-full bg-gray-50/50 border border-transparent focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl py-3.5 pl-11 pr-4 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none shadow-sm transition-all" placeholder="Ex: Advocacia Corporativa" />
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2">
+                          <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-gray-500 pl-1">E-mail de Contato</label>
+                          <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300"><Mail size={16}/></span>
+                            <input type="email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} className="w-full bg-gray-50/50 border border-transparent focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl py-3.5 pl-11 pr-4 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none shadow-sm transition-all" placeholder="nome@empresa.com" />
+                          </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2 md:col-span-2">
+                          <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-gray-500 pl-1">Telefone / WhatsApp</label>
+                          <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-300"><Phone size={16}/></span>
+                            <input type="text" value={formData.telefone} onChange={(e) => setFormData({...formData, telefone: e.target.value})} className="w-full bg-gray-50/50 border border-transparent focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl py-3.5 pl-11 pr-4 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none shadow-sm transition-all" placeholder="+351 912 345 678" />
+                          </div>
                         </div>
                       </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                        <div className="flex flex-col gap-2">
-                          <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Nome Completo</label>
-                          <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-atelier-grafite)]/30"><User size={16}/></span>
-                            <input type="text" required value={formData.nome} onChange={(e) => setFormData({...formData, nome: e.target.value})} className="w-full bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl py-3.5 pl-11 pr-4 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none shadow-sm transition-all" placeholder="Ex: Maria Eduarda" />
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col gap-2">
-                          <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Instagram (@)</label>
-                          <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-atelier-grafite)]/30"><Instagram size={16}/></span>
-                            <input type="text" required value={formData.instagram} onChange={(e) => setFormData({...formData, instagram: e.target.value})} className="w-full bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl py-3.5 pl-11 pr-4 text-[13px] font-bold text-[var(--color-atelier-grafite)] outline-none shadow-sm transition-all" placeholder="@usuario" />
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col gap-2">
-                          <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Nicho de Atuação</label>
-                          <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-atelier-grafite)]/30"><Target size={16}/></span>
-                            <input type="text" required value={formData.nicho} onChange={(e) => setFormData({...formData, nicho: e.target.value})} className="w-full bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl py-3.5 pl-11 pr-4 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none shadow-sm transition-all" placeholder="Ex: Estética Avançada / Arquitetura" />
-                          </div>
-                        </div>
-
-                        <div className="flex flex-col gap-2">
-                          <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Telefone (Opcional)</label>
-                          <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-atelier-grafite)]/30"><Phone size={16}/></span>
-                            <input type="text" value={formData.telefone} onChange={(e) => setFormData({...formData, telefone: e.target.value})} className="w-full bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl py-3.5 pl-11 pr-4 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none shadow-sm transition-all" placeholder="+351..." />
-                          </div>
-                        </div>
-                      </div>
-
-                    </form>
+                    </div>
                   </motion.div>
                 )}
 
-                {/* ESTADO 2: PROCESSAMENTO (IA) */}
+                {/* WORKSPACE 2: CONSELHO DE DIREÇÃO (TABULEIRO CRIATIVO COMPLETO) */}
                 {step === 2 && (
-                  <motion.div key="loading" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center justify-center h-full text-center px-6">
-                    <div className="relative w-32 h-32 mb-8">
-                      <div className="absolute inset-0 border-4 border-[var(--color-atelier-terracota)]/20 rounded-full"></div>
-                      <div className="absolute inset-0 border-4 border-[var(--color-atelier-terracota)] border-t-transparent rounded-full animate-spin"></div>
-                      <div className="absolute inset-0 flex items-center justify-center">
-                        <Sparkles size={32} className="text-[var(--color-atelier-terracota)] animate-pulse" />
+                  <motion.div 
+                    key="step2" 
+                    initial={{ opacity: 0, x: 25 }} 
+                    animate={{ opacity: 1, x: 0 }} 
+                    exit={{ opacity: 0, x: -25 }} 
+                    className="flex flex-col gap-6 w-full"
+                  >
+                    {/* Linha 1: Metadados da Intervenção */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col gap-3">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] pl-1">Arquétipo de Marca Sugerido</label>
+                        <input 
+                          type="text" 
+                          value={strategicBlueprint.brand_archetype} 
+                          onChange={(e) => setStrategicBlueprint({...strategicBlueprint, brand_archetype: e.target.value})} 
+                          placeholder="Ex: O Soberano / O Mago" 
+                          className="w-full bg-gray-50 border border-transparent focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl p-3.5 text-[13px] font-bold text-[var(--color-atelier-grafite)] outline-none shadow-inner" 
+                        />
+                      </div>
+
+                      <div className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col gap-3">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] pl-1">Pilares de Conteúdo (Um por linha)</label>
+                        <textarea 
+                          value={strategicBlueprint.content_pillars} 
+                          onChange={(e) => setStrategicBlueprint({...strategicBlueprint, content_pillars: e.target.value})} 
+                          placeholder="Pilar 1: Descrição&#10;Pilar 2: Descrição&#10;Pilar 3: Descrição" 
+                          className="w-full bg-gray-50 border border-transparent focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl p-3.5 text-[13px] font-bold text-[var(--color-atelier-grafite)] outline-none shadow-inner h-[46px] resize-none h-14 custom-scrollbar" 
+                        />
                       </div>
                     </div>
-                    <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-4">Aglomerando Dados...</h2>
-                    <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/60 font-medium max-w-md h-6 transition-all duration-300">
-                      {loadingText}
-                    </p>
+
+                    {/* Linha 2: Redação de Diagnósticos e Justificativas */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="bg-white p-8 rounded-[2rem] border border-gray-50 shadow-sm flex flex-col gap-4 group/edit transition-colors hover:border-[var(--color-atelier-terracota)]/20">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] border-b border-gray-50 pb-3 flex items-center justify-between">
+                          <span>Justificativa Estratégica (Oceano Azul)</span>
+                          <Edit3 size={12} className="text-gray-300"/>
+                        </label>
+                        <textarea 
+                          value={strategicBlueprint.strategic_justification} 
+                          onChange={(e) => setStrategicBlueprint({...strategicBlueprint, strategic_justification: e.target.value})} 
+                          rows={6} 
+                          placeholder="Fundamente cientificamente o porquê destas mudanças estruturais baseadas no posicionamento do cliente..."
+                          className="w-full bg-transparent text-[13px] leading-relaxed text-[var(--color-atelier-grafite)] font-medium outline-none resize-none custom-scrollbar" 
+                        />
+                      </div>
+
+                      <div className="bg-white p-8 rounded-[2rem] border border-gray-50 shadow-sm flex flex-col gap-4 group/edit transition-colors hover:border-[var(--color-atelier-terracota)]/20">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] border-b border-gray-50 pb-3 flex items-center justify-between">
+                          <span>Posicionamento de Mercado</span>
+                          <Edit3 size={12} className="text-gray-300"/>
+                        </label>
+                        <textarea 
+                          value={strategicBlueprint.market_positioning} 
+                          onChange={(e) => setStrategicBlueprint({...strategicBlueprint, market_positioning: e.target.value})} 
+                          rows={6} 
+                          placeholder="Defina a proposta única de valor (UVP) de elite que o cliente deve assumir no mercado digital..."
+                          className="w-full bg-transparent text-[13px] leading-relaxed text-[var(--color-atelier-grafite)] font-medium outline-none resize-none custom-scrollbar" 
+                        />
+                      </div>
+                    </div>
+
+                    {/* Linha 3: Diagnósticos Visuais e de Conduta */}
+                    <div className="bg-white p-8 rounded-[2rem] border border-gray-50 shadow-sm flex flex-col gap-4 group/edit transition-colors hover:border-[var(--color-atelier-terracota)]/20">
+                      <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] border-b border-gray-50 pb-3 flex items-center justify-between">
+                        <span>Diagnóstico Visual e Estético (Semiótica)</span>
+                        <Edit3 size={12} className="text-gray-300"/>
+                      </label>
+                      <textarea 
+                        value={strategicBlueprint.visual_diagnosis} 
+                        onChange={(e) => setStrategicBlueprint({...strategicBlueprint, visual_diagnosis: e.target.value})} 
+                        rows={4} 
+                        placeholder="Prescreva paletas cromáticas, tipografia e diretrizes de composição editorial..."
+                        className="w-full bg-transparent text-[13px] leading-relaxed text-[var(--color-atelier-grafite)] font-medium outline-none resize-none custom-scrollbar" 
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      <div className="bg-white p-8 rounded-[2rem] border border-gray-50 shadow-sm flex flex-col gap-4 group/edit transition-colors hover:border-[var(--color-atelier-terracota)]/20">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] border-b border-gray-50 pb-3 flex items-center justify-between">
+                          <span>Tom de Voz (Brand Persona)</span>
+                          <Edit3 size={12} className="text-gray-300"/>
+                        </label>
+                        <textarea 
+                          value={strategicBlueprint.tone_of_voice} 
+                          onChange={(e) => setStrategicBlueprint({...strategicBlueprint, tone_of_voice: e.target.value})} 
+                          rows={4} 
+                          placeholder="Como a marca deve comunicar de forma prescritiva e soberana no nicho?"
+                          className="w-full bg-transparent text-[13px] leading-relaxed text-[var(--color-atelier-grafite)] font-medium outline-none resize-none custom-scrollbar" 
+                        />
+                      </div>
+
+                      <div className="bg-white p-8 rounded-[2rem] border border-gray-50 shadow-sm flex flex-col gap-4 group/edit transition-colors hover:border-[var(--color-atelier-terracota)]/20">
+                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] border-b border-gray-50 pb-3 flex items-center justify-between">
+                          <span>Dinâmica de Stories (Conversão Direct)</span>
+                          <Edit3 size={12} className="text-gray-300"/>
+                        </label>
+                        <textarea 
+                          value={strategicBlueprint.stories_strategy} 
+                          onChange={(e) => setStrategicBlueprint({...strategicBlueprint, stories_strategy: e.target.value})} 
+                          rows={4} 
+                          placeholder="Mapeie o protocolo de roteirização diária (Manhã/Tarde/Noite) focado em atração de leads..."
+                          className="w-full bg-transparent text-[13px] leading-relaxed text-[var(--color-atelier-grafite)] font-medium outline-none resize-none custom-scrollbar" 
+                        />
+                      </div>
+                    </div>
                   </motion.div>
                 )}
 
-                {/* 🟢 ESTADO 3: SPLIT-SCREEN (EDITOR + CHAT COPILOTO) */}
-                {step === 3 && result && (
-                  <motion.div key="result" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="flex flex-col lg:flex-row h-full w-full gap-6 p-6 md:p-8">
-                    
-                    {/* COLUNA ESQUERDA: EDITOR DO DOSSIÊ */}
-                    <div className="flex-1 flex flex-col gap-6 overflow-y-auto custom-scrollbar pr-2 pb-10">
-                      
-                      <div className="bg-[var(--color-atelier-terracota)] p-8 rounded-[2rem] shadow-md text-white relative overflow-hidden shrink-0">
-                        <div className="absolute -right-10 -top-10 text-white/10"><LineChart size={180} strokeWidth={1} /></div>
-                        <div className="relative z-10">
-                          <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-white/60 mb-2 block flex items-center gap-2"><Edit3 size={12}/> Modo Edição Ativo</span>
-                          <h3 className="font-elegant text-4xl leading-tight mb-2">Auditoria: {formData.nome}</h3>
-                          <p className="font-roboto text-[13px] font-bold text-white/80 flex items-center gap-2"><Instagram size={14}/> {formData.instagram} • {formData.nicho}</p>
-                        </div>
-                      </div>
-
-                      {/* CAMPOS EDITÁVEIS DO RELATÓRIO */}
-                      <div className="flex flex-col gap-5">
-                        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-50 flex flex-col gap-3 group/edit">
-                          <div className="flex items-center justify-between border-b border-[var(--color-atelier-grafite)]/5 pb-2">
-                            <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] flex items-center gap-2"><Target size={14}/> Diagnóstico Visual e Estético</label>
-                            <Edit3 size={12} className="text-[var(--color-atelier-grafite)]/20 group-focus-within/edit:text-[var(--color-atelier-terracota)] transition-colors"/>
-                          </div>
-                          <textarea 
-                            value={result.visual_diagnosis}
-                            onChange={(e) => setResult({...result, visual_diagnosis: e.target.value})}
-                            className="w-full bg-transparent text-[13px] leading-relaxed text-[var(--color-atelier-grafite)] font-medium outline-none resize-none h-28 custom-scrollbar"
-                          />
-                        </div>
-
-                        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-50 flex flex-col gap-3 group/edit">
-                          <div className="flex items-center justify-between border-b border-[var(--color-atelier-grafite)]/5 pb-2">
-                            <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] flex items-center gap-2"><User size={14}/> Tom de Voz & Arquétipo</label>
-                            <Edit3 size={12} className="text-[var(--color-atelier-grafite)]/20 group-focus-within/edit:text-[var(--color-atelier-terracota)] transition-colors"/>
-                          </div>
-                          <input 
-                            value={result.brand_archetype}
-                            onChange={(e) => setResult({...result, brand_archetype: e.target.value})}
-                            className="w-full bg-gray-50 p-3 rounded-xl text-[12px] font-bold text-[var(--color-atelier-grafite)] outline-none border border-transparent focus:border-[var(--color-atelier-terracota)]/30 text-center mb-1"
-                          />
-                          <textarea 
-                            value={result.tone_of_voice}
-                            onChange={(e) => setResult({...result, tone_of_voice: e.target.value})}
-                            className="w-full bg-transparent text-[13px] leading-relaxed text-[var(--color-atelier-grafite)] font-medium outline-none resize-none h-24 custom-scrollbar"
-                          />
-                        </div>
-
-                        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-50 flex flex-col gap-3 group/edit">
-                          <div className="flex items-center justify-between border-b border-[var(--color-atelier-grafite)]/5 pb-2">
-                            <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] flex items-center gap-2"><CheckCircle2 size={14}/> Pilares de Conteúdo (1 por linha)</label>
-                            <Edit3 size={12} className="text-[var(--color-atelier-grafite)]/20 group-focus-within/edit:text-[var(--color-atelier-terracota)] transition-colors"/>
-                          </div>
-                          <textarea 
-                            value={result.content_pillars.join('\n')}
-                            onChange={(e) => setResult({...result, content_pillars: e.target.value.split('\n')})}
-                            className="w-full bg-transparent text-[13px] leading-loose text-[var(--color-atelier-grafite)] font-bold outline-none resize-none h-24 custom-scrollbar"
-                          />
-                        </div>
-
-                        <div className="bg-white p-6 rounded-[2rem] shadow-sm border border-gray-50 flex flex-col gap-3 group/edit">
-                          <div className="flex items-center justify-between border-b border-[var(--color-atelier-grafite)]/5 pb-2">
-                            <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] flex items-center gap-2"><Instagram size={14}/> Dinâmica de Stories</label>
-                            <Edit3 size={12} className="text-[var(--color-atelier-grafite)]/20 group-focus-within/edit:text-[var(--color-atelier-terracota)] transition-colors"/>
-                          </div>
-                          <textarea 
-                            value={result.stories_strategy}
-                            onChange={(e) => setResult({...result, stories_strategy: e.target.value})}
-                            className="w-full bg-transparent text-[13px] leading-relaxed text-[var(--color-atelier-grafite)] font-medium outline-none resize-none h-24 custom-scrollbar"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* COLUNA DIREITA: CHAT COPILOTO IA */}
-                    <div className="w-full lg:w-[380px] shrink-0 h-full max-h-[800px] bg-white/60 backdrop-blur-md rounded-[2.5rem] border border-white shadow-sm flex flex-col overflow-hidden relative">
-                      <div className="p-5 border-b border-[var(--color-atelier-grafite)]/5 bg-white/40 flex items-center gap-3 shrink-0">
-                        <div className="w-10 h-10 rounded-full bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center shadow-inner">
-                          <Bot size={18} />
-                        </div>
-                        <div>
-                          <h4 className="font-elegant text-xl text-[var(--color-atelier-grafite)] leading-none">Copiloto Estratégico</h4>
-                          <span className="font-roboto text-[9px] uppercase tracking-widest font-bold text-green-500 flex items-center gap-1 mt-1"><span className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse"></span> Online</span>
-                        </div>
-                      </div>
-
-                      {/* Lista de Mensagens */}
-                      <div ref={chatScrollRef} className="flex-1 overflow-y-auto custom-scrollbar p-5 flex flex-col gap-4">
-                        {chatMessages.map((msg, idx) => (
-                          <div key={idx} className={`flex w-full ${msg.role === 'ai' ? 'justify-start' : 'justify-end'}`}>
-                            <div className={`max-w-[85%] p-4 rounded-2xl text-[12px] font-medium leading-relaxed shadow-sm
-                              ${msg.role === 'ai' 
-                                ? 'bg-white text-[var(--color-atelier-grafite)] border border-gray-50 rounded-tl-sm' 
-                                : 'bg-[var(--color-atelier-grafite)] text-white rounded-tr-sm'}
-                            `}>
-                              {msg.text}
-                            </div>
-                          </div>
-                        ))}
-                        {isChatting && (
-                          <div className="flex w-full justify-start">
-                            <div className="bg-white p-4 rounded-2xl rounded-tl-sm border border-gray-50 shadow-sm flex items-center gap-2">
-                               <div className="w-1.5 h-1.5 bg-[var(--color-atelier-grafite)]/40 rounded-full animate-bounce"></div>
-                               <div className="w-1.5 h-1.5 bg-[var(--color-atelier-grafite)]/40 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
-                               <div className="w-1.5 h-1.5 bg-[var(--color-atelier-grafite)]/40 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Input do Chat */}
-                      <div className="p-4 bg-white/80 border-t border-white shrink-0">
-                        <form onSubmit={handleChatSubmit} className="relative flex items-center">
-                          <input 
-                            type="text" 
-                            placeholder="Peça à IA para refinar o texto..."
-                            value={chatInput}
-                            onChange={(e) => setChatInput(e.target.value)}
-                            disabled={isChatting}
-                            className="w-full bg-gray-50/50 border border-gray-100 focus:border-[var(--color-atelier-terracota)]/40 focus:bg-white rounded-[1.2rem] py-3.5 pl-4 pr-12 text-[12px] text-[var(--color-atelier-grafite)] outline-none transition-colors shadow-inner"
-                          />
-                          <button 
-                            type="submit" 
-                            disabled={!chatInput.trim() || isChatting}
-                            className="absolute right-2 w-9 h-9 bg-[var(--color-atelier-terracota)] text-white rounded-xl flex items-center justify-center hover:bg-[#8c562e] transition-colors disabled:opacity-50 disabled:bg-gray-300 shadow-sm"
-                          >
-                            <Send size={14} className="ml-0.5" />
-                          </button>
-                        </form>
-                      </div>
-                    </div>
-
-                  </motion.div>
-                )}
               </AnimatePresence>
             </div>
 
-            {/* FOOTER DE AÇÕES GLOBAIS */}
-            <div className="p-6 md:p-8 border-t border-[var(--color-atelier-grafite)]/10 bg-white/80 backdrop-blur-md shrink-0 flex justify-end gap-4 z-20 relative">
-              {step === 1 && (
-                <button 
-                  type="submit" 
-                  form="consultoria-form"
-                  className="w-full md:w-auto px-10 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-[1.2rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all shadow-md flex items-center justify-center gap-2"
-                >
-                  <BrainCircuit size={16} /> Executar Auditoria AI
-                </button>
-              )}
-              {step === 3 && (
-                <>
-                  <button onClick={handleClose} className="px-6 py-4 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-gray-100 transition-colors">
-                    Fechar
-                  </button>
+            {/* ACTION FOOTER BAR (BOTÕES DE OPERAÇÃO) */}
+            <div className="p-6 md:p-8 border-t border-[var(--color-atelier-grafite)]/10 bg-white/80 backdrop-blur-md shrink-0 flex flex-col sm:flex-row justify-between items-center gap-4 z-20">
+              <div>
+                {step === 2 && (
                   <button 
-                    onClick={handleExportPDF}
-                    disabled={isExporting}
-                    className="flex-1 md:flex-none px-10 bg-[var(--color-atelier-terracota)] text-white py-4 rounded-[1.2rem] font-roboto font-bold uppercase tracking-[0.1em] text-[12px] hover:bg-[#8c562e] hover:-translate-y-0.5 transition-all shadow-lg flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:translate-y-0"
+                    onClick={handleBack}
+                    className="px-6 py-3 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest text-gray-500 hover:bg-gray-100 hover:text-gray-800 transition-colors flex items-center gap-2"
                   >
-                    {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
-                    Exportar PDF Executivo
+                    <ChevronLeft size={14}/> Voltar ao Cadastro
                   </button>
-                </>
-              )}
+                )}
+              </div>
+
+              <div className="flex gap-3 w-full sm:w-auto justify-end">
+                {step === 1 ? (
+                  <button 
+                    onClick={handleAdvance}
+                    className="w-full sm:w-auto px-8 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-[var(--color-atelier-terracota)] transition-colors flex items-center justify-center gap-2 group"
+                  >
+                    Avançar para Estratégia <ChevronRight size={14} className="group-hover:translate-x-0.5 transition-transform"/>
+                  </button>
+                ) : (
+                  <>
+                    <button 
+                      onClick={handleSaveConsulting}
+                      disabled={isSaving || isExporting}
+                      className="flex-1 sm:flex-none px-8 bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest shadow-sm hover:border-[var(--color-atelier-terracota)]/40 hover:text-[var(--color-atelier-terracota)] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                      {isSaving ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />} 
+                      Gravar no CRM
+                    </button>
+
+                    <button 
+                      onClick={handleExportPDF}
+                      disabled={isSaving || isExporting}
+                      className="flex-1 sm:flex-none px-8 bg-[var(--color-atelier-terracota)] text-white py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest shadow-lg hover:bg-[#8c562e] transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-2"
+                    >
+                      {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                      Exportar PDF Oficial
+                    </button>
+                  </>
+                )}
+              </div>
             </div>
 
           </motion.div>
