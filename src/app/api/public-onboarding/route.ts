@@ -16,15 +16,18 @@ export async function OPTIONS() {
   return NextResponse.json({}, { status: 200, headers: corsHeaders });
 }
 
-// 2. INICIALIZAÇÃO SEGURA DO SUPABASE ADMIN
-// Se faltarem estas chaves no .env, a API quebra silenciosamente
-if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  console.error("ERRO CRÍTICO: Variáveis de ambiente Supabase ausentes!");
+// 2. INICIALIZAÇÃO SEGURA DO SUPABASE ADMIN E BLINDAGEM VERCEL
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
+
+if (!supabaseUrl || !supabaseServiceKey) {
+  console.error("ERRO CRÍTICO: Variáveis de ambiente Supabase ausentes no public-onboarding!");
 }
 
+// O fallback 'dummy' impede que a Vercel interrompa a compilação estática durante o Build
 const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY! 
+  supabaseUrl || 'https://dummy.supabase.co',
+  supabaseServiceKey || 'dummy-secret-key-para-enganar-a-vercel-no-build'
 );
 
 // 3. O PROCESSADOR POST
