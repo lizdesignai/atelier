@@ -33,33 +33,33 @@ export default function HealthMetrics({
       className="flex flex-col gap-6 w-full"
     >
       
-      {/* WIDGETS DE DESTAQUE (Média NPS, On-Time, Top Performer) */}
+      {/* WIDGETS DE DESTAQUE (Média NPS, No Prazo, Destaque do Mês) */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6 shrink-0">
         <div className="glass-panel p-8 bg-white/40 rounded-[2.5rem] flex flex-col gap-4 border border-white items-center text-center justify-center shadow-sm hover:bg-white/50 transition-colors">
           <div className="w-14 h-14 rounded-2xl bg-green-500/10 text-green-600 flex items-center justify-center mb-2 border border-green-500/20 shadow-inner"><Star size={24} /></div>
           <span className="font-elegant text-5xl text-[var(--color-atelier-grafite)] leading-none">{overviewData.avgNps}</span>
-          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Média Global de T-NPS</span>
+          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Satisfação Global (T-NPS)</span>
         </div>
         
         <div className="glass-panel p-8 bg-white/40 rounded-[2.5rem] flex flex-col gap-4 border border-white items-center text-center justify-center shadow-sm hover:bg-white/50 transition-colors">
           <div className="w-14 h-14 rounded-2xl bg-blue-500/10 text-blue-600 flex items-center justify-center mb-2 border border-blue-500/20 shadow-inner"><Activity size={24} /></div>
           <span className="font-elegant text-5xl text-[var(--color-atelier-grafite)] leading-none">94%</span>
-          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Entregas no Prazo (On-Time)</span>
+          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Entregas no Prazo</span>
         </div>
 
         <div className="glass-panel p-8 bg-[var(--color-atelier-terracota)]/5 border border-[var(--color-atelier-terracota)]/20 rounded-[2.5rem] flex flex-col items-center text-center justify-center shadow-sm hover:bg-[var(--color-atelier-terracota)]/10 transition-colors">
           <div className="w-14 h-14 rounded-full bg-[var(--color-atelier-terracota)] text-white flex items-center justify-center mb-4 shadow-lg border border-white/50"><Medal size={24} /></div>
           <span className="font-roboto text-[14px] font-bold text-[var(--color-atelier-grafite)]">{teamHealth[0]?.nome || "Membro"}</span>
-          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mt-1">Top Performer do Mês</span>
+          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mt-1">Destaque do Mês</span>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 w-full">
         
-        {/* LEADERBOARD DA EQUIPA (GAMIFICAÇÃO) */}
+        {/* PAINEL DE DESEMPENHO DA EQUIPA */}
         <div className="lg:col-span-8 glass-panel bg-white/40 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden h-[450px]">
           <div className="flex justify-between items-end border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-6 shrink-0">
-            <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">Leaderboard de Produtividade</h3>
+            <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">Painel de Desempenho</h3>
           </div>
           
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4">
@@ -83,7 +83,7 @@ export default function HealthMetrics({
 
                   <div className="flex-1 w-full flex flex-col gap-2">
                     <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">
-                      <span>Experiência (EXP)</span>
+                      <span>Progresso (XP)</span>
                       <span className="text-[var(--color-atelier-terracota)]">{member.perf.exp_points} / {nextLevelExp}</span>
                     </div>
                     <div className="h-2 w-full bg-[var(--color-atelier-grafite)]/5 rounded-full overflow-hidden shadow-inner">
@@ -112,10 +112,10 @@ export default function HealthMetrics({
           </div>
         </div>
 
-        {/* FEEDBACKS T-NPS RECENTES */}
+        {/* AVALIAÇÕES T-NPS RECENTES */}
         <div className="lg:col-span-4 glass-panel bg-white/40 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden h-[450px]">
           <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-6 flex items-center justify-between shrink-0">
-            <span>Feedbacks (T-NPS)</span>
+            <span>Avaliações de Clientes (T-NPS)</span>
             <HeartPulse size={20} className="text-[var(--color-atelier-terracota)]" />
           </h3>
           
@@ -131,7 +131,7 @@ export default function HealthMetrics({
                   <div className="flex justify-between items-start">
                     <div className="flex flex-col pr-2">
                       <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] leading-tight">{nps.client}</span>
-                      <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-1">Resp: {nps.member}</span>
+                      <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-1">Responsável: {nps.member}</span>
                     </div>
                     <div className={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-[11px] font-bold shadow-inner ${nps.score >= 9 ? 'bg-green-100 text-green-700 border border-green-200' : nps.score >= 7 ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' : 'bg-red-100 text-red-700 border border-red-200'}`}>
                       {nps.score}

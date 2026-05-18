@@ -35,7 +35,7 @@ export default function JTBDPage() {
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isRescheduling, setIsRescheduling] = useState<string | null>(null);
   
-  // Ad-Hoc Grenades
+  // Atribuição de Tarefas Ad-Hoc
   const [projects, setProjects] = useState<any[]>([]);
   const [isAdHocModalOpen, setIsAdHocModalOpen] = useState(false);
   const [adHocProcessing, setAdHocProcessing] = useState(false);
@@ -124,7 +124,7 @@ export default function JTBDPage() {
 
       AtelierPMEngine.prioritizeDailyTriage(profile.id);
     } catch (error) {
-      showToast("Erro ao carregar o Centro de Operações.");
+      showToast("Erro ao carregar a Mesa de Trabalho.");
     } finally {
       setIsLoading(false);
     }
@@ -158,7 +158,7 @@ export default function JTBDPage() {
       if (error) throw error;
 
     } catch (error) {
-      showToast("Erro ao sincronizar missão.");
+      showToast("Erro ao sincronizar tarefa.");
       fetchJTBDData();
     }
   };
@@ -178,7 +178,7 @@ export default function JTBDPage() {
       setAllTasks(prev => prev.map(t => t.id === task.id ? { ...t, deadline: newDateStr } : t));
       
       await CalendarEngine.rescheduleTask(task.id, newDateStr);
-      showToast("Missão adiada para o próximo dia útil.");
+      showToast("Tarefa adiada para o próximo dia útil.");
     } catch (e) {
       showToast("Erro ao reagendar.");
       fetchJTBDData();
@@ -224,7 +224,7 @@ export default function JTBDPage() {
 
       if (error) throw error;
       
-      // 🔔 NOTIFICAÇÃO: Disparo Direto (Lançar Granada)
+      // 🔔 NOTIFICAÇÃO: Disparo Direto (Lançar Prioridade)
       if (adHocForm.assigneeId !== currentUser.id) {
          await NotificationEngine.notifyUser(
            adHocForm.assigneeId,
@@ -235,12 +235,12 @@ export default function JTBDPage() {
          );
       }
 
-      showToast("🔥 Granada injetada com sucesso!");
+      showToast("🔥 Prioridade atribuída com sucesso!");
       setIsAdHocModalOpen(false);
       setAdHocForm({ title: "", projectId: "", assigneeId: "", estTime: 60, deadline: "", description: "" });
       fetchJTBDData();
     } catch (e) {
-      showToast("Falha ao disparar granada.");
+      showToast("Falha ao atribuir prioridade.");
     } finally {
       setAdHocProcessing(false);
     }
@@ -290,7 +290,7 @@ export default function JTBDPage() {
 
         </div>
 
-        {/* COLUNA DIREITA (CHÃO DE FÁBRICA KANBAN - OCUPA TODA A ALTURA) */}
+        {/* COLUNA DIREITA (PAINEL PRINCIPAL KANBAN - OCUPA TODA A ALTURA) */}
         {/* 3. A caixa do Daily Kanban agora flui sem cortes */}
         <div className="flex-1 flex flex-col h-full pb-6 relative z-10">
           <DailyKanban 
@@ -320,18 +320,18 @@ export default function JTBDPage() {
           {/* Menu Oculto (Aparece ao passar o rato na área) */}
           <div className="flex flex-col-reverse items-end gap-3 opacity-0 translate-y-4 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 origin-bottom">
             
-            {/* Lançar Granada */}
+            {/* Atribuir Prioridade */}
             <button 
               onClick={() => setIsAdHocModalOpen(true)} 
               className="flex items-center gap-2 bg-red-500 text-white px-5 py-3 rounded-full shadow-lg hover:bg-red-600 transition-colors font-bold text-sm"
             >
-               <span>Lançar Granada</span> <Flame size={18} />
+               <span>Atribuir Prioridade</span> <Flame size={18} />
             </button>
             
             {/* Divisor Visual */}
             <div className="w-12 h-[1px] bg-gray-300 mr-2 my-1"></div>
 
-            {/* Avatares da Equipa */}
+            {/* Avatares da Equipe */}
             {team.map(user => (
               <button 
                 key={user.id} 

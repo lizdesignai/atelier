@@ -166,7 +166,7 @@ export default function CanaisClientePage() {
     if (!file || !activeChannelId || !userId) return;
 
     setIsUploadingAttachment(true);
-    showToast("A enviar anexo para a equipa...");
+    showToast("Enviando anexo para a equipe...");
 
     try {
       const fileExt = file.name.split('.').pop();
@@ -186,20 +186,20 @@ export default function CanaisClientePage() {
       });
       if (dbError) throw dbError;
 
-      // 🔔 NOTIFICAÇÃO: Avisa a gestão de que o cliente enviou um ficheiro
+      // 🔔 NOTIFICAÇÃO: Avisa a gestão de que o cliente enviou um arquivo
       await NotificationEngine.notifyManagement(
         `📎 Chat: Anexo de ${clientName}`,
-        `O cliente partilhou um novo ficheiro no canal #${activeChannel?.name}.`,
+        `O cliente enviou um novo arquivo no canal #${activeChannel?.name}.`,
         "info",
         "/admin/inbox"
       );
 
       setMessageText("");
-      showToast("Anexo partilhado com sucesso!");
+      showToast("Anexo compartilhado com sucesso!");
       scrollToBottom();
     } catch (error) {
       console.error(error);
-      showToast("Erro ao partilhar o anexo.");
+      showToast("Erro ao compartilhar o anexo.");
     } finally {
       setIsUploadingAttachment(false);
       e.target.value = ''; // Reset do input
@@ -207,7 +207,7 @@ export default function CanaisClientePage() {
   };
 
   const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+    return new Date(dateString).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   };
 
   const activeChannel = channels.find(ch => ch.id === activeChannelId);
@@ -215,18 +215,18 @@ export default function CanaisClientePage() {
   // Link real para agendar reunião
   const SCHEDULE_LINK = "https://calendly.com/"; 
 
-  // Ecrã de Loading Geral
+  // Tela de Carregamento Geral
   if (isLoading) {
     return <div className="flex h-full items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
   }
 
-  // Ecrã de Sem Projeto
+  // Tela de Sem Projeto
   if (!projectId) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-4 opacity-50">
         <MessageSquare size={48} className="text-[var(--color-atelier-grafite)]" />
         <h2 className="font-elegant text-3xl">Sem projetos ativos.</h2>
-        <p className="font-roboto text-sm font-medium">O Atelier ainda não ativou a sua Mesa de Trabalho.</p>
+        <p className="font-roboto text-sm font-medium">A equipe ainda não ativou o seu painel.</p>
       </div>
     );
   }
@@ -327,7 +327,7 @@ export default function CanaisClientePage() {
                   {activeChannel?.name || "Aguardando canais"}
                 </span>
                 <p className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">
-                  Comunicação direta com a equipa Atelier.
+                  Comunicação direta com a equipe.
                 </p>
               </div>
             </div>
@@ -340,13 +340,13 @@ export default function CanaisClientePage() {
                <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50 h-full">
                  <MessageSquare size={40} className="mb-4 text-[var(--color-atelier-terracota)]" />
                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Aguardando Início.</h3>
-                 <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 max-w-sm font-medium">O Atelier abrirá canais de comunicação conforme a evolução do projeto.</p>
+                 <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 max-w-sm font-medium">A equipe abrirá canais de comunicação conforme a evolução do projeto.</p>
                </div>
             ) : messages.length === 0 ? (
               <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50 h-full">
                 <MessageSquare size={40} className="mb-4 text-[var(--color-atelier-terracota)]" />
                 <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Este canal está silencioso.</h3>
-                <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 max-w-sm font-medium">A equipa do Atelier partilhará as atualizações referentes a este tópico aqui.</p>
+                <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 max-w-sm font-medium">A equipe compartilhará as atualizações referentes a este tópico aqui.</p>
               </div>
             ) : (
               <div className="flex justify-center mb-2 shrink-0">
@@ -458,7 +458,7 @@ export default function CanaisClientePage() {
               </button>
             </div>
             <div className="flex items-center justify-center gap-2 mt-4 text-[9px] font-roboto uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">
-               <ShieldCheck size={12} /> Toda a comunicação partilhada aqui é encriptada e exclusiva do seu projeto.
+               <ShieldCheck size={12} /> Toda a comunicação compartilhada aqui é protegida e exclusiva do seu projeto.
             </div>
           </form>
 

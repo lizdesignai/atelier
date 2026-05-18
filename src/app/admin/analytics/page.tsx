@@ -196,7 +196,7 @@ export default function AnalyticsPage() {
 
     } catch (error) {
       console.error("Erro no Analytics:", error);
-      showToast("Erro ao sincronizar Centro de Operações.");
+      showToast("Erro ao sincronizar os dados gerais.");
     } finally {
       setIsLocalLoading(false);
     }
@@ -226,13 +226,13 @@ export default function AnalyticsPage() {
       
       // 🔔 NOTIFICAÇÃO: Gestão
       await NotificationEngine.notifyManagement(
-        "🤖 Despacho Automático Concluído",
-        "O Motor de IA alocou com sucesso as tarefas pendentes na fila da equipa.",
+        "🤖 Atribuição Automática Concluída",
+        "O Assistente alocou com sucesso as tarefas pendentes para a equipe.",
         "success",
         "/admin/analytics"
       );
 
-      showToast("Automação executada: O Motor alocou as tarefas pendentes.");
+      showToast("Automação executada: As tarefas pendentes foram alocadas.");
       fetchOperationalData();
     } catch (e) {
       showToast("Erro na distribuição autónoma.");
@@ -245,10 +245,10 @@ export default function AnalyticsPage() {
     try {
       const { error } = await supabase.from('tasks').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', taskId);
       if (error) throw error;
-      showToast("Missão concluída com sucesso!");
+      showToast("Tarefa concluída com sucesso!");
       fetchOperationalData();
     } catch (e) {
-      showToast("Erro ao finalizar missão.");
+      showToast("Erro ao finalizar tarefa.");
     }
   };
 
@@ -322,15 +322,15 @@ export default function AnalyticsPage() {
 
   const handleBulkRuleDelete = async () => {
     if (selectedRuleIds.length === 0) return;
-    if (!window.confirm(`Apagar ${selectedRuleIds.length} regras de automação?`)) return;
+    if (!window.confirm(`Remover estas ${selectedRuleIds.length} automações?`)) return;
     setIsProcessing(true);
     try {
       await supabase.from('routing_rules').delete().in('id', selectedRuleIds);
-      showToast(`${selectedRuleIds.length} regras removidas!`);
+      showToast(`${selectedRuleIds.length} automações removidas!`);
       setSelectedRuleIds([]);
       fetchOperationalData();
     } catch(e) {
-      showToast("Erro ao remover regras.");
+      showToast("Erro ao remover automação.");
     } finally {
       setIsProcessing(false);
     }
@@ -359,17 +359,17 @@ export default function AnalyticsPage() {
       // 🔔 NOTIFICAÇÃO: Colaborador Alvo
       await NotificationEngine.notifyUser(
         adHocDemand.assigneeId,
-        "🔥 Nova Demanda Ad-Hoc",
-        `Foi-lhe atribuída a demanda imediata: ${adHocDemand.title}`,
+        "Nova Demanda Pontual",
+        `Foi atribuída uma nova prioridade: ${adHocDemand.title}`,
         "warning",
         "/admin/jtbd"
       );
 
-      showToast("🔥 Demanda injetada na fila do colaborador!");
+      showToast("Demanda adicionada às tarefas do colaborador!");
       setAdHocDemand({ title: "", projectId: "", assigneeId: "", taskType: "", urgency: false });
       fetchOperationalData();
     } catch (e) {
-      showToast("Erro ao injetar demanda.");
+      showToast("Erro ao adicionar demanda.");
     } finally {
       setIsProcessing(false);
     }
@@ -438,7 +438,7 @@ export default function AnalyticsPage() {
       let pipeline = [];
       if (isIdv) {
         if (hasPreviousTasks) {
-          showToast("Atenção: O pipeline de IDV já foi instanciado.");
+          showToast("Atenção: O fluxo de Identidade Visual já foi iniciado.");
           setIsProcessing(false); return;
         }
         pipeline = IDV_PIPELINE;
@@ -494,25 +494,25 @@ export default function AnalyticsPage() {
 
       // 🔔 NOTIFICAÇÕES: Gestão e Cliente
       await NotificationEngine.notifyManagement(
-        "🚀 Pipeline Instanciado",
-        `O ciclo operacional para o projeto ${project.profiles?.nome || 'Cliente'} foi ativado com sucesso.`,
+        "🚀 Produção Iniciada",
+        `O ciclo de trabalho para o projeto ${project.profiles?.nome || 'Cliente'} foi ativado com sucesso.`,
         "success",
         "/admin/projetos"
       );
       
       await NotificationEngine.notifyUser(
         project.client_id,
-        "🔄 Novo Ciclo Operacional",
-        "O Atelier ativou o seu novo ciclo de produção. A nossa equipa já está a trabalhar nos seus novos ativos.",
+        "🔄 Novo Ciclo de Trabalho",
+        "O Atelier iniciou o seu novo ciclo. Nossa equipe já está trabalhando nos seus materiais.",
         "info",
         "/cockpit"
       );
 
-      showToast(hasPreviousTasks ? "🔄 Ciclo Mensal Renovado!" : "🚀 Pipeline Inteligente Instanciado!");
+      showToast(hasPreviousTasks ? "🔄 Ciclo Mensal Renovado!" : "🚀 Produção Iniciada com Sucesso!");
       fetchOperationalData();
     } catch (error) {
       console.error(error);
-      showToast("Erro no Deploy do Pipeline.");
+      showToast("Erro ao iniciar a produção.");
     } finally {
       setIsProcessing(false);
     }
@@ -531,7 +531,7 @@ export default function AnalyticsPage() {
       }, { onConflict: 'project_id, task_type' });
 
       if (error) throw error;
-      showToast("🎯 Regra de Roteamento estabelecida!");
+      showToast("🎯 Automação gravada com sucesso!");
       fetchOperationalData(); 
     } catch (error) {
       showToast("Erro ao salvar regra.");
@@ -541,13 +541,13 @@ export default function AnalyticsPage() {
   };
 
   const handleDeleteRule = async (ruleId: string) => {
-    if (!window.confirm("Remover esta regra de roteamento?")) return;
+    if (!window.confirm("Remover esta automação?")) return;
     try {
       await supabase.from('routing_rules').delete().eq('id', ruleId);
-      showToast("Regra removida.");
+      showToast("Automação removida.");
       fetchOperationalData();
     } catch (error) {
-      showToast("Erro ao remover regra.");
+      showToast("Erro ao remover automação.");
     }
   };
 
@@ -564,7 +564,7 @@ export default function AnalyticsPage() {
       }).eq('id', editingTask.id);
       
       if (error) throw error;
-      showToast("Tarefa sincronizada com o JTBD!");
+      showToast("Tarefa sincronizada com a Mesa de Trabalho!");
       setEditingTask(null);
       fetchOperationalData();
     } catch (e) {
@@ -638,9 +638,9 @@ export default function AnalyticsPage() {
             <span className="bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] w-8 h-8 rounded-xl flex items-center justify-center">
               <BrainCircuit size={16} className="text-[var(--color-atelier-terracota)]" />
             </span>
-            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Engenharia Operacional</span>
+            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Gestão do Estúdio</span>
           </div>
-          <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Oráculo & <span className="text-[var(--color-atelier-terracota)] italic">Analytics.</span></h1>
+          <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Estratégia & <span className="text-[var(--color-atelier-terracota)] italic">Analytics.</span></h1>
         </div>
         
         <div className="flex items-center gap-2">
@@ -653,16 +653,16 @@ export default function AnalyticsPage() {
            </button>
            
            <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0">
-              <button onClick={() => setActiveView('overview')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'overview' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Dashboard</button>
+              <button onClick={() => setActiveView('overview')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'overview' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Visão Geral</button>
               <button onClick={() => setActiveView('projects')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'projects' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Visão de Projetos</button>
-              <button onClick={() => setActiveView('routing')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'routing' ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Motor de Routing</button>
+              <button onClick={() => setActiveView('routing')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'routing' ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Encaminhamento Estratégico</button>
            </div>
 
            {/* 🚀 O BOTÃO DO SINO DO ORÁCULO AQUI (À Direita de Tudo) */}
            <button 
              onClick={() => setIsOracleOpen(true)} 
              className="flex items-center justify-center w-10 h-10 ml-2 bg-white/70 border border-white hover:bg-white rounded-xl shadow-sm transition-all text-[var(--color-atelier-grafite)] hover:shadow-md relative"
-             title="Painel do Oráculo"
+             title="Alertas do Sistema"
            >
               <Bell size={18} className="text-[var(--color-atelier-terracota)]" />
               {systemAlerts.length > 0 && (
@@ -808,8 +808,8 @@ export default function AnalyticsPage() {
                       <Cpu size={24} />
                    </div>
                    <div>
-                     <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">Oráculo</h2>
-                     <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1 block">Central de Automação</span>
+                     <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">Assistente Estratégico</h2>
+                     <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1 block">Controle de Processos</span>
                    </div>
                  </div>
                  <button onClick={() => setIsOracleOpen(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-red-50 hover:text-red-500 transition-colors">
@@ -823,7 +823,7 @@ export default function AnalyticsPage() {
                  {/* Secção 1: Controlo do Motor */}
                  <div>
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-roboto text-[11px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">Motor Operacional</h3>
+                      <h3 className="font-roboto text-[11px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">Gestão de Fluxo</h3>
                     </div>
                     <div className="bg-gray-50 rounded-2xl p-5 border border-gray-100 flex flex-col gap-5 shadow-sm">
                        <div className="flex items-center justify-between">
@@ -848,7 +848,7 @@ export default function AnalyticsPage() {
                          className="w-full py-3.5 bg-[var(--color-atelier-grafite)] text-white rounded-xl text-[11px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-sm disabled:opacity-50"
                        >
                          {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <Play size={14} fill="currentColor"/>}
-                         Forçar Despacho de Tarefas
+                         Atribuir Tarefas Automaticamente
                        </button>
                     </div>
                  </div>
@@ -856,7 +856,7 @@ export default function AnalyticsPage() {
                  {/* Secção 2: Caixa de Entrada (Alertas do Sistema) */}
                  <div>
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="font-roboto text-[11px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">Inbox (Anomalias de Sistema)</h3>
+                      <h3 className="font-roboto text-[11px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">Avisos e Alertas (Sistema)</h3>
                       {systemAlerts.length > 0 && <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded-full text-[10px] font-bold">{systemAlerts.length} pendentes</span>}
                     </div>
                     
@@ -864,8 +864,8 @@ export default function AnalyticsPage() {
                       {systemAlerts.length === 0 ? (
                          <div className="text-center py-10 opacity-40 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
                             <CheckSquare size={32} className="mx-auto mb-3 text-[var(--color-atelier-grafite)]" />
-                            <p className="font-elegant text-2xl">Inbox Limpa.</p>
-                            <p className="text-[11px] font-roboto max-w-[200px] mx-auto mt-1">O motor de IA não detetou desvios de orçamento ou gargalos.</p>
+                            <p className="font-elegant text-2xl">Sem Avisos.</p>
+                            <p className="text-[11px] font-roboto max-w-[200px] mx-auto mt-1">O sistema não identificou atrasos ou desvios.</p>
                          </div>
                       ) : (
                          systemAlerts.map(alert => (

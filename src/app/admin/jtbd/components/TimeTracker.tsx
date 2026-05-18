@@ -19,7 +19,7 @@ export default function TimeTracker({ allUserTasks }: TimeTrackerProps) {
   const trackedTasks = allUserTasks.filter(t => 
     t.actual_time > 0 || t.status === 'in_progress' || t.status === 'review' || t.status === 'completed'
   ).sort((a, b) => {
-    // Ordena para mostrar as "Em Foco" no topo e as recém alteradas a seguir
+    // Ordena para mostrar as tarefas "Em Andamento" no topo e as recém alteradas a seguir
     if (a.status === 'in_progress') return -1;
     if (b.status === 'in_progress') return 1;
     return new Date(b.updated_at || b.created_at).getTime() - new Date(a.updated_at || a.created_at).getTime();
@@ -45,10 +45,10 @@ export default function TimeTracker({ allUserTasks }: TimeTrackerProps) {
     <div className="w-full h-full glass-panel bg-white/60 p-6 rounded-[2.5rem] border border-white shadow-sm flex flex-col overflow-hidden">
       <div className="flex justify-between items-center border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-4 shrink-0">
         <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
-          <Clock size={20} className="text-[var(--color-atelier-terracota)]"/> Time Tracker
+          <Clock size={20} className="text-[var(--color-atelier-terracota)]"/> Monitoramento de Tempo
         </h3>
         <span className="bg-[var(--color-atelier-grafite)]/5 px-2 py-1 rounded text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60">
-          Tempo Gasto
+          Tempo Investido
         </span>
       </div>
 
@@ -56,7 +56,7 @@ export default function TimeTracker({ allUserTasks }: TimeTrackerProps) {
         {trackedTasks.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full opacity-40 text-center">
             <Clock size={32} className="mb-2 text-[var(--color-atelier-grafite)]" />
-            <p className="font-roboto text-[11px] font-bold uppercase tracking-widest">Nenhum tempo registado</p>
+            <p className="font-roboto text-[11px] font-bold uppercase tracking-widest">Nenhum tempo registrado</p>
           </div>
         ) : (
           trackedTasks.map(task => {

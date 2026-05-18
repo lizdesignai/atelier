@@ -49,7 +49,7 @@ export default function CuradoriaPage() {
   const [newPinText, setNewPinText] = useState("");
   const imageRef = useRef<HTMLImageElement>(null);
   
-  // Animação de Double Tap
+  // Animação de Toque Duplo
   const [showHeart, setShowHeart] = useState(false);
 
   useEffect(() => {
@@ -111,7 +111,7 @@ export default function CuradoriaPage() {
     if (posts.length > 0 && posts[currentIndex]) {
       fetchPins(posts[currentIndex].id);
       setIsPinMode(false);
-      setNewPinCoords(null);
+      newPinCoords && setNewPinCoords(null);
     }
   }, [currentIndex, posts]);
 
@@ -151,10 +151,10 @@ export default function CuradoriaPage() {
 
       await supabase.from('social_posts').update({ status: 'needs_revision' }).eq('id', currentPostId);
 
-      // 🔔 NOTIFICAÇÃO: Avisa a gestão de que o cliente marcou um ajuste na imagem (Modo Figma)
+      // 🔔 NOTIFICAÇÃO: Avisa a gestão de que o cliente marcou um ajuste na imagem
       await NotificationEngine.notifyManagement(
         "📍 Revisão Visual Solicitada",
-        `O cliente ${clientProfile?.nome?.split(' ')[0]} inseriu um novo apontamento visual na peça criativa (Fluxo de Impacto).`,
+        `O cliente ${clientProfile?.nome?.split(' ')[0]} inseriu um novo apontamento visual na peça criativa para aprovação.`,
         "warning",
         "/admin/curadoria" // Rota hipotética do admin para ver os pins
       );
@@ -185,7 +185,7 @@ export default function CuradoriaPage() {
       if (status === 'approved') {
         await NotificationEngine.notifyManagement(
           "✅ Arte Aprovada!",
-          `O cliente ${clientProfile?.nome?.split(' ')[0]} aprovou a peça criativa no Fluxo de Impacto. Pronto a agendar.`,
+          `O cliente ${clientProfile?.nome?.split(' ')[0]} aprovou a peça criativa. Pronta para agendar.`,
           "success",
           "/admin/curadoria" 
         );
@@ -193,7 +193,7 @@ export default function CuradoriaPage() {
         await NotificationEngine.notifyManagement(
           "❌ Arte Recusada",
           `O cliente ${clientProfile?.nome?.split(' ')[0]} devolveu a peça criativa para revisão.`,
-          "warning", // Correção: Trocado de "error" para "warning" para respeitar a tipagem do NotificationEngine
+          "warning", 
           "/admin/curadoria"
         );
       }
@@ -205,7 +205,7 @@ export default function CuradoriaPage() {
       if (currentIndex >= newPosts.length) {
         setCurrentIndex(Math.max(0, newPosts.length - 1));
       }
-      showToast(status === 'approved' ? "Aprovado para Publicação! ✨" : "Devolvido para a nossa Mesa Criativa.");
+      showToast(status === 'approved' ? "Aprovado para Publicação! ✨" : "Devolvido para a nossa Equipe de Criação.");
     } catch (error) {
       showToast("Erro ao processar ação.");
     } finally {
@@ -244,12 +244,12 @@ export default function CuradoriaPage() {
           <div className="w-24 h-24 rounded-full bg-green-50 flex items-center justify-center mb-6 shadow-inner border border-green-100">
             <CheckCircle2 size={40} className="text-green-500" />
           </div>
-          <h2 className="font-elegant text-5xl mb-4 text-[var(--color-atelier-grafite)]">Mesa Limpa.</h2>
+          <h2 className="font-elegant text-5xl mb-4 text-[var(--color-atelier-grafite)]">Tudo Aprovado.</h2>
           <p className="font-roboto text-[14px] font-medium text-[var(--color-atelier-grafite)]/60 mb-10 leading-relaxed">
-            Não há artes a aguardar a sua aprovação no momento. A nossa equipa criativa está a operar nos bastidores para garantir a excelência do seu próximo conteúdo.
+            Não há artes aguardando a sua aprovação no momento. A nossa equipe de design continua operando nos bastidores para garantir a excelência do seu próximo conteúdo.
           </p>
-          <button onClick={() => router.push('/cockpit')} className="w-full py-5 bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] rounded-[1.5rem] font-roboto text-[11px] uppercase tracking-[0.1em] font-bold transition-all shadow-xl flex items-center justify-center gap-3 hover:-translate-y-1">
-            <ArrowLeft size={16} /> Voltar ao Painel Central
+          <button onClick={() => router.push('/meu-espaco')} className="w-full py-5 bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] rounded-[1.5rem] font-roboto text-[11px] uppercase tracking-[0.1em] font-bold transition-all shadow-xl flex items-center justify-center gap-3 hover:-translate-y-1">
+            <ArrowLeft size={16} /> Voltar ao Painel Principal
           </button>
         </motion.div>
       </div>
@@ -266,7 +266,7 @@ export default function CuradoriaPage() {
       
       {/* HEADER MOBILE */}
       <div className="lg:hidden w-full p-6 flex justify-between items-center bg-black/60 backdrop-blur-xl z-50 border-b border-white/5 absolute top-0 left-0">
-        <button onClick={() => router.push('/cockpit')} className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-[10px] uppercase tracking-widest font-bold bg-white/5 px-4 py-2 rounded-full border border-white/10">
+        <button onClick={() => router.push('/meu-espaco')} className="flex items-center gap-2 text-white/60 hover:text-white transition-colors text-[10px] uppercase tracking-widest font-bold bg-white/5 px-4 py-2 rounded-full border border-white/10">
           <ArrowLeft size={14} /> Sair
         </button>
         <div className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] bg-[var(--color-atelier-terracota)]/10 px-4 py-2 rounded-full border border-[var(--color-atelier-terracota)]/20 shadow-sm">
@@ -293,15 +293,15 @@ export default function CuradoriaPage() {
 
         {/* Header Desktop Imersivo */}
         <div className="hidden lg:flex absolute top-8 left-8 right-8 justify-between items-center z-30 pointer-events-none">
-          <button onClick={() => router.push('/cockpit')} className="pointer-events-auto flex items-center gap-2 text-white hover:text-[var(--color-atelier-terracota)] transition-colors text-[10px] uppercase tracking-widest font-bold bg-white/10 backdrop-blur-xl px-6 py-3 rounded-full border border-white/20 shadow-2xl hover:bg-white/20">
-            <ArrowLeft size={16} /> Retornar ao Estúdio
+          <button onClick={() => router.push('/meu-espaco')} className="pointer-events-auto flex items-center gap-2 text-white hover:text-[var(--color-atelier-terracota)] transition-colors text-[10px] uppercase tracking-widest font-bold bg-white/10 backdrop-blur-xl px-6 py-3 rounded-full border border-white/20 shadow-2xl hover:bg-white/20">
+            <ArrowLeft size={16} /> Retornar ao Meu Espaço
           </button>
           <div className="font-roboto text-[10px] uppercase tracking-widest font-bold text-white bg-black/40 backdrop-blur-xl px-6 py-3 rounded-full border border-white/10 flex items-center gap-3 shadow-2xl">
             <Sparkles size={14} className="text-[var(--color-atelier-terracota)]" /> Curadoria Visual <span className="text-white/20">|</span> {currentIndex + 1} de {posts.length}
           </div>
         </div>
         
-        {/* MOCKUP DO TELEMÓVEL (High-End) */}
+        {/* MOCKUP DO CELULAR (High-End) */}
         <div className="flex-1 flex flex-col items-center justify-center p-4 pt-28 lg:pt-4 relative z-20 overflow-y-auto custom-scrollbar pb-[140px] lg:pb-36">
           
           <motion.div 
@@ -358,7 +358,7 @@ export default function CuradoriaPage() {
                 </div>
               )}
 
-              {/* Animação do Coração (Double Tap) */}
+              {/* Animação do Coração (Toque Duplo) */}
               <AnimatePresence>
                 {showHeart && (
                   <motion.div initial={{ scale: 0, opacity: 0 }} animate={{ scale: 1.2, opacity: 1 }} exit={{ scale: 0, opacity: 0 }} transition={{ type: "spring" }} className="absolute inset-0 flex items-center justify-center z-40 drop-shadow-2xl">
@@ -439,7 +439,7 @@ export default function CuradoriaPage() {
                <div className="px-4 pb-6 overflow-y-auto custom-scrollbar flex-1 max-h-[150px]">
                  <p className="text-[13px] text-black leading-relaxed whitespace-pre-wrap font-medium">
                    <span className="font-bold mr-2 text-[14px]">{clientProfile?.nome?.split(' ')[0] || 'sua_marca'}</span>
-                   {currentPost?.caption || <span className="text-gray-400 italic">A legenda deste conteúdo está sendo processada ou não foi fornecida.</span>}
+                   {currentPost?.caption || <span className="text-gray-400 italic">Aguardando texto final da equipe de redação.</span>}
                  </p>
                </div>
             </div>
@@ -470,16 +470,16 @@ export default function CuradoriaPage() {
         )}
       </div>
 
-      {/* BARRA LATERAL DIREITA - THE INSPECTOR (Glassmorphism Luxo) */}
+      {/* BARRA LATERAL DIREITA - PAINEL DE AVALIAÇÃO (Glassmorphism Luxo) */}
       <div className="w-full lg:w-[420px] bg-black/40 backdrop-blur-3xl border-l border-white/10 flex flex-col shrink-0 shadow-[-30px_0_60px_rgba(0,0,0,0.8)] z-40 relative h-full">
         
         <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
           
           <div className="mb-10 flex flex-col gap-2">
             <span className="bg-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-terracota)] border border-[var(--color-atelier-terracota)]/30 px-3.5 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest w-fit backdrop-blur-md shadow-sm">
-              Aprovação Rápida = Double Tap na Imagem
+              Aprovação Rápida = Toque Duplo na Imagem
             </span>
-            <h2 className="font-elegant text-4xl text-white mt-3">Visão do Estrategista</h2>
+            <h2 className="font-elegant text-4xl text-white mt-3">Visão Estratégica</h2>
           </div>
 
           <div className="mb-8 bg-white/5 backdrop-blur-xl p-6 md:p-8 rounded-[2.5rem] border border-white/10 shadow-inner">
@@ -487,7 +487,7 @@ export default function CuradoriaPage() {
               <MessageSquare size={14} className="text-[var(--color-atelier-terracota)]"/> Legenda Oficial
             </span>
             <p className="text-[13px] text-white/90 leading-relaxed whitespace-pre-wrap font-medium max-h-56 overflow-y-auto custom-scrollbar pr-2">
-              {currentPost?.caption || <span className="text-white/30 italic">A aguardar redação final da equipa de Copy.</span>}
+              {currentPost?.caption || <span className="text-white/30 italic">Aguardando texto final da equipe de redação.</span>}
             </p>
           </div>
 
@@ -498,7 +498,7 @@ export default function CuradoriaPage() {
               </div>
               <div className="flex flex-col">
                 <span className="text-white/50 text-[10px] font-bold uppercase tracking-widest block mb-1">Agendamento Estratégico</span>
-                <span className="text-[15px] text-white font-bold">{new Date(currentPost.publish_date).toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
+                <span className="text-[15px] text-white font-bold">{new Date(currentPost.publish_date).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' })}</span>
               </div>
             </div>
           )}

@@ -84,7 +84,7 @@ export default function RelatoriosView({ activeProjectId, currentProject }: Rela
     }
 
     setIsGenerating(true);
-    showToast("A invocar o Motor CMO... A extrair dados do Instagram.");
+    showToast("Iniciando o Assistente Estratégico... A extrair dados do Instagram.");
 
     try {
       const res = await fetch('/api/reports/generate', {
@@ -96,7 +96,7 @@ export default function RelatoriosView({ activeProjectId, currentProject }: Rela
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || "Falha na geração");
       
-      showToast("Relatório forjado com sucesso! Atualizando tela...");
+      showToast("Relatório gerado com sucesso! Atualizando tela...");
       
       // Força um refresh local para exibir o novo rascunho sem recarregar a página
       const { data: report } = await supabase.from('monthly_reports').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false }).limit(1).single();
@@ -134,7 +134,7 @@ export default function RelatoriosView({ activeProjectId, currentProject }: Rela
     if (!currentReport || !currentProject || !recentSnapshot) return;
     
     setIsSaving(true);
-    showToast("A forjar PDF executivo de alta resolução...");
+    showToast("Criando PDF executivo de alta resolução...");
     
     try {
       const doc = <RelatorioMensalPDF 
@@ -154,7 +154,7 @@ export default function RelatoriosView({ activeProjectId, currentProject }: Rela
 
       const fileName = `${currentProject.id}/${currentReport.report_month_year.split('T')[0]}_Relatorio.pdf`;
       
-      showToast("A enviar documento para o Cofre do Cliente...");
+      showToast("Enviando documento para o espaço do cliente...");
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('reports')
         .upload(fileName, blob, { contentType: 'application/pdf', upsert: true });
@@ -177,7 +177,7 @@ export default function RelatoriosView({ activeProjectId, currentProject }: Rela
         "📊 Novo Relatório Estratégico",
         "O seu relatório executivo deste mês já está disponível para análise e download.",
         "success",
-        "/cockpit/relatorios" 
+        "/meu-espaco/relatorios" 
       );
 
       await fetch('/api/notify', {
@@ -237,12 +237,12 @@ export default function RelatoriosView({ activeProjectId, currentProject }: Rela
             {isGenerating ? (
               <><Loader2 size={16} className="animate-spin" /> Processando Dados...</>
             ) : (
-              <><Sparkles size={16} className="text-[var(--color-atelier-terracota)]"/> Forjar Novo Relatório</>
+              <><Sparkles size={16} className="text-[var(--color-atelier-terracota)]"/> Gerar Novo Relatório</>
             )}
           </button>
         ) : (
           <button onClick={() => window.open(currentReport.pdf_url, '_blank')} className="px-6 py-4 rounded-[1.2rem] bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] hover:bg-gray-50 transition-all shadow-sm flex items-center justify-center gap-2 hover:-translate-y-0.5">
-            <Download size={16} className="text-[var(--color-atelier-terracota)]"/> Baixar PDF Oficial
+            <Download size={16} className="text-[var(--color-atelier-terracota)]"/> Descarregar PDF Oficial
           </button>
         )}
       </div>
@@ -253,14 +253,14 @@ export default function RelatoriosView({ activeProjectId, currentProject }: Rela
             <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: Infinity }} className="w-20 h-20 bg-[var(--color-atelier-terracota)]/10 rounded-full flex items-center justify-center mb-6 shadow-inner">
               <Sparkles size={32} className="text-[var(--color-atelier-terracota)]" />
             </motion.div>
-            <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">O CMO está a redigir a análise...</h3>
+            <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">O Assistente está redigindo a análise...</h3>
             <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/50 mt-2 font-medium">Extraindo métricas, cruzando dados e desenhando o plano de ação.</p>
         </div>
       ) : !currentReport ? (
         <div className="flex-1 flex flex-col items-center justify-center bg-white/20 opacity-50 p-8 text-center">
             <FileText size={48} className="mb-4 text-[var(--color-atelier-grafite)]/40" />
             <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Nenhum relatório para este ciclo.</h3>
-            <p className="font-roboto text-[13px] mt-2 font-medium">Clique no botão "Forjar Novo Relatório" para iniciar a extração de dados do Apify e análise via Gemini.</p>
+            <p className="font-roboto text-[13px] mt-2 font-medium">Clique no botão "Gerar Novo Relatório" para iniciar a extração de dados do Apify e análise via Gemini.</p>
         </div>
       ) : (
         <div className="flex-1 overflow-y-auto custom-scrollbar p-8 md:p-12 flex flex-col gap-10 bg-gradient-to-b from-transparent to-white/40">

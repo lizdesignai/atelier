@@ -46,8 +46,8 @@ export default function RoutingEngine({
       <div className="w-full lg:w-1/3 glass-panel bg-[var(--color-atelier-grafite)] text-white p-8 rounded-[2.5rem] flex flex-col gap-6 shadow-lg h-fit relative overflow-hidden shrink-0">
         <div className="absolute -right-10 -top-10 w-40 h-40 bg-[var(--color-atelier-terracota)]/20 rounded-full blur-3xl pointer-events-none"></div>
         <div className="relative z-10 border-b border-white/10 pb-4">
-          <h3 className="font-elegant text-3xl mb-1">Distribuição de Regras</h3>
-          <p className="font-roboto text-[11px] text-white/50 uppercase tracking-widest">Delegar Fases Automáticas</p>
+          <h3 className="font-elegant text-3xl mb-1">Automação de Processos</h3>
+          <p className="font-roboto text-[11px] text-white/50 uppercase tracking-widest">Encaminhamento Estratégico</p>
         </div>
         
         <div className="flex flex-col gap-4 relative z-10">
@@ -71,9 +71,9 @@ export default function RoutingEngine({
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-white/60 ml-1">3. A quem vai pertencer?</span>
+            <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-white/60 ml-1">3. Responsável Direto</span>
             <select value={routeConfig.assigneeId} onChange={(e) => setRouteConfig({...routeConfig, assigneeId: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-[1.2rem] p-4 text-[13px] text-white outline-none cursor-pointer focus:border-[var(--color-atelier-terracota)]/50 transition-colors">
-              <option value="" disabled className="text-black">Responsável Direto...</option>
+              <option value="" disabled className="text-black">Escolher Membro...</option>
               {team.map(t => {
                 const isRecommended = routeConfig.taskType && t.skills?.includes(routeConfig.taskType);
                 return <option key={t.id} value={t.id} className="text-black">{t.nome} {isRecommended ? '⭐' : ''}</option>
@@ -82,7 +82,7 @@ export default function RoutingEngine({
           </div>
           
           <button onClick={handleSaveRule} disabled={isProcessing || !routeConfig.projectId || !routeConfig.taskType || !routeConfig.assigneeId} className="w-full mt-2 bg-[var(--color-atelier-terracota)] text-white py-4 rounded-[1.2rem] font-bold uppercase tracking-widest text-[11px] shadow-sm hover:bg-white hover:text-[var(--color-atelier-grafite)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:hover:bg-[var(--color-atelier-terracota)] disabled:hover:text-white hover:-translate-y-0.5 disabled:hover:translate-y-0">
-            {isProcessing ? <Loader2 className="animate-spin" size={16}/> : <GitMerge size={16}/>} Estabelecer Regra
+            {isProcessing ? <Loader2 className="animate-spin" size={16}/> : <GitMerge size={16}/>} Gravar Automação
           </button>
         </div>
       </div>
@@ -91,7 +91,7 @@ export default function RoutingEngine({
       <div className="flex-1 glass-panel p-8 rounded-[2.5rem] overflow-hidden flex flex-col h-full min-h-0">
         <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-6 mb-6 shrink-0 flex justify-between items-center">
           <div>
-            <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Matriz Ativa</h3>
+            <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Fluxos Ativos</h3>
             <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/60 mt-1">Conexões mapeadas para atribuição automática.</p>
           </div>
         </div>
@@ -140,7 +140,7 @@ export default function RoutingEngine({
                     <ChevronRight size={14} className="text-[var(--color-atelier-grafite)]/20 shrink-0"/>
                     
                     <div className="flex flex-col flex-1 pl-4">
-                      <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Vai para</span>
+                      <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Atribuído a</span>
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex items-center justify-center shadow-inner shrink-0">
                           {member?.avatar_url ? <img src={member.avatar_url} className="w-full h-full object-cover" /> : <UserCircle2 size={14} className="text-gray-300"/>}

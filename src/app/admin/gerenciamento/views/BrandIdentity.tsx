@@ -157,7 +157,7 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
            "⚠️ Briefing Devolvido (Revisão Necessária)",
            "O Estúdio solicita mais profundidade nas suas respostas. Por favor, reveja e reenvie o seu Dossiê de Marca.",
            "action",
-           "/cockpit"
+           "/meu-espaco"
          );
       }
       
@@ -172,7 +172,7 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
 
   // 3. FUNÇÃO: COMPILAR IA
   const handleGenerateSourceCode = async () => {
-    if (!labData) { showToast("O cliente ainda não preencheu o Laboratório."); return; }
+    if (!labData) { showToast("O cliente ainda não definiu as diretrizes."); return; }
     setIsProcessing(true);
     try {
       const res = await fetch('/api/insights/instagram', {
@@ -197,13 +197,13 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
 
       // 🔔 NOTIFICAÇÃO: Liderança
       await NotificationEngine.notifyManagement(
-        "🧠 Dossiê IA Compilado",
-        `A Inteligência Artificial completou o perfil matricial do projeto de ${currentProject.profiles?.nome}.`,
+        "🧠 Dossiê Estratégico Gerado",
+        `O Assistente completou as diretrizes estratégicas do projeto de ${currentProject.profiles?.nome}.`,
         "success",
         "/admin/gerenciamento"
       );
 
-      showToast("Código-Fonte CMO Compilado! ✨");
+      showToast("Análise Estratégica Gerada! ✨");
     } catch (e) { 
       showToast("Erro ao processar a IA."); 
     } finally { 
@@ -214,7 +214,7 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
   // 4. GERAÇÃO DE PDFS
   const handleDownloadBriefingPDF = async () => {
     if (!briefing) return;
-    showToast("A forjar PDF do Briefing...");
+    showToast("A gerar PDF do Briefing...");
     try {
       const doc = <InstagramBriefingPDF data={briefing} clientName={currentProject.profiles?.nome} />;
       const blob = await pdf(doc).toBlob();
@@ -229,7 +229,7 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
 
   const handleDownloadBrandbookPDF = async () => {
     if (!labData) return;
-    showToast("A forjar Dossiê PDF Vetorial...");
+    showToast("A gerar Dossiê PDF...");
     try {
       const tiltObj = { 
         technical: labData.tilt_technical || 0, 
@@ -264,15 +264,15 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
           ========================================================= */}
       <div className="w-full xl:w-1/2 flex flex-col h-full overflow-hidden">
         <div className="glass-panel bg-white/60 p-8 rounded-[2.5rem] border border-white shadow-sm flex flex-col h-full relative overflow-hidden transition-colors hover:bg-white/80">
-           
+            
            <div className="flex flex-wrap justify-between items-center border-b border-[var(--color-atelier-grafite)]/10 pb-6 mb-6 shrink-0 gap-4">
              <div>
-               <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Briefing de Operação</h2>
+               <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Briefing do Projeto</h2>
                <p className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest mt-1 font-bold">Dados de entrada do cliente</p>
              </div>
              <div className="flex gap-2">
                <button onClick={handleReturnBriefing} disabled={!briefing || isProcessing} className="bg-red-50 text-red-600 px-4 py-2.5 rounded-[1rem] text-[10px] font-bold uppercase tracking-widest hover:bg-red-100 transition-all flex items-center gap-2 shadow-sm disabled:opacity-50">
-                 {isProcessing ? <Loader2 size={14} className="animate-spin"/> : <RotateCcw size={14}/>} Devolver
+                 {isProcessing ? <Loader2 size={14} className="animate-spin"/> : <RotateCcw size={14}/>} Solicitar Revisão
                </button>
                <button onClick={handleDownloadBriefingPDF} disabled={!briefing} className="bg-[var(--color-atelier-grafite)] text-white px-5 py-2.5 rounded-[1rem] text-[10px] font-bold uppercase tracking-widest hover:bg-[var(--color-atelier-terracota)] transition-all flex items-center gap-2 shadow-md disabled:opacity-50 hover:-translate-y-0.5">
                  <Download size={14}/> PDF
@@ -291,9 +291,9 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
                <div className="flex flex-col gap-5 pb-6">
                  {/* CORREÇÃO: Leitura direcionada ao JSON answers que o Modal salvou */}
                  <div className="bg-white/80 p-6 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm transition-all hover:shadow-md">
-                   <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Visão do Negócio (O Núcleo & Endgame)</span>
+                   <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Visão do Negócio (Essência & Visão de Futuro)</span>
                    <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium">
-                     {briefing.answers?.produto_ancora ? `Produto Âncora: ${briefing.answers.produto_ancora}\n\nGatilho de Compra: ${briefing.answers.gatilho_compra === 'Outro' ? briefing.answers.gatilho_compra_outro : briefing.answers.gatilho_compra}\n\nPonto de Chegada (Endgame): ${briefing.answers.ponto_chegada}` : (briefing.business_vision || "Não preenchido.")}
+                     {briefing.answers?.produto_ancora ? `Produto Âncora: ${briefing.answers.produto_ancora}\n\nGatilho de Compra: ${briefing.answers.gatilho_compra === 'Outro' ? briefing.answers.gatilho_compra_outro : briefing.answers.gatilho_compra}\n\nPonto de Chegada (Visão de Futuro): ${briefing.answers.ponto_chegada}` : (briefing.business_vision || "Não preenchido.")}
                    </p>
                  </div>
                  
@@ -305,7 +305,7 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
                  </div>
                  
                  <div className="bg-white/80 p-6 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm transition-all hover:shadow-md">
-                   <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Concorrentes (Inimigo Comum)</span>
+                   <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Concorrentes (O Que Evitar)</span>
                    <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium">
                      {briefing.answers?.inimigo_comum || briefing.competitors || "Não preenchido."}
                    </p>
@@ -321,7 +321,7 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
                  <div className="bg-white/80 p-6 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm transition-all hover:shadow-md">
                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] block mb-2">Referências, Estilo e Voz</span>
                    <p className="text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed whitespace-pre-wrap font-medium">
-                     {briefing.answers?.persona_marca ? `Persona da Marca: ${briefing.answers.persona_marca}\n\nEstado do Arsenal Visual: ${briefing.answers.arsenal_visual}` : (briefing.references || "Não preenchido.")}
+                     {briefing.answers?.persona_marca ? `Persona da Marca: ${briefing.answers.persona_marca}\n\nEstado do Acervo Visual: ${briefing.answers.arsenal_visual}` : (briefing.references || "Não preenchido.")}
                    </p>
                  </div>
                </div>
@@ -338,12 +338,12 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
           
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white/60 p-6 md:p-8 rounded-[2.5rem] border border-white shadow-sm shrink-0 gap-4 transition-colors hover:bg-white/80">
              <div>
-               <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">DNA da Marca (Lab)</h2>
-               <p className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 mt-1.5 uppercase tracking-widest font-bold">Laboratório de Expressão do Cliente.</p>
+               <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Estratégia e Diretrizes</h2>
+               <p className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 mt-1.5 uppercase tracking-widest font-bold">Painel de Expressão da Marca.</p>
              </div>
              <div className="flex gap-2 w-full md:w-auto">
                <button onClick={handleGenerateSourceCode} disabled={isProcessing || !labData} className="flex-1 md:flex-none px-5 py-3 bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] rounded-[1rem] font-roboto text-[10px] uppercase tracking-widest font-bold flex items-center justify-center gap-2 shadow-md disabled:opacity-50 transition-colors hover:-translate-y-0.5 disabled:hover:translate-y-0">
-                 {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Compilar IA
+                 {isProcessing ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Gerar Análise (IA)
                </button>
                <button onClick={handleDownloadBrandbookPDF} disabled={!labData} className="flex-1 md:flex-none px-5 py-3 bg-white/80 border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/60 hover:bg-[var(--color-atelier-terracota)] hover:text-white rounded-[1rem] font-roboto text-[10px] uppercase tracking-widest font-bold flex items-center justify-center gap-2 shadow-sm disabled:opacity-50 transition-colors hover:border-transparent">
                  <Download size={14} /> Brandbook
@@ -354,14 +354,14 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
           {!labData ? (
              <div className="glass-panel bg-white/40 border border-white p-10 rounded-[2.5rem] flex flex-col items-center justify-center text-center h-[300px] shadow-sm shrink-0 opacity-60">
                <Target size={48} className="text-[var(--color-atelier-terracota)] mb-4" />
-               <p className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Laboratório Vazio</p>
-               <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">Aguardando o preenchimento do Brandbook pelo cliente.</p>
+               <p className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Aguardando Diretrizes</p>
+               <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">Aguardando o preenchimento do questionário de diretrizes pelo cliente.</p>
              </div>
           ) : (
             <>
               {labData.ai_source_code && (
                 <div className="bg-[var(--color-atelier-creme)]/60 p-6 md:p-8 rounded-[2.5rem] border border-[var(--color-atelier-terracota)]/20 shadow-inner shrink-0">
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mb-4 block flex items-center gap-1.5"><BrainCircuit size={12}/> Estratégia Extraída (CMO)</span>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mb-4 block flex items-center gap-1.5"><BrainCircuit size={12}/> Diretrizes Estratégicas (Assistente)</span>
                   <div className="text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed whitespace-pre-wrap font-medium">
                     {labData.ai_source_code}
                   </div>
@@ -395,7 +395,7 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
 
               {/* Tom de Voz */}
               <div className="glass-panel bg-white/60 p-6 rounded-[2.5rem] border border-white shadow-sm shrink-0 transition-colors hover:bg-white/80">
-                <h3 className="font-elegant text-xl text-[var(--color-atelier-grafite)] mb-4 border-b border-[var(--color-atelier-grafite)]/10 pb-3">3. Teatro de Operações (Voz)</h3>
+                <h3 className="font-elegant text-xl text-[var(--color-atelier-grafite)] mb-4 border-b border-[var(--color-atelier-grafite)]/10 pb-3">3. Cenários de Comunicação (Voz)</h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   {Object.entries(labData.voice_scenarios || {}).map(([key, val]) => (
                     <div key={key} className="text-xs bg-white/80 p-4 rounded-[1.2rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm">
@@ -406,10 +406,10 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
                 </div>
               </div>
 
-              {/* Cofre Visual */}
+              {/* Acervo Visual */}
               {labData.synapses_vault && labData.synapses_vault.length > 0 && (
                 <div className="glass-panel bg-white/60 p-6 rounded-[2.5rem] border border-white shadow-sm shrink-0 transition-colors hover:bg-white/80">
-                  <h3 className="font-elegant text-xl text-[var(--color-atelier-grafite)] mb-4 border-b border-[var(--color-atelier-grafite)]/10 pb-3">4. Gatilhos Visuais</h3>
+                  <h3 className="font-elegant text-xl text-[var(--color-atelier-grafite)] mb-4 border-b border-[var(--color-atelier-grafite)]/10 pb-3">4. Referências Visuais</h3>
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {labData.synapses_vault.map((syn: any, i: number) => (
                       <div key={i} className="relative rounded-[1.2rem] overflow-hidden shadow-sm aspect-square group border border-white">

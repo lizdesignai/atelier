@@ -66,14 +66,14 @@ export default function FinancialOverview({
 
         <div className="glass-panel p-6 flex flex-col justify-between h-36 bg-white/40 border-white relative overflow-hidden group hover:bg-white/60 transition-colors">
           <div className="flex justify-between items-start">
-            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Projetos em Forja</span>
+            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Projetos em Andamento</span>
           </div>
           <div><span className="font-elegant text-5xl text-[var(--color-atelier-grafite)] leading-none block">{overviewData.activeProjects}</span></div>
         </div>
 
         <div className="glass-panel p-6 flex flex-col justify-between h-36 bg-white/40 border-white relative overflow-hidden group hover:bg-white/60 transition-colors">
           <div className="flex justify-between items-start">
-            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Ciclo de Manufatura</span>
+            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Tempo Médio de Entrega</span>
             {overviewData.deliveryDaysChange !== 0 && (
               <span className={`text-[10px] font-bold px-2 py-1 rounded-lg border shadow-sm ${overviewData.deliveryDaysChange < 0 ? 'bg-green-50 text-green-600 border-green-100' : 'bg-orange-50 text-orange-600 border-orange-100'}`}>
                 {overviewData.deliveryDaysChange > 0 ? '+' : ''}{overviewData.deliveryDaysChange} Dias
@@ -148,10 +148,10 @@ export default function FinancialOverview({
           </div>
         </div>
 
-        {/* PRÓXIMOS FECHOS (COM SCROLL ATIVO) */}
+        {/* PRÓXIMOS RECEBIMENTOS (COM SCROLL ATIVO) */}
         <div className="lg:col-span-4 glass-panel bg-white/40 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm min-h-[400px]">
           <div className="flex justify-between items-center border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-6 shrink-0">
-            <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Próximos Fechos</h3>
+            <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Próximos Recebimentos</h3>
           </div>
           
           <div className="flex-1 overflow-y-auto custom-scrollbar max-h-[300px] flex flex-col gap-3 pr-2">
@@ -172,7 +172,7 @@ export default function FinancialOverview({
               </div>
             ))}
             {upcomingBillings.length === 0 && (
-              <div className="flex-1 flex items-center justify-center text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">Nenhum fecho pendente</div>
+              <div className="flex-1 flex items-center justify-center text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40">Nenhum recebimento pendente</div>
             )}
           </div>
 
@@ -180,7 +180,7 @@ export default function FinancialOverview({
             onClick={() => setActiveView('finance')} 
             className="w-full mt-4 py-4 rounded-2xl border border-[var(--color-atelier-grafite)]/10 text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-grafite)] hover:text-white hover:border-transparent transition-all shadow-sm shrink-0"
           >
-            Ver Funil Completo
+            Ver Detalhes Financeiros
           </button>
         </div>
 

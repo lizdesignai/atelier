@@ -19,7 +19,7 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
   const [isTyping, setIsTyping] = useState(false);
   
   // ==========================================
-  // ESTADOS DO EDITOR DE TEXTO (Planeamento)
+  // ESTADOS DO EDITOR DE TEXTO (Planejamento)
   // ==========================================
   const [planHook, setPlanHook] = useState(""); 
   const [jtbdTaskName, setJtbdTaskName] = useState(""); 
@@ -30,15 +30,15 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
   const [isSaving, setIsSaving] = useState(false);
   const [labData, setLabData] = useState<any>(null);
 
-  // Estados Específicos: Post Avulso
+  // Estados Específicos: Post Pontual
   const [planDate, setPlanDate] = useState("");
   const [planPillar, setPlanPillar] = useState("Autoridade Técnica");
 
-  // Estados Específicos: Planeamento Mensal
+  // Estados Específicos: Planejamento Mensal
   const [campaignObjective, setCampaignObjective] = useState("Brand Awareness (Alcance)");
   const [postQuantity, setPostQuantity] = useState("8 Posts/mês");
 
-  // Inteligência de preenchimento automático para Avulsos
+  // Inteligência de preenchimento automático para Pontuais
   useEffect(() => {
     if (isAvulso && !jtbdTaskName) {
       setJtbdTaskName("Design & Copy: Post "); 
@@ -85,7 +85,7 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
       if (lab) setLabData(lab);
 
     } catch (error) {
-      console.error("Erro ao carregar dados do planeamento:", error);
+      console.error("Erro ao carregar dados do planejamento:", error);
     }
   };
 
@@ -105,8 +105,8 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
 
       // MÁGICA DA IA: Injeta as definições do painel silenciosamente no prompt para orientar a IA
       const uiContext = isAvulso 
-        ? `[Diretriz do Sistema: O gestor está a pedir um POST AVULSO. Pilar: ${planPillar}.]`
-        : `[Diretriz do Sistema: O gestor está a fazer um PLANEAMENTO MENSAL. Objetivo: ${campaignObjective}. Volume: ${postQuantity}. O Tema Central é: "${planHook}".]`;
+        ? `[Diretriz do Sistema: O gestor está a pedir um POST PONTUAL. Pilar: ${planPillar}.]`
+        : `[Diretriz do Sistema: O gestor está a fazer um PLANEJAMENTO MENSAL. Objetivo: ${campaignObjective}. Volume: ${postQuantity}. O Tema Central é: "${planHook}".]`;
       
       const enrichedPrompt = `${uiContext}\n\nPedido do utilizador: ${userMsg.content}`;
 
@@ -153,7 +153,7 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
 
     } catch (error) {
       console.error("Erro no chat:", error);
-      window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro na comunicação com a IA." }));
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro na comunicação com o assistente." }));
       setIsTyping(false);
     }
   };
@@ -164,11 +164,11 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
   const handleSavePlanning = async (sendToClient: boolean = false) => {
     if (sendToClient) {
       if (!planHook || !editorContent) {
-        window.dispatchEvent(new CustomEvent("showToast", { detail: "Preencha o Título Principal e o Conteúdo antes de enviar." }));
+        window.dispatchEvent(new CustomEvent("showToast", { detail: "Preencha a Linha Editorial e o Conteúdo antes de enviar." }));
         return;
       }
       if (isAvulso && !jtbdTaskName) {
-        window.dispatchEvent(new CustomEvent("showToast", { detail: "Para posts avulsos, defina a Tarefa JTBD (ex: Design & Copy: Post 1)." }));
+        window.dispatchEvent(new CustomEvent("showToast", { detail: "Para posts pontuais, defina a Sincronização de Tarefa (ex: Design & Copy: Post 1)." }));
         return;
       }
     }
@@ -220,23 +220,23 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
         // 🔔 NOTIFICAÇÃO: Disparo para o Cliente
         await NotificationEngine.notifyUser(
           currentProject.client_id,
-          isAvulso ? "📝 Nova Ideia de Conteúdo" : "📅 Novo Planeamento Mensal",
+          isAvulso ? "📝 Nova Ideia de Conteúdo" : "📅 Novo Planejamento Mensal",
           isAvulso 
-            ? "O estúdio enviou uma nova abordagem criativa para a sua validação." 
-            : "A estratégia editorial do próximo ciclo já está disponível no seu Cockpit para aprovação.",
+            ? "A equipe enviou uma nova abordagem criativa para a sua aprovação." 
+            : "A estratégia editorial do próximo ciclo já está disponível no seu painel para aprovação.",
           "action",
-          "/cockpit"
+          "/meu-espaco"
         );
 
-        window.dispatchEvent(new CustomEvent("showToast", { detail: isAvulso ? `Post Avulso enviado! A tarefa '${jtbdTaskName}' foi fechada.` : "Planeamento enviado! Macro-Tarefa JTBD concluída." }));
+        window.dispatchEvent(new CustomEvent("showToast", { detail: isAvulso ? `Post Pontual enviado! A tarefa '${jtbdTaskName}' foi fechada.` : "Planejamento enviado! Tarefa concluída." }));
         setPlanHook(""); setJtbdTaskName(""); setEditorContent(""); setPlanDate(""); setIsAvulso(false);
       } else {
-        window.dispatchEvent(new CustomEvent("showToast", { detail: "Rascunho gravado e JTBD sincronizado." }));
+        window.dispatchEvent(new CustomEvent("showToast", { detail: "Rascunho salvo e sincronizado." }));
       }
 
     } catch (e) {
       console.error(e);
-      window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao gravar o documento." }));
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao salvar o documento." }));
     } finally {
       setIsSaving(false);
     }
@@ -251,8 +251,8 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
         <div className="p-5 border-b border-white/10 bg-black/20 flex items-center gap-4 shrink-0">
           <div className="w-12 h-12 rounded-[1rem] bg-[var(--color-atelier-terracota)] flex items-center justify-center text-white shadow-inner"><Bot size={22}/></div>
           <div>
-            <h3 className="font-elegant text-2xl text-white leading-none">Copiloto CMO</h3>
-            <p className="text-[9px] uppercase tracking-widest text-white/50 font-bold mt-1">Baseado na Ciência de Marketing</p>
+            <h3 className="font-elegant text-2xl text-white leading-none">Assistente Estratégico (IA)</h3>
+            <p className="text-[9px] uppercase tracking-widest text-white/50 font-bold mt-1">Planejamento de Conteúdo</p>
           </div>
         </div>
 
@@ -260,8 +260,8 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
           {chatHistory.length === 0 && (
             <div className="m-auto text-center opacity-50 flex flex-col items-center">
               <Bot size={40} className="text-white mb-3"/>
-              <p className="font-elegant text-2xl text-white">Aguardando Ordens</p>
-              <p className="text-[11px] font-roboto text-white/70 max-w-[220px] mt-2">Utilize o chat para forjar estratégias e copies antes de passar para o documento.</p>
+              <p className="font-elegant text-2xl text-white">Aguardando Comando</p>
+              <p className="text-[11px] font-roboto text-white/70 max-w-[220px] mt-2">Utilize o chat para organizar estratégias e copies antes de passar para o documento.</p>
             </div>
           )}
           
@@ -279,7 +279,7 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
           {isTyping && (
              <div className="flex gap-3 animate-pulse">
                <div className="w-8 h-8 rounded-full bg-[var(--color-atelier-terracota)] flex items-center justify-center text-white shadow-md"><Bot size={14}/></div>
-               <div className="p-4 bg-white rounded-[1.2rem] rounded-tl-sm text-[var(--color-atelier-grafite)] flex items-center gap-2"><Loader2 size={14} className="animate-spin text-[var(--color-atelier-terracota)]"/> <span className="text-[10px] font-bold uppercase tracking-widest">A processar dados...</span></div>
+               <div className="p-4 bg-white rounded-[1.2rem] rounded-tl-sm text-[var(--color-atelier-grafite)] flex items-center gap-2"><Loader2 size={14} className="animate-spin text-[var(--color-atelier-terracota)]"/> <span className="text-[10px] font-bold uppercase tracking-widest">Processando dados...</span></div>
              </div>
           )}
         </div>
@@ -289,7 +289,7 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
             <textarea 
               value={prompt} 
               onChange={(e) => setPrompt(e.target.value)}
-              placeholder="Ex: Crie um gancho sobre autoridade..."
+              placeholder="Ex: Crie uma sugestão sobre autoridade..."
               className="w-full bg-white/5 border border-white/10 rounded-[1.2rem] py-4 pl-4 pr-14 text-white text-[13px] resize-none h-16 outline-none focus:border-[var(--color-atelier-terracota)] custom-scrollbar transition-colors"
               onKeyDown={(e) => { if(e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); } }}
             />
@@ -311,7 +311,7 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
             </div>
             <div>
               <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none">Documento Base</h3>
-              <p className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1.5">Editor Master de Operação</p>
+              <p className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1.5">Editor de Roteiro e Copy</p>
             </div>
           </div>
           <div className="flex gap-2">
@@ -329,7 +329,7 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
           
           <div className="flex flex-col gap-1.5">
             <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1.5">
-              <Target size={12}/> {isAvulso ? "Gancho Editorial (Hook)" : "Tema da Campanha / Foco Mensal"}
+              <Target size={12}/> {isAvulso ? "Linha Editorial (Tema)" : "Tema da Campanha / Foco Mensal"}
             </span>
             <input 
               type="text" 
@@ -344,7 +344,7 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
           {isAvulso && (
             <div className="flex flex-col gap-1.5">
               <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-orange-600 ml-1 flex items-center gap-1.5">
-                <Link size={12}/> Nome Exato da Tarefa (Sincronização JTBD)
+                <Link size={12}/> Sincronização de Tarefa
               </span>
               <input 
                 type="text" 
@@ -366,8 +366,8 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
                 onChange={(e) => setIsAvulso(e.target.value === "avulso")} 
                 className="w-full bg-white border border-transparent rounded-[1.2rem] p-3 text-[13px] text-[var(--color-atelier-grafite)] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm font-bold cursor-pointer transition-colors"
               >
-                <option value="mensal">Planeamento Mensal</option>
-                <option value="avulso">Conteúdo Avulso</option>
+                <option value="mensal">Planejamento Mensal</option>
+                <option value="avulso">Conteúdo Pontual</option>
               </select>
             </div>
 
@@ -453,7 +453,7 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
             `}
           >
             {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Send size={16}/>} 
-            {isAvulso ? "Enviar Post" : "Enviar Planeamento"}
+            {isAvulso ? "Enviar Post" : "Enviar Planejamento"}
           </button>
         </div>
 

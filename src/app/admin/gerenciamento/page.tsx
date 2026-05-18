@@ -37,11 +37,11 @@ export function GerenciamentoWorkspace({ activeProjectId, currentProject }: { ac
       <div className="glass-panel p-2 rounded-[1.5rem] flex gap-2 overflow-x-auto custom-scrollbar shrink-0 shadow-sm border border-white">
         {[
           { id: 'calendario', label: 'Analytics & Calendário', icon: <CalendarDays size={14} /> },
-          { id: 'planeamento_mensal', label: 'Planeamento Estratégico & IA', icon: <BrainCircuit size={14} /> },
-          { id: 'posts', label: 'Fluxo de Arte Visual', icon: <LayoutDashboard size={14} /> },
-          { id: 'identidade', label: 'DNA da Marca & Briefing', icon: <Target size={14} /> },
-          { id: 'relatorios', label: 'Auditoria C-Level', icon: <BarChart3 size={14} /> },
-          { id: 'missoes', label: 'Missões & Cofre', icon: <Camera size={14} /> },
+          { id: 'planeamento_mensal', label: 'Planejamento Estratégico', icon: <BrainCircuit size={14} /> },
+          { id: 'posts', label: 'Peças Gráficas', icon: <LayoutDashboard size={14} /> },
+          { id: 'identidade', label: 'Diretrizes & Briefing', icon: <Target size={14} /> },
+          { id: 'relatorios', label: 'Relatórios de Performance', icon: <BarChart3 size={14} /> },
+          { id: 'missoes', label: 'Solicitações e Arquivos', icon: <Camera size={14} /> },
         ].map(tab => (
           <button 
             key={tab.id}
@@ -90,10 +90,10 @@ export function GerenciamentoWorkspace({ activeProjectId, currentProject }: { ac
           )}
 
           {activeTab === 'missoes' && (
-  <motion.div key="missoes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
-    <MissionsView activeProjectId={activeProjectId} currentProject={currentProject} />
-  </motion.div>
-)}
+            <motion.div key="missoes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
+              <MissionsView activeProjectId={activeProjectId} currentProject={currentProject} />
+            </motion.div>
+          )}
 
         </AnimatePresence>
       </div>
@@ -173,7 +173,7 @@ export function GerenciamentoInstagram() {
                 ${currentProject.status === 'archived' ? 'bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] border-[var(--color-atelier-grafite)]/20' 
                 : currentProject.status === 'delivered' ? 'bg-orange-500/10 text-orange-700 border-orange-500/20' 
                 : 'bg-green-500/10 text-green-700 border-green-500/20'}`}>
-                {currentProject.status === 'archived' ? 'Arquivado' : currentProject.status === 'delivered' ? 'Entregue' : 'Ativo'}
+                {currentProject.status === 'archived' ? 'Arquivado' : currentProject.status === 'delivered' ? 'Entregue' : 'Em Andamento'}
               </span>
               <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] flex items-center gap-1">
                 <Smartphone size={12}/> Gestão de Instagram

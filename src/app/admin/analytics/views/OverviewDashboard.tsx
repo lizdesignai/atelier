@@ -63,14 +63,14 @@ export default function OverviewDashboard({
             <div className="w-12 h-12 rounded-xl bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center shrink-0 border border-[var(--color-atelier-terracota)]/20"><Target size={20} /></div>
             <div className="flex flex-col">
               <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none">{metrics.pendingTasks}</span>
-              <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-1">Missões Pendentes</span>
+              <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-1">Tarefas Pendentes</span>
             </div>
           </div>
           <div className="bg-white/60 p-4 rounded-[1.5rem] border border-white flex items-center gap-4 shadow-sm transition-all hover:shadow-md">
             <div className="w-12 h-12 rounded-xl bg-green-500/10 text-green-600 flex items-center justify-center shrink-0 border border-green-500/20"><Users size={20} /></div>
             <div className="flex flex-col">
               <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none">{metrics.totalTeam}</span>
-              <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-1">Força de Equipa</span>
+              <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-1">Membros da Equipe</span>
             </div>
           </div>
         </div>
@@ -81,14 +81,14 @@ export default function OverviewDashboard({
           <div className="w-full lg:w-1/3 glass-panel p-6 flex flex-col h-full min-h-0">
             <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-4 shrink-0 flex flex-col gap-3">
               <div className="flex justify-between items-center mb-1">
-                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Fila de Missões</h3>
+                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Próximas Tarefas</h3>
                   <span className="bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest border border-[var(--color-atelier-terracota)]/20">{activeTasksForQueue.length} Pendentes</span>
               </div>
               <div className="relative group">
                   <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-atelier-grafite)]/40 group-focus-within:text-[var(--color-atelier-terracota)] transition-colors" />
                   <input 
                      type="text" 
-                     placeholder="Filtrar missão ou cliente..." 
+                     placeholder="Filtrar tarefa ou cliente..." 
                      value={taskSearch} 
                      onChange={(e)=>setTaskSearch(e.target.value)} 
                      className="w-full bg-white/60 border border-white/50 rounded-xl py-2 pl-9 pr-4 text-[11px] outline-none focus:border-[var(--color-atelier-terracota)]/30 focus:bg-white shadow-sm transition-all text-[var(--color-atelier-grafite)] font-bold" 
@@ -159,7 +159,7 @@ export default function OverviewDashboard({
           <div className="w-full lg:w-1/3 glass-panel p-6 flex flex-col h-full min-h-0">
             <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-4 shrink-0 flex flex-col gap-3">
               <div className="flex justify-between items-center mb-1">
-                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Progressão Real</h3>
+                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Andamento dos Projetos</h3>
                   <Activity size={18} className="text-[var(--color-atelier-terracota)]"/>
               </div>
               <div className="relative group">
@@ -199,7 +199,7 @@ export default function OverviewDashboard({
                       </div>
                       <div className="flex flex-col gap-1.5 mt-1">
                         <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
-                          <span className="text-[var(--color-atelier-grafite)]/50">{total === 0 ? 'Sem Pipeline' : 'Avanço do JTBD'}</span>
+                          <span className="text-[var(--color-atelier-grafite)]/50">{total === 0 ? 'Sem Tarefas' : 'Progresso das Tarefas'}</span>
                           <span className="text-[var(--color-atelier-terracota)]">{total > 0 && `${done}/${total}`}</span>
                         </div>
                         <div className="h-1.5 w-full bg-[var(--color-atelier-grafite)]/5 rounded-full overflow-hidden shadow-inner">
@@ -216,7 +216,7 @@ export default function OverviewDashboard({
           <div className="w-full lg:w-1/3 glass-panel p-6 flex flex-col h-full min-h-0 relative">
             <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-[var(--color-atelier-terracota)]/10 blur-[60px] rounded-full pointer-events-none"></div>
             <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-4 shrink-0 flex justify-between items-center relative z-10">
-              <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Alocação de Esforço</h3>
+              <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Capacidade da Equipe</h3>
               <Users size={18} className="text-[var(--color-atelier-terracota)]"/>
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3 relative z-10">

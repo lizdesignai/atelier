@@ -55,7 +55,7 @@ export default function CalendarWidget({
             <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">
               {displayMonth} <span className="text-[var(--color-atelier-terracota)] italic">{displayYear}</span>
             </h3>
-            <p className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-1">Planeamento</p>
+            <p className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-1">Planejamento Estratégico</p>
           </div>
         </div>
 
@@ -136,12 +136,12 @@ export default function CalendarWidget({
       <div className="flex flex-col gap-3">
         <div className="flex items-center gap-2 px-2">
           <Clock size={12} className="text-[var(--color-atelier-grafite)]/30" />
-          <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40">Foco Semanal (Reuniões & Captações)</span>
+          <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40">Prioridades da Semana (Reuniões & Captações)</span>
         </div>
         
         <div className="flex flex-col gap-2">
           {weeklyCommitments.length === 0 ? (
-            <p className="text-[10px] text-[var(--color-atelier-grafite)]/30 italic px-2">Nenhum evento externo para esta semana.</p>
+            <p className="text-[10px] text-[var(--color-atelier-grafite)]/30 italic px-2">Sem compromissos agendados nesta semana.</p>
           ) : (
             weeklyCommitments.map(comp => (
               <div key={comp.id} className="flex items-center gap-3 p-3 bg-white/80 rounded-xl border border-white shadow-sm hover:border-[var(--color-atelier-terracota)]/20 transition-all group">

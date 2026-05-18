@@ -67,7 +67,7 @@ export default function DailyKanban({
       </div>
 
       {/* =========================================
-          COLUNA 2: EM FOCO (Live Execution)
+          COLUNA 2: EM ANDAMENTO (Live Execution)
           ========================================= */}
       <div 
         className="flex flex-col min-w-[340px] w-[340px] shrink-0 bg-blue-50/70 p-5 rounded-[2.5rem] border border-blue-200 h-full shadow-inner relative overflow-hidden"
@@ -79,7 +79,7 @@ export default function DailyKanban({
         
         <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-blue-200/50 pb-4 relative z-10">
           <h3 className="font-elegant text-2xl text-blue-900 flex items-center gap-2">
-            <Crosshair size={18} className="text-blue-500"/> Em Foco 
+            <Crosshair size={18} className="text-blue-500"/> Em Andamento 
             <span className="text-[10px] font-sans uppercase font-bold tracking-widest text-blue-500 bg-blue-100 px-2 py-0.5 rounded animate-pulse">Live</span>
           </h3>
         </div>
@@ -87,7 +87,7 @@ export default function DailyKanban({
           {inProgressTasks.length === 0 ? (
              <div className="h-full flex flex-col items-center justify-center text-center opacity-40 pointer-events-none border-2 border-dashed border-blue-300 rounded-2xl p-6">
                <PlayCircle size={48} className="mb-4 text-blue-500 opacity-50"/>
-               <span className="font-roboto text-[11px] uppercase tracking-widest font-bold text-blue-900">Arraste uma missão para iniciar o Tracker</span>
+               <span className="font-roboto text-[11px] uppercase tracking-widest font-bold text-blue-900">Arraste uma tarefa para iniciar o Monitoramento</span>
              </div>
           ) : (
             inProgressTasks.map(task => (
@@ -144,7 +144,7 @@ export default function DailyKanban({
       </div>
 
       {/* =========================================
-          COLUNA 4: ARSENAL (Concluídos)
+          COLUNA 4: CONCLUÍDAS (Feitos)
           ========================================= */}
       <div 
         className="flex flex-col min-w-[340px] w-[340px] shrink-0 bg-white/40 p-5 rounded-[2.5rem] border border-white/60 h-full shadow-sm opacity-80 hover:opacity-100 transition-opacity"
@@ -153,7 +153,7 @@ export default function DailyKanban({
       >
         <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
           <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
-            <CheckCircle2 size={18} className="text-green-500"/> Arsenal (Feitos)
+            <CheckCircle2 size={18} className="text-green-500"/> Concluídas (Feitos)
           </h3>
         </div>
         <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4">

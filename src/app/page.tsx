@@ -20,7 +20,7 @@ const PROJECT_STAGES = [
   { id: 3, name: "Direcionamento Criativo", dbValue: "direcionamento" },
   { id: 4, name: "Processo Criativo IDV", dbValue: "processo" },
   { id: 5, name: "Apresentação Oficial", dbValue: "apresentacao" },
-  { id: 6, name: "Ajustes e Fechamento", dbValue: "ajustes" }
+  { id: 6, name: "Ajustes e Finalização", dbValue: "ajustes" }
 ];
 
 export default function Home() {
@@ -61,9 +61,9 @@ export default function Home() {
       
       if (project) {
         
-        // REDIRECIONAMENTO DE SEGURANÇA: Se o cliente é de Instagram, chuta para o Cockpit.
+        // REDIRECIONAMENTO DE SEGURANÇA: Se o cliente é de Instagram, redireciona para o Meu Espaço.
         if (project.type === 'Gestão de Instagram') {
-          router.replace('/cockpit');
+          router.replace('/meu-espaco');
           return;
         }
 
@@ -94,7 +94,7 @@ export default function Home() {
     fetchDashboardData();
   }, [router]);
 
-  // Lógica de Renderização do Cofre (Progresso e Desfoque)
+  // Lógica de Renderização do Painel (Progresso e Desfoque)
   const currentStageIndex = activeProject?.fase ? PROJECT_STAGES.findIndex(s => s.dbValue === activeProject.fase) : 0;
   const progressPercent = hasBriefing ? ((currentStageIndex + 1) / PROJECT_STAGES.length) * 100 : 0;
   
@@ -143,7 +143,7 @@ export default function Home() {
               <img src="/images/simbolo-rosa.png" alt="Atelier Logo" className="w-full h-full object-contain relative z-10 animate-[pulse_3s_ease-in-out_infinite]" />
             </div>
             <span className="micro-title text-[var(--color-atelier-terracota)] tracking-[0.3em]">
-              Fase Atual: {PROJECT_STAGES[currentStageIndex]?.name || 'Aguardando Fundação'}
+              Fase Atual: {PROJECT_STAGES[currentStageIndex]?.name || 'Aguardando Início'}
             </span>
           </div>
           
@@ -155,11 +155,11 @@ export default function Home() {
       </header>
 
       {/* ==========================================
-          2. O GRID PRINCIPAL (Cofre + Lateral)
+          2. O GRID PRINCIPAL (Painel + Lateral)
           ========================================== */}
       <section className="grid grid-cols-1 lg:grid-cols-12 gap-8 flex-1 min-h-0 animate-[fadeInUp_1s_ease-out_0.2s_both]">
         
-        {/* COLUNA ESQUERDA (O COFRE E A LINHA DO TEMPO) */}
+        {/* COLUNA ESQUERDA (O ESPAÇO DA IDENTIDADE E A LINHA DO TEMPO) */}
         <div className="lg:col-span-8 flex flex-col h-full">
           <div className="relative w-full h-full rounded-[3rem] overflow-hidden shadow-[0_30px_60px_rgba(122,116,112,0.15)] group cursor-default border border-white/60">
             
@@ -173,7 +173,7 @@ export default function Home() {
               <div className="flex justify-between items-start">
                 <div className="bg-white/80 backdrop-blur-xl border border-white px-5 py-3 rounded-full flex items-center gap-3 shadow-sm">
                   <Lock size={16} className="text-[var(--color-atelier-terracota)]" />
-                  <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">O Cofre de Identidade</span>
+                  <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Espaço da Identidade</span>
                 </div>
                 
                 <div className="text-right">
@@ -227,8 +227,8 @@ export default function Home() {
                     ></div>
                   </div>
                 </div>
-
               </div>
+
             </div>
           </div>
         </div>
@@ -255,11 +255,11 @@ export default function Home() {
           ) : (
             <div className="px-5 py-3 rounded-[1.5rem] flex items-center gap-2 bg-green-500/10 border border-green-500/20 text-green-700 shrink-0">
                <CheckCircle2 size={16} />
-               <span className="font-roboto text-[10px] font-bold uppercase tracking-[0.2em]">Fundação Estabelecida.</span>
+               <span className="font-roboto text-[10px] font-bold uppercase tracking-[0.2em]">Estratégia Consolidada.</span>
             </div>
           )}
 
-          {/* DIÁRIO DO ATELIER */}
+          {/* DIÁRIO DO ESTÚDIO */}
           <div className="glass-panel flex-1 rounded-[2.5rem] flex flex-col overflow-hidden relative min-h-0">
              <div className="px-6 py-5 border-b border-[var(--color-atelier-grafite)]/10 bg-white/30 backdrop-blur-md z-10 flex justify-between items-center shrink-0">
                <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
@@ -271,49 +271,49 @@ export default function Home() {
                {diaryPosts.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full opacity-40 text-center">
                     <Eye size={32} className="mb-2 text-[var(--color-atelier-terracota)]" />
-                    <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]">O diário de bordo está em branco.<br/>O Atelier publicará as atualizações aqui.</p>
+                    <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]">O diário de bordo está em branco.<br/>O estúdio publicará as atualizações aqui.</p>
                   </div>
                ) : (
                  diaryPosts.map((post) => (
-                    <div key={post.id} className="group cursor-pointer border-b border-[var(--color-atelier-grafite)]/10 pb-6 last:border-none">
-                      {post.image_url && (
-                        <div className="w-full h-[220px] rounded-[1.5rem] overflow-hidden mb-4 relative shadow-sm group-hover:shadow-md transition-all">
-                          <img src={post.image_url} alt="Estudo" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[1.5s] ease-out" />
-                          <div className="absolute top-3 left-3 z-20 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2">
-                            <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-atelier-terracota)]"></span>
-                            <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">
-                              Atualização
-                            </span>
-                          </div>
-                        </div>
-                      )}
-                      <h4 className="font-elegant text-[22px] text-[var(--color-atelier-grafite)] mb-2 leading-tight group-hover:text-[var(--color-atelier-terracota)] transition-colors">{post.title}</h4>
-                      <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/70 leading-relaxed whitespace-pre-wrap">{post.content}</p>
-                      
-                      {/* ASSINATURA DA POSTAGEM (AUTOR E HORA EXATA) */}
-                      <div className="mt-4 flex items-center justify-between border-t border-[var(--color-atelier-grafite)]/5 pt-4">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-[var(--color-atelier-terracota)]/10 overflow-hidden flex items-center justify-center text-[var(--color-atelier-terracota)] shrink-0 border border-[var(--color-atelier-terracota)]/20">
-                            {post.profiles?.avatar_url ? (
-                              <img src={post.profiles.avatar_url} alt={post.profiles.nome} className="w-full h-full object-cover" />
-                            ) : (
-                              <span className="font-elegant text-xs">{post.profiles?.nome?.charAt(0) || "A"}</span>
-                            )}
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-roboto text-[10px] font-bold text-[var(--color-atelier-grafite)] leading-none">{post.profiles?.nome || "Equipa Atelier"}</span>
-                            <span className="font-roboto text-[8px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-0.5">{post.profiles?.role === 'admin' ? 'Designer' : 'Diretor(a)'}</span>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[var(--color-atelier-grafite)]/40">
-                          <Clock size={12} />
-                          <span className="font-roboto text-[9px] uppercase tracking-widest font-bold">
-                            {new Date(post.created_at).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short' })} às {new Date(post.created_at).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' })}
-                          </span>
-                        </div>
-                      </div>
+                   <div key={post.id} className="group cursor-pointer border-b border-[var(--color-atelier-grafite)]/10 pb-6 last:border-none">
+                     {post.image_url && (
+                       <div className="w-full h-[220px] rounded-[1.5rem] overflow-hidden mb-4 relative shadow-sm group-hover:shadow-md transition-all">
+                         <img src={post.image_url} alt="Estudo" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-[1.5s] ease-out" />
+                         <div className="absolute top-3 left-3 z-20 bg-white/90 backdrop-blur-md px-3 py-1.5 rounded-full shadow-sm flex items-center gap-2">
+                           <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-atelier-terracota)]"></span>
+                           <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">
+                             Atualização
+                           </span>
+                         </div>
+                       </div>
+                     )}
+                     <h4 className="font-elegant text-[22px] text-[var(--color-atelier-grafite)] mb-2 leading-tight group-hover:text-[var(--color-atelier-terracota)] transition-colors">{post.title}</h4>
+                     <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/70 leading-relaxed whitespace-pre-wrap">{post.content}</p>
+                     
+                     {/* ASSINATURA DA POSTAGEM (AUTOR E HORA EXATA) */}
+                     <div className="mt-4 flex items-center justify-between border-t border-[var(--color-atelier-grafite)]/5 pt-4">
+                       <div className="flex items-center gap-2">
+                         <div className="w-6 h-6 rounded-full bg-[var(--color-atelier-terracota)]/10 overflow-hidden flex items-center justify-center text-[var(--color-atelier-terracota)] shrink-0 border border-[var(--color-atelier-terracota)]/20">
+                           {post.profiles?.avatar_url ? (
+                             <img src={post.profiles.avatar_url} alt={post.profiles.nome} className="w-full h-full object-cover" />
+                           ) : (
+                             <span className="font-elegant text-xs">{post.profiles?.nome?.charAt(0) || "A"}</span>
+                           )}
+                         </div>
+                         <div className="flex flex-col">
+                           <span className="font-roboto text-[10px] font-bold text-[var(--color-atelier-grafite)] leading-none">{post.profiles?.nome || "Equipe Liz Design"}</span>
+                           <span className="font-roboto text-[8px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-0.5">{post.profiles?.role === 'admin' ? 'Designer' : 'Diretor(a)'}</span>
+                         </div>
+                       </div>
+                       <div className="flex items-center gap-1.5 text-[var(--color-atelier-grafite)]/40">
+                         <Clock size={12} />
+                         <span className="font-roboto text-[9px] uppercase tracking-widest font-bold">
+                           {new Date(post.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} às {new Date(post.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                         </span>
+                       </div>
+                     </div>
 
-                    </div>
+                   </div>
                  ))
                )}
              </div>

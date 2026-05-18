@@ -76,7 +76,7 @@ export default function LoginPage() {
         localStorage.setItem("atelier_token", authData.session.access_token);
         localStorage.setItem("atelier_role", role);
         
-        showToast("Acesso autorizado. A abrir o cofre...");
+        showToast("Acesso autorizado. Acessando seu espaço...");
         router.push(role === 'client' ? "/" : "/admin");
 
       } else {
@@ -84,7 +84,7 @@ export default function LoginPage() {
         // FLUXO DE CRIAÇÃO DE CONTA (SIGN UP)
         // ==========================================
         if (!nome || !empresa || !servico) {
-          showToast("Todos os campos são obrigatórios para forjar a chave.");
+          showToast("Todos os campos são obrigatórios para criar a conta.");
           setIsAuthenticating(false);
           return;
         }
@@ -127,7 +127,7 @@ export default function LoginPage() {
           }
         }
 
-        showToast("Chave forjada e ecossistema ativado! Faça login para entrar.");
+        showToast("Conta criada e espaço de trabalho ativado! Faça login para entrar.");
         setIsLoginMode(true); // Volta para a tela de login
       }
     } catch (error: any) {
@@ -178,15 +178,15 @@ export default function LoginPage() {
           <div className="text-center mb-10 w-full">
             <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-2 tracking-tight">
               {isLoginMode ? (
-                <>Acesso <span className="text-[var(--color-atelier-terracota)] italic">Restrito.</span></>
+                <>Acesso ao <span className="text-[var(--color-atelier-terracota)] italic">Estúdio.</span></>
               ) : (
-                <>Nova <span className="text-[var(--color-atelier-terracota)] italic">Chave.</span></>
+                <>Nova <span className="text-[var(--color-atelier-terracota)] italic">Conta.</span></>
               )}
             </h1>
             <p className="text-[13px] text-[var(--color-atelier-grafite)]/60 leading-relaxed font-medium">
               {isLoginMode 
-                ? "Insira suas credenciais exclusivas para adentrar o ecossistema da sua marca."
-                : "Forje um novo acesso para entrar no ecossistema do Atelier."}
+                ? "Insira suas credenciais para acessar o espaço da sua marca."
+                : "Crie um novo acesso para ingressar no ecossistema da Liz Design."}
             </p>
           </div>
 
@@ -272,7 +272,7 @@ export default function LoginPage() {
               </div>
               <input 
                 type="password" required value={password} onChange={(e) => setPassword(e.target.value)}
-                placeholder="Chave de Segurança" 
+                placeholder="Senha de Acesso" 
                 className="w-full bg-white/70 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 outline-none transition-all shadow-sm focus:shadow-[0_10px_30px_rgba(173,111,64,0.08)]"
               />
             </div>
@@ -294,7 +294,7 @@ export default function LoginPage() {
                 }}
                 className="text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-grafite)] transition-colors bg-white/40 px-3 py-1.5 rounded-full border border-white"
               >
-                {isLoginMode ? "Criar Conta?" : "Já tem chave?"}
+                {isLoginMode ? "Criar Conta?" : "Já tem conta?"}
               </button>
             </div>
 
@@ -312,9 +312,9 @@ export default function LoginPage() {
               {isAuthenticating ? (
                 <><Loader2 size={18} className="animate-spin" /><span>Sincronizando...</span></>
               ) : isLoginMode ? (
-                <><Lock size={16} /> Entrar no Cofre</>
+                <><Lock size={16} /> Acessar Plataforma</>
               ) : (
-                <><UserPlus size={16} /> Forjar Chave</>
+                <><UserPlus size={16} /> Criar Conta</>
               )}
             </button>
           </form>
@@ -322,12 +322,11 @@ export default function LoginPage() {
         </div>
 
         {/* Rodapé de Segurança e Credibilidade */}
-        <motion.div 
-          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.8, duration: 1 }}
+        <div 
           className="mt-8 flex justify-center items-center gap-2 text-[10px] font-roboto uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40"
         >
           <ShieldCheck size={14} /> Ambiente Criptografado Ponta a Ponta
-        </motion.div>
+        </div>
 
       </motion.div>
 

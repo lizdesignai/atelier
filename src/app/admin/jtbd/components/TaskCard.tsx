@@ -119,13 +119,13 @@ export default function TaskCard({
                 <>
                   {task.status === 'pending' && (
                     <button onClick={(e) => { e.stopPropagation(); onAction('in_progress'); }} className="bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm flex items-center gap-2">
-                      <PlayCircle size={14} /> Foco
+                      <PlayCircle size={14} /> Iniciar
                     </button>
                   )}
 
                   {isFocus && (
                     <>
-                      <button onClick={(e) => { e.stopPropagation(); onAction('pending'); }} className="bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-200 w-9 h-9 rounded-xl flex items-center justify-center transition-colors shadow-sm" title="Pausar Foco">
+                      <button onClick={(e) => { e.stopPropagation(); onAction('pending'); }} className="bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-200 w-9 h-9 rounded-xl flex items-center justify-center transition-colors shadow-sm" title="Pausar">
                         <PauseCircle size={14} />
                       </button>
                       <button onClick={(e) => { e.stopPropagation(); onAction('review'); }} className="bg-orange-500 border border-orange-600 text-white hover:bg-orange-600 px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_10px_rgba(249,115,22,0.3)] hover:-translate-y-0.5 flex items-center gap-1">
@@ -138,7 +138,7 @@ export default function TaskCard({
                     <>
                       {isAdmin ? (
                         <button onClick={(e) => { e.stopPropagation(); onAction('completed'); }} className="bg-green-500 border border-green-600 text-white hover:bg-green-600 px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_10px_rgba(34,197,94,0.3)] hover:-translate-y-0.5 flex items-center gap-1">
-                          Aprovar <CheckCircle2 size={14}/>
+                          Concluir <CheckCircle2 size={14}/>
                         </button>
                       ) : (
                         <span className="bg-orange-50 border border-orange-200 text-orange-600 px-3 h-8 rounded-lg flex items-center justify-center text-[9px] font-bold uppercase tracking-widest animate-pulse cursor-not-allowed">
@@ -196,7 +196,7 @@ export default function TaskCard({
                   <AlignLeft size={14}/> Briefing / Instruções
                 </h4>
                 <div className="bg-[var(--color-atelier-creme)]/30 p-4 rounded-2xl border border-[var(--color-atelier-grafite)]/5 text-[13px] text-[var(--color-atelier-grafite)]/80 whitespace-pre-wrap">
-                  {task.description ? task.description : <span className="italic text-gray-400">Nenhuma instrução detalhada fornecida para esta missão.</span>}
+                  {task.description ? task.description : <span className="italic text-gray-400">Nenhuma instrução detalhada fornecida para esta tarefa.</span>}
                 </div>
               </div>
 
@@ -214,7 +214,7 @@ export default function TaskCard({
               {isAdmin && (
                 <div className="mt-4 pt-6 border-t border-gray-100 flex flex-col gap-3">
                   <h4 className="font-roboto text-[10px] font-bold uppercase tracking-widest text-orange-500 flex items-center gap-2">
-                    <Clock size={12}/> Gestão de Prazos (Admin Only)
+                    <Clock size={12}/> Ajuste de Prazo (Admin)
                   </h4>
                   <div className="flex items-center gap-3">
                     <input 

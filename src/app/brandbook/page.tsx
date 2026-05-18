@@ -26,7 +26,7 @@ const SEMIOTICS_PAIRS = [
     optB: { img: "https://images.unsplash.com/photo-1600585154340-be6161a56a0c?q=80&w=800&auto=format&fit=crop", desc: "Luz dura, sombras recortadas e dramáticas. (Poder/Mistério)" }
   },
   {
-    id: "framing", title: "Foco e Narrativa",
+    id: "framing", title: "Foco e Narrative",
     optA: { img: "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=800&auto=format&fit=crop", desc: "Foco macro extremo, texturas detalhadas. (Preciosismo)" },
     optB: { img: "https://images.unsplash.com/photo-1497366216548-37526070297c?q=80&w=800&auto=format&fit=crop", desc: "Plano aberto, visão do ambiente em pleno funcionamento. (Expansão)" }
   },
@@ -38,7 +38,7 @@ const SEMIOTICS_PAIRS = [
   {
     id: "temperature", title: "Temperatura de Cor",
     optA: { img: "https://images.unsplash.com/photo-1516455590571-18256e5bb9ff?q=80&w=800&auto=format&fit=crop", desc: "Tons quentes, madeira crua, luz amarelada. (Tradição/Proximidade)" },
-    optB: { img: "https://images.unsplash.com/photo-1522202176988-66273c2fd55f?q=80&w=800&auto=format&fit=crop", desc: "Tons frios, cinzas, luz branca cirúrgica. (Hiper-modernidade)" }
+    optB: { img: "https://images.unsplash.com/photo-152202176988-66273c2fd55f?q=80&w=800&auto=format&fit=crop", desc: "Tons frios, cinzas, luz branca cirúrgica. (Hiper-modernidade)" }
   },
   {
     id: "composition", title: "Composição",
@@ -64,30 +64,30 @@ const SEMIOTICS_PAIRS = [
 
 const SCENARIOS = [
   {
-    id: "price", title: "O Confronto de Valor",
-    context: "Um prospect comenta publicamente: 'O vosso preço está muito acima do mercado e o concorrente faz mais barato.'",
+    id: "price", title: "O Alinhamento de Valor",
+    context: "Um potencial cliente comenta publicamente: 'O vosso preço está muito acima do mercado e o concorrente faz mais barato.'",
     options: [
       { id: "A", label: "Acolhedora / Educativa", text: "Compreendemos. O nosso foco é entregar durabilidade que o padrão atual não suporta. Se quiser entender o processo, estamos à disposição." },
       { id: "B", label: "Distante / Soberana", text: "Nossa estrutura não foi desenhada para competir em custo, mas em resultado absoluto. O mercado possui opções para diferentes momentos." },
-      { id: "C", label: "Implacável / Agressiva", text: "O barato cobra a conta em retrabalho e frustração. Nós preferimos cobrar apenas uma vez e resolver o problema em definitivo." }
+      { id: "C", label: "Direta / Concreta", text: "O barato cobra a conta em retrabalho e frustração. Nós preferimos cobrar apenas uma vez e resolver o problema em definitivo." }
     ]
   },
   {
-    id: "failure", title: "O Bastidor do Fracasso",
+    id: "failure", title: "A Gestão de Desafios",
     context: "A equipa cometeu um erro que atrasou uma entrega, mas já foi 100% resolvido. O que vai para as redes?",
     options: [
       { id: "A", label: "Transparência Radical", text: "Mostramos o erro nos Stories, o caos gerado e como virámos a noite para consertar. O suor constrói confiança." },
-      { id: "B", label: "Proteção do Legado", text: "Resolvemos no privado. O feed mantém foco exclusivo na excelência. A marca não sangra em praça pública." },
-      { id: "C", label: "Evolução Técnica", text: "Não falamos do erro. Postamos sobre o novo protocolo de segurança que implementámos. Foco na evolução estrutural." }
+      { id: "B", label: "Proteção do Legado", text: "Resolvemos no privado. O feed mantém foco exclusivo na excelência. A marca mantém o foco no profissionalismo." },
+      { id: "C", label: "Evolução Técnico", text: "Não falamos do erro. Postamos sobre o novo protocolo de segurança que implementámos. Foco na evolução estrutural." }
     ]
   },
   {
-    id: "victory", title: "A Celebração da Vitória",
+    id: "victory", title: "A Celebração de Conquistas",
     context: "Acabaram de quebrar o recorde histórico de faturação. O que o público lê no próximo post?",
     options: [
       { id: "A", label: "A Tribo", text: "Agradecimento caloroso à equipa e clientes. Fotos da comemoração interna: 'nós vencemos juntos'." },
       { id: "B", label: "Minimalismo Estratégico", text: "Estética limpa, texto conciso sobre consistência. Sem grandes festas. Mensagem: 'Isto é só mais uma terça-feira'." },
-      { id: "C", label: "O Próximo Alvo", text: "A vitória quase não é mencionada. O foco já é no próximo passo. Mensagem: 'O semestre foi bom, mas vamos redefinir o mercado'." }
+      { id: "C", label: "O Próximo Passo", text: "A vitória quase não é mencionada. O foco já é no próximo passo. Mensagem: 'O semestre foi excelente, mas já projetamos o futuro'." }
     ]
   }
 ];
@@ -188,7 +188,7 @@ export default function BrandbookLaboratory() {
   };
 
   // ==========================================
-  // ALGORITMO: FICHAS DE FOCO (Proporcional)
+  // ALGORITMO: FICHAS DE ATENÇÃO (Proporcional)
   // ==========================================
   const handleTiltChange = (key: keyof typeof tilt, newValue: number) => {
     const oldVal = tilt[key];
@@ -231,7 +231,7 @@ export default function BrandbookLaboratory() {
         setActiveSemioticsIndex(prev => prev + 1);
       } else {
         saveProgress();
-        showToast("Teste de Semiótica Concluído.");
+        showToast("Análise de Semiótica Concluída.");
         setActiveZone(3);
       }
     }, 500);
@@ -246,14 +246,14 @@ export default function BrandbookLaboratory() {
         setActiveVoiceIndex(prev => prev + 1);
       } else {
         saveProgress();
-        showToast("Teatro de Operações Concluído.");
+        showToast("Cenários de Comunicação Concluídos.");
         setActiveZone(4);
       }
     }, 500);
   };
 
   // ==========================================
-  // COFRE DE SINAPSES (Upload + Pop-up Obrigatório)
+  // ACERVO DE REFERÊNCIAS (Upload + Pop-up Obrigatório)
   // ==========================================
   const handleUploadSynapse = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -278,7 +278,7 @@ export default function BrandbookLaboratory() {
       setPendingSynapseIndex(newSynapses.length - 1);
       
     } catch (error) {
-      showToast("Erro ao encriptar imagem.");
+      showToast("Erro ao processar referência visual.");
     } finally {
       setIsUploading(false);
       e.target.value = '';
@@ -287,7 +287,7 @@ export default function BrandbookLaboratory() {
 
   const submitSynapseReason = async () => {
     if (pendingSynapseIndex === null || tempReason.trim().length === 0) {
-      showToast("O gatilho visual é obrigatório."); return;
+      showToast("A referência visual é obrigatória."); return;
     }
     const newSynapses = [...synapses];
     newSynapses[pendingSynapseIndex].reason = tempReason;
@@ -296,21 +296,21 @@ export default function BrandbookLaboratory() {
     setTempReason("");
     
     await supabase.from('brandbook_laboratory').update({ synapses_vault: newSynapses }).eq('id', labDataId);
-    showToast("Sinapse encriptada com sucesso!");
+    showToast("Referência registrada com sucesso!");
   };
 
   // ==========================================
   // FECHAMENTO & UPSELL MAGNÉTICO
   // ==========================================
   const generateSourceCode = async () => {
-    if (Object.keys(semiotics).length < SEMIOTICS_PAIRS.length) { showToast("Conclua a Zona 2."); return; }
-    if (Object.keys(voice).length < SCENARIOS.length) { showToast("Conclua a Zona 3."); return; }
+    if (Object.keys(semiotics).length < SEMIOTICS_PAIRS.length) { showToast("Conclua a Etapa 2."); return; }
+    if (Object.keys(voice).length < SCENARIOS.length) { showToast("Conclua a Etapa 3."); return; }
 
     setIsProcessing(true);
     await saveProgress();
 
     try {
-      showToast("A sintetizar o Manual de Operações...");
+      showToast("Sintetizando as Diretrizes da Marca...");
       const res = await fetch('/api/insights/brandbook', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -323,16 +323,16 @@ export default function BrandbookLaboratory() {
       await supabase.from('brandbook_laboratory').update({ ai_source_code: data.insight }).eq('id', labDataId);
       setAiSourceCode(data.insight);
       setActiveZone(5);
-      showToast("Código-Fonte gerado com sucesso! ✨");
+      showToast("Análise Estratégica gerada com sucesso! ✨");
     } catch (error) {
-      showToast("Erro ao compilar. O Atelier foi notificado.");
+      showToast("Erro ao compilar as informações.");
     } finally {
       setIsProcessing(false);
     }
   };
 
   const generatePDF = async () => {
-    showToast("A forjar Dossiê PDF Vetorial...");
+    showToast("Gerando documento em PDF...");
     try {
       const { pdf } = await import('@react-pdf/renderer');
       const BrandbookPDF = (await import('../../components/pdf/BrandbookPDF')).default; 
@@ -340,7 +340,7 @@ export default function BrandbookLaboratory() {
       const blob = await pdf(doc).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
-      link.href = url; link.download = `Manual_Operacoes_${project.profiles?.nome}.pdf`;
+      link.href = url; link.download = `Diretrizes_Marca_${project.profiles?.nome}.pdf`;
       link.click();
 
       // 💥 GATILHO DO PICO DE DOPAMINA: O PDF transferiu, acorda o Upsell passado 1.5 seg
@@ -360,10 +360,10 @@ export default function BrandbookLaboratory() {
      
      // 🔔 SINAL DE FUMO PARA O ESTÚDIO (Lead Quente)
      await NotificationEngine.notifyManagement(
-        "🔥 Boiling Lead: Upsell Solicitado",
-        `O cliente ${project.profiles?.nome} clicou em Delegar Execução (Upsell) na Zona 5 do Brandbook. Entre em contato rápido.`,
-        "success",
-        "/admin/clientes"
+       "📈 Interesse em Serviços de Gestão",
+       `O cliente ${project.profiles?.nome} solicitou contato para serviços de gestão na Zona 5 das Diretrizes.`,
+       "success",
+       "/admin/clientes"
      );
   };
 
@@ -380,11 +380,11 @@ export default function BrandbookLaboratory() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-8 h-8 rounded-xl bg-white/40 flex items-center justify-center border border-white shadow-sm"><Sparkles size={14} className="text-[var(--color-atelier-terracota)]" /></div>
-            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Laboratório de Expressão</span>
+            <span className="font-roboto text-[10px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Painel de Expressão</span>
           </div>
-          <h1 className="font-elegant text-2xl md:text-3xl text-[var(--color-atelier-grafite)] leading-none mt-1">O Brandbook Vivo</h1>
+          <h1 className="font-elegant text-2xl md:text-3xl text-[var(--color-atelier-grafite)] leading-none mt-1">Diretrizes de Marca</h1>
         </div>
-        <button onClick={() => router.push('/cockpit')} className="w-10 h-10 rounded-[1rem] bg-white border border-[var(--color-atelier-grafite)]/10 flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:bg-[var(--color-atelier-grafite)] hover:text-white transition-all shadow-sm">
+        <button onClick={() => router.push('/meu-espaco')} className="w-10 h-10 rounded-[1rem] bg-white border border-[var(--color-atelier-grafite)]/10 flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:bg-[var(--color-atelier-grafite)] hover:text-white transition-all shadow-sm">
           <X size={18} />
         </button>
       </header>
@@ -395,15 +395,15 @@ export default function BrandbookLaboratory() {
         <div className="w-[260px] hidden md:flex flex-col shrink-0 z-10 h-full border-r border-[var(--color-atelier-grafite)]/5 pr-6 pb-6">
           <div className="py-2 flex-1 overflow-y-auto custom-scrollbar">
             <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/60 leading-relaxed mb-6 font-medium bg-white/40 p-4 rounded-[1.2rem] border border-white shadow-sm">
-              Navegue pelas 4 zonas de decisão. O sistema compilará as suas escolhas táticas no Código-Fonte da sua marca.
+              Navegue pelas 4 etapas de decisão. O sistema compilará as suas escolhas nas diretrizes da sua marca.
             </p>
             
             <div className="flex flex-col gap-3">
               {[
-                { id: 1, name: "O Eixo de Atenção", icon: <Target size={16}/> },
+                { id: 1, name: "O Foco Estratégico", icon: <Target size={16}/> },
                 { id: 2, name: "Semiótica Visual", icon: <Eye size={16}/> },
-                { id: 3, name: "A Prova de Fogo", icon: <MessageSquare size={16}/> },
-                { id: 4, name: "Cofre de Sinapses", icon: <UploadCloud size={16}/> },
+                { id: 3, name: "Cenários de Comunicação", icon: <MessageSquare size={16}/> },
+                { id: 4, name: "Acervo de Referências", icon: <UploadCloud size={16}/> },
               ].map(zone => (
                 <button 
                   key={zone.id} onClick={() => { setActiveZone(zone.id as any); saveProgress(); }}
@@ -415,7 +415,7 @@ export default function BrandbookLaboratory() {
                     <div className={`w-10 h-10 rounded-[1rem] flex items-center justify-center shadow-inner ${activeZone === zone.id ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] border border-[var(--color-atelier-terracota)]/20' : 'bg-white border border-white text-[var(--color-atelier-grafite)]/40'}`}>
                       {zone.icon}
                     </div>
-                    <span className={`font-roboto text-[10px] uppercase tracking-widest font-bold ${activeZone === zone.id ? 'text-[var(--color-atelier-grafite)]' : ''}`}>Zona {zone.id}</span>
+                    <span className={`font-roboto text-[10px] uppercase tracking-widest font-bold ${activeZone === zone.id ? 'text-[var(--color-atelier-grafite)]' : ''}`}>Etapa {zone.id}</span>
                   </div>
                   <ChevronRight size={14} className={activeZone === zone.id ? 'text-[var(--color-atelier-terracota)]' : 'opacity-0'} />
                 </button>
@@ -432,7 +432,7 @@ export default function BrandbookLaboratory() {
               `}
             >
               {isProcessing ? <Loader2 size={16} className="animate-spin" /> : activeZone === 5 ? <ArrowRight size={16}/> : <BrainCircuit size={16} />}
-              {activeZone === 5 ? 'Revisar Zonas' : 'Sintetizar Manual'}
+              {activeZone === 5 ? 'Revisar Etapas' : 'Sintetizar Diretrizes'}
             </button>
           </div>
         </div>
@@ -442,14 +442,14 @@ export default function BrandbookLaboratory() {
           <AnimatePresence mode="wait">
             
             {/* =========================================================================
-                ZONA 1: O EIXO DE ATENÇÃO (Content Tilt)
+                ETAPA 1: O FOCO ESTRATÉGICO (Content Tilt)
                 ========================================================================= */}
             {activeZone === 1 && (
               <motion.div key="z1" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-2xl flex flex-col gap-6 pb-4 h-full justify-center">
                 <div className="text-center shrink-0">
-                  <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-2">O Eixo de Atenção</h2>
+                  <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-2">O Foco Estratégico</h2>
                   <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/70 leading-relaxed max-w-xl mx-auto font-medium">
-                    Não existe estratégia sem renúncia. Aloque as suas 100 fichas de foco para definir o peso da sua linha editorial. Onde colocamos a energia da sua marca?
+                    Não existe estratégia sem renúncia. Aloque as suas 100 fichas de atenção para definir o peso da sua linha editorial. Onde colocamos a energia da sua marca?
                   </p>
                 </div>
 
@@ -457,7 +457,7 @@ export default function BrandbookLaboratory() {
                   
                   <div className="flex items-center justify-center shrink-0">
                     <div className="bg-[var(--color-atelier-creme)]/80 border border-white px-8 py-3.5 rounded-[1.5rem] flex items-center gap-4 shadow-sm">
-                      <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Fichas de Foco</span>
+                      <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Fichas de Atenção</span>
                       <span className="font-elegant text-4xl text-[var(--color-atelier-terracota)] leading-none">{totalTilt}<span className="text-sm text-[var(--color-atelier-grafite)]/30">/100</span></span>
                     </div>
                   </div>
@@ -465,8 +465,8 @@ export default function BrandbookLaboratory() {
                   <div className="flex flex-col gap-8">
                     {[
                       { key: 'technical', label: 'Pragmatismo & Autoridade (O Cérebro)', desc: 'Casos de estudo, dados diretos, teses de mercado e quebra de objeções. A prova técnica.' },
-                      { key: 'culture', label: 'Cultura & Operação (O Suor)', desc: 'A realidade nua e crua. Os bastidores, a equipa, os desafios. A humanização pelo esforço.' },
-                      { key: 'status', label: 'Status & Recompensa (A Visão)', desc: 'O design de vida. A estética impecável, o ambiente de alto padrão e o desejo aspiracional.' },
+                      { key: 'culture', label: 'Cultura & Operação (O Esforço)', desc: 'A realidade essencial. Os bastidores, a equipe, os desafios. A humanização pelo empenho.' },
+                      { key: 'status', label: 'Status & Recompensa (A Visão)', desc: 'O design de estilo de vida. A estética impecável, o ambiente de alto padrão e o desejo aspiracional.' },
                       { key: 'community', label: 'Comunidade & Pertencimento (A Tribo)', desc: 'Diálogo direto, respostas aos clientes, reconhecimento e construção de um ecossistema.' },
                     ].map(pillar => (
                       <div key={pillar.key} className="bg-white/40 p-5 rounded-[1.5rem] border border-white shadow-sm">
@@ -490,7 +490,7 @@ export default function BrandbookLaboratory() {
             )}
 
             {/* =========================================================================
-                ZONA 2: SEMIÓTICA VISUAL (Esse ou Esse)
+                ETAPA 2: SEMIÓTICA VISUAL (Esse ou Esse)
                 ========================================================================= */}
             {activeZone === 2 && (
               <motion.div key="z2" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-4xl flex flex-col gap-8 pb-10 h-full">
@@ -502,7 +502,7 @@ export default function BrandbookLaboratory() {
                 </div>
 
                 <div className="flex-1 flex flex-col items-center justify-center min-h-[500px]">
-                  <div className="flex items-center gap-2 mb-6">
+                  <div className="flex items-center gap-2 mb-6 shrink-0">
                     {SEMIOTICS_PAIRS.map((_, i) => (
                       <div key={i} className={`w-2 h-2 rounded-full transition-all ${i === activeSemioticsIndex ? 'bg-[var(--color-atelier-terracota)] w-6 shadow-sm' : i < activeSemioticsIndex ? 'bg-[var(--color-atelier-terracota)]/40' : 'bg-gray-200'}`}></div>
                     ))}
@@ -550,18 +550,18 @@ export default function BrandbookLaboratory() {
             )}
 
             {/* =========================================================================
-                ZONA 3: TEATRO DE OPERAÇÕES
+                ETAPA 3: CENÁRIOS DE COMUNICAÇÃO
                 ========================================================================= */}
             {activeZone === 3 && (
               <motion.div key="z3" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-3xl mx-auto flex flex-col gap-6 pb-4 h-full justify-center">
                 <div className="text-center shrink-0">
-                  <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-2">A Prova de Fogo</h2>
+                  <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-2">Cenários de Comunicação</h2>
                   <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/70 leading-relaxed max-w-xl mx-auto font-medium">
-                    A verdadeira personalidade de uma marca é forjada no conflito. Como a sua marca responde a estes cenários no ambiente digital?
+                    A verdadeira personalidade de uma marca reflete-se na consistência. Como a sua marca responde a estes cenários no ambiente digital?
                   </p>
                 </div>
 
-                <div className="flex-1 flex flex-col items-center justify-center min-h-0 w-full">
+                <div className="flex-1 flex flex-col items-center justify-center min-h-[400px] w-full">
                   <div className="flex items-center gap-2 mb-6 shrink-0">
                     {SCENARIOS.map((_, i) => (
                       <div key={i} className={`w-2 h-2 rounded-full transition-all ${i === activeVoiceIndex ? 'bg-[var(--color-atelier-terracota)] w-6 shadow-sm' : i < activeVoiceIndex ? 'bg-[var(--color-atelier-terracota)]/40' : 'bg-gray-200'}`}></div>
@@ -573,7 +573,7 @@ export default function BrandbookLaboratory() {
                       <motion.div key={activeVoiceIndex} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} transition={{ duration: 0.3 }} className="w-full glass-panel bg-white/60 p-8 md:p-12 rounded-[3rem] border border-white shadow-[0_20px_50px_rgba(0,0,0,0.03)] flex flex-col">
                         
                         <div className="mb-8 pb-8 border-b border-[var(--color-atelier-grafite)]/10 text-center shrink-0">
-                          <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-white bg-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg shadow-sm mb-4 inline-block">Cenário {activeVoiceIndex + 1}: {SCENARIOS[activeVoiceIndex].title}</span>
+                          <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-white bg-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg shadow-sm mb-4 inline-block">Cenário {activeVoiceIndex + 1}: {SCENARIOS[activeVoiceIndex].title}</span>
                           <p className="font-elegant text-2xl text-[var(--color-atelier-grafite)] italic leading-relaxed">"{SCENARIOS[activeVoiceIndex].context}"</p>
                         </div>
 
@@ -605,14 +605,14 @@ export default function BrandbookLaboratory() {
             )}
 
             {/* =========================================================================
-                ZONA 4: COFRE DE SINAPSES
+                ETAPA 4: ACERVO DE REFERÊNCIAS
                 ========================================================================= */}
             {activeZone === 4 && (
               <motion.div key="z4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-4xl mx-auto flex flex-col gap-8 pb-10 min-h-full">
                 <div className="text-center max-w-2xl mx-auto shrink-0">
-                  <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-4">O Cofre de Sinapses</h2>
+                  <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-4">O Acervo de Referências</h2>
                   <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/70 leading-relaxed font-medium bg-white/40 p-4 rounded-2xl border border-white shadow-sm">
-                    Abasteça a máquina. Arraste referências visuais que capturam a alma do seu negócio. Não envie logos concorrentes. Envie a textura de um casaco, a luz de um filme, um design automotivo que respeita.
+                    Reúna as suas inspirações. Insira referências visuais que capturam a essência do seu negócio. Não é necessário enviar logotipos concorrentes. Priorize a textura de um material, a luz de uma fotografia ou um design atemporal.
                   </p>
                 </div>
 
@@ -622,14 +622,14 @@ export default function BrandbookLaboratory() {
                     {isUploading ? (
                       <div className="flex flex-col items-center gap-4 text-[var(--color-atelier-terracota)]">
                         <Loader2 size={40} className="animate-spin" />
-                        <span className="font-roboto text-[11px] font-bold uppercase tracking-widest bg-white px-4 py-2 rounded-full shadow-sm">A encriptar sinapse visual...</span>
+                        <span className="font-roboto text-[11px] font-bold uppercase tracking-widest bg-white px-4 py-2 rounded-full shadow-sm">Processando referência visual...</span>
                       </div>
                     ) : (
                       <>
                         <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center mb-6 group-hover:scale-110 transition-transform shadow-md border border-[var(--color-atelier-terracota)]/10">
                           <UploadCloud size={32} className="text-[var(--color-atelier-grafite)]/40 group-hover:text-[var(--color-atelier-terracota)] transition-colors" />
                         </div>
-                        <span className="font-roboto text-[13px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors">Solte a referência aqui</span>
+                        <span className="font-roboto text-[13px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors">Adicione a referência aqui</span>
                       </>
                     )}
                   </label>
@@ -639,10 +639,10 @@ export default function BrandbookLaboratory() {
                       {synapses.map((syn, idx) => (
                         <div key={idx} className="glass-panel bg-white/80 p-5 rounded-[2rem] border border-white shadow-sm flex gap-5 items-center hover:shadow-md transition-shadow">
                           <div className="w-20 h-20 rounded-[1.2rem] overflow-hidden shrink-0 border border-white shadow-sm">
-                            <img src={syn.url} className="w-full h-full object-cover" alt="Sinapse" />
+                            <img src={syn.url} className="w-full h-full object-cover" alt="Referência" />
                           </div>
                           <div className="flex flex-col flex-1 pr-2">
-                            <label className="font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mb-1">Gatilho Registrado</label>
+                            <label className="font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mb-1">Nota Registrada</label>
                             <p className="text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed italic line-clamp-2 font-medium">"{syn.reason}"</p>
                           </div>
                         </div>
@@ -651,7 +651,7 @@ export default function BrandbookLaboratory() {
                   )}
 
                   <button onClick={generateSourceCode} disabled={isProcessing} className="w-full py-5 bg-[var(--color-atelier-grafite)] text-white rounded-[1.5rem] font-bold uppercase tracking-widest text-[11px] shadow-xl hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3 mt-auto disabled:opacity-50">
-                    {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <BrainCircuit size={18} />} SINTETIZAR MANUAL DE OPERAÇÕES
+                    {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <BrainCircuit size={18} />} GERAR DIRETRIZES DA MARCA
                   </button>
                 </div>
 
@@ -663,10 +663,10 @@ export default function BrandbookLaboratory() {
                       <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="glass-panel bg-white/90 p-8 md:p-10 rounded-[3rem] shadow-2xl relative z-10 max-w-lg w-full border border-white">
                         <div className="flex items-center gap-3 mb-6">
                           <div className="w-12 h-12 rounded-[1rem] bg-[var(--color-atelier-terracota)]/10 border border-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-terracota)] flex items-center justify-center shadow-inner"><Target size={20}/></div>
-                          <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">O Gatilho Visual</h3>
+                          <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">A Referência Visual</h3>
                         </div>
                         <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/70 mb-6 leading-relaxed font-medium">
-                          Nossa equipe não lê mentes. O que, especificamente, chamou a sua atenção nesta imagem? (Ex: A iluminação dura, a textura da madeira, a cor azul marinho).
+                          Nossa equipe busca compreender o seu olhar. O que, especificamente, chamou a sua atenção nesta imagem? (Ex: A iluminação, a sobriedade dos materiais ou a paleta de cores).
                         </p>
                         <div className="flex flex-col md:flex-row gap-6 mb-8 items-start">
                           <div className="w-32 h-32 rounded-[1.5rem] overflow-hidden shadow-sm shrink-0 border-4 border-white mx-auto md:mx-0">
@@ -690,7 +690,7 @@ export default function BrandbookLaboratory() {
             )}
 
             {/* =========================================================================
-                ZONA 5: O FECHAMENTO (Código-Fonte)
+                ETAPA 5: A CONCLUSÃO (Diretrizes Consolidadas)
                 ========================================================================= */}
             {activeZone === 5 && (
               <motion.div key="z5" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-3xl mx-auto flex flex-col gap-8 pb-10 min-h-full justify-center">
@@ -700,23 +700,23 @@ export default function BrandbookLaboratory() {
                     <CheckCircle2 size={40} className="text-[var(--color-atelier-terracota)]" />
                   </div>
                   
-                  <h2 className="font-elegant text-5xl text-[var(--color-atelier-grafite)] mb-4 relative z-10">Código-Fonte <span className="text-[var(--color-atelier-terracota)] italic">Extraído.</span></h2>
+                  <h2 className="font-elegant text-5xl text-[var(--color-atelier-grafite)] mb-4 relative z-10">Análise Estratégica <span className="text-[var(--color-atelier-terracota)] italic">Concluída.</span></h2>
                   <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 leading-relaxed max-w-lg mx-auto mb-10 relative z-10 font-medium">
-                    O nosso Chief Marketing Officer (IA) compilou a sua distribuição de energia, a sua sintaxe visual fotográfica e as suas respostas sob pressão. O DNA inabalável da sua marca está definido.
+                    O nosso Assistente Estratégico (IA) compilou a sua distribuição de atenção, a sua sintaxe visual fotográfica e as suas respostas de posicionamento. A identidade da sua marca está definida.
                   </p>
                   
                   <div className="bg-white p-8 rounded-3xl border border-[var(--color-atelier-grafite)]/5 text-left mb-10 max-h-[35vh] overflow-y-auto custom-scrollbar relative z-10 shadow-inner">
                     <div className="flex items-center gap-2 mb-4 pb-4 border-b border-[var(--color-atelier-grafite)]/5">
                       <BrainCircuit size={16} className="text-[var(--color-atelier-terracota)]" />
-                      <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Atelier Core AI</span>
+                      <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Assistente de Marca (IA)</span>
                     </div>
                     <div className="text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed whitespace-pre-wrap font-medium">
-                      {aiSourceCode || "Ocorreu um erro ao renderizar o código-fonte."}
+                      {aiSourceCode || "Ocorreu um erro ao renderizar o documento estratégico."}
                     </div>
                   </div>
 
                   <button onClick={generatePDF} className="bg-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)] text-white px-10 py-5 rounded-[1.5rem] font-roboto text-[11px] font-bold uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-3 mx-auto relative z-10 hover:-translate-y-1">
-                    <Download size={18} /> Sintetizar Manual PDF
+                    <Download size={18} /> Descarregar Diretrizes em PDF
                   </button>
                 </div>
               </motion.div>
@@ -742,16 +742,16 @@ export default function BrandbookLaboratory() {
 
                <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-4">Estratégia Definida. <br/><span className="text-[var(--color-atelier-terracota)] italic">E a Execução?</span></h2>
                <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 leading-relaxed mb-8 max-w-lg mx-auto font-medium">
-                 Você tem em mãos um manual tático de elite. No entanto, o design perfeito só ganha vida com uma gestão impecável. <br/><br/>
-                 O Atelier pode assumir 100% da criação, copy e publicação da sua marca a partir de hoje. Delegue o esforço e mantenha os resultados.
+                 Você tem em mãos um manual estratégico exclusivo. No entanto, o design perfeito só ganha vida com um acompanhamento consistente. <br/><br/>
+                 O estúdio pode assumir integralmente a criação, redação de textos e publicações da sua marca a partir of hoje. Deixe a execução com nossos especialistas e foque no seu negócio.
                </p>
 
-               <div className="flex flex-col gap-3">
+               <div className="flex gap-3 flex-col">
                  <button onClick={handleAcceptUpsell} className="w-full bg-[var(--color-atelier-terracota)] text-white py-5 rounded-[1.5rem] font-bold uppercase tracking-widest text-[11px] shadow-lg hover:bg-[#8c562e] hover:-translate-y-0.5 transition-all">
-                   Sim, Quero Delegar o Meu Instagram
+                   Sim, Quero Conhecer os Serviços de Gestão
                  </button>
                  <button onClick={() => setShowUpsell(false)} className="w-full bg-white text-[var(--color-atelier-grafite)]/50 py-4 rounded-[1.5rem] font-bold uppercase tracking-widest text-[10px] hover:text-[var(--color-atelier-grafite)] transition-colors">
-                   Não, eu cuido da execução
+                   Não, eu mesmo farei a gestão
                  </button>
                </div>
             </motion.div>

@@ -58,10 +58,10 @@ export default function CfoDashboard({
       exit={{ opacity: 0, y: -10 }} 
       className="flex flex-col gap-6 w-full"
     >
-      {/* WIDGETS DE TOPO (MRR, SANGRIA, EBITDA, RUNWAY) */}
+      {/* WIDGETS DE TOPO (MRR, DESPESAS, EBITDA, SEGURANÇA) */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 shrink-0">
         
-        {/* WIDGET 1: MRR & RISCO */}
+        {/* WIDGET 1: MRR & ATENÇÃO */}
         <div className={`glass-panel p-6 flex flex-col justify-between h-36 relative overflow-hidden transition-colors ${metrics.churnRiskAmount > 0 ? 'bg-white/90 border-orange-200' : 'bg-white/40 border-white'}`}>
           {metrics.churnRiskAmount > 0 && <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500"></div>}
           <div className="flex justify-between items-start">
@@ -77,7 +77,7 @@ export default function CfoDashboard({
               <span className="font-elegant text-4xl text-[var(--color-atelier-grafite)] leading-none">{formatCurrency(metrics.mrr)}</span>
               {metrics.churnRiskAmount > 0 && (
                 <span className="text-[11px] font-bold text-orange-500 mb-0.5 flex items-center gap-1" title="Baseado na queda de T-NPS">
-                  <AlertTriangle size={12}/> Risco: {formatCurrency(metrics.churnRiskAmount)}
+                  <AlertTriangle size={12}/> Atenção: {formatCurrency(metrics.churnRiskAmount)}
                 </span>
               )}
             </div>
@@ -85,7 +85,7 @@ export default function CfoDashboard({
           </div>
         </div>
 
-        {/* WIDGET 2: CUSTOS FIXOS / SANGRIA */}
+        {/* WIDGET 2: CUSTOS FIXOS / DESPESAS */}
         <div className="glass-panel p-6 flex flex-col justify-between h-36 bg-red-50/40 border-red-100 relative overflow-hidden group hover:bg-red-50/60 transition-colors">
           <div className="flex justify-between items-start">
             <div className="w-10 h-10 rounded-[1rem] bg-red-500/10 text-red-600 border border-red-500/20 flex items-center justify-center shadow-inner"><ArrowDownRight size={18} /></div>
@@ -93,7 +93,7 @@ export default function CfoDashboard({
           </div>
           <div>
             <span className="font-elegant text-4xl text-red-900 leading-none">{formatCurrency(cfoMetrics.totalOutflows)}</span>
-            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-red-900/40 block mt-1.5">Sangria Ativa (Neste Mês)</span>
+            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-red-900/40 block mt-1.5">Despesas (Neste Mês)</span>
           </div>
         </div>
 
@@ -110,27 +110,27 @@ export default function CfoDashboard({
           </div>
         </div>
 
-        {/* WIDGET 4: RUNWAY */}
+        {/* WIDGET 4: PROJEÇÃO DE CAIXA */}
         <div className="glass-panel p-6 flex flex-col justify-between h-36 bg-[var(--color-atelier-grafite)] border-[var(--color-atelier-grafite)] text-white relative overflow-hidden group">
           <div className="absolute inset-0 opacity-10 bg-[url('/noise.png')] mix-blend-overlay"></div>
           <div className="flex justify-between items-start relative z-10">
             <div className="w-10 h-10 rounded-[1rem] bg-white/10 text-white flex items-center justify-center border border-white/10 shadow-inner"><ShieldAlert size={18} /></div>
-            <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] bg-white/90 border border-white px-2.5 py-1 rounded-lg shadow-sm">Runway</span>
+            <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] bg-white/90 border border-white px-2.5 py-1 rounded-lg shadow-sm">Segurança</span>
           </div>
           <div className="flex items-end gap-2 relative z-10">
             <span className="font-elegant text-5xl leading-none">{cfoMetrics.runway}</span>
-            <span className="font-roboto text-sm font-bold uppercase tracking-widest text-white/50 mb-1">Meses de Vida</span>
+            <span className="font-roboto text-sm font-bold uppercase tracking-widest text-white/50 mb-1">Meses Restantes</span>
           </div>
         </div>
 
       </div>
 
-      {/* FORECASTING DE RECEITA LÍQUIDA (MÓDULO CFO) */}
+      {/* PROJEÇÃO DE CAIXA LÍQUIDO */}
       <div className="glass-panel bg-white/40 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm shrink-0">
         <div className="flex justify-between items-end border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-6">
           <div>
-            <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><TrendingUp size={20} className="text-[var(--color-atelier-terracota)]"/> Forecasting (Net Cash)</h3>
-            <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest mt-1">Projeção do fluxo de caixa líquido futuro (Entradas projetadas - Saídas projetadas)</p>
+            <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><TrendingUp size={20} className="text-[var(--color-atelier-terracota)]"/> Projeção Financeira</h3>
+            <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest mt-1">Estimativa de fluxo de caixa (Entradas projetadas - Saídas projetadas)</p>
           </div>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -163,7 +163,7 @@ export default function CfoDashboard({
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4">
             {upcomingBillings.map((bill, i) => (
               <div key={`bill-${bill.id}-${i}`} className="bg-white/80 p-5 rounded-[1.2rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col gap-4 relative overflow-hidden group shrink-0 hover:border-blue-200 hover:shadow-md transition-all">
-                {bill.risk && <div className="absolute top-0 right-0 bg-orange-500 text-white text-[8px] font-bold uppercase tracking-widest px-2 py-1 rounded-bl-lg flex items-center gap-1"><AlertTriangle size={8}/> Risco</div>}
+                {bill.risk && <div className="absolute top-0 right-0 bg-orange-500 text-white text-[8px] font-bold uppercase tracking-widest px-2 py-1 rounded-bl-lg flex items-center gap-1"><AlertTriangle size={8}/> Atenção</div>}
                 
                 <div className="flex items-center justify-between mt-1">
                   <div className="flex items-center gap-3">
@@ -182,12 +182,11 @@ export default function CfoDashboard({
                 </div>
                 
                 <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity h-0 group-hover:h-auto overflow-hidden">
-                  {/* UPDATE DA TIPAGEM: Injeta ID, Client, Email, Amount */}
                   <button onClick={() => handleNotifyClient(bill.id, bill.client, bill.email, bill.amount)} disabled={isProcessing} className="flex-1 bg-white border border-[var(--color-atelier-grafite)]/20 py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:border-blue-300 hover:text-blue-600 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-1.5 shadow-sm mt-2 disabled:opacity-50">
                     <Mail size={12} /> Notificar
                   </button>
                   <button onClick={() => handleMarkAsPaid(bill.id)} disabled={isProcessing} className="flex-1 bg-green-500 text-white py-2.5 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-green-600 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-1.5 shadow-sm mt-2 disabled:opacity-50">
-                    <CheckCircle2 size={12} /> Liquidar
+                    <CheckCircle2 size={12} /> Confirmar Pagamento
                   </button>
                 </div>
               </div>
@@ -234,7 +233,7 @@ export default function CfoDashboard({
             {outflows.length === 0 && (
               <div className="flex-1 flex flex-col items-center justify-center opacity-40 text-center gap-2 py-4">
                 <ShieldAlert size={32} className="text-[var(--color-atelier-grafite)]"/>
-                <span className="font-elegant text-xl">Sem Despesas Registadas</span>
+                <span className="font-elegant text-xl">Sem Despesas Registradas</span>
               </div>
             )}
           </div>
@@ -244,7 +243,7 @@ export default function CfoDashboard({
       {/* ALOCAÇÃO DE CAPITAL E FECHAMENTO DO MÊS */}
       <div className="flex flex-col lg:flex-row gap-6 shrink-0">
         
-        {/* ALOCAÇÃO (Módulo Inteligente) */}
+        {/* ALOCAÇÃO (Assistente Estratégico) */}
         <div className="flex-1 glass-panel bg-white/40 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden min-w-[50%]">
           <div className="flex flex-col md:flex-row md:items-center justify-between border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-6">
             <div>
@@ -261,21 +260,21 @@ export default function CfoDashboard({
           
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="bg-white/80 p-5 rounded-2xl border border-[var(--color-atelier-grafite)]/5 shadow-sm text-center transition-all hover:bg-white hover:scale-[1.02]">
-              <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2 block">Blindagem (Reserva)</span>
+              <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2 block">Reserva Estratégica</span>
               <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">{formatCurrency(cfoMetrics.allocation.reserva)}</span>
             </div>
             <div className="bg-blue-50/80 p-5 rounded-2xl border border-blue-100 shadow-sm text-center transition-all hover:bg-blue-50 hover:scale-[1.02]">
-              <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-blue-600/70 mb-2 block">Tráfego & Growth</span>
+              <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-blue-600/70 mb-2 block">Investimento & Expansão</span>
               <span className="font-elegant text-3xl text-blue-900">{formatCurrency(cfoMetrics.allocation.growth)}</span>
             </div>
             <div className="bg-green-50/80 p-5 rounded-2xl border border-green-100 shadow-sm text-center transition-all hover:bg-green-50 hover:scale-[1.02]">
-              <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-green-600/70 mb-2 block">Dividendos Sócios</span>
+              <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-green-600/70 mb-2 block">Distribuição de Lucros</span>
               <span className="font-elegant text-3xl text-green-900">{formatCurrency(cfoMetrics.allocation.dividendos)}</span>
             </div>
           </div>
         </div>
 
-        {/* FECHAMENTO DE MÊS (Congelamento) */}
+        {/* FECHAMENTO DE MÊS (Consolidação) */}
         <div className="w-full lg:w-[400px] glass-panel bg-[var(--color-atelier-grafite)] text-white p-8 flex flex-col rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden shrink-0 relative group hover:shadow-3xl transition-shadow">
           <div className="absolute -bottom-10 -right-10 w-40 h-40 bg-[var(--color-atelier-terracota)]/20 rounded-full blur-3xl pointer-events-none group-hover:bg-[var(--color-atelier-terracota)]/30 transition-colors"></div>
           <div className="flex justify-between items-center border-b border-white/10 pb-4 mb-6 shrink-0 relative z-10">
@@ -285,7 +284,7 @@ export default function CfoDashboard({
           
           <div className="flex-1 flex flex-col justify-center gap-4 relative z-10">
             <p className="text-[11px] font-roboto font-bold uppercase tracking-widest text-white/50 text-center leading-relaxed">
-              Congele o DRE atual no histórico seguro para auditoria futura.
+              Consolide o balanço financeiro atual no histórico do estúdio para acompanhamento.
             </p>
             
             <div className="flex flex-col gap-2">
@@ -315,11 +314,11 @@ export default function CfoDashboard({
         </div>
       </div>
 
-      {/* MATRIZ DE QUADRANTES (UNIT ECONOMICS FIX) */}
+      {/* RENTABILIDADE & SAÚDE DOS PROJETOS */}
       <div className="flex-1 glass-panel bg-white/40 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden min-h-[400px] mt-2">
         <div className="flex justify-between items-end border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-6 shrink-0">
           <div>
-            <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">Unit Economics & Categorização de Clientes</h3>
+            <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">Rentabilidade & Análise de Clientes</h3>
             <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest mt-1">Margem real cruzada com tempo de execução e nível de satisfação</p>
           </div>
         </div>
@@ -341,8 +340,8 @@ export default function CfoDashboard({
                       {q.label}
                     </span>
                     {isElastic && (
-                      <span className="bg-blue-50 text-blue-600 border border-blue-200 px-2 py-0.5 rounded text-[8px] uppercase tracking-widest font-bold flex items-center gap-1" title="Cliente ama o serviço mas a margem é pequena. Cobre mais!">
-                        <Map size={8}/> Reprecificar Alta
+                      <span className="bg-blue-50 text-blue-600 border border-blue-200 px-2 py-0.5 rounded text-[8px] uppercase tracking-widest font-bold flex items-center gap-1" title="Cliente ama o serviço mas a margem é pequena. Reajuste de valor recomendado.">
+                        <Map size={8}/> Reajuste Recomendado
                       </span>
                     )}
                   </div>
@@ -351,7 +350,7 @@ export default function CfoDashboard({
                 <div className="flex items-center justify-between md:justify-center w-full md:w-1/3 border-t md:border-t-0 md:border-l border-[var(--color-atelier-grafite)]/5 pt-4 md:pt-0 md:pl-6 px-3">
                     <div className="flex flex-col">
                       <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-0.5">Esforço Realizado</span>
-                      <span className="font-roboto text-[14px] font-medium text-[var(--color-atelier-grafite)]/80">{eco.actualHours}h <span className="text-[10px] opacity-60 ml-1">(Teto: {eco.estimatedHours}h)</span></span>
+                      <span className="font-roboto text-[14px] font-medium text-[var(--color-atelier-grafite)]/80">{eco.actualHours}h <span className="text-[10px] opacity-60 ml-1">(Estimado: {eco.estimatedHours}h)</span></span>
                     </div>
                     <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-[1rem] text-[11px] font-bold border shadow-inner ${eco.tNps >= 90 ? 'bg-green-50 text-green-700 border-green-200' : eco.tNps >= 70 ? 'bg-yellow-50 text-yellow-700 border-yellow-200' : 'bg-red-50 text-red-700 border-red-200'}`}>
                       {eco.tNps >= 90 ? <TrendingUp size={12}/> : <ArrowDownRight size={12}/>} T-NPS: {eco.tNps}
@@ -364,7 +363,7 @@ export default function CfoDashboard({
                       <span className="font-elegant text-2xl text-[var(--color-atelier-terracota)] leading-none">{formatCurrency(eco.profit)}</span>
                       <span className={`text-[11px] font-bold px-2 py-0.5 rounded border ${eco.margin >= 60 ? 'bg-green-100 text-green-700 border-green-200' : eco.margin >= 40 ? 'bg-yellow-100 text-yellow-700 border-yellow-200' : 'bg-red-100 text-red-700 border-red-200'}`}>{eco.margin}%</span>
                     </div>
-                    <span className={`text-[9px] mt-2 font-bold uppercase tracking-widest text-${q.color}-600 bg-${q.color}-50 px-2.5 py-1 rounded-lg border border-${q.color}-100`}>Ação CFO: {q.action}</span>
+                    <span className={`text-[9px] mt-2 font-bold uppercase tracking-widest text-${q.color}-600 bg-${q.color}-50 px-2.5 py-1 rounded-lg border border-${q.color}-100`}>Recomendação: {q.action}</span>
                 </div>
               </div>
             )

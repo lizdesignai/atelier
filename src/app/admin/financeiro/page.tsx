@@ -144,7 +144,7 @@ export default function FinanceiroPage() {
 
             if (agency.billing_date) {
               billings.push({
-                id: agency.id, entityType: 'agency', client: agency.name, email: 'Operação Interna', service: 'White-Label', amount: val, date: agency.billing_date, type: 'Agência (MRR)', risk: false
+                id: agency.id, entityType: 'agency', client: agency.name, email: 'Operação Interna', service: 'Agência Parceira', amount: val, date: agency.billing_date, type: 'Agência (MRR)', risk: false
               });
             }
           }
@@ -210,7 +210,7 @@ export default function FinanceiroPage() {
           const lucroReal = value - custoRealDaOperacao;
           const margemPercentual = value > 0 ? Math.round((lucroReal / value) * 100) : 0;
           
-          // INTEGRAÇÃO COM CFO ENGINE 2.0
+          // INTEGRAÇÃO COM SISTEMA FINANCEIRO 2.0
           const quadrant = AtelierCFOEngine.getClientQuadrant(margemPercentual, tNPS);
 
           if (proj.status === 'active') {
@@ -226,7 +226,7 @@ export default function FinanceiroPage() {
           if (isMRR) {
             projPaid = value; 
             if (proj.billing_date) {
-              billings.push({ id: proj.id, entityType: 'project', client: proj.profiles?.nome, email: proj.profiles?.email, service: proj.type || proj.service_type, amount: value, date: proj.billing_date, type: 'MRR / Recorrência', risk: isInChurnRisk });
+              billings.push({ id: proj.id, entityType: 'project', client: proj.profiles?.nome, email: proj.profiles?.email, service: proj.type || proj.service_type, amount: value, date: proj.billing_date, type: 'Mensalidade', risk: isInChurnRisk });
             }
           } else {
             if (proj.payment_split === '100% Antecipado') projPaid = value;
@@ -259,7 +259,7 @@ export default function FinanceiroPage() {
       const daysDiff = avgDaysLast === 0 ? 0 : avgDaysCurrent - avgDaysLast;
       const avgGlobalNps = npsCount > 0 ? (npsSum / npsCount).toFixed(1) : "10.0";
 
-      // 3. FASE 3: PROCESSAR DESPESAS (SANGRIA REAL)
+      // 3. FASE 3: PROCESSAR DESPESAS TOTAIS
       let outflowsTotal = 0;
       if (outflowsData) {
         setOutflows(outflowsData);
@@ -268,7 +268,7 @@ export default function FinanceiroPage() {
 
       if (closingsData) setClosings(closingsData);
 
-      // 🧠 MOTOR CFO ABSOLUTO 2.0 (Integração)
+      // 🧠 ASSISTENTE FINANCEIRO (Integração)
       const ebitdaData = AtelierCFOEngine.calculateEBITDA(mrrCalc, outflowsTotal);
       const runwayData = AtelierCFOEngine.calculateRunway(paidCalc, mrrCalc, outflowsTotal);
       const allocation = AtelierCFOEngine.calculateCapitalAllocation(paidCalc, runwayData.months);
@@ -306,20 +306,20 @@ export default function FinanceiroPage() {
 
       if (teamData) {
         const sortedTeam = teamData.map((t: any) => ({
-          ...t, perf: t.team_performance?.[0] || { exp_points: 0, level_name: 'Novato', total_tasks_completed: 0, avg_tnps: 10.0, on_time_rate: 100 }
+          ...t, perf: t.team_performance?.[0] || { exp_points: 0, level_name: 'Especialista', total_tasks_completed: 0, avg_tnps: 10.0, on_time_rate: 100 }
         })).sort((a, b) => b.perf.exp_points - a.perf.exp_points);
         setTeamHealth(sortedTeam);
       }
 
       if (npsData && npsData.length > 0) {
         setRecentNps(npsData.map((n: any) => ({
-          id: n.id, client: n.profiles?.nome || "Cliente", score: n.score, feedback: n.feedback, member: n.assignee?.nome || "Equipa"
+          id: n.id, client: n.profiles?.nome || "Cliente", score: n.score, feedback: n.feedback, member: n.assignee?.nome || "Equipe"
         })));
       } else setRecentNps([]);
 
     } catch (error) {
       console.error("Erro geral:", error);
-      showToast("Erro ao carregar dados do painel CFO.");
+      showToast("Erro ao carregar dados do painel financeiro.");
     } finally {
       setIsLocalLoading(false);
     }
@@ -339,13 +339,13 @@ export default function FinanceiroPage() {
       const { data: proj } = await supabase.from('projects').select('client_id').eq('id', projectId).single();
       
       if (proj && proj.client_id) {
-        // 🔔 NOTIFICAÇÃO: Aviso de Cobrança ao Cliente (Substitui o toast de mentira)
+        // 🔔 NOTIFICAÇÃO: Aviso de Cobrança ao Cliente
         await NotificationEngine.notifyUser(
           proj.client_id,
-          "⚠️ Fatura Disponível para Liquidação",
-          `A fatura no valor de R$ ${amount.toFixed(2)} já se encontra disponível. Por favor, regularize para não interromper os serviços.`,
+          "⚠️ Fatura Disponível para Pagamento",
+          `A sua fatura no valor de R$ ${amount.toFixed(2)} encontra-se disponível. Por favor, regularize o pagamento para a continuidade dos serviços.`,
           "warning",
-          "/cockpit"
+          "/meu-espaco"
         );
         showToast(`✅ Notificação enviada com sucesso para ${clientName}.`);
       } else {
@@ -383,16 +383,16 @@ export default function FinanceiroPage() {
          }
 
          await NotificationEngine.notifyManagement(
-           "💰 Fatura Liquidada",
-           `A fatura de ${targetItem.client} no valor de R$ ${targetItem.amount.toFixed(2)} entrou em caixa.`,
+           "💰 Pagamento Recebido",
+           `O pagamento de ${targetItem.client} no valor de R$ ${targetItem.amount.toFixed(2)} foi confirmado em caixa.`,
            "success"
          );
 
          setUpcomingBillings(prev => prev.filter(b => b.id !== projectId));
-         showToast("💵 Fatura liquidada! Ciclo renovado.");
+         showToast("💵 Pagamento confirmado! Ciclo renovado.");
          refreshGlobalData();
       } else {
-         showToast("Vá a 'Clientes' para marcar o projeto IDV como entregue.");
+         showToast("Vá a 'Clientes' para marcar o projeto como entregue.");
       }
     } catch (e) { showToast("Erro ao atualizar pagamento."); } 
     finally { setIsProcessing(false); }
@@ -422,7 +422,7 @@ export default function FinanceiroPage() {
   };
 
   const handleCloseMonth = async () => {
-    if (!window.confirm(`Deseja fechar o ciclo de faturamento de ${closingMonth}?`)) return;
+    if (!window.confirm(`Deseja fechar o ciclo financeiro de ${closingMonth}?`)) return;
     setIsProcessing(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -480,7 +480,7 @@ export default function FinanceiroPage() {
             </span>
           </div>
           <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] tracking-tight leading-none">
-            {activeView === 'overview' ? 'Saúde &' : activeView === 'finance' ? 'CFO' : 'Métricas &'} <span className="text-[var(--color-atelier-terracota)] italic">{activeView === 'overview' ? 'Métricas.' : activeView === 'finance' ? 'Dashboard.' : 'Saúde.'}</span>
+            {activeView === 'overview' ? 'Visão' : activeView === 'finance' ? 'Gestão' : 'Métricas de'} <span className="text-[var(--color-atelier-terracota)] italic">{activeView === 'overview' ? 'Geral.' : activeView === 'finance' ? 'Financeira.' : 'Desempenho.'}</span>
           </h1>
         </div>
         
@@ -489,10 +489,10 @@ export default function FinanceiroPage() {
              <LayoutDashboard size={14}/> Visão Geral
            </button>
            <button onClick={() => setActiveView('finance')} className={`px-4 py-3 rounded-[1rem] font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeView === 'finance' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)] hover:bg-white'}`}>
-             <Wallet size={14}/> Financeiro (CFO)
+             <Wallet size={14}/> Financeiro
            </button>
            <button onClick={() => setActiveView('health')} className={`px-4 py-3 rounded-[1rem] font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeView === 'health' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)] hover:bg-white'}`}>
-             <Medal size={14}/> Performance
+             <Medal size={14}/> Desempenho
            </button>
         </div>
       </header>
@@ -609,7 +609,7 @@ export default function FinanceiroPage() {
               <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <div>
                   <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><FileText size={24} className="text-[var(--color-atelier-terracota)]"/> Relatório DRE</h3>
-                  <p className="font-roboto text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1 font-bold">Demonstração do Resultado</p>
+                  <p className="font-roboto text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1 font-bold">Demonstração de Resultados</p>
                 </div>
                 <button onClick={() => setIsReportModalOpen(false)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] shrink-0 bg-gray-50 p-2 rounded-full hover:bg-gray-100 transition-colors"><X size={18}/></button>
               </div>
@@ -658,7 +658,7 @@ export default function FinanceiroPage() {
               <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <div>
                   <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><Edit3 size={24} className="text-[var(--color-atelier-terracota)]"/> Editar Contrato</h3>
-                  <p className="font-roboto text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1 font-bold">Ajustes Financeiros e de LTV</p>
+                  <p className="font-roboto text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1 font-bold">Ajustes Financeiros e Contratuais</p>
                 </div>
                 <button onClick={() => setIsEditModalOpen(false)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] shrink-0 bg-gray-50 p-2 rounded-full hover:bg-gray-100 transition-colors"><X size={18}/></button>
               </div>
@@ -666,12 +666,12 @@ export default function FinanceiroPage() {
               <div className="flex flex-col gap-4">
                 {projectToEdit?.entityType === 'agency' && (
                    <div className="bg-blue-50 border border-blue-200 text-blue-700 p-3 rounded-xl text-[11px] font-bold flex items-center gap-2">
-                     <AlertTriangle size={14}/> Agência White-Label (Apenas ajuste de MRR disponível)
+                     <AlertTriangle size={14}/> Agência Parceira (Apenas ajuste de valor mensal disponível)
                    </div>
                 )}
 
                 <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Valor Contratual / MRR Atual (R$)</span>
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Valor Contratual / Mensalidade (R$)</span>
                   <div className="relative">
                     <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-[var(--color-atelier-grafite)]/40">R$</span>
                     <input type="number" placeholder="0.00" value={editFinancialValue} onChange={(e) => setEditFinancialValue(e.target.value)} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl py-3.5 pl-10 pr-4 text-[14px] outline-none focus:border-[var(--color-atelier-terracota)]/50 font-bold" />
@@ -680,7 +680,7 @@ export default function FinanceiroPage() {
 
                 {projectToEdit?.entityType !== 'agency' && (
                   <div className="flex flex-col gap-1.5">
-                    <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Alterar Pacote / Escopo LTV</span>
+                    <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Alterar Pacote / Escopo do Projeto</span>
                     <select value={editPackage} onChange={(e) => setEditPackage(e.target.value)} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-terracota)] font-bold cursor-pointer">
                       <option value="" disabled>Manter atual</option>
                       <optgroup label="Gestão de Instagram">
@@ -700,7 +700,7 @@ export default function FinanceiroPage() {
 
               <div className="mt-2 bg-blue-50/50 border border-blue-100 p-4 rounded-xl flex items-start gap-3">
                 <Activity size={16} className="text-blue-500 shrink-0 mt-0.5"/>
-                <p className="text-[11px] text-blue-800 leading-relaxed font-medium">As alterações aplicar-se-ão apenas ao próximo ciclo mensal. Para alterar o Workflow estrutural, utilize a aba de Clientes.</p>
+                <p className="text-[11px] text-blue-800 leading-relaxed font-medium">As alterações serão aplicadas ao próximo ciclo de cobrança. Para modificar o plano de execução de tarefas do cliente, aceda ao painel de Projetos.</p>
               </div>
 
               <button 
@@ -725,14 +725,14 @@ export default function FinanceiroPage() {
                       if (proj && proj.client_id) {
                         await NotificationEngine.notifyUser(
                           proj.client_id,
-                          "💳 Ajuste de Escopo",
-                          "Houve um ajuste nas condições comerciais da sua mensalidade. Reveja com a sua Gestora de Conta.",
+                          "💳 Atualização de Contrato",
+                          "As suas condições comerciais foram atualizadas com sucesso.",
                           "info"
                         );
                       }
                     }
 
-                    showToast("Contrato reajustado com sucesso!");
+                    showToast("Contrato atualizado com sucesso!");
                     setIsEditModalOpen(false);
                     refreshGlobalData();
                   } catch (e) {
@@ -744,7 +744,7 @@ export default function FinanceiroPage() {
                 disabled={isProcessing || !projectToEdit} 
                 className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2 mt-2 disabled:opacity-50 disabled:hover:translate-y-0"
               >
-                {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle2 size={16}/>} Aplicar Reajuste
+                {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle2 size={16}/>} Salvar Alterações
               </button>
 
             </motion.div>

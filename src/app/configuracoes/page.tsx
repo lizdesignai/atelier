@@ -33,7 +33,7 @@ export default function ConfiguracoesPage() {
     aniversario: "",
     bio: "",
     empresa: "",
-    cargo: "", // Campo para a equipa
+    cargo: "", // Campo para a equipe
     nif: "",
     endereco: "",
     instagram: "" // NOVO: Campo de Instagram
@@ -106,7 +106,7 @@ export default function ConfiguracoesPage() {
     const file = e.target.files?.[0];
     if (!file || !userId) return;
 
-    showToast("A enviar nova foto de perfil...");
+    showToast("Enviando nova foto de perfil...");
     
     try {
       const fileExt = file.name.split('.').pop();
@@ -123,7 +123,7 @@ export default function ConfiguracoesPage() {
       const { data: publicUrlData } = supabase.storage.from('avatars').getPublicUrl(fileName);
       
       setAvatar(publicUrlData.publicUrl);
-      showToast("Foto alterada! Clique em 'Guardar Definições' para aplicar.");
+      showToast("Foto alterada! Clique em 'Salvar Configurações' para aplicar.");
     } catch (error) {
       console.error(error);
       showToast("Erro ao fazer upload da imagem. Certifique-se que o Bucket existe.");
@@ -138,7 +138,7 @@ export default function ConfiguracoesPage() {
     if (!userId) return;
 
     setIsSaving(true);
-    showToast("A sincronizar dados com o ecossistema...");
+    showToast("Sincronizando dados com o sistema...");
     
     try {
       // Formata o @ do instagram caso o cliente esqueça ou coloque a url inteira
@@ -181,10 +181,10 @@ export default function ConfiguracoesPage() {
       }
 
       setFormData(prev => ({ ...prev, instagram: cleanInstagram }));
-      showToast("✨ Definições guardadas e atualizadas no sistema.");
+      showToast("✨ Configurações salvas e atualizadas no sistema.");
     } catch (error: any) {
-      console.error("Erro ao guardar:", error);
-      showToast("Erro ao guardar: " + error.message);
+      console.error("Erro ao salvar:", error);
+      showToast("Erro ao salvar: " + error.message);
     } finally {
       setIsSaving(false);
     }
@@ -207,7 +207,7 @@ export default function ConfiguracoesPage() {
     }
 
     setIsChangingPassword(true);
-    showToast("A reconfigurar cofre de segurança...");
+    showToast("Atualizando segurança da conta...");
 
     try {
       const { error } = await supabase.auth.updateUser({
@@ -227,7 +227,7 @@ export default function ConfiguracoesPage() {
 
   const isTeamMember = userRole === 'admin' || userRole === 'gestor' || userRole === 'colaborador';
 
-  // Ecrã de Loading Interno da Tela
+  // Tela de Loading Interno
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[calc(100vh-100px)] w-full">
@@ -248,10 +248,10 @@ export default function ConfiguracoesPage() {
             <div className="w-10 h-10 rounded-[1rem] bg-white border border-white flex items-center justify-center shadow-sm">
               <Settings size={18} className="text-[var(--color-atelier-terracota)]" />
             </div>
-            <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/60">Painel de Controlo</span>
+            <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/60">Painel de Ajustes</span>
           </div>
           <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] tracking-tight leading-none mt-2">
-            Ajustes e <span className="text-[var(--color-atelier-terracota)] italic">Privacidade.</span>
+            Configurações e <span className="text-[var(--color-atelier-terracota)] italic">Privacidade.</span>
           </h1>
         </div>
 
@@ -284,9 +284,9 @@ export default function ConfiguracoesPage() {
               {/* Ornamento Traseiro */}
               <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-40 h-40 bg-[var(--color-atelier-terracota)]/10 rounded-full blur-2xl group-hover:bg-[var(--color-atelier-terracota)]/20 transition-colors z-0"></div>
             </div>
-            <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none">{formData.nome || "Utilizador"}</h2>
+            <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none">{formData.nome || "Usuário"}</h2>
             <span className="inline-block mt-3 px-3 py-1.5 rounded-md bg-[var(--color-atelier-terracota)]/10 border border-[var(--color-atelier-terracota)]/20 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)]">
-              {isTeamMember ? (formData.cargo || 'Membro da Equipa') : (formData.empresa || 'Cliente Premium')}
+              {isTeamMember ? (formData.cargo || 'Membro da Equipe') : (formData.empresa || 'Cliente Premium')}
             </span>
           </div>
 
@@ -309,8 +309,8 @@ export default function ConfiguracoesPage() {
             >
               <Briefcase size={20} />
               <div className="flex flex-col text-left">
-                <span className="font-roboto text-[13px] font-bold">{isTeamMember ? 'Posição no Atelier' : 'Dados da Empresa'}</span>
-                <span className="font-roboto text-[10px] uppercase tracking-widest opacity-60 mt-0.5">{isTeamMember ? 'Cargo' : 'NIF, Endereço'}</span>
+                <span className="font-roboto text-[13px] font-bold">{isTeamMember ? 'Cargo Profissional' : 'Dados da Empresa'}</span>
+                <span className="font-roboto text-[10px] uppercase tracking-widest opacity-60 mt-0.5">{isTeamMember ? 'Posição' : 'CNPJ, Endereço'}</span>
               </div>
             </button>
 
@@ -357,7 +357,7 @@ export default function ConfiguracoesPage() {
                       <>
                         <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-6">
                           <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Informações Pessoais</h2>
-                          <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">Como o Atelier se dirige a si, e os links da sua rede.</p>
+                          <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">Como a equipe se dirige a você, e os links de contato.</p>
                         </div>
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -391,14 +391,14 @@ export default function ConfiguracoesPage() {
 
                         <div className="flex flex-col gap-2 group/input">
                           <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1 transition-colors">Biografia / Resumo Profissional</label>
-                          <textarea value={formData.bio} onChange={(e) => setFormData({...formData, bio: e.target.value})} className="bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] px-6 py-5 text-[13px] font-medium text-[var(--color-atelier-grafite)] min-h-[140px] resize-none outline-none shadow-sm custom-scrollbar transition-all" placeholder="Fale-nos um pouco sobre a sua visão e sobre si..." />
+                          <textarea value={formData.bio} onChange={(e) => setFormData({...formData, bio: e.target.value})} className="bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] px-6 py-5 text-[13px] font-medium text-[var(--color-atelier-grafite)] min-h-[140px] resize-none outline-none shadow-sm custom-scrollbar transition-all" placeholder="Fale-nos um pouco sobre a sua visão..." />
                         </div>
                       </>
                     ) : (
                       <>
                         <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-6">
-                          <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">{isTeamMember ? 'Posição no Atelier' : 'Dados Fiscais da Empresa'}</h2>
-                          <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">{isTeamMember ? 'Identifique o seu cargo oficial perante os clientes.' : 'Informações essenciais para faturação e emissão de recibos.'}</p>
+                          <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">{isTeamMember ? 'Atuação na Empresa' : 'Dados Fiscais da Empresa'}</h2>
+                          <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">{isTeamMember ? 'Identifique o seu cargo oficial perante os clientes.' : 'Informações essenciais para faturamento e emissão de notas fiscais.'}</p>
                         </div>
 
                         {isTeamMember ? (
@@ -413,11 +413,11 @@ export default function ConfiguracoesPage() {
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                               <div className="flex flex-col gap-2 group/input">
                                 <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1 transition-colors">Nome da Empresa</label>
-                                <input type="text" value={formData.empresa} onChange={(e) => setFormData({...formData, empresa: e.target.value})} className="bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-5 py-4 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none shadow-sm transition-all" placeholder="A sua Holding ou Empresa Lda." />
+                                <input type="text" value={formData.empresa} onChange={(e) => setFormData({...formData, empresa: e.target.value})} className="bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-5 py-4 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none shadow-sm transition-all" placeholder="Razão Social ou Nome Fantasia" />
                               </div>
                               <div className="flex flex-col gap-2 group/input">
-                                <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1 transition-colors">NIF / CNPJ</label>
-                                <input type="text" value={formData.nif} onChange={(e) => setFormData({...formData, nif: e.target.value})} className="bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-5 py-4 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none shadow-sm font-mono transition-all" placeholder="000.000.000" />
+                                <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1 transition-colors">CNPJ / CPF</label>
+                                <input type="text" value={formData.nif} onChange={(e) => setFormData({...formData, nif: e.target.value})} className="bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-5 py-4 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none shadow-sm font-mono transition-all" placeholder="00.000.000/0001-00" />
                               </div>
                             </div>
 
@@ -425,7 +425,7 @@ export default function ConfiguracoesPage() {
                               <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1 flex items-center gap-2 transition-colors">
                                 <MapPin size={14} /> Endereço Fiscal Completo
                               </label>
-                              <input type="text" value={formData.endereco} onChange={(e) => setFormData({...formData, endereco: e.target.value})} className="bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-5 py-4 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none shadow-sm transition-all" placeholder="Rua, Número, Código Postal, País" />
+                              <input type="text" value={formData.endereco} onChange={(e) => setFormData({...formData, endereco: e.target.value})} className="bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-5 py-4 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none shadow-sm transition-all" placeholder="Rua, Número, CEP, Cidade, Estado" />
                             </div>
                           </div>
                         )}
@@ -433,7 +433,7 @@ export default function ConfiguracoesPage() {
                     )}
                 </div>
                 
-                {/* Rodapé de Guardar (Fixo no Fundo para Perfil e Empresa) */}
+                {/* Rodapé de Salvar (Fixo no Fundo para Perfil e Empresa) */}
                 <div className="p-8 bg-white/60 backdrop-blur-xl border-t border-[var(--color-atelier-grafite)]/5 shrink-0 flex justify-end">
                   <button 
                     type="submit"
@@ -447,9 +447,9 @@ export default function ConfiguracoesPage() {
                     `}
                   >
                     {isSaving ? (
-                      <><div className="w-4 h-4 border-2 border-[var(--color-atelier-terracota)] border-t-transparent rounded-full animate-spin"></div> A Sincronizar...</>
+                      <><div className="w-4 h-4 border-2 border-[var(--color-atelier-terracota)] border-t-transparent rounded-full animate-spin"></div> Salvando Dados...</>
                     ) : (
-                      <><Save size={16} /> Guardar Definições</>
+                      <><Save size={16} /> Salvar Configurações</>
                     )}
                   </button>
                 </div>
@@ -465,15 +465,15 @@ export default function ConfiguracoesPage() {
                   
                   <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-6">
                     <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] flex items-center gap-3">
-                      Segurança & Credenciais
+                      Segurança & Acesso
                     </h2>
-                    <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">Altere a sua palavra-passe de acesso ao estúdio.</p>
+                    <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">Altere a sua senha de acesso ao painel de gerenciamento.</p>
                   </div>
 
                   <div className="bg-white border border-white p-8 rounded-[2.5rem] shadow-sm flex flex-col gap-6 max-w-xl">
                     <div className="flex flex-col gap-2 group/input">
                       <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1 flex items-center gap-1.5 transition-colors">
-                        <Lock size={14}/> Nova Palavra-Passe
+                        <Lock size={14}/> Nova Senha
                       </label>
                       <input 
                         type="password" 
@@ -488,13 +488,13 @@ export default function ConfiguracoesPage() {
                     
                     <div className="flex flex-col gap-2 group/input">
                       <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1 flex items-center gap-1.5 transition-colors">
-                        <CheckCircle2 size={14}/> Confirmar Palavra-Passe
+                        <CheckCircle2 size={14}/> Confirmar Senha
                       </label>
                       <input 
                         type="password" 
                         required
                         minLength={6}
-                        placeholder="Repita a senha para confirmar"
+                        placeholder="Repita a nova senha para confirmar"
                         value={passwordData.confirmPassword} 
                         onChange={(e) => setPasswordData({...passwordData, confirmPassword: e.target.value})} 
                         className="bg-gray-50/50 border border-gray-100 focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-5 py-4 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none shadow-inner transition-all" 
@@ -504,7 +504,7 @@ export default function ConfiguracoesPage() {
                   
                   <div className="bg-orange-50/80 border border-orange-100 p-5 rounded-[1.5rem] flex items-start gap-4 max-w-xl shadow-sm">
                     <div className="w-10 h-10 rounded-full bg-orange-100 flex items-center justify-center text-orange-500 shrink-0"><ShieldCheck size={18} /></div>
-                    <p className="text-[12px] text-orange-900 leading-relaxed font-medium mt-0.5">As suas credenciais são encriptadas de ponta a ponta. O Atelier não tem acesso visual à sua palavra-passe, garantindo privacidade absoluta na base de dados.</p>
+                    <p className="text-[12px] text-orange-900 leading-relaxed font-medium mt-0.5">As suas credenciais possuem criptografia avançada ponta a ponta. A equipe não possui acesso de leitura à sua senha, assegurando total privacidade.</p>
                   </div>
 
                 </div>
@@ -522,9 +522,9 @@ export default function ConfiguracoesPage() {
                     `}
                   >
                     {isChangingPassword ? (
-                      <><div className="w-4 h-4 border-2 border-[var(--color-atelier-grafite)]/30 border-t-transparent rounded-full animate-spin"></div> A Atualizar Cofre...</>
+                      <><div className="w-4 h-4 border-2 border-[var(--color-atelier-grafite)]/30 border-t-transparent rounded-full animate-spin"></div> Salvando Credenciais...</>
                     ) : (
-                      <><KeyRound size={16} /> Redefinir Palavra-Passe</>
+                      <><KeyRound size={16} /> Redefinir Senha</>
                     )}
                   </button>
                 </div>
@@ -537,8 +537,8 @@ export default function ConfiguracoesPage() {
             {activeTab === "contrato" && !isTeamMember && (
               <motion.div key="contrato" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col gap-8 h-full p-8 md:p-12">
                 <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-6">
-                  <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Auditoria e Jurídico</h2>
-                  <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">Transparência total. O seu contrato blindado e acessível a qualquer momento.</p>
+                  <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Termos Legais e Contrato</h2>
+                  <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">Acesso imediato à documentação do seu projeto sempre que precisar.</p>
                 </div>
 
                 <div className="flex-1 flex items-center justify-center pb-10">
@@ -547,22 +547,22 @@ export default function ConfiguracoesPage() {
                       <ShieldCheck size={36} />
                     </div>
                     <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-3 leading-tight">Contrato de Prestação de Serviços</h3>
-                    <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mb-8 font-medium leading-relaxed px-4">Assinado digitalmente. Todas as cláusulas de direitos de imagem, autoria e entregáveis estão garantidas.</p>
+                    <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mb-8 font-medium leading-relaxed px-4">Assinado digitalmente. Todas as cláusulas referentes a entregáveis, confidencialidade e prazos estão garantidas.</p>
                     
                     <div className="w-full flex flex-col gap-4">
                       <div className="bg-gray-50 px-5 py-4 rounded-[1.2rem] flex justify-between items-center text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 border border-gray-100">
-                        <span>Status de Validação:</span>
-                        {contractUrl ? <span className="text-green-600 flex items-center gap-1"><CheckCircle2 size={14}/> Disponível</span> : <span className="text-orange-500 flex items-center gap-1"><Clock size={14}/> Em preparação</span>}
+                        <span>Status do Documento:</span>
+                        {contractUrl ? <span className="text-green-600 flex items-center gap-1"><CheckCircle2 size={14}/> Disponível</span> : <span className="text-orange-500 flex items-center gap-1"><Clock size={14}/> Em elaboração</span>}
                       </div>
                       <button 
                         type="button"
                         onClick={() => {
                           if (contractUrl) window.open(contractUrl, "_blank");
-                          else showToast("O seu contrato será disponibilizado em breve pelo Atelier.");
+                          else showToast("O seu contrato será disponibilizado neste espaço em breve.");
                         }}
                         className={`w-full py-4 rounded-[1.2rem] flex items-center justify-center gap-3 font-roboto text-[11px] font-bold uppercase tracking-[0.1em] transition-all shadow-sm duration-300 ${contractUrl ? 'bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5' : 'bg-gray-100 text-gray-400 cursor-not-allowed border border-gray-200'}`}
                       >
-                        {contractUrl ? <><LinkIcon size={16} /> Acessar Documento</> : 'Aguardando Arquivo'}
+                        {contractUrl ? <><LinkIcon size={16} /> Acessar Documento</> : 'Aguardando Liberação'}
                       </button>
                     </div>
                   </div>

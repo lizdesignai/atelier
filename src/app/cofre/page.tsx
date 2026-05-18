@@ -98,7 +98,7 @@ export default function CofrePage() {
 
 
   // ==========================================
-  // MOTORES DE AVALIAÇÃO E UPSELL
+  // MOTORES DE AVALIAÇÃO E TRANSIÇÃO
   // ==========================================
   const handleSubmitNps = async () => {
     if (npsScore === null || !activeProject || !clientId) return;
@@ -116,7 +116,7 @@ export default function CofrePage() {
       if (npsScore >= 9) {
         setTimeout(() => setShowUpsellModal(true), 500); 
       } else {
-        showToast("A sua avaliação foi registada com sucesso. Muito obrigado pela confiança!");
+        showToast("A sua avaliação foi registrada com sucesso. Muito obrigado pela confiança!");
         setNpsScore(null);
         setNpsFeedback("");
       }
@@ -135,11 +135,11 @@ export default function CofrePage() {
 
   const handleAcceptUpsell = async () => {
     setShowUpsellModal(false);
-    showToast("Excelente decisão! A nossa equipa entrará em contacto muito em breve.");
+    showToast("Excelente decisão! A nossa equipe entrará em contato muito em breve.");
     
     await NotificationEngine.notifyManagement(
-       "🔥 Boiling Lead: Escala Pós-IDV (Upsell)",
-       `O cliente ${clientName} retirou a Identidade Visual do Cofre (Proj: ${activeProject?.name || activeProject?.type}), avaliou com nota ${npsScore} e manifestou interesse em delegar o Instagram.`,
+       "📈 Interesse em Serviços de Gestão",
+       `O cliente ${clientName} retirou a Identidade Visual do espaço reservado (Proj: ${activeProject?.name || activeProject?.type}), avaliou com nota ${npsScore} e manifestou interesse nos serviços de gestão de conteúdo.`,
        "success",
        "/admin/clientes"
     );
@@ -150,7 +150,7 @@ export default function CofrePage() {
 
   const handleDeclineUpsell = () => {
     setShowUpsellModal(false);
-    showToast("Avaliação registada. Estaremos sempre à disposição!");
+    showToast("Avaliação registrada. Estaremos sempre à disposição!");
     setNpsScore(null);
     setNpsFeedback("");
   };
@@ -172,7 +172,7 @@ export default function CofrePage() {
     return (
       <div className="flex flex-col items-center justify-center h-[calc(100vh-80px)] text-center px-4">
         <Lock size={48} className="text-[var(--color-atelier-grafite)]/20 mb-4" />
-        <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Cofre Vazio</h2>
+        <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Espaço Vazio</h2>
         <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/50 mt-2">Você não possui nenhum projeto ativo ou entregue no momento.</p>
       </div>
     );
@@ -184,7 +184,7 @@ export default function CofrePage() {
       <AnimatePresence mode="wait">
         
         {/* ==========================================
-            ESTADO 1: O COFRE ENIGMÁTICO (Bloqueado)
+            ESTADO 1: O ESPAÇO RESERVADO (Bloqueado)
             ========================================== */}
         {!isUnlocked && (
           <motion.div 
@@ -243,11 +243,11 @@ export default function CofrePage() {
                 </motion.div>
 
                 <h1 className="font-elegant text-6xl md:text-[5.5rem] text-[var(--color-atelier-grafite)] mb-6 tracking-tight leading-none drop-shadow-sm">
-                  O Segredo <br/><span className="text-[var(--color-atelier-terracota)] italic">em Forja.</span>
+                  Sua Marca em <br/><span className="text-[var(--color-atelier-terracota)] italic">Lapidação.</span>
                 </h1>
                 
                 <p className="font-roboto text-[16px] text-[var(--color-atelier-grafite)]/60 max-w-md leading-[1.8] mb-12 font-medium">
-                  A sua obra-prima está sendo lapidada no escuro. As formas estão nascendo, as cores estão aquecendo.
+                  A sua obra-prima está sendo lapidada com precisão. As formas estão nascendo, as cores ganhando vida.
                 </p>
 
                 <div className="flex flex-col items-center gap-2 bg-white/50 backdrop-blur-md border border-white px-10 py-5 rounded-[2rem] shadow-sm">
@@ -310,7 +310,7 @@ export default function CofrePage() {
                 </h1>
               </div>
               <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 max-w-sm md:text-right leading-relaxed font-medium">
-                Toda grande marca tem um ponto de virada. Aceda ao seu ecossistema visual abaixo.
+                Toda grande marca tem um ponto de virada. Acesse o seu ecossistema visual abaixo.
               </p>
             </header>
 
@@ -342,7 +342,7 @@ export default function CofrePage() {
               >
                 <div className="glass-panel p-8 rounded-[2.5rem] flex flex-col gap-5 border border-white shadow-sm shrink-0">
                   <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2 mb-2">
-                    Seus Ativos <Sparkles size={16} className="text-[var(--color-atelier-terracota)]" />
+                    Seus Arquivos Finais <Sparkles size={16} className="text-[var(--color-atelier-terracota)]" />
                   </h3>
                   
                   <div className="flex flex-col gap-3">
@@ -380,17 +380,17 @@ export default function CofrePage() {
                   
                   <HeartHandshake size={36} strokeWidth={1.5} className="text-[var(--color-atelier-terracota)] mb-4 relative z-10" />
                   <h3 className="font-elegant text-3xl md:text-4xl text-white mb-2 relative z-10 leading-tight">
-                    O seu legado importa.
+                    A sua opinião importa.
                   </h3>
                   <p className="font-roboto text-[13px] text-white/70 max-w-[85%] mb-8 relative z-10 leading-relaxed font-medium">
-                    Partilhe a sua jornada. O seu relato inspirará futuras marcas no nosso Mural de Sucesso.
+                    Compartilhe a sua jornada de criação conosco. A sua experiência inspirará futuras marcas no nosso Histórico de Clientes Satisfeitos.
                   </p>
                   
                   <button 
                     onClick={() => setShowNpsModal(true)}
                     className="bg-white text-[var(--color-atelier-grafite)] px-8 py-4 rounded-[1.2rem] font-roboto font-bold uppercase tracking-[0.1em] text-[11px] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all duration-300 shadow-[0_10px_20px_rgba(0,0,0,0.2)] hover:shadow-[0_15px_30px_rgba(173,111,64,0.4)] flex items-center gap-3 relative z-10 hover:-translate-y-1"
                   >
-                    Deixar Relato <ArrowRight size={14} />
+                    Deixar Avaliação <ArrowRight size={14} />
                   </button>
                 </div>
               </motion.div>
@@ -462,16 +462,16 @@ export default function CofrePage() {
                 <div>
                   <h3 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-4 leading-tight">Pronto para o Próximo Nível?</h3>
                   <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 leading-relaxed font-medium">
-                    Ficamos muito felizes que tenha adorado a sua nova Identidade Visual! Sabia que as marcas que delegam 100% da sua presença digital crescem em média 3x mais rápido? <br/><br/>O Atelier pode assumir toda a gestão e produção de conteúdo do seu Instagram.
+                    Ficamos muito felizes que tenha adorado a sua nova Identidade Visual! Sabia que as marcas que delegam 100% da sua presença digital crescem de forma mais sólida e previsível? <br/><br/>A equipe da Liz Design está preparada para assumir toda a gestão e produção de conteúdo do seu Instagram.
                   </p>
                 </div>
 
                 <div className="flex flex-col gap-3 mt-4">
                   <button onClick={handleAcceptUpsell} className="w-full bg-[var(--color-atelier-terracota)] text-white py-5 rounded-[1.5rem] font-bold uppercase tracking-[0.1em] text-[11px] shadow-lg hover:bg-[#8c562e] hover:-translate-y-0.5 transition-all">
-                    Sim, Quero Delegar o Meu Instagram
+                    Sim, Quero Conhecer os Serviços de Gestão
                   </button>
                   <button onClick={handleDeclineUpsell} className="w-full bg-transparent border border-transparent hover:border-gray-100 text-[var(--color-atelier-grafite)]/50 py-4 rounded-[1.5rem] font-bold uppercase tracking-widest text-[10px] hover:text-[var(--color-atelier-grafite)] hover:bg-gray-50 transition-colors">
-                    Não, apenas a Identidade Visual está ótimo.
+                    Não, eu farei a gestão da minha marca
                   </button>
                 </div>
             </motion.div>

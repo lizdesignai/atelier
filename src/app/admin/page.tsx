@@ -163,11 +163,11 @@ export default function AdminDashboard() {
     // B. MODO DE TEMPO REAL: Radar e Eficiência reagem instantaneamente a mudanças na base de dados
     const channel = supabase.channel('radar-sync')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, (payload) => {
-        console.log("Mudança de Tarefa detetada! A recalcular Radar e Eficiência...", payload);
+        console.log("Mudança de Tarefa detectada! Recalculando métricas...", payload);
         generateExecutiveReport();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, (payload) => {
-        console.log("Mudança de Projeto detetada! A recalcular MRR e Ecossistema...", payload);
+        console.log("Mudança de Projeto detectada! Recalculando MRR e Ecossistema...", payload);
         generateExecutiveReport();
       })
       .subscribe();
@@ -196,7 +196,7 @@ export default function AdminDashboard() {
         <div>
           <div className="inline-flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-full mb-1 shadow-sm border border-white">
             <ShieldCheck size={12} strokeWidth={2.5} />
-            <span className="text-[9px] uppercase tracking-widest font-bold">C-Level Command Center</span>
+            <span className="text-[9px] uppercase tracking-widest font-bold">Painel Executivo</span>
           </div>
           <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] tracking-tight leading-none">
             Inteligência de <span className="text-[var(--color-atelier-terracota)] italic">Negócio.</span>
@@ -275,7 +275,7 @@ export default function AdminDashboard() {
           <div className="p-4 shrink-0 border-b border-[var(--color-atelier-grafite)]/5 bg-white/30 backdrop-blur-md flex items-center justify-between">
              <div className="flex items-center gap-2">
                <Activity size={16} className="text-[var(--color-atelier-terracota)]" />
-               <h3 className="font-elegant text-xl text-[var(--color-atelier-grafite)]">Motor de Entrega</h3>
+               <h3 className="font-elegant text-xl text-[var(--color-atelier-grafite)]">Progresso de Entregas</h3>
              </div>
              <span className="bg-green-100 text-green-700 px-2 py-1 rounded-md text-[8px] font-bold uppercase tracking-widest">Saudável</span>
           </div>
@@ -287,7 +287,7 @@ export default function AdminDashboard() {
             </div>
 
             <div className="flex-1 flex flex-col">
-              <h4 className="font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2 pl-1 border-b border-white pb-2 shrink-0">Top Executores</h4>
+              <h4 className="font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2 pl-1 border-b border-white pb-2 shrink-0">Destaques da Equipe</h4>
               <div className="flex flex-col gap-2">
                 {teamEfficiency.length === 0 ? (
                   <span className="text-[11px] text-gray-400 italic px-2">Sem dados de produtividade na semana.</span>
@@ -298,7 +298,7 @@ export default function AdminDashboard() {
                         <div className="w-6 h-6 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] rounded-md flex items-center justify-center font-elegant text-sm">{member.name.charAt(0)}</div>
                         <span className="font-roboto text-[12px] font-bold text-[var(--color-atelier-grafite)] truncate max-w-[100px]">{member.name}</span>
                       </div>
-                      <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] shrink-0">{member.tasks} Fechamentos</span>
+                      <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] shrink-0">{member.tasks} Entregas</span>
                     </div>
                   ))
                 )}
@@ -316,15 +316,15 @@ export default function AdminDashboard() {
                   {churnRadar.length > 0 ? <AlertTriangle size={14} strokeWidth={2.5} className="animate-pulse"/> : <CheckCircle2 size={14} strokeWidth={2.5} />}
                 </div>
                 <div>
-                  <h3 className="font-elegant text-xl text-[var(--color-atelier-grafite)] leading-none">Radar Anti-Churn</h3>
+                  <h3 className="font-elegant text-xl text-[var(--color-atelier-grafite)] leading-none">Prevenção de Inatividade</h3>
                   <p className="font-roboto text-[9px] text-[var(--color-atelier-grafite)]/50 mt-1 uppercase tracking-widest font-bold">
-                    Monitoramento de Insatisfação Silenciosa
+                    Acompanhamento de retenção e engajamento
                   </p>
                 </div>
               </div>
               <div className="bg-white px-3 py-1.5 rounded-xl shadow-sm border border-gray-50 flex items-center gap-1.5">
                 <BarChart size={12} className="text-[var(--color-atelier-terracota)]"/>
-                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Auditoria de Risco</span>
+                <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Análise de Retenção</span>
               </div>
             </div>
           </div>
@@ -332,14 +332,14 @@ export default function AdminDashboard() {
           <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] p-4 flex flex-col">
             
             <p className="text-[11px] text-[var(--color-atelier-grafite)]/60 font-medium mb-4 leading-relaxed max-w-2xl bg-white/60 p-3 rounded-xl border border-white shrink-0">
-              Cruzamento de dados entre o <strong>JTBD</strong> e o cofre de clientes. Clientes que estão há mais de <strong className="text-[var(--color-atelier-terracota)]">7 dias sem nenhuma entrega concluída</strong> são sinalizados para prevenção ativa de cancelamento.
+              Cruzamento de dados entre a <strong>Mesa de Trabalho</strong> e o espaço de clientes. Clientes que estão há mais de <strong className="text-[var(--color-atelier-terracota)]">7 dias sem nenhuma entrega concluída</strong> são sinalizados para acompanhamento prioritário.
             </p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               {churnRadar.length === 0 ? (
                  <div className="col-span-2 flex flex-col items-center justify-center py-6 opacity-50 text-center h-full">
                    <ShieldCheck size={40} className="mb-3 text-green-600" />
-                   <h4 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Carteira Blindada</h4>
+                   <h4 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Carteira Saudável</h4>
                    <p className="font-roboto text-[11px] font-medium text-[var(--color-atelier-grafite)] mt-1">Todos os clientes ativos receberam entregas nos últimos 7 dias.</p>
                  </div>
               ) : (
@@ -352,7 +352,7 @@ export default function AdminDashboard() {
                     <div className="absolute top-0 left-0 w-1 h-full bg-orange-500"></div>
                     <div className="flex justify-between items-start">
                       <div>
-                        <span className="text-[8px] uppercase tracking-widest font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-md mb-1.5 inline-block">7+ Dias S/ Entrega</span>
+                        <span className="text-[8px] uppercase tracking-widest font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-md mb-1.5 inline-block">7+ Dias Sem Entregas</span>
                         <h4 className="font-bold text-[13px] text-[var(--color-atelier-grafite)] truncate max-w-[140px]">{alert.client}</h4>
                         <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 font-bold uppercase tracking-widest truncate max-w-[140px] block mt-0.5">{alert.type}</span>
                       </div>
@@ -365,7 +365,7 @@ export default function AdminDashboard() {
                       onClick={() => { router.push("/admin/jtbd"); }}
                       className="w-full py-2 bg-orange-50 hover:bg-orange-500 text-orange-700 hover:text-white rounded-lg text-[9px] font-bold uppercase tracking-widest transition-colors flex items-center justify-center gap-1.5 mt-auto"
                     >
-                      Resolver no JTBD <ArrowUpRight size={12} />
+                      Ver na Mesa de Trabalho <ArrowUpRight size={12} />
                     </button>
                   </motion.div>
                 ))

@@ -2,14 +2,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "../../lib/supabase";
+import { NotificationEngine } from "../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
 import { 
   ChevronLeft, ChevronRight, Plus, Image as ImageIcon, 
   Sparkles, Fingerprint, Type, Palette, Target, CheckCircle2,
   UploadCloud, Loader2, Compass, Save
 } from "lucide-react";
-import { supabase } from "../../lib/supabase";
-import { NotificationEngine } from "../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -98,7 +99,7 @@ export default function ReferenciasPage() {
     if (!file || !projectId) return;
 
     setIsUploading(true);
-    showToast("A enviar referência visual para o Atelier...");
+    showToast("Enviando referência visual para a equipe...");
 
     try {
       const fileExt = file.name.split('.').pop();
@@ -121,16 +122,16 @@ export default function ReferenciasPage() {
       // 🔔 NOTIFICAÇÃO: Gestão (Avisa que o cliente injetou uma nova referência no seu Brandbook)
       await NotificationEngine.notifyManagement(
         "📸 Nova Referência no Moodboard",
-        `O cliente ${clientProfile?.nome?.split(' ')[0]} adicionou uma nova imagem inspiracional ao seu Mural de Referências.`,
+        `O cliente ${clientProfile?.nome?.split(' ')[0]} adicionou uma nova imagem inspiracional ao seu Painel de Referências.`,
         "info",
         "/admin/projetos" 
       );
 
       setClientMoodboard(newUrls);
-      showToast("Imagem adicionada ao seu Moodboard!");
+      showToast("Imagem adicionada às suas referências!");
     } catch (error) {
       console.error(error);
-      showToast("Erro ao guardar a imagem. Tente novamente.");
+      showToast("Erro ao salvar a imagem. Tente novamente.");
     } finally {
       setIsUploading(false);
       e.target.value = ''; // Reset
@@ -165,7 +166,7 @@ export default function ReferenciasPage() {
     if (!currentDir) return;
 
     setIsSavingFeedback(true);
-    showToast("A enviar matriz de avaliação para a equipa...");
+    showToast("Enviando matriz de avaliação para a equipe...");
 
     try {
       const { error } = await supabase
@@ -181,14 +182,14 @@ export default function ReferenciasPage() {
       // 🔔 NOTIFICAÇÃO: Gestão (Avisa que o cliente preencheu a matriz de feedback)
       await NotificationEngine.notifyManagement(
         "📝 Direção Avaliada",
-        `O cliente ${clientProfile?.nome?.split(' ')[0]} gravou o feedback e deu nota ${currentDir.score || 0} à Direção: "${currentDir.title}".`,
-        currentDir.score && currentDir.score >= 8 ? "success" : "warning", // Sucesso se nota alta, warning se nota baixa
+        `O cliente ${clientProfile?.nome?.split(' ')[0]} salvou o feedback e deu nota ${currentDir.score || 0} à Direção: "${currentDir.title}".`,
+        currentDir.score && currentDir.score >= 8 ? "success" : "warning", 
         "/admin/projetos" 
       );
 
-      showToast("✨ Avaliação gravada! O Diretor de Arte foi notificado.");
+      showToast("✨ Avaliação salva! A equipe de design foi notificada.");
     } catch (error) {
-      showToast("Erro ao gravar avaliação.");
+      showToast("Erro ao salvar avaliação.");
     } finally {
       setIsSavingFeedback(false);
     }
@@ -227,11 +228,11 @@ export default function ReferenciasPage() {
         
         {/* Alternador de Abas */}
         <div className="flex bg-white/60 backdrop-blur-xl p-1.5 rounded-[1.5rem] shadow-sm border border-white w-full md:w-auto">
-          <button onClick={() => setActiveTab("direcoes")} className={`flex-1 md:flex-none px-6 py-3 rounded-[1.2rem] font-roboto text-[10px] md:text-[11px] uppercase tracking-widest font-bold transition-all ${activeTab === "direcoes" ? "bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] shadow-md" : "text-[var(--color-atelier-grafite)]/60 hover:bg-white hover:text-[var(--color-atelier-terracota)]"}`}>
-            Propostas do Atelier
+          <button onClick={() => setActiveTab("direcoes")} className={`flex-1 py-3 px-6 rounded-[1.2rem] font-roboto text-[10px] md:text-[11px] uppercase tracking-widest font-bold transition-all ${activeTab === "direcoes" ? "bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] shadow-md" : "text-[var(--color-atelier-grafite)]/60 hover:bg-white hover:text-[var(--color-atelier-terracota)]"}`}>
+            Diretrizes de Marca
           </button>
-          <button onClick={() => setActiveTab("moodboard")} className={`flex-1 md:flex-none px-6 py-3 rounded-[1.2rem] font-roboto text-[10px] md:text-[11px] uppercase tracking-widest font-bold transition-all ${activeTab === "moodboard" ? "bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] shadow-md" : "text-[var(--color-atelier-grafite)]/60 hover:bg-white hover:text-[var(--color-atelier-terracota)]"}`}>
-            O Meu Moodboard
+          <button onClick={() => setActiveTab("moodboard")} className={`flex-1 py-3 px-6 rounded-[1.2rem] font-roboto text-[10px] md:text-[11px] uppercase tracking-widest font-bold transition-all ${activeTab === "moodboard" ? "bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] shadow-md" : "text-[var(--color-atelier-grafite)]/60 hover:bg-white hover:text-[var(--color-atelier-terracota)]"}`}>
+            Referências Visuais
           </button>
         </div>
       </header>
@@ -267,7 +268,7 @@ export default function ReferenciasPage() {
               {clientMoodboard.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full opacity-40 bg-white/30 rounded-[2rem] border border-white p-10">
                   <ImageIcon size={48} className="mb-4 text-[var(--color-atelier-terracota)]" />
-                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">O seu moodboard está vazio.</h3>
+                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">O seu mural de referências está vazio.</h3>
                   <p className="font-roboto text-[13px] font-medium mt-2 text-center">Mostre-nos o que os seus olhos consideram belo e eficaz.</p>
                 </div>
               ) : (
@@ -299,8 +300,8 @@ export default function ReferenciasPage() {
             {directions.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full opacity-50 bg-white/20">
                 <Target size={48} className="mb-4 text-[var(--color-atelier-terracota)]" />
-                <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Aguarde pela Equipa.</h3>
-                <p className="font-roboto mt-2 text-[14px] font-medium text-center px-6">O Diretor de Arte ainda não partilhou rotas criativas para avaliação.</p>
+                <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Aguarde pela Equipe.</h3>
+                <p className="font-roboto mt-2 text-[14px] font-medium text-center px-6">A equipe de design ainda não compartilhou rotas criativas para avaliação.</p>
               </div>
             ) : (
               <>
@@ -313,7 +314,7 @@ export default function ReferenciasPage() {
                     <div>
                       <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none mb-1">{currentRef?.title}</h2>
                       <p className="font-roboto text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-atelier-terracota)]">
-                        Direção {activeIndex + 1} de {directions.length}
+                        Opção {activeIndex + 1} de {directions.length}
                       </p>
                     </div>
                   </div>
@@ -336,7 +337,7 @@ export default function ReferenciasPage() {
                   </div>
                 </div>
 
-                {/* O Palco Dividido (Imagem GIGANTE Esquerda / Questionário Direita) */}
+                {/* O Palco Dividido (Imagem Esquerda / Questionário Direita) */}
                 <div className="flex-1 flex flex-col md:flex-row min-h-0">
                   
                   {/* A ARTE (Imagem da Referência) */}
@@ -446,7 +447,7 @@ export default function ReferenciasPage() {
                         className="w-full mt-4 bg-[var(--color-atelier-grafite)] text-white px-6 py-5 rounded-[1.5rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[var(--color-atelier-terracota)] transition-all shadow-md hover:shadow-lg hover:-translate-y-1 duration-300 flex items-center justify-center gap-3 shrink-0 disabled:opacity-50 disabled:hover:translate-y-0"
                       >
                         {isSavingFeedback ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
-                        Salvar Avaliação desta Direção
+                        Salvar Avaliação desta Diretriz
                       </button>
 
                     </div>

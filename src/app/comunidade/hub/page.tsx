@@ -41,7 +41,7 @@ export default function HubB2BPage() {
   const [activeTab, setActiveTab] = useState<'demand' | 'offer'>('demand');
   const [searchQuery, setSearchQuery] = useState("");
 
-  // Estados do Modal de Novo Pitch
+  // Estados do Modal de Nova Oportunidade
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
@@ -83,7 +83,7 @@ export default function HubB2BPage() {
     fetchHubData();
   }, []);
 
-  // 2. Criação Funcional do Pitch
+  // 2. Criação Funcional da Oportunidade
   const handleCreatePitch = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.title.trim() || !formData.description.trim() || !userProfile) {
@@ -120,14 +120,14 @@ export default function HubB2BPage() {
 
       // 🔔 NOTIFICAÇÃO: Gestão (Avisa que um negócio pode estar a nascer no Hub)
       await NotificationEngine.notifyManagement(
-        "🤝 Novo Pitch B2B",
-        `${userProfile.nome} publicou uma nova ${formData.type === 'demand' ? 'Procura' : 'Oferta'} no Hub de Negócios.`,
+        "🤝 Nova Oportunidade B2B",
+        `${userProfile.nome} publicou uma nova ${formData.type === 'demand' ? 'Busca' : 'Oferta'} no Hub de Negócios.`,
         "info",
         "/comunidade/hub"
       );
 
     } catch (error) {
-      showToast("Erro ao publicar o seu Pitch. Tente novamente.");
+      showToast("Erro ao publicar a sua oportunidade. Tente novamente.");
     } finally {
       setIsSubmitting(false);
     }
@@ -138,25 +138,25 @@ export default function HubB2BPage() {
     if (!userProfile) return;
     
     if (pitch.author_id === userProfile.id) {
-      showToast("Este é o seu próprio pitch.");
+      showToast("Esta é a sua própria publicação.");
       return;
     }
 
-    showToast(`A enviar sinal de interesse para ${pitch.profiles?.nome?.split(' ')[0]}...`);
+    showToast(`Enviando demonstração de interesse para ${pitch.profiles?.nome?.split(' ')[0]}...`);
     
     try {
       // 🔔 NOTIFICAÇÃO DIRETA: O autor do pitch recebe o alerta que alguém quer fazer negócio
       await NotificationEngine.notifyUser(
         pitch.author_id,
         "🤝 Novo Interesse de Parceria!",
-        `${userProfile.nome} manifestou interesse no seu pitch: "${pitch.title}". Entre em contacto na Comunidade!`,
+        `${userProfile.nome} manifestou interesse na sua oportunidade: "${pitch.title}". Entre em contato na Comunidade!`,
         "success",
         "/comunidade" // Rota onde eles se podem procurar
       );
       
-      showToast("Interesse enviado! O autor foi notificado no Cockpit dele.");
+      showToast("Interesse enviado! O autor foi notificado em seu painel.");
     } catch (error) {
-      showToast("Erro ao processar o contacto.");
+      showToast("Erro ao processar o contato.");
     }
   };
 
@@ -185,11 +185,11 @@ export default function HubB2BPage() {
             onClick={() => setIsModalOpen(true)}
             className="hidden md:flex bg-[var(--color-atelier-grafite)] text-white px-6 py-3.5 rounded-[1.2rem] text-[11px] font-bold uppercase tracking-widest hover:bg-[var(--color-atelier-terracota)] transition-all items-center gap-2 shadow-md hover:-translate-y-0.5"
           >
-            <Plus size={16} /> Novo Pitch
+            <Plus size={16} /> Nova Oportunidade
           </button>
         </div>
         <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 max-w-xl mt-1 font-medium leading-relaxed">
-          A rede exclusiva para clientes e parceiros do Atelier. Contrate fornecedores de confiança ou escale os serviços da sua empresa no nosso ecossistema.
+          A rede exclusiva para clientes e parceiros. Encontre fornecedores de confiança ou expanda os serviços da sua empresa em nosso ecossistema.
         </p>
       </div>
 
@@ -201,7 +201,7 @@ export default function HubB2BPage() {
             className={`flex-1 md:flex-none px-8 py-3.5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === 'demand' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white hover:text-[var(--color-atelier-grafite)]'}`}
           >
             <Users size={14} className={activeTab === 'demand' ? 'text-[var(--color-atelier-terracota)]' : ''} /> 
-            Procurando ({pitches.filter(p => p.type === 'demand').length})
+            Buscando ({pitches.filter(p => p.type === 'demand').length})
           </button>
           <button 
             onClick={() => setActiveTab('offer')}
@@ -216,7 +216,7 @@ export default function HubB2BPage() {
           <Search size={16} className="absolute left-5 top-1/2 -translate-y-1/2 text-[var(--color-atelier-grafite)]/40" />
           <input 
             type="text" 
-            placeholder="Filtrar por skill ou nicho..." 
+            placeholder="Filtrar por competência ou nicho..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full bg-white/60 border border-white shadow-sm rounded-[1.5rem] py-4 pl-12 pr-5 text-[13px] font-roboto font-medium outline-none focus:bg-white focus:border-[var(--color-atelier-terracota)]/30 transition-all text-[var(--color-atelier-grafite)]"
@@ -229,11 +229,11 @@ export default function HubB2BPage() {
         onClick={() => setIsModalOpen(true)}
         className="md:hidden w-full bg-[var(--color-atelier-grafite)] text-white px-5 py-4 rounded-[1.2rem] text-[11px] font-bold uppercase tracking-widest shadow-md flex items-center justify-center gap-2 hover:-translate-y-0.5 transition-transform"
       >
-        <Plus size={16} /> Criar Novo Pitch
+        <Plus size={16} /> Criar Nova Oportunidade
       </button>
 
       {/* =========================================================================
-          LISTA DE PITCHES B2B
+          LISTA DE OPORTUNIDADES B2B
           ========================================================================= */}
       <div className="flex flex-col gap-6 pb-10 mt-2">
         {isLoading ? (
@@ -244,7 +244,7 @@ export default function HubB2BPage() {
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="text-center py-20 glass-panel border border-white rounded-[3rem] opacity-70">
                 <Search size={48} className="mx-auto mb-4 text-[var(--color-atelier-grafite)]/30" />
                 <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Nenhuma oportunidade encontrada.</h3>
-                <p className="font-roboto text-[14px] font-medium text-[var(--color-atelier-grafite)]/60 mt-2">Tente pesquisar por outras palavras-chave ou crie o seu próprio pitch.</p>
+                <p className="font-roboto text-[14px] font-medium text-[var(--color-atelier-grafite)]/60 mt-2">Tente pesquisar por outras palavras-chave ou cadastre a sua própria oportunidade.</p>
               </motion.div>
             ) : (
               <motion.div 
@@ -277,7 +277,7 @@ export default function HubB2BPage() {
                       </div>
                     </div>
 
-                    {/* Conteúdo do Pitch */}
+                    {/* Conteúdo da Oportunidade */}
                     <div className="flex flex-col gap-4 pl-2">
                       <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-tight">{pitch.title}</h3>
                       
@@ -328,7 +328,7 @@ export default function HubB2BPage() {
       </div>
 
       {/* =========================================================================
-          MODAL DE CRIAÇÃO DO PITCH (Glassmorphism Luxuoso)
+          MODAL DE CRIAÇÃO DA OPORTUNIDADE (Glassmorphism Luxuoso)
           ========================================================================= */}
       <AnimatePresence>
         {isModalOpen && (
@@ -350,14 +350,14 @@ export default function HubB2BPage() {
                   <Handshake size={24} />
                 </div>
                 <div>
-                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Elaborar Pitch B2B</h3>
-                  <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Conecte-se ao ecossistema Atelier</p>
+                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Nova Oportunidade B2B</h3>
+                  <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Conecte-se ao ecossistema</p>
                 </div>
               </div>
 
               <form onSubmit={handleCreatePitch} className="flex flex-col gap-5 mt-2">
                 
-                {/* Tipo de Pitch */}
+                {/* Tipo de Oportunidade */}
                 <div className="flex gap-4">
                   <label className={`flex-1 p-4 rounded-2xl border cursor-pointer transition-all shadow-sm flex items-center gap-3 ${formData.type === 'demand' ? 'bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)]/30' : 'bg-gray-50/50 border-gray-100 hover:border-[var(--color-atelier-grafite)]/20'}`}>
                     <input type="radio" name="pitchType" className="hidden" checked={formData.type === 'demand'} onChange={() => setFormData({...formData, type: 'demand'})} />
@@ -365,7 +365,7 @@ export default function HubB2BPage() {
                       {formData.type === 'demand' && <div className="w-2.5 h-2.5 bg-[var(--color-atelier-terracota)] rounded-full"></div>}
                     </div>
                     <div className="flex flex-col">
-                      <span className={`font-roboto text-[13px] font-bold ${formData.type === 'demand' ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/60'}`}>Procurando</span>
+                      <span className={`font-roboto text-[13px] font-bold ${formData.type === 'demand' ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/60'}`}>Buscando</span>
                       <span className="text-[10px] text-[var(--color-atelier-grafite)]/40 font-medium">Preciso contratar</span>
                     </div>
                   </label>
@@ -383,7 +383,7 @@ export default function HubB2BPage() {
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Título do Pitch</label>
+                  <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Título da Oportunidade</label>
                   <input type="text" required placeholder="Ex: Preciso de Gestor de Tráfego Sênior" value={formData.title} onChange={(e) => setFormData({...formData, title: e.target.value})} className="w-full bg-gray-50/50 border border-gray-200 focus:border-[var(--color-atelier-terracota)]/40 rounded-2xl px-5 py-4 text-[13px] font-medium outline-none transition-colors" />
                 </div>
 
@@ -394,13 +394,13 @@ export default function HubB2BPage() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Localização</label>
-                    <input type="text" placeholder="Ex: Remoto / Lisboa" value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} className="w-full bg-gray-50/50 border border-gray-200 focus:border-[var(--color-atelier-terracota)]/40 rounded-2xl px-5 py-4 text-[13px] font-medium outline-none transition-colors" />
+                    <input type="text" placeholder="Ex: Remoto / São Paulo" value={formData.location} onChange={(e) => setFormData({...formData, location: e.target.value})} className="w-full bg-gray-50/50 border border-gray-200 focus:border-[var(--color-atelier-terracota)]/40 rounded-2xl px-5 py-4 text-[13px] font-medium outline-none transition-colors" />
                   </div>
                 </div>
 
                 <div className="flex flex-col gap-1.5">
                   <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Orçamento / Budget</label>
-                  <input type="text" placeholder="Ex: A partir de €1.000 ou Negociável" value={formData.budget} onChange={(e) => setFormData({...formData, budget: e.target.value})} className="w-full bg-gray-50/50 border border-gray-200 focus:border-[var(--color-atelier-terracota)]/40 rounded-2xl px-5 py-4 text-[13px] font-medium outline-none transition-colors" />
+                  <input type="text" placeholder="Ex: A partir de R$ 1.000 ou Negociável" value={formData.budget} onChange={(e) => setFormData({...formData, budget: e.target.value})} className="w-full bg-gray-50/50 border border-gray-200 focus:border-[var(--color-atelier-terracota)]/40 rounded-2xl px-5 py-4 text-[13px] font-medium outline-none transition-colors" />
                 </div>
 
                 <div className="flex flex-col gap-1.5">
@@ -410,7 +410,7 @@ export default function HubB2BPage() {
 
                 <div className="flex flex-col gap-1.5">
                   <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Tags (Separadas por vírgula)</label>
-                  <input type="text" placeholder="Ex: Meta Ads, Consultoria, Legal" value={formData.tags} onChange={(e) => setFormData({...formData, tags: e.target.value})} className="w-full bg-gray-50/50 border border-gray-200 focus:border-[var(--color-atelier-terracota)]/40 rounded-2xl px-5 py-4 text-[13px] font-medium outline-none transition-colors" />
+                  <input type="text" placeholder="Ex: Meta Ads, Consultoria, Jurídico" value={formData.tags} onChange={(e) => setFormData({...formData, tags: e.target.value})} className="w-full bg-gray-50/50 border border-gray-200 focus:border-[var(--color-atelier-terracota)]/40 rounded-2xl px-5 py-4 text-[13px] font-medium outline-none transition-colors" />
                 </div>
 
                 <div className="flex justify-end gap-3 mt-4 pt-6 border-t border-[var(--color-atelier-grafite)]/5">

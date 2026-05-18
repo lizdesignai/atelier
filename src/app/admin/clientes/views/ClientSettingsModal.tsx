@@ -178,7 +178,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
 
   const handleSave = async () => {
     setIsSaving(true);
-    showToast("A selar dados no cofre central...");
+    showToast("A sincronizar dados no sistema...");
 
     try {
       // 🟢 Validação de Segurança Anti-Crash
@@ -257,7 +257,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
       setActiveTab('profile'); return;
     }
     setIsGenerating(true);
-    showToast("Oráculo ativado. Aguarde 30s...");
+    showToast("Assistente Estratégico ativado. Aguarde alguns instantes...");
 
     try {
       const res = await fetch('/api/consultoria/generate', {
@@ -273,7 +273,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
         content_pillars: data.insight.content_pillars?.join('\n') || "",
         strategic_justification: data.insight.strategic_justification || "", market_positioning: data.insight.market_positioning || ""
       });
-      showToast("Estratégia forjada! Reveja e clique em Gravar.");
+      showToast("Estratégia gerada! Reveja e clique em Gravar.");
     } catch (error: any) {
       showToast(`Erro na IA: ${error.message}`);
     } finally {
@@ -320,10 +320,10 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
 
             <div className="flex-1 p-4 flex flex-row md:flex-col gap-1 overflow-x-auto md:overflow-visible">
               <SidebarButton active={activeTab === 'profile'} onClick={() => setActiveTab('profile')} icon={User} label="Dossiê Cadastral" />
-              <SidebarButton active={activeTab === 'metrics'} onClick={() => setActiveTab('metrics')} icon={Activity} label="Hub Operacional" />
-              <SidebarButton active={activeTab === 'financial'} onClick={() => setActiveTab('financial')} icon={DollarSign} label="Contratos & Upload" />
+              <SidebarButton active={activeTab === 'metrics'} onClick={() => setActiveTab('metrics')} icon={Activity} label="Métricas e Progresso" />
+              <SidebarButton active={activeTab === 'financial'} onClick={() => setActiveTab('financial')} icon={DollarSign} label="Gestão Contratual" />
               <div className="hidden md:block h-px w-full bg-gray-100 my-2"></div>
-              <SidebarButton active={activeTab === 'consulting'} onClick={() => setActiveTab('consulting')} icon={BrainCircuit} label="Auditoria (IA)" highlight={hasConsultingData} />
+              <SidebarButton active={activeTab === 'consulting'} onClick={() => setActiveTab('consulting')} icon={BrainCircuit} label="Análise Estratégica" highlight={hasConsultingData} />
             </div>
           </aside>
 
@@ -334,8 +334,8 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
               <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">
                 {activeTab === 'profile' && 'Dossiê Cadastral'}
                 {activeTab === 'financial' && 'Gestão Contratual'}
-                {activeTab === 'metrics' && 'Business Intelligence'}
-                {activeTab === 'consulting' && 'Cérebro Semiótico (CMO)'}
+                {activeTab === 'metrics' && 'Visão de Progresso'}
+                {activeTab === 'consulting' && 'Análise Estratégica'}
               </h3>
               <button onClick={onClose} className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors shadow-sm border border-gray-100">
                 <X size={16} />
@@ -361,7 +361,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
                         </div>
                       </div>
                       <div className="bg-white p-8 rounded-[2rem] border border-gray-50 shadow-sm flex flex-col gap-5 hover:border-[var(--color-atelier-terracota)]/20 transition-colors">
-                        <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] border-b border-gray-50 pb-3">Telemetria Digital</h4>
+                        <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] border-b border-gray-50 pb-3">Presença Digital</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <InputGroup label="Instagram (@)" icon={Instagram} value={formData.instagram} onChange={(e:any)=>setFormData({...formData, instagram: e.target.value})} placeholder="@usuario" />
                           <InputGroup label="Nicho de Atuação" icon={Target} value={formData.nicho} onChange={(e:any)=>setFormData({...formData, nicho: e.target.value})} placeholder="Ex: Estética Avançada" />
@@ -376,7 +376,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
                       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                         <MetricCard icon={CheckSquare} title="Peças Produzidas" value={clientStats.completedTasks} subtitle={`de ${clientStats.totalTasks} tarefas`} color="green" />
                         <MetricCard icon={Clock} title="Horas Trabalhadas" value={clientStats.hoursWorked} subtitle="Investimento real" color="terracota" />
-                        <MetricCard icon={FolderOpen} title="Captações (Cofre)" value={clientStats.assetsCount} subtitle="Ficheiros disponíveis" color="purple" />
+                        <MetricCard icon={FolderOpen} title="Arquivos Anexados" value={clientStats.assetsCount} subtitle="Materiais disponíveis" color="purple" />
                         <MetricCard icon={FileText} title="Status Dossiê" value={clientStats.briefingStatus} subtitle="Briefing do cliente" color="blue" />
                       </div>
                     </motion.div>
@@ -388,7 +388,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div className="bg-[var(--color-atelier-grafite)] p-10 rounded-[2rem] shadow-xl text-white flex flex-col justify-between">
                           <div>
-                            <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-white/50 block mb-2">Total Pago (LTV Estimado)</span>
+                            <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-white/50 block mb-2">Total Faturado (LTV)</span>
                             <div className="flex items-start gap-1">
                               <span className="text-xl font-bold text-white/40 mt-1">R$</span>
                               <h3 className="font-elegant text-5xl leading-none">{clientStats.totalLTV.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
@@ -402,7 +402,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
 
                         <div className="bg-white p-10 rounded-[2rem] border border-gray-100 shadow-sm flex flex-col justify-between">
                           <div>
-                            <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] block mb-2">Receita Mensal Recorrente (MRR Ativo)</span>
+                            <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] block mb-2">Receita Mensal Recorrente (MRR)</span>
                             <div className="flex items-start gap-1">
                               <span className="text-xl font-bold text-[var(--color-atelier-grafite)]/40 mt-1">R$</span>
                               <h3 className="font-elegant text-5xl text-[var(--color-atelier-grafite)] leading-none">{clientStats.activeMRR.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</h3>
@@ -417,11 +417,11 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
 
                       {/* UPLOAD DE CONTRATO (NOVA SECÇÃO SOLICITADA) */}
                       <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm mt-4 flex flex-col gap-4">
-                        <h4 className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] border-b border-gray-50 pb-3 flex items-center gap-2"><FileText size={14}/> Contrato Legal (PDF)</h4>
+                        <h4 className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] border-b border-gray-50 pb-3 flex items-center gap-2"><FileText size={14}/> Contrato Jurídico (PDF)</h4>
                         <div className="flex items-center gap-6">
                           {formData.contract_url ? (
                             <div className="flex-1 bg-green-50 border border-green-100 p-4 rounded-xl flex items-center justify-between">
-                              <span className="text-[12px] font-bold text-green-700 flex items-center gap-2"><CheckCircle2 size={16}/> Contrato Arquivado no Cofre</span>
+                              <span className="text-[12px] font-bold text-green-700 flex items-center gap-2"><CheckCircle2 size={16}/> Contrato Arquivado</span>
                               <a href={formData.contract_url} target="_blank" rel="noreferrer" className="bg-white text-green-700 px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-green-100 transition-colors flex items-center gap-2 border border-green-200 shadow-sm"><Link size={12}/> Abrir PDF</a>
                             </div>
                           ) : (
@@ -444,12 +444,12 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
                       {!hasConsultingData && !isGenerating ? (
                         <div className="bg-white/60 border border-white p-12 rounded-[2rem] flex flex-col items-center justify-center text-center shadow-sm mt-4">
                           <BrainCircuit size={48} className="text-[var(--color-atelier-grafite)]/20 mb-6" />
-                          <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-2">Sem Auditoria Estratégica</h3>
+                          <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-2">Sem Análise Estratégica</h3>
                           <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]/60 max-w-md mb-8 leading-relaxed">
-                            O perfil deve ter o @Instagram preenchido. O Motor IA aplicará semiótica e resposta direta para forjar um plano.
+                            O perfil precisa de ter o @Instagram preenchido. O Assistente Estratégico irá estruturar as diretrizes e o plano de ação.
                           </p>
                           <button onClick={handleRunConsulting} className="px-8 bg-[var(--color-atelier-terracota)] text-white py-3.5 rounded-[1rem] font-roboto font-bold uppercase tracking-[0.1em] text-[11px] hover:bg-[#8c562e] hover:-translate-y-0.5 transition-all shadow-md flex items-center justify-center gap-2">
-                            <Sparkles size={14} /> Inicializar Oráculo CMO
+                            <Sparkles size={14} /> Iniciar Análise Estratégica
                           </button>
                         </div>
                       ) : isGenerating ? (
@@ -457,14 +457,14 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
                           <div className="w-20 h-20 bg-[var(--color-atelier-terracota)]/10 rounded-full flex items-center justify-center mb-6 border-4 border-white shadow-inner animate-pulse">
                             <Loader2 size={32} className="text-[var(--color-atelier-terracota)] animate-spin" />
                           </div>
-                          <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-2">Sintetizando Dados...</h2>
-                          <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 font-medium">A cruzar frameworks de Resposta Direta e Design Semiótico (30s).</p>
+                          <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-2">Processando Análise...</h2>
+                          <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 font-medium">A processar dados e alinhar diretrizes (aguarde alguns instantes).</p>
                         </div>
                       ) : (
                         <div className="flex flex-col gap-6">
                           <div className="bg-[var(--color-atelier-grafite)] p-8 rounded-[2rem] shadow-lg text-white flex justify-between items-center relative overflow-hidden">
                             <div className="relative z-10">
-                              <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)] mb-1 block flex items-center gap-2"><Sparkles size={12}/> Auditoria Ativa</span>
+                              <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)] mb-1 block flex items-center gap-2"><Sparkles size={12}/> Análise Ativa</span>
                               <h3 className="font-elegant text-3xl leading-none">Dossiê de Posicionamento</h3>
                             </div>
                             <button onClick={handleRunConsulting} className="relative z-10 bg-white/10 hover:bg-white text-white hover:text-[var(--color-atelier-grafite)] px-5 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all border border-white/20 flex items-center gap-2 backdrop-blur-sm">
@@ -472,7 +472,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
                             </button>
                           </div>
 
-                          <TextareaGroup label="Justificativa Estratégica (Oceano Azul)" value={consultingData.strategic_justification} onChange={(val:string)=>setConsultingData({...consultingData, strategic_justification: val})} rows={6} />
+                          <TextareaGroup label="Justificativa Estratégica" value={consultingData.strategic_justification} onChange={(val:string)=>setConsultingData({...consultingData, strategic_justification: val})} rows={6} />
                           <TextareaGroup label="Posicionamento de Mercado" value={consultingData.market_positioning} onChange={(val:string)=>setConsultingData({...consultingData, market_positioning: val})} rows={4} />
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -487,7 +487,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
                           </div>
 
                           <TextareaGroup label="Diagnóstico Visual e Estético" value={consultingData.visual_diagnosis} onChange={(val:string)=>setConsultingData({...consultingData, visual_diagnosis: val})} rows={4} />
-                          <TextareaGroup label="Dinâmica de Stories (Conversão)" value={consultingData.stories_strategy} onChange={(val:string)=>setConsultingData({...consultingData, stories_strategy: val})} rows={4} />
+                          <TextareaGroup label="Estratégia de Conteúdo (Stories)" value={consultingData.stories_strategy} onChange={(val:string)=>setConsultingData({...consultingData, stories_strategy: val})} rows={4} />
                           <TextareaGroup label="Pilares de Conteúdo (Um por linha)" value={consultingData.content_pillars} onChange={(val:string)=>setConsultingData({...consultingData, content_pillars: val})} rows={4} />
                         </div>
                       )}

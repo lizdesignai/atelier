@@ -26,13 +26,13 @@ const COLOR_MAP: Record<string, { bg: string, border: string, text: string }> = 
 };
 
 // ============================================================================
-// MOCK DE MISSÕES (Foco em LTV, Eficiência de Estúdio e Prova Social)
+// MOCK DE CONQUISTAS (Foco em LTV, Eficiência de Estúdio e Prova Social)
 // ============================================================================
 const MISSIONS_DB = [
   {
     id: "m1",
-    title: "O Batismo de Elite",
-    description: "Preencha o seu Dossiê Estratégico (Briefing) em menos de 24 horas após o início do projeto para acelerarmos a conceção da sua marca.",
+    title: "Início da Jornada",
+    description: "Preencha o seu Briefing Estratégico em menos de 24 horas após o início do projeto para acelerarmos a criação da sua marca.",
     xp: 250,
     icon: <ShieldCheck size={20} />,
     color: "blue",
@@ -41,8 +41,8 @@ const MISSIONS_DB = [
   },
   {
     id: "m2",
-    title: "A Voz do Império",
-    description: "Faça a sua primeira partilha no Mural Global. Apresente a sua marca, os seus desafios ou partilhe uma vitória com a comunidade.",
+    title: "A Voz da Marca",
+    description: "Faça a sua primeira publicação na Comunidade. Apresente a sua marca, os seus desafios ou compartilhe uma vitória com os outros membros.",
     xp: 150,
     icon: <MessageSquare size={20} />,
     color: "yellow",
@@ -51,8 +51,8 @@ const MISSIONS_DB = [
   },
   {
     id: "m3",
-    title: "Aprovação Cirúrgica",
-    description: "Aprove uma Estratégia Mensal ou Direção Visual à primeira, sem solicitar refações. Confiança no processo gera velocidade máxima.",
+    title: "Sintonia Criativa",
+    description: "Aprove o Planejamento Mensal ou as Diretrizes Visuais na primeira apresentação, sem solicitar ajustes. Confiança no processo gera velocidade e precisão.",
     xp: 500,
     icon: <Target size={20} />,
     color: "purple",
@@ -61,22 +61,22 @@ const MISSIONS_DB = [
   },
   {
     id: "m4",
-    title: "O Eco da Marca",
-    description: "Grave um Story no seu Instagram a mostrar os bastidores do seu projeto ou a sua Mesa de Trabalho e mencione o @Atelier.",
+    title: "Embaixador da Marca",
+    description: "Grave um Story no seu Instagram mostrando os bastidores do seu projeto ou o seu painel no Meu Espaço e mencione a @lizdesign.",
     xp: 800,
     icon: <Flame size={20} />,
     color: "orange",
-    category: "Embaixador",
+    category: "Parceria",
     isCompleted: false
   },
   {
     id: "m5",
-    title: "Círculo de Influência",
-    description: "Indique um parceiro de negócios para o Atelier. Se essa indicação fechar um projeto connosco, você desbloqueia o nível máximo.",
+    title: "Círculo de Excelência",
+    description: "Indique um parceiro de negócios para a Liz Design. Se essa indicação fechar um projeto conosco, você desbloqueia o nível máximo de parceria.",
     xp: 5000,
     icon: <Crown size={20} />,
     color: "yellow",
-    category: "Network Premium",
+    category: "Networking Premium",
     isCompleted: false
   }
 ];
@@ -93,7 +93,7 @@ export default function MissoesPage() {
     // Simula o delay de ir ao banco de dados validar a ação
     setTimeout(() => {
       setMissions(prev => prev.map(m => m.id === missionId ? { ...m, isCompleted: true } : m));
-      showToast(`🚀 Ganhou +${xpAmount} XP! Continue a expandir o seu legado.`);
+      showToast(`✨ Você conquistou +${xpAmount} XP! Continue expandindo a presença da sua marca.`);
       setIsProcessing(null);
       
       // Futuro: Chamada Supabase para injetar XP e disparar notificação à gestão
@@ -107,21 +107,21 @@ export default function MissoesPage() {
   return (
     <div className="flex flex-col gap-6 max-w-[1200px] mx-auto w-full animate-[fadeInUp_0.8s_ease-out_both] pb-10 px-4 md:px-0">
       
-      {/* HEADER DA CENTRAL DE MISSÕES */}
+      {/* HEADER DA CENTRAL DE CONQUISTAS */}
       <div className="flex flex-col gap-3 mt-6">
         <Link href="/comunidade" className="inline-flex items-center gap-2 text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors font-roboto text-[10px] uppercase tracking-widest font-bold mb-2 bg-white/60 w-fit px-4 py-2 rounded-full border border-white shadow-sm">
-          ← Voltar ao Mural
+          ← Voltar à Comunidade
         </Link>
         <div className="flex items-center gap-3">
           <Target size={28} className="text-[var(--color-atelier-terracota)]" />
-          <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] leading-none">A Roda do <span className="italic text-[var(--color-atelier-terracota)]">Legado.</span></h1>
+          <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] leading-none">Jornada de <span className="italic text-[var(--color-atelier-terracota)]">Evolução.</span></h1>
         </div>
         <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 max-w-xl mt-1 font-medium leading-relaxed">
-          Complete missões estratégicas para evoluir a presença digital da sua marca e desbloquear benefícios exclusivos no nosso Hub de Negócios.
+          Conclua etapas estratégicas para evoluir a presença digital da sua marca e desbloquear benefícios exclusivos em nosso ecossistema de negócios.
         </p>
       </div>
 
-      {/* BANNER DE STATUS DO JOGADOR */}
+      {/* BANNER DE STATUS DO CLIENTE */}
       <div className="glass-panel p-8 md:p-10 rounded-[3rem] bg-gradient-to-br from-[var(--color-atelier-grafite)] to-[#2a2826] border border-[var(--color-atelier-grafite)] shadow-[0_20px_50px_rgba(0,0,0,0.15)] relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-8">
         <div className="absolute top-[-50%] right-[-10%] w-80 h-80 bg-[var(--color-atelier-terracota)]/20 blur-[60px] rounded-full pointer-events-none"></div>
         <div className="absolute inset-0 opacity-20 bg-[url('/noise.png')] mix-blend-overlay pointer-events-none"></div>
@@ -133,7 +133,7 @@ export default function MissoesPage() {
           <div className="flex flex-col text-white">
             <span className="font-elegant text-3xl leading-tight mb-1">Progresso Atual</span>
             <span className="font-roboto text-[11px] uppercase tracking-widest text-white/60 font-bold bg-white/10 px-3 py-1.5 rounded-lg w-fit">
-              {completedMissions.length} de {missions.length} Missões
+              {completedMissions.length} de {missions.length} Conquistas
             </span>
           </div>
         </div>
@@ -166,11 +166,11 @@ export default function MissoesPage() {
           onClick={() => setActiveTab('completed')}
           className={`flex-1 md:flex-none px-8 py-3.5 rounded-[1rem] font-roboto text-[11px] font-bold uppercase tracking-widest transition-all ${activeTab === 'completed' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white hover:text-[var(--color-atelier-grafite)]'}`}
         >
-          Concluídas ({completedMissions.length})
+          Alcançadas ({completedMissions.length})
         </button>
       </div>
 
-      {/* LISTA DE MISSÕES */}
+      {/* LISTA DE CONQUISTAS */}
       <div className="flex flex-col gap-5 mt-2">
         <AnimatePresence mode="wait">
           
@@ -179,7 +179,7 @@ export default function MissoesPage() {
               {availableMissions.length === 0 ? (
                 <div className="text-center py-16 glass-panel rounded-[3rem] opacity-60 border border-white">
                   <CheckCircle2 size={48} className="mx-auto mb-4 text-green-500" />
-                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Todas as Missões Concluídas!</h3>
+                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Todas as Conquistas Alcançadas!</h3>
                   <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">O seu compromisso reflete-se nos resultados da sua marca.</p>
                 </div>
               ) : (
@@ -209,9 +209,9 @@ export default function MissoesPage() {
                           onClick={() => handleClaimReward(mission.id, mission.xp)}
                           disabled={isProcessing === mission.id}
                           className="px-6 py-4 rounded-[1.2rem] bg-[var(--color-atelier-grafite)] text-white flex items-center justify-center hover:bg-[var(--color-atelier-terracota)] transition-all shadow-[0_10px_20px_rgba(0,0,0,0.1)] hover:shadow-[0_15px_30px_rgba(173,111,64,0.3)] hover:-translate-y-1 disabled:opacity-50 disabled:hover:translate-y-0 shrink-0 font-roboto text-[10px] uppercase tracking-widest font-bold gap-2"
-                          title="Reivindicar Missão"
+                          title="Resgatar Conquista"
                         >
-                          {isProcessing === mission.id ? <Loader2 size={16} className="animate-spin" /> : <>Reivindicar <ArrowRight size={14} /></>}
+                          {isProcessing === mission.id ? <Loader2 size={16} className="animate-spin" /> : <>Resgatar <ArrowRight size={14} /></>}
                         </button>
                       </div>
 
@@ -228,7 +228,7 @@ export default function MissoesPage() {
                 <div className="text-center py-16 glass-panel rounded-[3rem] opacity-60 border border-white">
                   <Clock size={48} className="mx-auto mb-4 text-[var(--color-atelier-grafite)]/30" />
                   <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Histórico Vazio</h3>
-                  <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">O seu legado começa assim que completar a primeira missão disponível.</p>
+                  <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">O seu legado começa assim que completar a primeira etapa disponível.</p>
                 </div>
               ) : (
                 completedMissions.map((mission) => (
@@ -240,13 +240,13 @@ export default function MissoesPage() {
                       </div>
                       <div className="flex flex-col">
                         <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] line-through decoration-[var(--color-atelier-grafite)]/30">{mission.title}</h3>
-                        <p className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40 mt-1.5">Missão validada pelo Atelier.</p>
+                        <p className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40 mt-1.5">Etapa validada pelo estúdio.</p>
                       </div>
                     </div>
 
                     <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-[1rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm">
                       <Star size={14} className="text-green-600 fill-green-600" />
-                      <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-green-700">+{mission.xp} XP Extraídos</span>
+                      <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-green-700">+{mission.xp} XP Conquistados</span>
                     </div>
 
                   </div>

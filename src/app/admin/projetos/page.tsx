@@ -150,7 +150,7 @@ function WorkspaceDesigner() {
   // ==========================================
   const handleReturnBriefing = async () => {
     if (!activeProjectId || !clientBriefing) return;
-    if (!window.confirm("Deseja devolver o briefing para o cliente? Ele precisará revisar e reenviar.")) return;
+    if (!window.confirm("Deseja solicitar uma revisão do briefing para o cliente? Ele precisará revisar e reenviar o documento.")) return;
     
     // MUTAÇÃO OTIMISTA: Limpa a tela imediatamente
     setClientBriefing(null);
@@ -165,12 +165,12 @@ function WorkspaceDesigner() {
         await NotificationEngine.notifyUser(
           currentProject.client_id,
           "⚠️ Briefing Devolvido (Revisão Necessária)",
-          "O Estúdio analisou o seu Dossiê e solicita mais profundidade nas respostas. Por favor, reveja-o no seu Cockpit.",
+          "A equipe analisou o seu Briefing e solicita mais profundidade nas respostas. Por favor, revise-o no Meu Espaço.",
           "action",
-          "/cockpit"
+          "/meu-espaco"
         );
       }
-      showToast("Briefing devolvido. O cliente foi notificado para rever.");
+      showToast("Solicitação de revisão enviada ao cliente.");
     } catch (e) {
       showToast("Erro ao processar devolução de briefing.");
     }
@@ -199,7 +199,7 @@ function WorkspaceDesigner() {
   const handleGenerateBriefingInsight = async () => {
     if (!activeProjectId || !clientBriefing) return;
     setIsGeneratingBriefingInsight(true);
-    showToast("IA CBO: A analisar o briefing detalhadamente...");
+    showToast("Assistente Estratégico: Analisando o briefing...");
     try {
       const res = await fetch('/api/insights/briefing', {
         method: 'POST',
@@ -219,15 +219,15 @@ function WorkspaceDesigner() {
       
       // 🔔 NOTIFICAÇÃO: Gestão
       await NotificationEngine.notifyManagement(
-        "🧠 CBO AI: Diagnóstico Concluído",
+        "🧠 Assistente Estratégico: Análise Concluída",
         `O relatório de inteligência estratégica do cliente ${currentProject?.profiles?.nome} está pronto a ser consultado.`,
         "success",
         "/admin/projetos"
       );
 
-      showToast("Diagnóstico CBO gerado com sucesso! ✨");
+      showToast("Análise Estratégica gerada com sucesso! ✨");
     } catch (e) {
-      showToast("Erro ao processar insight da IA.");
+      showToast("Erro ao processar análise da IA.");
     } finally {
       setIsGeneratingBriefingInsight(false);
     }
@@ -236,7 +236,7 @@ function WorkspaceDesigner() {
   const handleGenerateCuradoriaInsight = async () => {
     if (!activeProjectId || adminRefs.length === 0) return;
     setIsGeneratingCuradoriaInsight(true);
-    showToast("IA Diretora de Arte: A ler direções visuais...");
+    showToast("Assistente de Design: Analisando direções visuais...");
     try {
       const res = await fetch('/api/insights/curadoria', {
         method: 'POST',
@@ -256,7 +256,7 @@ function WorkspaceDesigner() {
       
       // 🔔 NOTIFICAÇÃO: Gestão
       await NotificationEngine.notifyManagement(
-        "🎨 IA Diretor de Arte: Análise Concluída",
+        "🎨 Assistente de Design: Análise Concluída",
         `O relatório semiótico para o projeto de ${currentProject?.profiles?.nome} foi compilado.`,
         "success",
         "/admin/projetos"
@@ -264,7 +264,7 @@ function WorkspaceDesigner() {
 
       showToast("Análise Visual gerada com sucesso! ✨");
     } catch (e) {
-      showToast("Erro ao processar insight da IA.");
+      showToast("Erro ao processar análise da IA.");
     } finally {
       setIsGeneratingCuradoriaInsight(false);
     }
@@ -280,7 +280,7 @@ function WorkspaceDesigner() {
     }
     
     setIsGeneratingPDF(true);
-    showToast("A forjar Dossiê Vetorial...");
+    showToast("Gerando PDF Estratégico...");
     
     try {
       const { pdf } = await import('@react-pdf/renderer');
@@ -292,11 +292,11 @@ function WorkspaceDesigner() {
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = `Dossie_Estrategico_${currentProject?.profiles?.nome || 'Cliente'}.pdf`;
+      link.download = `Briefing_Estrategico_${currentProject?.profiles?.nome || 'Cliente'}.pdf`;
       link.click();
       URL.revokeObjectURL(url);
 
-      showToast("Dossiê exportado com sucesso!");
+      showToast("PDF Estratégico exportado com sucesso!");
     } catch (error) {
       console.error("Crash no PDF:", error);
       showToast("Erro crítico ao gerar o arquivo vetorial.");
@@ -308,7 +308,7 @@ function WorkspaceDesigner() {
   const handleDownloadCuradoriaPDF = async () => {
     if (adminRefs.length === 0) return;
     setIsGeneratingCuradoriaPDF(true);
-    showToast("A compilar a Curadoria em PDF Vetorial...");
+    showToast("Gerando PDF da Curadoria...");
     try {
       const { pdf } = await import('@react-pdf/renderer');
       const CuradoriaPDF = (await import('../../../components/pdf/CuradoriaPDF')).default;
@@ -338,7 +338,7 @@ function WorkspaceDesigner() {
     if (!file || !activeProjectId) return;
 
     setIsUploadingAsset(true);
-    showToast("A enviar ficheiro para o cofre seguro...");
+    showToast("Enviando arquivo para o espaço seguro...");
 
     try {
       const fileExt = file.name.split('.').pop();
@@ -368,17 +368,17 @@ function WorkspaceDesigner() {
       if (currentProject?.client_id) {
         await NotificationEngine.notifyUser(
           currentProject.client_id,
-          "📦 Novo Ativo no Cofre",
-          `O Atelier adicionou o ficheiro final "${file.name}" ao seu cofre.`,
+          "📦 Novo Material Disponível",
+          `A equipe adicionou o arquivo final "${file.name}" ao seu espaço.`,
           "info",
-          "/cofre"
+          "/meu-espaco"
         );
       }
 
-      showToast("✨ Ficheiro adicionado aos Ativos Finais!");
+      showToast("✨ Arquivo adicionado aos Materiais Finais!");
     } catch (error: any) {
       console.error("Erro no upload:", error);
-      showToast("Erro ao fazer upload do ficheiro.");
+      showToast("Erro ao fazer upload do arquivo.");
     } finally {
       setIsUploadingAsset(false);
       e.target.value = '';
@@ -386,15 +386,15 @@ function WorkspaceDesigner() {
   };
 
   const handleRemoveAsset = async (assetId: string) => {
-    const confirm = window.confirm("Tem a certeza que deseja apagar este ficheiro do cofre?");
+    const confirm = window.confirm("Tem certeza de que deseja excluir este arquivo?");
     if (!confirm) return;
 
     try {
       await supabase.from('project_assets').delete().eq('id', assetId);
       setProjectAssets(projectAssets.filter(a => a.id !== assetId));
-      showToast("Ficheiro removido do cofre.");
+      showToast("Arquivo removido.");
     } catch (error) {
-      showToast("Erro ao apagar ficheiro.");
+      showToast("Erro ao excluir arquivo.");
     }
   };
 
@@ -403,7 +403,7 @@ function WorkspaceDesigner() {
     if (!file || !activeProjectId) return;
 
     setIsUploadingContract(true);
-    showToast("A fazer upload do contrato assinado...");
+    showToast("Fazendo upload do contrato assinado...");
 
     try {
       const fileExt = file.name.split('.').pop();
@@ -424,14 +424,14 @@ function WorkspaceDesigner() {
       if (currentProject?.client_id) {
         await NotificationEngine.notifyUser(
           currentProject.client_id,
-          "📜 Contrato Arquivado",
-          "A cópia digital do seu contrato assinado já está disponível no seu Cofre de Cliente.",
+          "📜 Contrato Disponível",
+          "A cópia digital do seu contrato assinado já está disponível no seu espaço.",
           "info",
-          "/cofre"
+          "/meu-espaco"
         );
       }
 
-      showToast("Contrato arquivado com sucesso no Cofre!");
+      showToast("Contrato anexado com sucesso!");
     } catch (error) {
       console.error(error);
       showToast("Erro ao fazer upload do contrato.");
@@ -470,7 +470,7 @@ function WorkspaceDesigner() {
     
     if (activeProjectId) {
       await supabase.from('projects').update({ data_limite: newDate }).eq('id', activeProjectId);
-      showToast(`Prazo gravado: ${newDate.split('-').reverse().join('/')}`);
+      showToast(`Prazo atualizado: ${newDate.split('-').reverse().join('/')}`);
       refreshGlobalData(); // Sync
     }
   };
@@ -486,7 +486,7 @@ function WorkspaceDesigner() {
 
   const handleMarkAsDelivered = async () => {
     if (!activeProjectId) return;
-    if (!window.confirm("Deseja marcar este projeto como ENTREGUE? O cliente terá 15 dias de acesso às abas antes delas serem arquivadas.")) return;
+    if (!window.confirm("Deseja marcar este projeto como ENTREGUE? O cliente terá 15 dias de acesso ao painel antes do arquivamento.")) return;
 
     try {
       await supabase
@@ -499,9 +499,9 @@ function WorkspaceDesigner() {
         await NotificationEngine.notifyUser(
           currentProject.client_id,
           "🎉 Projeto Entregue!",
-          "A nossa jornada terminou com sucesso. Terá 15 dias de acesso ao Cockpit para fazer o download final dos seus ativos.",
+          "Você terá 15 dias de acesso ao Meu Espaço para fazer o download final dos seus materiais.",
           "success",
-          "/cockpit"
+          "/meu-espaco"
         );
       }
 
@@ -514,7 +514,7 @@ function WorkspaceDesigner() {
 
   const handleForceArchive = async () => {
     if (!activeProjectId) return;
-    if (!window.confirm("ATENÇÃO: O cliente perderá acesso IMEDIATO ao cofre e canais deste projeto. Deseja prosseguir?")) return;
+    if (!window.confirm("ATENÇÃO: O cliente perderá acesso IMEDIATO ao painel e canais deste projeto. Deseja prosseguir?")) return;
 
     try {
       await supabase.from('projects').update({ status: 'archived' }).eq('id', activeProjectId);
@@ -524,12 +524,12 @@ function WorkspaceDesigner() {
         await NotificationEngine.notifyUser(
           currentProject.client_id,
           "🔒 Acesso Fechado",
-          "O seu projeto foi oficialmente arquivado no nosso sistema. O seu acesso ao estúdio foi revogado. Obrigado por confiar no Atelier.",
+          "O seu projeto foi arquivado. O seu acesso ao painel foi encerrado. Obrigado por confiar na Liz Design.",
           "info"
         );
       }
 
-      showToast("Projeto Arquivado com sucesso! O cliente está agora na fase de Legado.");
+      showToast("Projeto Arquivado com sucesso!");
       refreshGlobalData(); // Sync
     } catch (error) {
       showToast("Erro ao arquivar projeto.");
@@ -538,7 +538,7 @@ function WorkspaceDesigner() {
 
   const handleReactivateProject = async () => {
     if (!activeProjectId) return;
-    if (!window.confirm("Deseja REATIVAR este projeto? O cliente voltará a ter acesso total à sua mesa de trabalho.")) return;
+    if (!window.confirm("Deseja REATIVAR este projeto? O cliente voltará a ter acesso total ao painel.")) return;
 
     try {
       await supabase.from('projects').update({ status: 'active', delivered_at: null }).eq('id', activeProjectId);
@@ -548,9 +548,9 @@ function WorkspaceDesigner() {
         await NotificationEngine.notifyUser(
           currentProject.client_id,
           "🔓 Operação Reativada",
-          "O seu projeto voltou a ficar ativo nas nossas mesas. Tem acesso total restaurado ao seu Cockpit.",
+          "O seu projeto voltou a ficar ativo. Você tem acesso total restaurado ao seu espaço.",
           "success",
-          "/cockpit"
+          "/meu-espaco"
         );
       }
 
@@ -620,7 +620,7 @@ function WorkspaceDesigner() {
     }
 
     setIsSendingRef(true);
-    showToast("A enviar Direções Visuais para o cliente...");
+    showToast("Enviando Direções Visuais para o cliente...");
 
     try {
       const uploadPromises = newRefImageFiles.map(async (file) => {
@@ -654,9 +654,9 @@ function WorkspaceDesigner() {
         await NotificationEngine.notifyUser(
           currentProject.client_id,
           "🧭 Nova Direção Visual (Moodboard)",
-          "O Estúdio enviou referências e um novo caminho criativo para a sua marca. Analise e partilhe a sua opinião no Cockpit.",
+          "A equipe enviou referências e um novo caminho criativo para a sua marca. Analise e compartilhe a sua opinião no Meu Espaço.",
           "action",
-          "/referencias"
+          "/meu-espaco"
         );
       }
 
@@ -697,7 +697,7 @@ function WorkspaceDesigner() {
       <div className="flex flex-col items-center justify-center h-full gap-4 opacity-50">
         <Settings2 size={48} className="text-[var(--color-atelier-grafite)]" />
         <h2 className="font-elegant text-3xl">Nenhum projeto ativo.</h2>
-        <p className="font-roboto text-sm font-medium">Crie um projeto na Base de Clientes para aceder à Mesa de Trabalho.</p>
+        <p className="font-roboto text-sm font-medium">Crie um projeto na Base de Clientes para acessar o painel.</p>
       </div>
     );
   }
@@ -718,22 +718,22 @@ function WorkspaceDesigner() {
               <div className="p-6 border-b border-white/40 flex justify-between items-center bg-white/60 backdrop-blur-xl shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center border border-white shadow-inner"><FileText size={18} className="text-[var(--color-atelier-terracota)]" /></div>
-                  <span className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Dossiê Estratégico do Cliente</span>
+                  <span className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Briefing Estratégico</span>
                 </div>
                 <div className="flex items-center gap-3">
                   
                   {/* NOVO BOTÃO: DEVOLVER BRIEFING */}
                   <button onClick={handleReturnBriefing} disabled={!clientBriefing} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-red-500 hover:text-white transition-all shadow-sm disabled:opacity-50">
-                    <RotateCcw size={14} /> Devolver Briefing
+                    <RotateCcw size={14} /> Solicitar Revisão
                   </button>
                   
                   {/* BOTÃO CÉREBRO DA IA */}
                   <button onClick={handleGenerateBriefingInsight} disabled={isGeneratingBriefingInsight || !clientBriefing} className="bg-white border border-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-terracota)] px-4 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm disabled:opacity-50">
-                    {isGeneratingBriefingInsight ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Gerar IA (CBO)
+                    {isGeneratingBriefingInsight ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Gerar Análise (IA)
                   </button>
 
                   <button onClick={handleDownloadBriefingPDF} disabled={isGeneratingPDF || !clientBriefing} className="bg-[var(--color-atelier-grafite)] text-white px-5 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-md disabled:opacity-50 hover:-translate-y-0.5 disabled:hover:translate-y-0">
-                    {isGeneratingPDF ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Baixar PDF Vetorial
+                    {isGeneratingPDF ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Baixar PDF Oficial
                   </button>
                   
                   <button onClick={() => setIsBriefingModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-white text-[var(--color-atelier-grafite)]/50 hover:text-red-500 transition-colors shadow-sm">
@@ -751,7 +751,7 @@ function WorkspaceDesigner() {
                       </div>
                       <h1 className="font-elegant text-5xl text-[var(--color-atelier-grafite)] mb-2">Briefing Oficial</h1>
                       <h2 className="font-roboto text-lg text-[var(--color-atelier-terracota)] uppercase tracking-widest font-bold">{currentProject.profiles?.nome}</h2>
-                      <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/50 mt-2 font-medium">Documento Confidencial de Identidade Visual</p>
+                      <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/50 mt-2 font-medium">Documento Confidencial do Projeto</p>
                     </div>
 
                     {/* Exibição em Tempo Real do Insight da IA */}
@@ -759,7 +759,7 @@ function WorkspaceDesigner() {
                       <div className="mb-10 bg-white/80 p-8 rounded-[2rem] border border-[var(--color-atelier-terracota)]/20 shadow-sm relative overflow-hidden">
                         <div className="absolute left-0 top-0 h-full w-1.5 bg-[var(--color-atelier-terracota)]"></div>
                         <h3 className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] mb-4 flex items-center gap-2">
-                          <Sparkles size={14}/> Diagnóstico de Marca (CBO AI)
+                          <Sparkles size={14}/> Diagnóstico de Marca (Assistente IA)
                         </h3>
                         <div className="font-roboto text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed whitespace-pre-wrap font-medium">
                            {briefingAiInsight}
@@ -929,7 +929,7 @@ function WorkspaceDesigner() {
                   initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.2 }}
                   className="absolute top-[110%] left-0 w-[300px] bg-white/90 backdrop-blur-xl border border-white shadow-[0_20px_50px_rgba(122,116,112,0.15)] rounded-2xl overflow-hidden z-50 flex flex-col py-2"
                 >
-                  <div className="px-4 py-2 border-b border-[var(--color-atelier-grafite)]/5 text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">Projetos no Estúdio</div>
+                  <div className="px-4 py-2 border-b border-[var(--color-atelier-grafite)]/5 text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">Projetos Ativos</div>
                   <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
                     {validProjects.map(p => (
                       <div 
@@ -937,7 +937,7 @@ function WorkspaceDesigner() {
                         onClick={() => { 
                           setActiveProjectId(p.id); 
                           setIsClientMenuOpen(false); 
-                          showToast(`A carregar mesa de ${p.profiles?.nome}...`); 
+                          showToast(`Acessando espaço de ${p.profiles?.nome}...`); 
                         }}
                         className={`px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors ${p.id === activeProjectId ? 'bg-[var(--color-atelier-terracota)]/5' : 'hover:bg-white'}`}
                       >
@@ -961,10 +961,10 @@ function WorkspaceDesigner() {
 
         <div className="flex gap-3 relative z-10 shrink-0">
           <button onClick={() => setShowRefsPanel(true)} className="glass-panel bg-white/60 px-5 py-3 rounded-[1.2rem] font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-white transition-all flex items-center gap-2 shadow-sm border border-white hover:text-[var(--color-atelier-terracota)]">
-            <Compass size={14} /> Curadoria <span className="hidden md:inline">/ Referências</span>
+            <Compass size={14} /> Referências Visuais
           </button>
           <button onClick={() => setIsBriefingModalOpen(true)} className="glass-panel bg-[var(--color-atelier-grafite)] px-5 py-3 rounded-[1.2rem] font-roboto text-[10px] font-bold uppercase tracking-widest text-white hover:bg-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2 shadow-sm border border-transparent hover:-translate-y-0.5">
-            <FileText size={14} /> Ler Briefing
+            <FileText size={14} /> Ver Briefing
           </button>
         </div>
       </header>
@@ -981,7 +981,7 @@ function WorkspaceDesigner() {
               
               <div className="flex justify-between items-center mb-8 pb-4 border-b border-[var(--color-atelier-grafite)]/10 shrink-0">
                 <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
-                  <Settings2 size={20} className="text-[var(--color-atelier-terracota)]" /> Engenharia
+                  <Settings2 size={20} className="text-[var(--color-atelier-terracota)]" /> Gestão do Projeto
                 </h3>
                 <div className="flex items-center gap-2">
                   {isCofreUnlocked ? (
@@ -1045,7 +1045,7 @@ function WorkspaceDesigner() {
                   ) : (
                      <button onClick={handleMarkAsDelivered} className="bg-green-600 text-white rounded-[1.2rem] py-3.5 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-green-700 transition-all flex items-center justify-center gap-2 shadow-sm hover:-translate-y-0.5"><CheckCircle2 size={14} /> Entregar</button>
                   )}
-                  <button onClick={() => { setIsForceUnlocked(true); showToast("Cofre desbloqueado manualmente."); }} disabled={isCofreUnlocked} className="bg-[var(--color-atelier-grafite)] text-white rounded-[1.2rem] py-3.5 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-[var(--color-atelier-terracota)] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm hover:-translate-y-0.5 disabled:hover:translate-y-0"><Unlock size={14} /> Abrir Cofre</button>
+                  <button onClick={() => { setIsForceUnlocked(true); showToast("Acesso desbloqueado manualmente."); }} disabled={isCofreUnlocked} className="bg-[var(--color-atelier-grafite)] text-white rounded-[1.2rem] py-3.5 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-[var(--color-atelier-terracota)] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm hover:-translate-y-0.5 disabled:hover:translate-y-0"><Unlock size={14} /> Desbloquear Acesso</button>
                 </div>
 
               </div>
@@ -1056,8 +1056,8 @@ function WorkspaceDesigner() {
           <div className="w-full lg:w-1/3 flex flex-col h-full shrink-0">
             <div className="glass-panel p-8 rounded-[2.5rem] bg-white/40 flex flex-col border border-white h-full shadow-sm hover:shadow-md transition-shadow">
               <div className="flex flex-col mb-6 shrink-0 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
-                <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><UploadCloud size={20} className="text-[var(--color-atelier-terracota)]" /> Ativos Finais</h3>
-                <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 mt-1 uppercase tracking-widest font-bold">Ficheiros para o cliente no fim do projeto.</p>
+                <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><UploadCloud size={20} className="text-[var(--color-atelier-terracota)]" /> Materiais Finais</h3>
+                <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 mt-1 uppercase tracking-widest font-bold">Arquivos disponibilizados para o cliente no fim do projeto.</p>
               </div>
               
               <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-4 pr-2">
@@ -1066,7 +1066,7 @@ function WorkspaceDesigner() {
                   <div className="w-14 h-14 rounded-[1rem] bg-white border border-white shadow-inner flex items-center justify-center text-[var(--color-atelier-terracota)] mb-3 group-hover:scale-110 transition-transform">
                     {isUploadingAsset ? <Loader2 size={24} className="animate-spin" /> : <Plus size={24} />}
                   </div>
-                  <span className="block font-roboto font-bold text-[11px] text-[var(--color-atelier-grafite)] uppercase tracking-widest">{isUploadingAsset ? "A processar..." : "Adicionar Ficheiro"}</span>
+                  <span className="block font-roboto font-bold text-[11px] text-[var(--color-atelier-grafite)] uppercase tracking-widest">{isUploadingAsset ? "A processar..." : "Adicionar Arquivo"}</span>
                 </label>
 
                 <AnimatePresence>
@@ -1086,7 +1086,7 @@ function WorkspaceDesigner() {
                 </AnimatePresence>
                 {projectAssets.length === 0 && !isUploadingAsset && (
                   <div className="text-center p-6 text-[var(--color-atelier-grafite)]/30 font-roboto text-[11px] uppercase tracking-widest font-bold h-full flex flex-col items-center justify-center gap-3 opacity-60 bg-white/20 rounded-[1.5rem]">
-                    <UploadCloud size={32}/> O cofre está vazio.
+                    <UploadCloud size={32}/> Nenhum arquivo anexado.
                   </div>
                 )}
               </div>
@@ -1132,7 +1132,7 @@ function WorkspaceDesigner() {
 
                   {/* BOTÃO DE CÉREBRO DA IA DA CURADORIA */}
                   <button onClick={handleGenerateCuradoriaInsight} disabled={isGeneratingCuradoriaInsight || adminRefs.length === 0} className="bg-white border border-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-terracota)] px-4 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:border-[var(--color-atelier-terracota)] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm disabled:opacity-50">
-                    {isGeneratingCuradoriaInsight ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Gerar IA Diretor
+                    {isGeneratingCuradoriaInsight ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Analisar com IA
                   </button>
 
                   <button onClick={handleDownloadCuradoriaPDF} disabled={isGeneratingCuradoriaPDF || adminRefs.length === 0} className="bg-[var(--color-atelier-grafite)] border border-transparent text-white px-5 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-atelier-terracota)] transition-all shadow-md disabled:opacity-50">
@@ -1245,7 +1245,7 @@ function WorkspaceDesigner() {
                 <div className="mt-2 border-t border-[var(--color-atelier-grafite)]/10 pt-8">
                   <div className="flex items-center gap-2 mb-6">
                     <div className="w-8 h-8 rounded-full bg-[var(--color-atelier-terracota)] text-white flex items-center justify-center shadow-md"><Plus size={14} strokeWidth={3} /></div>
-                    <h3 className="font-roboto text-[13px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Nova Rota Visual (Envio)</h3>
+                    <h3 className="font-roboto text-[13px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Nova Direção Visual</h3>
                   </div>
                   <div className="bg-white/80 p-8 rounded-[2rem] border border-white shadow-sm">
                     <div className="flex flex-col gap-5">
@@ -1290,7 +1290,7 @@ function WorkspaceDesigner() {
 
 export default function WorkspaceDesignerPage() {
   return (
-    <Suspense fallback={<div className="flex h-screen items-center justify-center font-roboto text-[10px] uppercase tracking-widest opacity-50">Sincronizando Estúdio...</div>}>
+    <Suspense fallback={<div className="flex h-screen items-center justify-center font-roboto text-[10px] uppercase tracking-widest opacity-50">Carregando Painel...</div>}>
       <WorkspaceDesigner />
     </Suspense>
   );

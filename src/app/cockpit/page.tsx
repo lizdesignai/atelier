@@ -30,7 +30,7 @@ export default function CockpitPage() {
   // Estados IDV (Originais)
   const [pendingCount, setPendingCount] = useState(0);
   const [healthScore, setHealthScore] = useState(85);
-  const [currentFocus, setCurrentFocus] = useState("A alinhar estratégia visual");
+  const [currentFocus, setCurrentFocus] = useState("A equipe está alinhando a estratégia visual");
 
   // Estados Instagram OS (Novos)
   const [isBriefingModalOpen, setIsBriefingModalOpen] = useState(false);
@@ -38,7 +38,7 @@ export default function CockpitPage() {
   const [pendingMissions, setPendingMissions] = useState(0);
   const [pendingDirections, setPendingDirections] = useState(0);
   
-  // Estado do Planeamento Editorial Mensal
+  // Estado do Planejamento Editorial Mensal
   const [monthlyPlan, setMonthlyPlan] = useState<any[]>([]);
   const [feedbackText, setFeedbackText] = useState<{ [key: string]: string }>({});
   const [activeFeedbackId, setActiveFeedbackId] = useState<string | null>(null);
@@ -46,11 +46,11 @@ export default function CockpitPage() {
   // NOVO: Estado para verificar se há relatórios mensais disponíveis
   const [hasReports, setHasReports] = useState(false);
 
-  // ESTADO: COFRE DE MISSÕES
+  // ESTADO: ENVIO DE MATERIAIS
   const [isMissionsModalOpen, setIsMissionsModalOpen] = useState(false);
 
   // ==========================================
-  // ESTADOS T-NPS E UPSELL (Psicologia de Conversão)
+  // ESTADOS T-NPS E TRANSIÇÃO DE PLANO (Psicologia de Conversão)
   // ==========================================
   const [showNpsModal, setShowNpsModal] = useState(false);
   const [npsScore, setNpsScore] = useState<number | null>(null);
@@ -74,9 +74,9 @@ export default function CockpitPage() {
 
         if (proj) {
           setHealthScore(proj.brand_health_score ?? 85);
-          setCurrentFocus(proj.current_focus || "Liz está a analisar a sua audiência...");
+          setCurrentFocus(proj.current_focus || "A equipe está analisando o seu projeto...");
 
-          // 3. Buscar Dados de Gargalo (Posts Pendentes)
+          // 3. Buscar Dados de Aprovação (Posts Pendentes)
           const { count: postsCount } = await supabase.from('social_posts').select('*', { count: 'exact', head: true }).eq('project_id', proj.id).eq('status', 'pending_approval');
           setPendingCount(postsCount || 0);
 
@@ -89,30 +89,29 @@ export default function CockpitPage() {
               .or('status.neq.returned,status.is.null')
               .order('created_at', { ascending: false })
               .limit(1)
-              .maybeSingle(); // Correção aplicada aqui (caso não haja briefing)
+              .maybeSingle(); 
             setBriefing(brief);
 
-            // 5. Buscar Missões Pendentes
+            // 5. Buscar Solicitações Pendentes
             const { count: missionsCount } = await supabase.from('asset_missions').select('*', { count: 'exact', head: true }).eq('project_id', proj.id).eq('status', 'pending');
             setPendingMissions(missionsCount || 0);
 
-            // 6. Buscar Direções do Brandbook Pendentes de Avaliação
+            // 6. Buscar Direções de Arte Pendentes de Avaliação
             const { data: directions } = await supabase.from('design_directions').select('score').eq('project_id', proj.id);
             const pendingDirs = directions?.filter(d => !d.score || d.score === 0).length || 0;
             setPendingDirections(pendingDirs);
 
-            // 7. Buscar Planeamento Editorial Mensal
+            // 7. Buscar Planejamento Editorial Mensal
             const { data: plans } = await supabase.from('content_planning').select('*').eq('project_id', proj.id).eq('status', 'pending').order('publish_date', { ascending: true });
             if (plans) setMonthlyPlan(plans);
 
-            // 8. Verificar se existem Relatórios Executivos Aprovados (Usando maybeSingle se for para buscar dados, mas como usa count, está OK)
-            // Para garantir estabilidade, deixamos o count, mas a lógica de relatórios e snapshots que usava .single() noutros locais deve ser .maybeSingle()
+            // 8. Verificar se existem Relatórios Executivos Aprovados
             const { count: reportsCount } = await supabase.from('monthly_reports').select('*', { count: 'exact', head: true }).eq('project_id', proj.id).eq('status', 'approved');
             setHasReports((reportsCount || 0) > 0);
           }
         }
       } catch (error) {
-        console.error("Erro ao carregar o Cockpit:", error);
+        console.error("Erro ao carregar o Meu Espaço:", error);
       } finally {
         setIsLoading(false);
       }
@@ -122,7 +121,7 @@ export default function CockpitPage() {
   }, []);
 
   // ==========================================
-  // MOTORES DO PLANEAMENTO MENSAL E T-NPS
+  // MOTORES DO PLANEJAMENTO MENSAL E AVALIAÇÃO
   // ==========================================
   const handleApprovePlan = async (planId: string) => {
     setIsProcessing(true);
@@ -130,7 +129,7 @@ export default function CockpitPage() {
       await supabase.from('content_planning').update({ status: 'approved' }).eq('id', planId);
       setMonthlyPlan(monthlyPlan.filter(p => p.id !== planId));
       
-      // Abre a cortina do T-NPS (Micro-Gatilho de Qualidade)
+      // Abre a cortina de avaliação (Micro-Feedback de Qualidade)
       setShowNpsModal(true);
     } catch (error) {
       showToast("Erro ao aprovar a estratégia.");
@@ -152,13 +151,13 @@ export default function CockpitPage() {
 
       setShowNpsModal(false);
 
-      // 🧠 O PICO DE DOPAMINA: Se for Promotor (9 ou 10), oferece o Upsell.
+      // Se o cliente estiver muito satisfeito (9 ou 10), apresenta a sugestão de gestão
       if (npsScore >= 9) {
         setTimeout(() => {
           setShowUpsellModal(true);
-        }, 500); // Delay sutil para a troca de modais parecer elegante
+        }, 500); // Delay sutil para a troca de modais parecer natural
       } else {
-        showToast("Aprovação e Avaliação registadas com sucesso. O Estúdio avança!");
+        showToast("Aprovação e Avaliação registradas com sucesso. A equipe avançará com a execução!");
         setNpsScore(null);
         setNpsFeedback("");
       }
@@ -171,23 +170,23 @@ export default function CockpitPage() {
   };
 
   const handleSkipNps = () => {
-    showToast("Estratégia aprovada! O estúdio iniciará a confeção da arte.");
+    showToast("Estratégia aprovada! A equipe iniciará a confecção das peças gráficas.");
     setShowNpsModal(false);
     setNpsScore(null);
     setNpsFeedback("");
   };
 
   // ==========================================
-  // 🚀 LÓGICA DO UPSELL
+  // 🚀 LÓGICA DA TRANSIÇÃO DE PLANO
   // ==========================================
   const handleAcceptUpsell = async () => {
     setShowUpsellModal(false);
-    showToast("Excelente! A nossa equipa entrará em contacto muito em breve.");
+    showToast("Excelente! A nossa equipe entrará em contato muito em breve para detalhar a transição.");
     
-    // 🔔 SINAL DE FUMO PARA A GESTÃO (LEAD QUENTE)
+    // 🔔 NOTIFICAÇÃO PARA A GESTÃO (Interesse em Gestão Mensal)
     await NotificationEngine.notifyManagement(
-       "🔥 Boiling Lead: Upsell Aceite!",
-       `O cliente ${clientName} (${project?.profiles?.nome}) avaliou-nos com nota ${npsScore} e manifestou interesse em escalar o plano no Cockpit.`,
+       "📈 Interesse em Serviços de Gestão",
+       `O cliente ${clientName} (${project?.profiles?.nome}) avaliou com nota ${npsScore} e manifestou interesse em aderir ao serviço completo de gestão através do painel.`,
        "success",
        "/admin/clientes"
     );
@@ -198,7 +197,7 @@ export default function CockpitPage() {
 
   const handleDeclineUpsell = () => {
     setShowUpsellModal(false);
-    showToast("Aprovação registada com sucesso. O Estúdio avança!");
+    showToast("Aprovação registrada com sucesso. A equipe continua focada nos seus objetivos!");
     setNpsScore(null);
     setNpsFeedback("");
   };
@@ -206,7 +205,7 @@ export default function CockpitPage() {
   const handleRejectPlan = async (planId: string) => {
     const feedback = feedbackText[planId];
     if (!feedback || feedback.trim() === "") {
-      showToast("Por favor, justifique o ajuste necessário para orientar a equipa.");
+      showToast("Por favor, descreva o ajuste necessário para orientar a equipe.");
       return;
     }
     setIsProcessing(true);
@@ -214,7 +213,7 @@ export default function CockpitPage() {
       await supabase.from('content_planning').update({ status: 'needs_revision', feedback: feedback }).eq('id', planId);
       setMonthlyPlan(monthlyPlan.filter(p => p.id !== planId));
       setActiveFeedbackId(null);
-      showToast("Feedback enviado. A estratégia voltou para a mesa da equipa de conteúdo.");
+      showToast("Feedback enviado. A estratégia voltou para a análise da equipe de conteúdo.");
     } catch (error) {
       showToast("Erro ao enviar feedback.");
     } finally {
@@ -232,17 +231,17 @@ export default function CockpitPage() {
       <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)] gap-4 opacity-50">
         <Compass size={48} className="text-[var(--color-atelier-grafite)]" />
         <h2 className="font-elegant text-3xl">Nenhum projeto ativo.</h2>
-        <p className="font-roboto text-sm">Aguarde o Atelier iniciar a sua mesa de trabalho.</p>
+        <p className="font-roboto text-sm">Aguarde a equipe configurar o seu espaço de trabalho.</p>
       </div>
     );
   }
 
   // ==========================================================================
-  // RENDERIZAÇÃO CONDICIONAL: INSTAGRAM OS (A Nova Experiência de Luxo)
+  // RENDERIZAÇÃO CONDICIONAL: INSTAGRAM OS (A Experiência de Luxo)
   // ==========================================================================
   if (project.type === 'Gestão de Instagram' || project.service_type === 'Gestão de Instagram') {
     
-    // Cálculo do 'The Forge' (Progresso)
+    // Cálculo do Progresso Visual
     let currentPhase = 1;
     if (briefing) currentPhase = 2;
     if (briefing && pendingDirections === 0 && project.instagram_ai_insight) currentPhase = 3;
@@ -266,26 +265,26 @@ export default function CockpitPage() {
               {greeting}, <span className="text-[var(--color-atelier-terracota)] italic">{clientName}.</span>
             </h1>
             <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-3 max-w-lg leading-relaxed font-medium">
-              Bem-vindo ao seu painel de controle executivo. Aqui transformamos estética em dados e conteúdo em equity para a sua marca.
+              Bem-vindo ao seu painel executivo. Aqui transformamos estética em dados e conteúdo em valor para a sua marca.
             </p>
           </div>
         </header>
 
-        {/* THE FORGE (Painel de Fundição / Tracker de Etapas) */}
+        {/* PROGRESSO DO PROJETO (Tracker de Etapas) */}
         <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-panel bg-white/60 p-8 md:p-10 rounded-[3rem] border border-white shadow-sm relative overflow-hidden transition-colors hover:bg-white/80">
           <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-atelier-terracota)]/5 rounded-full blur-3xl"></div>
           
-          <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-8 relative z-10">The Forge <span className="text-[var(--color-atelier-grafite)]/40 text-xl">/ Tracker de Evolução</span></h2>
+          <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-8 relative z-10">O Processo <span className="text-[var(--color-atelier-grafite)]/40 text-xl">/ Evolução do Projeto</span></h2>
           
           <div className="flex flex-col md:flex-row justify-between relative gap-8 md:gap-0 z-10">
             <div className="hidden md:block absolute top-8 left-16 right-16 h-1.5 bg-[var(--color-atelier-grafite)]/5 z-0 rounded-full shadow-inner"></div>
             <div className="hidden md:block absolute top-8 left-16 h-1.5 bg-gradient-to-r from-[var(--color-atelier-rose)] to-[var(--color-atelier-terracota)] z-0 transition-all duration-1000 rounded-full shadow-sm" style={{ width: `${(currentPhase - 1) * 33}%` }}></div>
             
             {[
-              { step: 1, title: 'Diagnóstico', desc: 'Dossiê de Mercado', icon: <Target size={18}/> },
-              { step: 2, title: 'Aura Visual', desc: 'Brandbook', icon: <SlidersHorizontal size={18}/> },
-              { step: 3, title: 'Confecção', desc: 'Fluxo de Impacto', icon: <LayoutDashboard size={18}/> },
-              { step: 4, title: 'Governança', desc: 'Oráculo Analytics', icon: <Activity size={18}/> },
+              { step: 1, title: 'Diagnóstico', desc: 'Diagnóstico Estratégico', icon: <Target size={18}/> },
+              { step: 2, title: 'Direção Visual', desc: 'Diretrizes da Marca', icon: <SlidersHorizontal size={18}/> },
+              { step: 3, title: 'Criação', desc: 'Aprovação de Conteúdo', icon: <LayoutDashboard size={18}/> },
+              { step: 4, title: 'Acompanhamento', desc: 'Analytics e Relatórios', icon: <Activity size={18}/> },
             ].map((phase, idx) => (
               <div key={idx} className="relative z-10 flex flex-col items-center gap-4 group">
                 <div className={`w-16 h-16 rounded-[1.2rem] flex items-center justify-center transition-all duration-700 shadow-sm
@@ -305,7 +304,7 @@ export default function CockpitPage() {
         </motion.section>
 
         {/* =========================================================
-            SECÇÃO: ESTRATÉGIA EDITORIAL MENSAL E APROVAÇÃO
+            SECÇÃO: PLANEJAMENTO EDITORIAL MENSAL E APROVAÇÃO
             ========================================================= */}
         {monthlyPlan.length > 0 && (
           <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass-panel bg-white/60 p-8 md:p-12 rounded-[3.5rem] border border-white shadow-sm transition-colors hover:bg-white/80">
@@ -315,9 +314,9 @@ export default function CockpitPage() {
                   <CalendarDays size={16} className="text-[var(--color-atelier-terracota)]" />
                   <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">Estratégia do Mês</span>
                 </div>
-                <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Validação de Copy & Contexto</h2>
+                <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Planejamento de Conteúdo</h2>
                 <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 max-w-2xl leading-relaxed font-medium">
-                  Antes de confecionarmos a arte gráfica, validamos a intenção. Aprove os ganchos e as abordagens abaixo para que o estúdio inicie a produção dos ativos visuais.
+                  Antes de desenvolvermos as artes gráficas, validamos as temáticas e a linha editorial. Aprove os tópicos abaixo para que a equipe inicie a produção dos materiais visuais.
                 </p>
               </div>
               <div className="bg-orange-50 text-orange-600 px-5 py-3 rounded-2xl border border-orange-100 flex flex-col items-center justify-center shadow-inner shrink-0">
@@ -335,11 +334,11 @@ export default function CockpitPage() {
                     <div className="bg-gray-50/80 p-4 rounded-2xl border border-gray-100">
                       <span className="block font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Data Sugerida</span>
                       <span className="font-roboto text-[14px] font-bold text-[var(--color-atelier-grafite)]">
-                        {plan.publish_date ? new Date(plan.publish_date).toLocaleDateString('pt-PT', { weekday: 'long', day: 'numeric', month: 'short' }) : "A definir"}
+                        {plan.publish_date ? new Date(plan.publish_date).toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'short' }) : "A definir"}
                       </span>
                     </div>
                     <div className="bg-[var(--color-atelier-creme)]/40 p-4 rounded-2xl border border-[var(--color-atelier-terracota)]/10">
-                      <span className="block font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Pilar (Tilt)</span>
+                      <span className="block font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Pilar de Conteúdo</span>
                       <span className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)]">
                         {plan.pillar || "Estratégico"}
                       </span>
@@ -361,7 +360,7 @@ export default function CockpitPage() {
                         disabled={isProcessing}
                         className="flex-1 bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] py-4 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] transition-all shadow-md flex items-center justify-center gap-2 hover:-translate-y-0.5 disabled:opacity-50"
                       >
-                        <CheckCircle2 size={16} /> Aprovar Ideia
+                        <CheckCircle2 size={16} /> Aprovar Temática
                       </button>
                       
                       <button 
@@ -386,7 +385,7 @@ export default function CockpitPage() {
                             <div className="flex justify-end gap-3 mt-1">
                               <button onClick={() => setActiveFeedbackId(null)} className="px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)] transition-colors bg-white rounded-xl shadow-sm">Cancelar</button>
                               <button onClick={() => handleRejectPlan(plan.id)} disabled={isProcessing || !feedbackText[plan.id]?.trim()} className="px-6 py-2.5 bg-red-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-600 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2">
-                                <XCircle size={14} /> Recusar e Enviar Ajuste
+                                <XCircle size={14} /> Solicitar Alteração
                               </button>
                             </div>
                           </div>
@@ -403,7 +402,7 @@ export default function CockpitPage() {
 
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
           
-          {/* MÓDULO DE AÇÃO EXIGIDA (Gargalos) */}
+          {/* MÓDULO DE AÇÃO EXIGIDA (Ponto de Atenção) */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className={`md:col-span-8 glass-panel p-8 md:p-10 flex flex-col justify-between relative overflow-hidden transition-all duration-500 rounded-[3rem] border shadow-sm
             ${(!briefing || pendingCount > 0 || pendingDirections > 0 || pendingMissions > 0 || pendingPlanCount > 0) ? 'bg-white/90 border-orange-200' : 'bg-white/60 border-white'}
           `}>
@@ -411,10 +410,10 @@ export default function CockpitPage() {
             <div className="flex items-start justify-between mb-8">
               <div>
                 <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2 block">
-                  Ação Requerida do Cliente
+                  Sua Atenção é Necessária
                 </span>
                 <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">
-                  {!briefing ? 'Dossiê de Mercado Pendente' : pendingPlanCount > 0 ? 'Validação de Estratégia Pendente' : pendingDirections > 0 ? 'Brandbook: Avaliação Pendente' : pendingCount > 0 ? 'Curadoria: Aprovações Pendentes' : pendingMissions > 0 ? 'Cofre: Missões Pendentes' : 'Mesa Limpa. Tudo em Dia.'}
+                  {!briefing ? 'Diagnóstico Pendente' : pendingPlanCount > 0 ? 'Validação de Estratégia Pendente' : pendingDirections > 0 ? 'Diretrizes Visuais: Avaliação Pendente' : pendingCount > 0 ? 'Aprovações Pendentes' : pendingMissions > 0 ? 'Envio de Materiais Pendente' : 'Tudo em Dia. Nada Pendente.'}
                 </h2>
               </div>
               <div className={`w-16 h-16 rounded-[1.2rem] flex items-center justify-center shrink-0 shadow-inner border
@@ -426,12 +425,12 @@ export default function CockpitPage() {
 
             <div>
               <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/80 mb-8 leading-relaxed max-w-xl font-medium">
-                {!briefing ? 'Para ativarmos o nosso Chief Marketing Officer (IA) e desenharmos o seu Brandbook, precisamos que responda a algumas perguntas estratégicas sobre o seu negócio.' 
-                : pendingPlanCount > 0 ? `Temos ${pendingPlanCount} ideias de conteúdo aguardando a sua aprovação textual na secção acima. Valide para iniciarmos a criação gráfica.`
-                : pendingDirections > 0 ? `O Diretor de Arte enviou ${pendingDirections} direções visuais. A sua avaliação vai calibrar a estética final da sua marca.` 
-                : pendingCount > 0 ? `O Fluxo de Impacto tem ${pendingCount} conteúdos aguardando a sua validação. A aprovação rápida com "Double Tap" mantém a máquina a rodar.` 
-                : pendingMissions > 0 ? `Temos ${pendingMissions} missões de captura aguardando o envio dos seus materiais crus para o nosso Cofre de Ativos.` 
-                : 'Não há ações exigidas da sua parte neste momento. O nosso estúdio está a produzir a próxima vaga de conteúdo.'}
+                {!briefing ? 'Para ativarmos o seu projeto, precisamos que responda a algumas perguntas essenciais sobre o posicionamento da sua marca.' 
+                : pendingPlanCount > 0 ? `Temos ${pendingPlanCount} diretrizes de conteúdo aguardando sua validação acima. Com isso aprovado, iniciaremos a criação do material visual.`
+                : pendingDirections > 0 ? `A nossa equipe de design enviou ${pendingDirections} direções visuais. A sua avaliação calibrará a estética oficial da sua marca.` 
+                : pendingCount > 0 ? `A equipe disponibilizou ${pendingCount} conteúdos aguardando a sua validação final. A aprovação ágil garante a pontualidade das publicações.` 
+                : pendingMissions > 0 ? `Temos ${pendingMissions} solicitações aguardando o envio de arquivos seus para o nosso espaço de trabalho.` 
+                : 'Não há ações exigidas da sua parte neste momento. A equipe está focada na produção e monitoramento dos resultados.'}
               </p>
 
               {!briefing ? (
@@ -440,23 +439,23 @@ export default function CockpitPage() {
                 </button>
               ) : pendingPlanCount > 0 ? (
                 <button onClick={() => window.scrollTo({ top: 400, behavior: 'smooth' })} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
-                  Revisar Estratégia <ArrowRight size={16} />
+                  Analisar Estratégia <ArrowRight size={16} />
                 </button>
               ) : pendingDirections > 0 ? (
-                <button onClick={() => setIsMissionsModalOpen(true)} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
-                  Acessar Brandbook <ArrowRight size={16} />
+                <button onClick={() => router.push('/cofre-missoes')} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
+                  Acessar Diretrizes de Marca <ArrowRight size={16} />
                 </button>
               ) : pendingCount > 0 ? (
                 <button onClick={() => router.push('/curadoria')} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
-                  Acessar Fluxo de Impacto <ArrowRight size={16} />
+                  Acessar Materiais para Aprovação <ArrowRight size={16} />
                 </button>
               ) : pendingMissions > 0 ? (
                 <button onClick={() => setIsMissionsModalOpen(true)} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-orange-500 text-white hover:bg-orange-600 shadow-md hover:-translate-y-0.5">
-                  Abrir Cofre de Missões <ArrowRight size={16} />
+                  Enviar Arquivos Solicitados <ArrowRight size={16} />
                 </button>
               ) : (
                 <button disabled className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/40 cursor-not-allowed shadow-sm">
-                  Monitorando Ativos <CheckCircle2 size={16} />
+                  Monitoramento Ativo <CheckCircle2 size={16} />
                 </button>
               )}
             </div>
@@ -465,7 +464,7 @@ export default function CockpitPage() {
           {/* ACESSOS RÁPIDOS */}
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="md:col-span-4 flex flex-col gap-4">
             
-            {/* NOVO ACESSO: RELATÓRIOS MENSAIS */}
+            {/* RELATÓRIOS MENSAIS */}
             <button 
               onClick={() => router.push('/cockpit/relatorios')} 
               className={`flex-1 glass-panel p-6 rounded-[2.5rem] border flex items-center gap-5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-1
@@ -478,8 +477,8 @@ export default function CockpitPage() {
                 <FileText size={20}/>
               </div>
               <div className="text-left flex-1">
-                <span className={`block font-elegant text-2xl ${hasReports ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]'}`}>Auditoria</span>
-                <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Relatório Mensal</span>
+                <span className={`block font-elegant text-2xl ${hasReports ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]'}`}>Análises</span>
+                <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Relatórios de Desempenho</span>
               </div>
               <ChevronRight size={20} className={hasReports ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/20 group-hover:text-[var(--color-atelier-terracota)] transition-colors'}/>
             </button>
@@ -487,8 +486,8 @@ export default function CockpitPage() {
             <button onClick={() => router.push('/curadoria')} className="flex-1 glass-panel bg-white/60 hover:bg-white p-6 rounded-[2.5rem] border border-white flex items-center gap-5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-1">
               <div className="w-14 h-14 rounded-[1.2rem] bg-white border border-white shadow-inner flex items-center justify-center text-[var(--color-atelier-grafite)] group-hover:scale-110 transition-transform"><LayoutDashboard size={20}/></div>
               <div className="text-left flex-1">
-                <span className="block font-elegant text-2xl text-[var(--color-atelier-grafite)]">Brandbook</span>
-                <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Aprovação Visual</span>
+                <span className="block font-elegant text-2xl text-[var(--color-atelier-grafite)]">Aprovações</span>
+                <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Análise de Conteúdo</span>
               </div>
               <ChevronRight size={20} className="text-[var(--color-atelier-grafite)]/20 group-hover:text-[var(--color-atelier-terracota)] transition-colors"/>
             </button>
@@ -496,7 +495,7 @@ export default function CockpitPage() {
             <button onClick={() => setIsMissionsModalOpen(true)} className="flex-1 glass-panel bg-white/60 hover:bg-white p-6 rounded-[2.5rem] border border-white flex items-center gap-5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-1">
               <div className="w-14 h-14 rounded-[1.2rem] bg-white border border-white shadow-inner flex items-center justify-center text-[var(--color-atelier-grafite)] group-hover:scale-110 transition-transform"><Camera size={20}/></div>
               <div className="text-left flex-1">
-                <span className="block font-elegant text-2xl text-[var(--color-atelier-grafite)]">Missões</span>
+                <span className="block font-elegant text-2xl text-[var(--color-atelier-grafite)]">Arquivos</span>
                 <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Envio de Material</span>
               </div>
               <ChevronRight size={20} className="text-[var(--color-atelier-grafite)]/20 group-hover:text-[var(--color-atelier-terracota)] transition-colors"/>
@@ -537,8 +536,8 @@ export default function CockpitPage() {
                  </div>
                  
                  <div>
-                   <h3 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-3">Como avalia a entrega?</h3>
-                   <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/60 font-medium">De 0 a 10, quão alinhada esta estratégia está com a visão e os valores da sua marca?</p>
+                   <h3 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-3">Como avalia as propostas?</h3>
+                   <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/60 font-medium">De 0 a 10, quão alinhada esta linha editorial está com a visão e os valores da sua marca?</p>
                  </div>
                  
                  <div className="flex justify-between gap-2 mt-2">
@@ -560,7 +559,7 @@ export default function CockpitPage() {
                  <textarea 
                    value={npsFeedback} 
                    onChange={e => setNpsFeedback(e.target.value)} 
-                   placeholder="Deixe um comentário opcional. O que lhe agradou mais? O que podemos refinar?" 
+                   placeholder="Deixe um comentário opcional. O que mais gostou? O que poderíamos aperfeiçoar?" 
                    className="w-full bg-gray-50/50 border border-[var(--color-atelier-grafite)]/10 rounded-2xl p-5 text-[13px] font-medium text-[var(--color-atelier-grafite)] resize-none h-28 outline-none focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 focus:shadow-sm transition-all custom-scrollbar" 
                  />
 
@@ -569,7 +568,7 @@ export default function CockpitPage() {
                      Pular Avaliação
                    </button>
                    <button onClick={handleSubmitNps} disabled={npsScore === null || isProcessing} className="flex-1 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-[1.2rem] text-[11px] font-bold uppercase tracking-[0.1em] shadow-md hover:bg-[var(--color-atelier-terracota)] transition-colors disabled:opacity-50 flex justify-center items-center gap-2 hover:-translate-y-0.5 disabled:hover:translate-y-0">
-                     {isProcessing ? <Loader2 size={16} className="animate-spin"/> : "Enviar Resposta"}
+                     {isProcessing ? <Loader2 size={16} className="animate-spin"/> : "Enviar Feedback"}
                    </button>
                  </div>
               </motion.div>
@@ -590,18 +589,18 @@ export default function CockpitPage() {
                  </div>
                  
                  <div>
-                   <h3 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-4 leading-tight">Pronto para o Próximo Nível?</h3>
+                   <h3 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-4 leading-tight">Pronto para acelerar os resultados?</h3>
                    <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 leading-relaxed font-medium">
-                     Ficamos felizes que esteja a adorar o nosso trabalho estratégico. Sabia que clientes que delegam 100% da execução crescem em média 3x mais rápido? <br/><br/>Podemos assumir toda a produção gráfica e gestão diária da sua marca.
+                     Ficamos extremamente felizes que esteja a apreciar o nosso alinhamento estratégico. Sabia que parceiros que centralizam 100% da execução no nosso estúdio crescem os seus resultados de forma mais sólida e previsível? <br/><br/>A Liz Design possui especialistas prontos para assumir toda a gestão do seu ecossistema digital.
                    </p>
                  </div>
 
                  <div className="flex flex-col gap-3 mt-4">
                    <button onClick={handleAcceptUpsell} className="w-full bg-[var(--color-atelier-terracota)] text-white py-5 rounded-[1.5rem] font-bold uppercase tracking-[0.1em] text-[11px] shadow-lg hover:bg-[#8c562e] hover:-translate-y-0.5 transition-all">
-                     Sim, Quero Escalar os Meus Resultados
+                     Sim, Quero conhecer as opções de Gestão Mensal
                    </button>
                    <button onClick={handleDeclineUpsell} className="w-full bg-transparent border border-transparent hover:border-gray-100 text-[var(--color-atelier-grafite)]/50 py-4 rounded-[1.5rem] font-bold uppercase tracking-widest text-[10px] hover:text-[var(--color-atelier-grafite)] hover:bg-gray-50 transition-colors">
-                     Manter o meu plano atual
+                     Não, pretendo manter o formato atual
                    </button>
                  </div>
               </motion.div>
@@ -631,7 +630,7 @@ export default function CockpitPage() {
             {greeting}, <span className="text-[var(--color-atelier-terracota)] italic">{clientName}.</span>
           </h1>
           <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-3 max-w-md font-medium leading-relaxed">
-            O seu painel de controlo diário. Sem métricas de vaidade, apenas o que impacta a construção da sua marca hoje.
+            O seu painel de acompanhamento diário. Acompanhe a evolução do projeto e faça a gestão das entregas com eficiência.
           </p>
         </div>
       </header>
@@ -646,10 +645,10 @@ export default function CockpitPage() {
           <div className="flex items-start justify-between mb-8">
             <div>
               <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2 block">
-                Ação Requerida
+                Atenção Solicitada
               </span>
               <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">
-                {pendingCount > 0 ? 'Aprovações Pendentes' : 'Tudo em Dia'}
+                {pendingCount > 0 ? 'Aprovações Pendentes' : 'Nenhuma Pendência'}
               </h2>
             </div>
             <div className={`w-14 h-14 rounded-[1.2rem] flex items-center justify-center shrink-0 shadow-inner border
@@ -662,8 +661,8 @@ export default function CockpitPage() {
           <div>
             <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/80 mb-8 leading-relaxed font-medium">
               {pendingCount > 0 
-                ? `Existem ${pendingCount} peças criativas aguardando a sua validação. A sua aprovação rápida garante que o cronograma do projeto se mantém intacto.` 
-                : 'Não há aprovações a aguardar a sua validação neste momento. O estúdio está focado a produzir a próxima vaga de design.'}
+                ? `Existem ${pendingCount} peças ou propostas criativas aguardando a sua aprovação. A sua validação atempada permite manter o cronograma rigoroso do projeto.` 
+                : 'Não há avaliações aguardando a sua ação no momento. A nossa equipe de design continua focada na próxima fase criativa do seu projeto.'}
             </p>
 
             <button onClick={() => router.push('/curadoria')} className={`px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all outline-none
@@ -671,7 +670,7 @@ export default function CockpitPage() {
                   ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-md hover:shadow-lg hover:-translate-y-0.5' 
                   : 'bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)] shadow-sm hover:shadow-md hover:-translate-y-0.5'}
               `}>
-              {pendingCount > 0 ? 'Revisar Conteúdo Agora' : 'Ver Histórico de Curadoria'}
+              {pendingCount > 0 ? 'Acessar Área de Aprovação' : 'Acessar Histórico de Apresentações'}
               <ArrowRight size={16} />
             </button>
           </div>
@@ -682,9 +681,9 @@ export default function CockpitPage() {
           
           <div>
             <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2 flex items-center gap-2">
-              <Activity size={12} className="text-[var(--color-atelier-terracota)]"/> Atelier Pulse
+              <Activity size={12} className="text-[var(--color-atelier-terracota)]"/> Status Geral
             </span>
-            <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-6">Saúde da Marca</h2>
+            <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-6">Saúde do Projeto</h2>
           </div>
 
           <div className="flex flex-col items-center justify-center my-6 relative z-10">
@@ -709,7 +708,7 @@ export default function CockpitPage() {
 
           <div className="text-center mt-2 relative z-10">
              <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white shadow-sm text-[var(--color-atelier-terracota)] font-roboto text-[10px] font-bold uppercase tracking-widest border border-[var(--color-atelier-terracota)]/10">
-               <TrendingUp size={12} /> Crescimento Sólido
+               <TrendingUp size={12} /> Ritmo Saudável
              </span>
           </div>
         </motion.div>
@@ -721,16 +720,16 @@ export default function CockpitPage() {
             </div>
             <div>
               <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 block mb-1">
-                Transparência de Estúdio
+                Acompanhamento Transparente
               </span>
               <h3 className="font-roboto text-[15px] font-bold text-[var(--color-atelier-grafite)] flex items-center gap-2">
-                Foco Atual: <span className="font-normal text-[var(--color-atelier-terracota)]">{currentFocus}</span>
+                Andamento da Equipe: <span className="font-normal text-[var(--color-atelier-terracota)]">{currentFocus}</span>
               </h3>
             </div>
           </div>
           
           <div className="text-[11px] font-roboto font-bold text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest flex items-center gap-2 shrink-0 bg-white px-5 py-2.5 rounded-xl shadow-sm border border-white">
-            <Sparkles size={14} className="text-[var(--color-atelier-terracota)]" /> Atualizado pelo Diretor de Arte
+            <Sparkles size={14} className="text-[var(--color-atelier-terracota)]" /> Atualizado pela Direção de Arte
           </div>
         </motion.div>
 

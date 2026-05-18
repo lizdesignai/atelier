@@ -110,19 +110,20 @@ export default function AnalyticsModals({
                 <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Novo Responsável</span>
                 <select value={bulkAssigneeId} onChange={(e) => setBulkAssigneeId(e.target.value)} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50">
                   <option value="">Manter Atuais</option>
-                  <option value="unassigned">Ficar em Fila Neutra</option>
+                  <option value="unassigned">Aguardando Responsável</option>
+                  <option disabled>──────</option>
                   {team.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
                 </select>
               </div>
               
               <div className="flex flex-col gap-1.5">
-                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Novo Prazo Base (Deadline)</span>
+                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Nova Data de Entrega</span>
                 <input type="datetime-local" value={bulkDeadline} onChange={(e) => setBulkDeadline(e.target.value)} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50" />
-                <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 mt-1 italic">Dica: Deixe em branco se desejar manter os prazos originais de cada tarefa.</span>
+                <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 mt-1 italic">Dica: Deixe em branco para manter as datas originais de cada tarefa.</span>
               </div>
 
               <button onClick={handleBulkTaskUpdate} disabled={isProcessing || (bulkAssigneeId === "" && bulkDeadline === "")} className="w-full mt-2 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-[var(--color-atelier-terracota)] transition-colors flex justify-center items-center gap-2 disabled:opacity-50">
-                {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <Edit3 size={16}/>} Aplicar a Todos
+                {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <Edit3 size={16}/>} Aplicar a Todas
               </button>
             </motion.div>
           </div>
@@ -137,15 +138,16 @@ export default function AnalyticsModals({
             <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-white/20 flex flex-col gap-5">
               <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <div className="w-full pr-4">
-                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Modificar Missão</h3>
+                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Editar Tarefa</h3>
                   <input type="text" value={editingTask.title} onChange={(e) => setEditingTask({...editingTask, title: e.target.value})} className="w-full bg-transparent font-roboto text-[13px] font-bold text-[var(--color-atelier-grafite)]/80 outline-none mt-1 border-b border-transparent focus:border-[var(--color-atelier-terracota)]/40" />
                 </div>
                 <button onClick={() => setEditingTask(null)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] shrink-0"><X size={20}/></button>
               </div>
               <div className="flex flex-col gap-1.5">
-                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Responsável no JTBD</span>
+                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Responsável pela Tarefa</span>
                 <select value={editingTask.assigned_to || ""} onChange={(e) => setEditingTask({...editingTask, assigned_to: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50">
-                  <option value="">Ficar em Fila Neutra</option>
+                  <option value="">Aguardando Responsável</option>
+                  <option disabled>──────</option>
                   {team.map(t => {
                     const isRecommended = editingTask.task_type && t.skills?.includes(editingTask.task_type);
                     return <option key={t.id} value={t.id}>{t.nome} ({t.role}) {isRecommended ? '⭐' : ''}</option>
@@ -153,20 +155,20 @@ export default function AnalyticsModals({
                 </select>
               </div>
               <div className="flex flex-col gap-1.5">
-                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Data de Entrega (Deadline)</span>
+                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Data de Entrega</span>
                 <input type="datetime-local" value={new Date(editingTask.deadline).toISOString().slice(0, 16)} onChange={(e) => setEditingTask({...editingTask, deadline: new Date(e.target.value).toISOString()})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50" />
               </div>
               <div className="flex flex-col gap-1.5">
-                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Instruções Técnicas</span>
-                <textarea value={editingTask.description || ""} onChange={(e) => setEditingTask({...editingTask, description: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] resize-none h-24 outline-none focus:border-[var(--color-atelier-terracota)]/50 custom-scrollbar" placeholder="Instruções para a equipa..." />
+                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Instruções da Tarefa</span>
+                <textarea value={editingTask.description || ""} onChange={(e) => setEditingTask({...editingTask, description: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] resize-none h-24 outline-none focus:border-[var(--color-atelier-terracota)]/50 custom-scrollbar" placeholder="Descreva os detalhes necessários para execução..." />
               </div>
               <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl bg-orange-50/50 border border-orange-100 hover:bg-orange-50 transition-colors">
                 <input type="checkbox" className="hidden" checked={editingTask.urgency} onChange={(e) => setEditingTask({...editingTask, urgency: e.target.checked})} />
                 <div className={`w-5 h-5 rounded flex items-center justify-center border ${editingTask.urgency ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-orange-200'}`}>{editingTask.urgency && <CheckCircle2 size={12} strokeWidth={3}/>}</div>
-                <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-orange-600 flex items-center gap-1"><Flame size={12}/> Classificar como Granada (Urgente)</span>
+                <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-orange-600 flex items-center gap-1"><Flame size={12}/> Classificar como Urgente</span>
               </label>
               <button onClick={handleUpdateTask} disabled={isProcessing} className="w-full mt-2 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-[var(--color-atelier-terracota)] transition-colors flex justify-center items-center gap-2">
-                {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <Edit3 size={16}/>} Atualizar Missão
+                {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>} Atualizar Tarefa
               </button>
             </motion.div>
           </div>
@@ -207,19 +209,19 @@ export default function AnalyticsModals({
                       </div>
                       <div className="bg-white p-4 rounded-2xl border border-[var(--color-atelier-grafite)]/5 shadow-sm text-center flex flex-col justify-center h-24">
                         <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] block mb-1">{myTasks.length}</span>
-                        <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Tarefas Filadas</span>
+                        <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Tarefas Alocadas</span>
                       </div>
                       <div className="bg-[var(--color-atelier-terracota)]/5 border border-[var(--color-atelier-terracota)]/20 p-4 rounded-2xl shadow-sm text-center flex flex-col justify-center h-24">
                         <span className="font-elegant text-3xl text-[var(--color-atelier-terracota)] block mb-1">{activeClientsCount}</span>
-                        <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">Projetos em Mãos</span>
+                        <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">Projetos Ativos</span>
                       </div>
                       
                       <div className="col-span-1 md:col-span-3 bg-blue-50 border border-blue-100 p-5 rounded-2xl flex items-center gap-4">
                         <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-600 shrink-0"><Activity size={18}/></div>
                         <div className="flex flex-col flex-1 min-w-0">
-                          <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-blue-600/70 mb-0.5">Executando Agora</span>
+                          <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-blue-600/70 mb-0.5">Em Andamento</span>
                           <span className="font-roboto font-bold text-[14px] text-blue-900 truncate">
-                            {inProgress.length > 0 ? inProgress[0].title : "Mesa limpa ou fora de turno."}
+                            {inProgress.length > 0 ? inProgress[0].title : "Nenhuma tarefa em andamento."}
                           </span>
                         </div>
                       </div>
@@ -229,7 +231,7 @@ export default function AnalyticsModals({
               </div>
 
               <div className="mt-6 flex-1 bg-white rounded-[2rem] p-6 md:p-8 border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col min-h-0">
-                <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-4 shrink-0 flex items-center gap-2"><FolderKanban size={14}/> Fila de Produção</h4>
+                <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-4 shrink-0 flex items-center gap-2"><FolderKanban size={14}/> Próximas Tarefas</h4>
                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3">
                   {activeTasksForQueue.filter(t => t.assigned_to === selectedCollab.id).map(task => {
                     const isSelected = selectedTaskIds.includes(task.id);
@@ -259,7 +261,7 @@ export default function AnalyticsModals({
                         <span className={`px-3 py-1.5 rounded-full text-[9px] font-bold uppercase tracking-widest border shrink-0
                           ${task.status === 'in_progress' ? 'bg-blue-100 text-blue-700 border-blue-200 shadow-sm' : 'bg-white text-[var(--color-atelier-grafite)]/50'}
                         `}>
-                          {task.status === 'in_progress' ? 'Em Foco' : 'Fila'}
+                          {task.status === 'in_progress' ? 'Em Andamento' : 'Aguardando'}
                         </span>
                       </div>
                     )
@@ -300,21 +302,21 @@ export default function AnalyticsModals({
               <div className="flex justify-between items-start">
                 <div>
                   <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><MapPin size={24} className="text-[var(--color-atelier-terracota)]"/> Logística de Captação</h3>
-                  <p className="font-roboto text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Agendar Captação de Campo</p>
+                  <p className="font-roboto text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Agendar Sessão Presencial</p>
                 </div>
                 <button onClick={() => setIsCaptacaoModalOpen(false)} className="text-gray-400 hover:text-black transition-colors"><X size={20}/></button>
               </div>
               
               <div className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1">
-                   <span className="text-[9px] font-bold uppercase text-gray-400 ml-1">O que será captado?</span>
-                   <input type="text" placeholder="Ex: Reels Coleção de Verão..." value={captacaoForm.title} onChange={(e)=>setCaptacaoForm({...captacaoForm, title: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-[14px] outline-none focus:border-[var(--color-atelier-terracota)]/30" />
+                   <span className="text-[9px] font-bold uppercase text-gray-400 ml-1">Foco da Sessão</span>
+                   <input type="text" placeholder="Ex: Fotos institucionais e vídeos curtos..." value={captacaoForm.title} onChange={(e)=>setCaptacaoForm({...captacaoForm, title: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-[14px] outline-none focus:border-[var(--color-atelier-terracota)]/30" />
                 </div>
 
                 <div className="flex flex-col gap-1">
                    <span className="text-[9px] font-bold uppercase text-gray-400 ml-1">Responsável pela Captação</span>
-                   <select value={captacaoForm.assigneeId} onChange={(e)=>setCaptacaoForm({...captacaoForm, assigneeId: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-[13px] outline-none">
-                     <option value="">Escolher Videomaker/Fotógrafo...</option>
+                   <select value={captacaoForm.assigneeId} onChange={(e)=>setCaptacaoForm({...captacaoForm, assigneeId: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-[13px] outline-none cursor-pointer">
+                     <option value="" disabled>Selecione um profissional...</option>
                      {team.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
                    </select>
                 </div>
@@ -326,15 +328,15 @@ export default function AnalyticsModals({
                    </div>
                    <div className="flex flex-col gap-1">
                       <span className="text-[9px] font-bold uppercase text-gray-400 ml-1">Localização</span>
-                      <input type="text" placeholder="Endereço ou Estúdio..." value={captacaoForm.location} onChange={(e)=>setCaptacaoForm({...captacaoForm, location: e.target.value})} className="bg-gray-50 border border-gray-100 rounded-xl p-3 text-[12px] outline-none" />
+                      <input type="text" placeholder="Ex: Escritório ou Estúdio..." value={captacaoForm.location} onChange={(e)=>setCaptacaoForm({...captacaoForm, location: e.target.value})} className="bg-gray-50 border border-gray-100 rounded-xl p-3 text-[12px] outline-none" />
                    </div>
                 </div>
 
-                <textarea placeholder="Observações e lista de equipamentos..." value={captacaoForm.notes} onChange={(e)=>setCaptacaoForm({...captacaoForm, notes: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-[12px] h-24 resize-none outline-none focus:border-[var(--color-atelier-terracota)]/30" />
+                <textarea placeholder="Observações e informações importantes para a sessão..." value={captacaoForm.notes} onChange={(e)=>setCaptacaoForm({...captacaoForm, notes: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-[12px] h-24 resize-none outline-none focus:border-[var(--color-atelier-terracota)]/30 custom-scrollbar" />
               </div>
 
-              <button onClick={handleAddCaptacao} disabled={isProcessing || !captacaoForm.title || !captacaoForm.assigneeId || !captacaoForm.date} className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[12px] shadow-lg hover:bg-black transition-all flex items-center justify-center gap-2 disabled:opacity-50">
-                {isProcessing ? <Loader2 className="animate-spin" size={16}/> : <Save size={16}/>} Confirmar
+              <button onClick={handleAddCaptacao} disabled={isProcessing || !captacaoForm.title || !captacaoForm.assigneeId || !captacaoForm.date} className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[12px] shadow-md hover:bg-[var(--color-atelier-terracota)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 hover:-translate-y-0.5 disabled:hover:translate-y-0">
+                {isProcessing ? <Loader2 className="animate-spin" size={16}/> : <Save size={16}/>} Confirmar Agendamento
               </button>
             </motion.div>
           </div>

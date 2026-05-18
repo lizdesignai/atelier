@@ -87,7 +87,7 @@ export default function ConsultoriaModal({ isOpen, onClose }: ConsultoriaModalPr
   // ==========================================
   const validateStep1 = () => {
     if (!formData.nome.trim() || !formData.instagram.trim() || !formData.nicho.trim()) {
-      showToast("Nome, Instagram e Nicho de Atuação são obrigatórios para a fundação.");
+      showToast("Nome, Instagram e Nicho de Atuação são obrigatórios para iniciar.");
       return false;
     }
     return true;
@@ -106,12 +106,12 @@ export default function ConsultoriaModal({ isOpen, onClose }: ConsultoriaModalPr
   };
 
   // ==========================================
-  // COFRE DE DADOS: PERSISTÊNCIA DIRETA (CRM)
+  // GRAVAÇÃO DE DADOS: PERSISTÊNCIA DIRETA (CRM)
   // ==========================================
   const handleSaveConsulting = async () => {
     if (!validateStep1()) return;
     setIsSaving(true);
-    showToast("A selar Dossiê Estratégico no cofre do CRM...");
+    showToast("Salvando Análise Estratégica no CRM...");
 
     try {
       // Tratamento Lean dos Pilares: Quebra a string por quebras de linha e remove buffers vazios
@@ -128,7 +128,7 @@ export default function ConsultoriaModal({ isOpen, onClose }: ConsultoriaModalPr
         telefone: formData.telefone.trim(),
         instagram: formData.instagram.trim(),
         nicho: formData.nicho.trim(),
-        status: 'prospect', // Status padrão de entrada no pipeline do Atelier OS
+        status: 'prospect', // Status padrão de entrada no fluxo do Atelier
         ai_brand_archetype: strategicBlueprint.brand_archetype,
         ai_visual_diagnosis: strategicBlueprint.visual_diagnosis,
         ai_tone_of_voice: strategicBlueprint.tone_of_voice,
@@ -148,7 +148,7 @@ export default function ConsultoriaModal({ isOpen, onClose }: ConsultoriaModalPr
       showToast("✨ Dossiê consolidado com sucesso na base de dados!");
     } catch (error: any) {
       console.error("Erro ao salvar Dossiê:", error);
-      showToast(`Falha operacional: ${error.message || "Verifique as permissões da BD."}`);
+      showToast(`Falha operacional: ${error.message || "Verifique as permissões do sistema."}`);
     } finally {
       setIsSaving(false);
     }
@@ -159,7 +159,7 @@ export default function ConsultoriaModal({ isOpen, onClose }: ConsultoriaModalPr
   // ==========================================
   const handleExportPDF = async () => {
     setIsExporting(true);
-    showToast("Compilando Dossiê Executivo de Alta Resolução...");
+    showToast("Gerando Dossiê Executivo em PDF...");
 
     try {
       const pillarsArray = strategicBlueprint.content_pillars
@@ -231,10 +231,10 @@ export default function ConsultoriaModal({ isOpen, onClose }: ConsultoriaModalPr
               <div>
                 <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-3">
                   <FileSearch size={28} className="text-[var(--color-atelier-terracota)]" /> 
-                  Mesa de Auditoria de Alto Valor
+                  Auditoria Estratégica
                 </h2>
                 <p className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-2 flex items-center gap-2">
-                  <Layers size={12}/> {step === 1 ? "Etapa 1: Triagem e Dossiê Cadastral" : "Etapa 2: Conselho de Direção e Matriz de Posicionamento"}
+                  <Layers size={12}/> {step === 1 ? "Etapa 1: Dados Cadastrais" : "Etapa 2: Diretrizes da Marca e Posicionamento"}
                 </p>
               </div>
               <button 
@@ -263,9 +263,9 @@ export default function ConsultoriaModal({ isOpen, onClose }: ConsultoriaModalPr
                         <Instagram size={36} className="text-[var(--color-atelier-terracota)]" />
                       </div>
                       <div>
-                        <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] mb-2">Fundação da Consultoria</h3>
+                        <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] mb-2">Início da Consultoria</h3>
                         <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/70 font-medium leading-relaxed">
-                          Insira as coordenadas cadastrais do prospect abaixo. A engenharia do Atelier OS isolará este perfil no banco de dados para que possa forjar e estruturar manualmente o Dossiê de Intervenção focado em percepção de valor e posicionamento de elite.
+                          Insira os dados do cliente abaixo. O sistema registrará este perfil na base de dados para que possa estruturar manualmente a análise estratégica focada em percepção de valor e posicionamento.
                         </p>
                       </div>
                     </div>
@@ -361,7 +361,7 @@ export default function ConsultoriaModal({ isOpen, onClose }: ConsultoriaModalPr
                           value={strategicBlueprint.strategic_justification} 
                           onChange={(e) => setStrategicBlueprint({...strategicBlueprint, strategic_justification: e.target.value})} 
                           rows={6} 
-                          placeholder="Fundamente cientificamente o porquê destas mudanças estruturais baseadas no posicionamento do cliente..."
+                          placeholder="Fundamente o porquê destas mudanças estruturais baseadas no posicionamento do cliente..."
                           className="w-full bg-transparent text-[13px] leading-relaxed text-[var(--color-atelier-grafite)] font-medium outline-none resize-none custom-scrollbar" 
                         />
                       </div>
@@ -375,7 +375,7 @@ export default function ConsultoriaModal({ isOpen, onClose }: ConsultoriaModalPr
                           value={strategicBlueprint.market_positioning} 
                           onChange={(e) => setStrategicBlueprint({...strategicBlueprint, market_positioning: e.target.value})} 
                           rows={6} 
-                          placeholder="Defina a proposta única de valor (UVP) de elite que o cliente deve assumir no mercado digital..."
+                          placeholder="Defina a proposta única de valor (UVP) que o cliente deve assumir no mercado digital..."
                           className="w-full bg-transparent text-[13px] leading-relaxed text-[var(--color-atelier-grafite)] font-medium outline-none resize-none custom-scrollbar" 
                         />
                       </div>
@@ -391,7 +391,7 @@ export default function ConsultoriaModal({ isOpen, onClose }: ConsultoriaModalPr
                         value={strategicBlueprint.visual_diagnosis} 
                         onChange={(e) => setStrategicBlueprint({...strategicBlueprint, visual_diagnosis: e.target.value})} 
                         rows={4} 
-                        placeholder="Prescreva paletas cromáticas, tipografia e diretrizes de composição editorial..."
+                        placeholder="Descreva paletas cromáticas, tipografia e diretrizes de composição editorial..."
                         className="w-full bg-transparent text-[13px] leading-relaxed text-[var(--color-atelier-grafite)] font-medium outline-none resize-none custom-scrollbar" 
                       />
                     </div>
@@ -406,21 +406,21 @@ export default function ConsultoriaModal({ isOpen, onClose }: ConsultoriaModalPr
                           value={strategicBlueprint.tone_of_voice} 
                           onChange={(e) => setStrategicBlueprint({...strategicBlueprint, tone_of_voice: e.target.value})} 
                           rows={4} 
-                          placeholder="Como a marca deve comunicar de forma prescritiva e soberana no nicho?"
+                          placeholder="Como a marca deve comunicar com o seu público?"
                           className="w-full bg-transparent text-[13px] leading-relaxed text-[var(--color-atelier-grafite)] font-medium outline-none resize-none custom-scrollbar" 
                         />
                       </div>
 
                       <div className="bg-white p-8 rounded-[2rem] border border-gray-50 shadow-sm flex flex-col gap-4 group/edit transition-colors hover:border-[var(--color-atelier-terracota)]/20">
                         <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] border-b border-gray-50 pb-3 flex items-center justify-between">
-                          <span>Dinâmica de Stories (Conversão Direct)</span>
+                          <span>Estratégia de Conteúdo (Stories)</span>
                           <Edit3 size={12} className="text-gray-300"/>
                         </label>
                         <textarea 
                           value={strategicBlueprint.stories_strategy} 
                           onChange={(e) => setStrategicBlueprint({...strategicBlueprint, stories_strategy: e.target.value})} 
                           rows={4} 
-                          placeholder="Mapeie o protocolo de roteirização diária (Manhã/Tarde/Noite) focado em atração de leads..."
+                          placeholder="Defina a linha editorial e o roteiro diário focado em conexão..."
                           className="w-full bg-transparent text-[13px] leading-relaxed text-[var(--color-atelier-grafite)] font-medium outline-none resize-none custom-scrollbar" 
                         />
                       </div>

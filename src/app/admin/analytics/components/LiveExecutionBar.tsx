@@ -12,7 +12,7 @@ export default function LiveExecutionBar({ liveTasks }: LiveExecutionBarProps) {
     <div className="shrink-0 bg-[var(--color-atelier-grafite)] text-white p-4 rounded-2xl flex items-center gap-4 overflow-x-auto custom-scrollbar shadow-lg animate-[fadeIn_0.5s_ease-out]">
       <div className="flex items-center gap-2 shrink-0 border-r border-white/20 pr-4">
          <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse"></div>
-         <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-white/70">Executando Agora</span>
+         <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-white/70">Em Andamento</span>
       </div>
       {liveTasks.map(t => (
         <div key={t.id} className="flex items-center gap-3 bg-white/10 px-4 py-2 rounded-xl shrink-0">

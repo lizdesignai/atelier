@@ -49,7 +49,7 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Busca Missões (Pedidos Direcionados) e Assets (Envios Livres) em paralelo
+      // Busca Solicitações (Pedidos Direcionados) e Assets (Envios Livres) em paralelo
       const [ { data: missionsData }, { data: assetsData } ] = await Promise.all([
         supabase.from('asset_missions').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false }),
         supabase.from('project_assets').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false })
@@ -58,7 +58,7 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
       setMissions(missionsData || []);
       setAssets(assetsData || []);
     } catch (error) {
-      showToast("Erro ao carregar o cofre do cliente.");
+      showToast("Erro ao carregar os arquivos do cliente.");
     } finally {
       setIsLoading(false);
     }
@@ -69,14 +69,14 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
   }, [activeProjectId]);
 
   // ============================================================================
-  // ORQUESTRAÇÃO DE MISSÕES
+  // ORQUESTRAÇÃO DE SOLICITAÇÕES
   // ============================================================================
   const handleCreateMission = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMissionTitle.trim()) return;
 
     setIsSubmitting(true);
-    showToast("A disparar nova missão para o cliente...");
+    showToast("Enviando nova solicitação para o cliente...");
 
     try {
       const { data, error } = await supabase.from('asset_missions').insert({
@@ -94,32 +94,32 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
       // 🔔 NOTIFICAÇÃO: Sino do Cliente
       await NotificationEngine.notifyUser(
         currentProject.client_id,
-        "🎯 Nova Missão de Ativos",
-        `O estúdio solicitou um novo material: "${newMissionTitle}". Aceda ao seu Cofre para enviar.`,
+        "🎯 Nova Solicitação de Material",
+        `A equipe solicitou um novo material: "${newMissionTitle}". Acesse o Meu Espaço para enviar.`,
         "action",
-        "/cockpit"
+        "/meu-espaco"
       );
 
-      // Notificação por E-mail (Opcional, mas recomendado para luxo)
+      // Notificação por E-mail
       if (currentProject.profiles?.email) {
         await fetch('/api/notify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             to: currentProject.profiles.email,
-            type: 'vault_new_asset', // Pode reutilizar este template ou criar um 'new_mission'
+            type: 'vault_new_asset', 
             clientName: currentProject.profiles.nome.split(' ')[0],
-            link: "https://seu-dominio.com/cockpit" // Mude para o seu domínio real
+            link: "https://seu-dominio.com/meu-espaco" // Mude para o seu domínio real
           })
         });
       }
 
       setNewMissionTitle("");
       setNewMissionDesc("");
-      showToast("Missão enviada com sucesso!");
+      showToast("Solicitação enviada com sucesso!");
 
     } catch (error) {
-      showToast("Erro ao criar missão.");
+      showToast("Erro ao criar solicitação.");
     } finally {
       setIsSubmitting(false);
     }
@@ -131,43 +131,43 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
       if (error) throw error;
 
       setMissions(missions.map(m => m.id === missionId ? { ...m, status: 'approved' } : m));
-      showToast("Material aprovado e validado para a linha de produção.");
+      showToast("Material aprovado e validado para produção.");
 
       // 🔔 NOTIFICAÇÃO: Agradecimento ao Cliente
       await NotificationEngine.notifyUser(
         currentProject.client_id,
         "✅ Material Aprovado",
-        "A nossa equipa validou o material que enviou. Obrigado pela rapidez!",
+        "A nossa equipe validou o material que enviou. Obrigado pela rapidez!",
         "success",
-        "/cockpit"
+        "/meu-espaco"
       );
 
     } catch (error) {
-      showToast("Erro ao aprovar missão.");
+      showToast("Erro ao aprovar material.");
     }
   };
 
   const handleDeleteMission = async (missionId: string) => {
-    if (!window.confirm("Deseja cancelar e apagar esta missão definitivamente?")) return;
+    if (!window.confirm("Deseja cancelar e apagar esta solicitação definitivamente?")) return;
     try {
       const { error } = await supabase.from('asset_missions').delete().eq('id', missionId);
       if (error) throw error;
       setMissions(missions.filter(m => m.id !== missionId));
-      showToast("Missão apagada com sucesso.");
+      showToast("Solicitação apagada com sucesso.");
     } catch (error) {
-      showToast("Erro ao apagar missão.");
+      showToast("Erro ao apagar solicitação.");
     }
   };
 
   const handleDeleteAsset = async (assetId: string) => {
-    if (!window.confirm("Tem certeza que deseja apagar este ficheiro do cofre?")) return;
+    if (!window.confirm("Tem certeza que deseja apagar este arquivo do sistema?")) return;
     try {
       const { error } = await supabase.from('project_assets').delete().eq('id', assetId);
       if (error) throw error;
       setAssets(assets.filter(a => a.id !== assetId));
-      showToast("Ficheiro removido do cofre.");
+      showToast("Arquivo removido do sistema.");
     } catch (error) {
-      showToast("Erro ao apagar ficheiro.");
+      showToast("Erro ao apagar arquivo.");
     }
   };
 
@@ -179,7 +179,7 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
     <div className="flex flex-col xl:flex-row gap-6 h-full overflow-hidden pb-4">
       
       {/* =========================================================
-          COLUNA ESQUERDA: ORQUESTRAÇÃO DE MISSÕES
+          COLUNA ESQUERDA: ORQUESTRAÇÃO DE SOLICITAÇÕES
           ========================================================= */}
       <div className="w-full xl:w-[55%] flex flex-col h-full overflow-hidden">
         <div className="glass-panel bg-white/60 p-8 rounded-[2.5rem] border border-white shadow-sm flex flex-col h-full relative overflow-hidden transition-colors hover:bg-white/80">
@@ -187,7 +187,7 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
           <div className="flex flex-wrap justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-6 mb-6 shrink-0 gap-4">
             <div>
               <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-3">
-                <Target size={24} className="text-[var(--color-atelier-terracota)]"/> Missões de Captura
+                <Target size={24} className="text-[var(--color-atelier-terracota)]"/> Solicitações de Material
               </h2>
               <p className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest mt-1.5 font-bold">
                 Solicite materiais específicos ao cliente.
@@ -195,16 +195,16 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
             </div>
           </div>
 
-          {/* Formulário Criador de Missões */}
+          {/* Formulário Criador de Solicitações */}
           <form onSubmit={handleCreateMission} className="bg-white p-6 rounded-[2rem] border border-gray-100 shadow-sm shrink-0 mb-6 flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
-              <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">O que o cliente deve fazer?</label>
+              <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">O que o cliente deve fazer ou enviar?</label>
               <input 
                 type="text" 
                 required 
                 value={newMissionTitle} 
                 onChange={(e) => setNewMissionTitle(e.target.value)}
-                placeholder="Ex: Gravar um vídeo de 15s a mostrar a fachada..." 
+                placeholder="Ex: Gravar um vídeo de 15s mostrando a fachada..." 
                 className="w-full bg-gray-50 border border-transparent focus:border-[var(--color-atelier-terracota)]/40 focus:bg-white rounded-xl py-3 px-4 text-[13px] font-bold text-[var(--color-atelier-grafite)] outline-none shadow-sm transition-all" 
               />
             </div>
@@ -223,18 +223,18 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
                   disabled={isSubmitting || !newMissionTitle.trim()}
                   className="bg-[var(--color-atelier-grafite)] text-white px-6 py-3 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest hover:bg-[var(--color-atelier-terracota)] transition-all shadow-md shrink-0 disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {isSubmitting ? <Loader2 size={16} className="animate-spin"/> : <Send size={16}/>} Disparar
+                  {isSubmitting ? <Loader2 size={16} className="animate-spin"/> : <Send size={16}/>} Enviar Solicitação
                 </button>
               </div>
             </div>
           </form>
 
-          {/* Lista de Missões */}
+          {/* Lista de Solicitações */}
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4">
             {missions.length === 0 ? (
               <div className="flex flex-col items-center justify-center h-full opacity-40 py-10 text-center">
                 <Target size={48} className="mb-4 text-[var(--color-atelier-grafite)]" />
-                <p className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Nenhuma Missão Ativa</p>
+                <p className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Nenhuma Solicitação Ativa</p>
                 <p className="font-roboto text-[12px] mt-2 font-medium max-w-xs">Use o formulário acima para solicitar fotos, vídeos ou documentos ao cliente.</p>
               </div>
             ) : (
@@ -276,7 +276,7 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
       </div>
 
       {/* =========================================================
-          COLUNA DIREITA: INVENTÁRIO GERAL (Cofre Livre)
+          COLUNA DIREITA: INVENTÁRIO GERAL (Arquivos Livres)
           ========================================================= */}
       <div className="w-full xl:w-[45%] flex flex-col h-full overflow-hidden">
         <div className="flex flex-col gap-6 h-full overflow-y-auto custom-scrollbar pr-2 pb-6">
@@ -284,10 +284,10 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white/60 p-6 md:p-8 rounded-[2.5rem] border border-white shadow-sm shrink-0 gap-4 transition-colors hover:bg-white/80">
              <div>
                <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-3">
-                 <FolderUp size={24} className="text-[var(--color-atelier-terracota)]"/> Arquivo de Ativos
+                 <FolderUp size={24} className="text-[var(--color-atelier-terracota)]"/> Arquivos do Cliente
                </h2>
                <p className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 mt-1.5 uppercase tracking-widest font-bold">
-                 Ficheiros enviados espontaneamente pelo cliente.
+                 Arquivos enviados espontaneamente pelo cliente.
                </p>
              </div>
           </div>
@@ -295,8 +295,8 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
           {assets.length === 0 ? (
              <div className="glass-panel bg-white/40 border border-white p-10 rounded-[2.5rem] flex flex-col items-center justify-center text-center h-[300px] shadow-sm shrink-0 opacity-60">
                <Camera size={48} className="text-[var(--color-atelier-grafite)]/40 mb-4" />
-               <p className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Cofre Vazio</p>
-               <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/60 mt-2 font-medium max-w-xs">O cliente ainda não utilizou a área de Envio Livre.</p>
+               <p className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Nenhum Arquivo</p>
+               <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/60 mt-2 font-medium max-w-xs">O cliente ainda não enviou nenhum arquivo livre.</p>
              </div>
           ) : (
             <div className="grid grid-cols-1 gap-3">

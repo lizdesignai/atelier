@@ -91,7 +91,7 @@ export default function GlobalCalendar({ activeProjectId, currentProject }: Glob
           <div className="absolute right-[-10%] top-[-20%] w-[150px] h-[150px] bg-[var(--color-atelier-terracota)]/20 rounded-full blur-[40px] pointer-events-none group-hover:bg-[var(--color-atelier-terracota)]/30 transition-colors"></div>
           <div className="flex items-center gap-3 mb-2 relative z-10">
             <BarChart3 size={18} className="text-[var(--color-atelier-terracota)]" />
-            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-white/60">Volume do Mês</span>
+            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-white/60">Volume Editorial</span>
           </div>
           <span className="font-elegant text-4xl text-white relative z-10">{totalPosts} <span className="text-sm font-roboto text-white/50 uppercase tracking-widest">Posts</span></span>
         </div>
@@ -99,7 +99,7 @@ export default function GlobalCalendar({ activeProjectId, currentProject }: Glob
         <div className="glass-panel bg-white/40 p-6 rounded-[1.5rem] border border-white shadow-sm flex flex-col justify-center hover:bg-white/60 transition-colors">
           <div className="flex items-center gap-3 mb-2">
             <CheckCircle2 size={18} className="text-green-500" />
-            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Aprovados / Feitos</span>
+            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Aprovados / Publicados</span>
           </div>
           <span className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">{approvedPosts}</span>
         </div>
@@ -132,7 +132,7 @@ export default function GlobalCalendar({ activeProjectId, currentProject }: Glob
                <CalendarIcon size={20} />
             </div>
             <div>
-              <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none">Mapeamento Editorial</h3>
+              <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none">Calendário Editorial</h3>
               <p className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1.5">Grade Mensal de Publicações</p>
             </div>
           </div>
@@ -197,8 +197,8 @@ export default function GlobalCalendar({ activeProjectId, currentProject }: Glob
                         `}
                         title={plan.hook}
                       >
-                        {plan.is_avulso && <span className="font-black mr-1 text-[var(--color-atelier-grafite)]/40" title="Post Avulso">[A]</span>}
-                        {plan.hook || "Sem Gancho"}
+                        {plan.is_avulso && <span className="font-black mr-1 text-[var(--color-atelier-grafite)]/40" title="Post Pontual">[P]</span>}
+                        {plan.hook || "Sem Título"}
                       </div>
                     ))}
                   </div>

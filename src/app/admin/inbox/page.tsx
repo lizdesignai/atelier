@@ -217,9 +217,9 @@ export default function AdminInboxPage() {
         await NotificationEngine.notifyUser(
           activeClient.client_id,
           `Nova mensagem em #${activeChannel.name}`,
-          "A equipa do Atelier enviou-lhe uma nova mensagem. Consulte o seu Inbox.",
+          "A equipe da Liz Design enviou uma nova mensagem. Acesse o Meu Espaço para responder.",
           "info",
-          "/canais" // Assumindo que a rota do cliente é /canais
+          "/meu-espaco/canais" 
         );
       }
       fetchMessages(); 
@@ -231,7 +231,7 @@ export default function AdminInboxPage() {
     if (!file || !activeChannelId || !userId) return;
 
     setIsUploadingAttachment(true);
-    showToast("A enviar anexo para o chat...");
+    showToast("Enviando anexo para o chat...");
 
     try {
       const fileExt = file.name.split('.').pop();
@@ -256,9 +256,9 @@ export default function AdminInboxPage() {
         await NotificationEngine.notifyUser(
           activeClient.client_id,
           `Anexo partilhado em #${activeChannel.name}`,
-          "A equipa do Atelier partilhou um novo ficheiro/documento no canal.",
+          "A equipe da Liz Design enviou um novo arquivo/documento no canal.",
           "info",
-          "/canais"
+          "/meu-espaco/canais"
         );
       }
 
@@ -283,7 +283,7 @@ export default function AdminInboxPage() {
     const { error } = await supabase.from('channels').update({ is_archived: true }).eq('id', activeChannelId);
     
     if (error) {
-      showToast("Erro ao arquivar. Verifique se criou a coluna no SQL.");
+      showToast("Erro ao arquivar o canal.");
     } else {
       showToast("Canal arquivado com sucesso.");
       setChannels(channels.map(c => c.id === activeChannelId ? { ...c, is_archived: true } : c));
@@ -347,13 +347,13 @@ export default function AdminInboxPage() {
                     <label className={`flex-1 flex flex-col p-4 rounded-2xl border cursor-pointer transition-all shadow-sm ${!isNewChannelPrivate ? 'bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)]/30' : 'bg-white border-white hover:border-[var(--color-atelier-terracota)]/20 hover:bg-[var(--color-atelier-terracota)]/5'}`}>
                       <input type="radio" name="privacy" className="hidden" checked={!isNewChannelPrivate} onChange={() => setIsNewChannelPrivate(false)} />
                       <div className="flex items-center gap-2 mb-1"><MessageSquare size={16} className={!isNewChannelPrivate ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/40'} /><span className={`font-roboto text-[12px] font-bold ${!isNewChannelPrivate ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]'}`}>Cliente</span></div>
-                      <span className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50">Visível para a equipa e para o cliente.</span>
+                      <span className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50">Visível para a equipe e para o cliente.</span>
                     </label>
 
                     <label className={`flex-1 flex flex-col p-4 rounded-2xl border cursor-pointer transition-all shadow-sm ${isNewChannelPrivate ? 'bg-[var(--color-atelier-grafite)] text-white border-transparent' : 'bg-white border-white hover:border-[var(--color-atelier-grafite)]/20 hover:bg-[var(--color-atelier-grafite)]/5'}`}>
                       <input type="radio" name="privacy" className="hidden" checked={isNewChannelPrivate} onChange={() => setIsNewChannelPrivate(true)} />
                       <div className="flex items-center gap-2 mb-1"><Lock size={16} className={isNewChannelPrivate ? 'text-white' : 'text-[var(--color-atelier-grafite)]/40'} /><span className={`font-roboto text-[12px] font-bold ${isNewChannelPrivate ? 'text-white' : 'text-[var(--color-atelier-grafite)]'}`}>Privado</span></div>
-                      <span className={`font-roboto text-[10px] ${isNewChannelPrivate ? 'text-white/60' : 'text-[var(--color-atelier-grafite)]/50'}`}>Apenas a equipa Atelier tem acesso.</span>
+                      <span className={`font-roboto text-[10px] ${isNewChannelPrivate ? 'text-white/60' : 'text-[var(--color-atelier-grafite)]/50'}`}>Apenas a equipe do estúdio tem acesso.</span>
                     </label>
                   </div>
                 </div>
@@ -374,7 +374,7 @@ export default function AdminInboxPage() {
             <span className="bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] w-8 h-8 rounded-xl flex items-center justify-center shadow-inner">
               <Inbox size={14} className="text-[var(--color-atelier-terracota)]" />
             </span>
-            <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/60">Comunicação Corporativa</span>
+            <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/60">Central de Atendimento</span>
           </div>
           <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] tracking-tight leading-none">
             Caixa de <span className="text-[var(--color-atelier-terracota)] italic">Entrada.</span>
@@ -383,7 +383,7 @@ export default function AdminInboxPage() {
 
         <div className="flex items-center gap-3">
           <div className="glass-panel px-4 py-2.5 rounded-[1.2rem] flex items-center gap-2 text-[11px] font-roboto uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/60 shadow-sm border border-white">
-            <Clock size={14} className="text-[var(--color-atelier-terracota)]" /> Live Sync Ativado
+            <Clock size={14} className="text-[var(--color-atelier-terracota)]" /> Sincronização em Tempo Real
           </div>
         </div>
       </header>
@@ -488,7 +488,7 @@ export default function AdminInboxPage() {
             {/* Secção de Canais Privados (Só a Equipa Vê) */}
             <div className="flex flex-col gap-2">
               <div className="flex items-center gap-2 px-2 mb-1">
-                <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-white/50">Área da Equipa</span>
+                <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-white/50">Canais da Equipe</span>
                 <Lock size={10} className="text-white/30" />
               </div>
               
@@ -515,7 +515,7 @@ export default function AdminInboxPage() {
           </div>
         </div>
 
-        {/* PAINEL 3: O PALCO DE MENSAGENS (Restante da tela) */}
+        {/* PAINEL 3: CHAT E MENSAGENS (Restante da tela) */}
         <div className="flex-1 min-h-0 min-w-0 glass-panel rounded-[2.5rem] bg-white/60 border border-white flex flex-col relative overflow-hidden shadow-sm h-full">
           
           <div className="bg-white/60 backdrop-blur-xl border-b border-[var(--color-atelier-grafite)]/10 px-8 py-5 flex justify-between items-center z-20 shrink-0">
@@ -528,7 +528,7 @@ export default function AdminInboxPage() {
                   {activeChannel ? activeChannel.name : "Nenhum canal selecionado"}
                 </span>
                 <p className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">
-                  {activeChannel?.is_private ? 'Canal invisível para o cliente. Acesso Interno.' : `Comunicação direta com ${activeClient?.profiles?.nome || 'o cliente'}.`}
+                  {activeChannel?.is_private ? 'Canal interno da equipe. Invisível para o cliente.' : `Canal visível para o cliente: ${activeClient?.profiles?.nome || 'o cliente'}.`}
                 </p>
               </div>
             </div>
@@ -670,7 +670,7 @@ export default function AdminInboxPage() {
               </button>
             </div>
             <div className="flex items-center justify-center gap-2 mt-4 text-[9px] font-roboto uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">
-               <ShieldCheck size={12} /> Comunicação Encriptada: {activeChannel?.is_private ? 'Apenas Equipa' : 'Visível para o Cliente'}
+               <ShieldCheck size={12} /> Comunicação Encriptada: {activeChannel?.is_private ? 'Apenas Equipe' : 'Visível para o Cliente'}
             </div>
           </form>
 

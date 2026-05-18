@@ -271,7 +271,7 @@ export default function BaseClientesPage() {
         "/admin/projetos"
       );
 
-      showToast("✨ Projeto forjado e Pipeline Instanciado no JTBD!");
+      showToast("✨ Projeto criado e tarefas enviadas para a Mesa de Trabalho!");
       setIsNewClientModalOpen(false);
       setSelectedClientId("");
       setFinancialValue("");
@@ -543,14 +543,14 @@ export default function BaseClientesPage() {
               onClick={() => setIsConsultoriaModalOpen(true)}
               className="bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] px-6 py-3.5 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)] transition-all shadow-sm items-center gap-2 hidden md:flex"
             >
-              <FileSearch size={16} className="text-[var(--color-atelier-terracota)]" /> Consultoria
+              <FileSearch size={16} className="text-[var(--color-atelier-terracota)]" /> Análise Estratégica
             </button>
 
             <button 
               onClick={() => setIsAgencyModalOpen(true)}
               className="bg-white/40 border border-white text-[var(--color-atelier-grafite)] px-6 py-3.5 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] hover:bg-white transition-all shadow-sm flex items-center gap-2 hidden md:flex"
             >
-              <Briefcase size={16} /> Nova Agência
+              <Briefcase size={16} /> Nova Agência Parceira
             </button>
             <button 
               onClick={() => setIsNewClientModalOpen(true)}
@@ -566,13 +566,13 @@ export default function BaseClientesPage() {
             onClick={() => setIsConsultoriaModalOpen(true)}
             className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] py-3 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 shadow-sm"
           >
-            <FileSearch size={16} className="text-[var(--color-atelier-terracota)]" /> Consultoria de Alto Valor
+            <FileSearch size={16} className="text-[var(--color-atelier-terracota)]" /> Análise Estratégica
           </button>
           <button 
             onClick={() => setIsAgencyModalOpen(true)}
             className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] py-3 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 shadow-sm"
           >
-            <Briefcase size={16} /> Registar Agência Parceira
+            <Briefcase size={16} /> Nova Agência Parceira
           </button>
         </div>
 
@@ -592,9 +592,9 @@ export default function BaseClientesPage() {
             <FilterButton label="Todos" active={filterStatus === 'all'} onClick={() => setFilterStatus('all')} />
             <FilterButton label="Leads" active={filterStatus === 'lead'} onClick={() => setFilterStatus('lead')} />
             <FilterButton label="Agências (B2B)" active={filterStatus === 'agency'} onClick={() => setFilterStatus('agency')} />
-            <FilterButton label="Em Forja (Ativos)" active={filterStatus === 'active'} onClick={() => setFilterStatus('active')} />
+            <FilterButton label="Em Andamento (Ativos)" active={filterStatus === 'active'} onClick={() => setFilterStatus('active')} />
             <FilterButton label="Pendentes" active={filterStatus === 'pending'} onClick={() => setFilterStatus('pending')} />
-            <FilterButton label="Legado" active={filterStatus === 'archived'} onClick={() => setFilterStatus('archived')} />
+            <FilterButton label="Arquivados" active={filterStatus === 'archived'} onClick={() => setFilterStatus('archived')} />
           </div>
         </div>
       </header>
@@ -630,7 +630,7 @@ export default function BaseClientesPage() {
                       setClientToEdit(project.profiles);
                       setIsClientSettingsModalOpen(true);
                     } else {
-                      showToast(`A aceder ao JTBD de ${project.profiles?.nome}...`);
+                      showToast(`Acessando a Mesa de Trabalho de ${project.profiles?.nome}...`);
                       // 🟢 CORREÇÃO: Diz à GlobalStore qual é o projeto ANTES de mudar de rota
                       setActiveProjectId(project.id);
                       router.push('/admin/projetos');
@@ -674,7 +674,7 @@ export default function BaseClientesPage() {
                       <StatusBadge icon={Briefcase} text="Operação White-Label" color="gray" />
                     ) : (
                       <>
-                        {project.status === 'active' && <StatusBadge icon={Clock} text="Em Forja" color="terracota" />}
+                        {project.status === 'active' && <StatusBadge icon={Clock} text="Em Andamento" color="terracota" />}
                         {project.status === 'pending' && <StatusBadge icon={AlertCircle} text="Ação Pendente" color="orange" />}
                         {project.status === 'delivered' && <StatusBadge icon={CheckCircle2} text="Entregue" color="green" />}
                         {project.status === 'archived' && <StatusBadge icon={Ban} text="Suspenso" color="gray" />}
@@ -682,7 +682,7 @@ export default function BaseClientesPage() {
                     )}
                     
                     <span className="font-roboto text-[12px] font-bold text-[var(--color-atelier-grafite)]/70 truncate w-full pr-4">
-                      {project.isLead ? "Consultoria Estratégica" : project.isAgency ? "Demandas em Lote" : (project.instagram_package || project.type)}
+                      {project.isLead ? "Análise Estratégica" : project.isAgency ? "Demandas em Lote" : (project.instagram_package || project.type)}
                     </span>
                   </div>
 
@@ -694,7 +694,7 @@ export default function BaseClientesPage() {
                           Origem do Contacto
                         </span>
                         <span className="font-roboto text-[12px] font-bold text-[var(--color-atelier-grafite)] flex items-center gap-1.5">
-                          <FileSearch size={12} className="text-purple-500" /> Capturado via Consultoria
+                          <FileSearch size={12} className="text-purple-500" /> Origem: Análise Estratégica
                         </span>
                       </div>
                     ) : project.isAgency ? (
@@ -710,7 +710,7 @@ export default function BaseClientesPage() {
                       <>
                         <div className="flex justify-between items-end mb-1.5">
                           <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)]/70 truncate mr-2">
-                            Workflow Progress
+                            Progresso
                           </span>
                           <span className="font-roboto text-[12px] font-bold text-[var(--color-atelier-grafite)] flex items-center gap-1">
                             {project.status === 'delivered' || project.calculatedProgress === 100 ? (
@@ -795,7 +795,7 @@ export default function BaseClientesPage() {
                         }}
                         className="bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/60 px-5 py-2.5 rounded-[1rem] font-roboto font-bold uppercase tracking-widest text-[10px] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm flex items-center gap-2 group-hover:border-transparent"
                       >
-                        JTBD <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                        Mesa de Trabalho <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
                       </button>
                     )}
                   </div>
@@ -807,7 +807,7 @@ export default function BaseClientesPage() {
                 <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col items-center justify-center h-40 text-center">
                   <Search size={32} className="text-[var(--color-atelier-grafite)]/20 mb-3" />
                   <p className="font-elegant text-2xl text-[var(--color-atelier-grafite)]/50">Nenhum registo encontrado.</p>
-                  <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 mt-1">Registe um novo projeto ou capte leads via Consultoria.</p>
+                  <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 mt-1">Registe um novo projeto ou capte leads via Análise Estratégica.</p>
                 </motion.div>
               )}
             </AnimatePresence>
@@ -948,7 +948,7 @@ export default function BaseClientesPage() {
                     Firmar Novo Contrato
                   </h2>
                   <p className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-2">
-                    Gera Tarefas (JTBD) automaticamente
+                    Cria as tarefas automaticamente
                   </p>
                 </div>
                 <button onClick={() => setIsNewClientModalOpen(false)} className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors shadow-sm border border-white/50">
@@ -1105,7 +1105,7 @@ export default function BaseClientesPage() {
                   className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-[1.2rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all shadow-[0_10px_20px_rgba(122,116,112,0.15)] disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
-                  Validar Contrato e Gerar Tarefas (Auto-Deploy)
+                  Validar Contrato e Atribuir Demandas
                 </button>
               </div>
 
@@ -1134,7 +1134,7 @@ export default function BaseClientesPage() {
                 <div>
                   <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
                     <Building size={24} className="text-[var(--color-atelier-terracota)]" /> 
-                    Nova Operação de Agência
+                    Nova Agência Parceira
                   </h2>
                   <p className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-2">
                     White-label & Terceirização
@@ -1207,7 +1207,7 @@ export default function BaseClientesPage() {
                   className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-[1.2rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all shadow-[0_10px_20px_rgba(122,116,112,0.15)] disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} 
-                  Salvar Agência e Injetar Demandas
+                  Salvar Agência e Atribuir Demandas
                 </button>
               </div>
 

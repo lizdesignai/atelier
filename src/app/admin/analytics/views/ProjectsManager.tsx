@@ -116,7 +116,7 @@ export default function ProjectsManager({
                  {selectedEntityType === 'project' && (
                    <button onClick={() => handleAutoDeploy(selectedEntityData)} disabled={isProcessing} className="bg-[var(--color-atelier-terracota)] text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#8c562e] transition-all flex items-center gap-2 shadow-sm hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0">
                      {isProcessing ? <Loader2 size={14} className="animate-spin"/> : <Sparkles size={14}/>} 
-                     {tasks.filter(t => t.project_id === selectedEntityData.id).length > 0 ? "Renovar Ciclo Mensal" : "Instanciar Produção"}
+                     {tasks.filter(t => t.project_id === selectedEntityData.id).length > 0 ? "Renovar Ciclo Mensal" : "Iniciar Produção"}
                    </button>
                  )}
               </div>
@@ -126,7 +126,7 @@ export default function ProjectsManager({
               <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl"></div>
               
               <div className="flex flex-col gap-2 flex-1 relative z-10 w-full">
-                <span className="text-[10px] uppercase font-bold tracking-widest text-white/50 ml-1">Injetar Demanda Puntual</span>
+                <span className="text-[10px] uppercase font-bold tracking-widest text-white/50 ml-1">Adicionar Demanda Pontual</span>
                 <input type="text" placeholder="Título da tarefa urgente..." value={adHocDemand.title} onChange={(e) => setAdHocDemand({...adHocDemand, title: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-xl p-3 text-white text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] transition-colors" />
               </div>
               
@@ -213,7 +213,7 @@ export default function ProjectsManager({
                                     <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-100 border border-white shadow-inner">
                                       {task.profiles?.avatar_url ? <img src={task.profiles.avatar_url} className="w-full h-full object-cover"/> : <UserCircle2 size={10} className="text-gray-300"/>}
                                     </div>
-                                    <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">{task.profiles?.nome?.split(" ")[0] || "A definir"}</span>
+                                    <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">{task.profiles?.nome?.split(" ")[0] || "Aguardando Responsável"}</span>
                                  </div>
                                  <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)]/40 bg-gray-50 px-2 py-1 rounded-md">{new Date(task.deadline).toLocaleDateString('pt-BR')}</span>
                               </div>

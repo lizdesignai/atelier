@@ -53,7 +53,7 @@ export default function ComunidadeFeed() {
       // 1. Busca os Posts do Grupo
       let query = supabase.from('community_posts').select('*, profiles(nome, avatar_url, role, username)').order('created_at', { ascending: false });
       
-      // 🛡️ BLINDAGEM DE SEGURANÇA: Esconde posts 'pending' de outros utilizadores (Apenas Admin vê tudo)
+      // 🛡️ BLINDAGEM DE SEGURANÇA: Esconde posts 'pending' de outros usuários (Apenas Admin vê tudo)
       if (profileData?.role !== 'admin') {
         query = query.or(`status.eq.approved,author_id.eq.${session.user.id}`);
       }
@@ -106,7 +106,7 @@ export default function ComunidadeFeed() {
     fetchCommunityData();
   }, [currentGroup]);
 
-  // Função para gatilho de "Dar os Parabéns" com auto-resize
+  // Função para gatilho de "Enviar Parabéns" com auto-resize
   const handleCongratulate = (username: string) => {
     setNewPostText(`@${username} parabéns por mais um ano de sucesso e evolução! 🎉 `);
     if (publisherRef.current) {
@@ -144,7 +144,7 @@ export default function ComunidadeFeed() {
     if (!newPostText.trim() || !userProfile) return;
 
     setIsPublishing(true);
-    showToast("A processar publicação...");
+    showToast("Processando publicação...");
 
     try {
       let imageUrl = null;
@@ -182,7 +182,7 @@ export default function ComunidadeFeed() {
         if (!isAdmin) {
            await NotificationEngine.notifyManagement(
              "📝 Comunidade: Aprovação Pendente",
-             `O cliente ${userProfile.nome} enviou uma nova partilha que requer a sua aprovação para ficar pública.`,
+             `O cliente ${userProfile.nome} enviou uma nova publicação que requer a sua aprovação para ficar pública.`,
              "warning",
              "/admin/comunidade" // ou a rota correta de gestão
            );
@@ -217,8 +217,8 @@ export default function ComunidadeFeed() {
       if (postToApprove && postToApprove.author_id) {
          await NotificationEngine.notifyUser(
            postToApprove.author_id,
-           "✅ Partilha Aprovada!",
-           "A sua publicação foi aprovada pela equipa e já está visível no mural da Comunidade.",
+           "✅ Publicação Aprovada!",
+           "A sua publicação foi aprovada pela equipe e já está visível no mural da Comunidade.",
            "success",
            "/comunidade"
          );
@@ -251,7 +251,7 @@ export default function ComunidadeFeed() {
            await NotificationEngine.notifyUser(
              post.author_id,
              "❤️ Nova Reação",
-             `${userProfile.nome} gostou da sua publicação na comunidade.`,
+             `${userProfile.nome} curtiu a sua publicação na comunidade.`,
              "info",
              "/comunidade"
            );
@@ -295,7 +295,7 @@ export default function ComunidadeFeed() {
            await NotificationEngine.notifyUser(
              postToComment.author_id,
              "💬 Novo Comentário",
-             `${userProfile.nome} respondeu à sua partilha na comunidade.`,
+             `${userProfile.nome} respondeu à sua publicação na comunidade.`,
              "info",
              "/comunidade"
            );
@@ -320,16 +320,16 @@ export default function ComunidadeFeed() {
       // O CASCADE DELETE no banco fará a limpeza automática dos likes e comentários.
       const { error } = await supabase.from('community_posts').delete().eq('id', idBackup);
       if (error) throw error;
-      showToast("A publicação foi apagada da comunidade.");
+      showToast("A publicação foi excluída da comunidade.");
     } catch (error) {
-      showToast("Erro ao apagar. Permissão negada.");
+      showToast("Erro ao excluir. Permissão negada.");
       fetchCommunityData(); 
     }
   };
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
   };
 
   const getGroupTitle = () => {
@@ -354,12 +354,12 @@ export default function ComunidadeFeed() {
               <div className="w-20 h-20 rounded-full bg-red-50 text-red-500 flex items-center justify-center mb-6 shadow-inner border border-red-100">
                 <Trash2 size={28} />
               </div>
-              <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-3">Apagar Publicação?</h2>
-              <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 mb-8 leading-relaxed font-medium">Esta ação é irreversível. A sua partilha será permanentemente removida do feed da comunidade.</p>
+              <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-3">Excluir Publicação?</h2>
+              <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 mb-8 leading-relaxed font-medium">Esta ação é irreversível. A sua publicação será permanentemente removida do feed da comunidade.</p>
               
               <div className="flex w-full gap-4">
                 <button onClick={() => setPostToDelete(null)} className="flex-1 py-4 rounded-2xl bg-gray-50 border border-transparent font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 hover:bg-gray-100 hover:text-[var(--color-atelier-grafite)] transition-colors">Cancelar</button>
-                <button onClick={confirmDeletePost} className="flex-1 py-4 rounded-2xl bg-red-500 text-white font-roboto text-[11px] font-bold uppercase tracking-[0.1em] hover:bg-red-600 shadow-md hover:-translate-y-0.5 transition-all">Sim, Apagar</button>
+                <button onClick={confirmDeletePost} className="flex-1 py-4 rounded-2xl bg-red-500 text-white font-roboto text-[11px] font-bold uppercase tracking-[0.1em] hover:bg-red-600 shadow-md hover:-translate-y-0.5 transition-all">Sim, Excluir</button>
               </div>
             </motion.div>
           </div>
@@ -392,7 +392,7 @@ export default function ComunidadeFeed() {
                 <div className="flex flex-col">
                   <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-tight mb-1">Dia de Celebração! 🎉</h3>
                   <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 font-medium">
-                    A marca de <span className="font-bold text-[var(--color-atelier-terracota)]">{todaysAnniversaries[0].nome}</span> completa mais um ciclo de evolução hoje no Atelier.
+                    A marca de <span className="font-bold text-[var(--color-atelier-terracota)]">{todaysAnniversaries[0].nome}</span> completa mais um ciclo de evolução hoje no estúdio.
                   </p>
                 </div>
               </div>
@@ -400,7 +400,7 @@ export default function ComunidadeFeed() {
                 onClick={() => handleCongratulate(todaysAnniversaries[0].username || todaysAnniversaries[0].nome)}
                 className="w-full md:w-auto px-8 py-4 rounded-[1.2rem] bg-[var(--color-atelier-terracota)] text-white font-roboto text-[11px] font-bold uppercase tracking-[0.1em] hover:bg-[#8c562e] transition-all hover:-translate-y-0.5 shadow-md shrink-0"
               >
-                Dar os Parabéns
+                Enviar Parabéns
               </button>
             </div>
           </motion.div>
@@ -408,7 +408,7 @@ export default function ComunidadeFeed() {
       </AnimatePresence>
 
       {/* =========================================================================
-          O PUBLICADOR FLUIDO
+          O COMPOSITOR DE PUBLICAÇÕES
           ========================================================================= */}
       <div className="glass-panel p-6 md:p-8 rounded-[2.5rem] bg-white/60 border border-white shadow-sm hover:shadow-md hover:bg-white/80 transition-all relative z-20">
         <form onSubmit={handlePublish} className="flex flex-col gap-4">
@@ -425,8 +425,8 @@ export default function ComunidadeFeed() {
                 disabled={isPublishing} 
                 placeholder={
                   currentGroup === 'networking' ? "O que a sua empresa procura ou oferece hoje?" : 
-                  currentGroup === 'feedback' ? "Precisa de uma opinião experiente? Partilhe a sua ideia..." :
-                  "Que vitória ou insight a sua marca conquistou hoje?"
+                  currentGroup === 'feedback' ? "Precisa de uma opinião experiente? Compartilhe a sua ideia..." :
+                  "Que vitória ou insight sua marca conquistou hoje?"
                 }
                 className="w-full bg-transparent border-none outline-none font-roboto text-[15px] font-medium text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 resize-none min-h-[56px] overflow-hidden p-4 disabled:opacity-50 transition-all custom-scrollbar" 
               />
@@ -463,7 +463,7 @@ export default function ComunidadeFeed() {
       ) : posts.length === 0 ? (
         <div className="text-center p-16 opacity-60 flex flex-col items-center justify-center glass-panel bg-white/40 rounded-[3rem] border border-white mt-4">
           <Sparkles size={48} className="mb-6 text-[var(--color-atelier-terracota)]" />
-          <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Nenhuma partilha encontrada.</h3>
+          <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Nenhuma publicação encontrada.</h3>
           <p className="font-roboto text-[14px] font-medium text-[var(--color-atelier-grafite)]/60 mt-2">Seja o primeiro a inspirar a comunidade neste grupo!</p>
         </div>
       ) : (
@@ -517,7 +517,7 @@ export default function ComunidadeFeed() {
                          </button>
                       )}
                       {(isAdmin || isMyPost) && (
-                        <button onClick={() => setPostToDelete(post.id)} className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-transparent shadow-sm text-[var(--color-atelier-grafite)]/40 hover:border-red-100 hover:bg-red-50 hover:text-red-500 transition-colors" title="Apagar">
+                        <button onClick={() => setPostToDelete(post.id)} className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-transparent shadow-sm text-[var(--color-atelier-grafite)]/40 hover:border-red-100 hover:bg-red-50 hover:text-red-500 transition-colors" title="Excluir">
                           <Trash2 size={16} />
                         </button>
                       )}
@@ -538,7 +538,7 @@ export default function ComunidadeFeed() {
                     </div>
                   )}
 
-                  <div className="p-6 flex items-center justify-between bg-white/40 border-t border-[var(--color-atelier-grafite)]/5">
+                  <div className="p-6 flex items-center justify-between bg-white/40 border-t border-white/50">
                     <div className="flex gap-2">
                       <button 
                         onClick={() => handleLike(post.id)} 
@@ -547,7 +547,7 @@ export default function ComunidadeFeed() {
                           ${isLiked ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] border-[var(--color-atelier-terracota)]/20' : 'bg-white text-[var(--color-atelier-grafite)]/60 hover:bg-gray-50 hover:text-[var(--color-atelier-grafite)] border-white'}`}
                       >
                         <Heart size={18} className={isLiked ? 'fill-[var(--color-atelier-terracota)] text-[var(--color-atelier-terracota)]' : ''} /> 
-                        {post.likes_count || 0} {post.likes_count === 1 ? 'Gosto' : 'Gostos'}
+                        {post.likes_count || 0} {post.likes_count === 1 ? 'Curtida' : 'Curtidas'}
                       </button>
                       <button 
                         onClick={() => toggleComments(post.id)} 
@@ -558,9 +558,11 @@ export default function ComunidadeFeed() {
                         <MessageCircle size={18} /> {commentsData[post.id]?.length || 'Comentar'}
                       </button>
                     </div>
+                    <button onClick={() => showToast("Link copiado para a área de transferência!")} className="p-3 text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] hover:bg-white transition-colors rounded-[1rem] shadow-sm border border-transparent hover:border-white">
+                      <Share2 size={18} />
+                    </button>
                   </div>
 
-                  {/* ZONA DE COMENTÁRIOS FLUIDA */}
                   <AnimatePresence>
                     {isCommentsOpen && (
                       <motion.div 
@@ -571,7 +573,7 @@ export default function ComunidadeFeed() {
                           {!commentsData[post.id] ? (
                             <div className="flex justify-center p-4"><Loader2 size={20} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>
                           ) : commentsData[post.id]?.length === 0 ? (
-                            <div className="text-[13px] text-[var(--color-atelier-grafite)]/50 italic font-roboto font-medium text-center py-4 bg-white/50 rounded-[1.5rem]">Sem comentários. Partilhe a primeira perspetiva!</div>
+                            <div className="text-[13px] text-[var(--color-atelier-grafite)]/50 italic font-roboto font-medium text-center py-4 bg-white/50 rounded-[1.5rem]">Sem comentários. Compartilhe a primeira perspectiva!</div>
                           ) : (
                             commentsData[post.id]?.map((comment: any) => (
                               <div key={comment.id} className="flex gap-4 items-start">

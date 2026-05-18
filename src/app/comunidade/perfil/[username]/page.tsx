@@ -82,7 +82,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
 
           let query = supabase.from('community_posts').select('*, profiles(nome, avatar_url, role, username)').order('created_at', { ascending: false });
           
-          // Se não for admin nem o próprio dono do perfil, esconde posts "pending" do utilizador
+          // Se não for admin nem o próprio dono do perfil, esconde posts "pending" do usuário
           if (sessionProfile?.role !== 'admin' && session?.user.id !== targetProfile.id) {
              query = query.eq('status', 'approved');
           }
@@ -143,7 +143,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       setIsEditModalOpen(false);
       showToast("Perfil atualizado com sucesso!");
     } catch (error) {
-      showToast("Erro ao atualizar. O Username já pode estar em uso.");
+      showToast("Erro ao atualizar. O Nome de Usuário já pode estar em uso.");
     } finally {
       setIsSavingEdit(false);
     }
@@ -160,7 +160,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     }
 
     setIsUploadingCover(true);
-    showToast("A processar nova capa...");
+    showToast("Processando nova capa...");
 
     try {
       const fileExt = file.name.split('.').pop();
@@ -192,7 +192,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     if (!file || !isOwnProfile) return;
 
     setIsUploadingAvatar(true);
-    showToast("A atualizar a fotografia...");
+    showToast("Atualizando a foto de perfil...");
 
     try {
       const fileExt = file.name.split('.').pop();
@@ -205,9 +205,9 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       await supabase.from('profiles').update({ avatar_url: data.publicUrl }).eq('id', profile.id);
       
       setProfile({ ...profile, avatar_url: data.publicUrl });
-      showToast("Fotografia atualizada com sucesso!");
+      showToast("Foto de perfil atualizada com sucesso!");
     } catch (error) {
-      showToast("Erro ao atualizar a fotografia.");
+      showToast("Erro ao atualizar a foto de perfil.");
     } finally {
       setIsUploadingAvatar(false);
     }
@@ -232,8 +232,8 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
         if (post.author_id !== currentUser.id) {
            await NotificationEngine.notifyUser(
              post.author_id,
-             "❤️ Nova Reação",
-             `${currentUser.nome} gostou da sua publicação na comunidade.`,
+             "❤️ Nova Interação",
+             `${currentUser.nome} curtiu a sua publicação na comunidade.`,
              "info",
              "/comunidade"
            );
@@ -242,7 +242,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
         await supabase.from('post_likes').delete().match({ post_id: postId, user_id: currentUser.id });
       }
     } catch (error) {
-      showToast("Erro ao processar aplauso.");
+      showToast("Erro ao processar curtida.");
     }
   };
 
@@ -276,7 +276,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
            await NotificationEngine.notifyUser(
              postToComment.author_id,
              "💬 Novo Comentário",
-             `${currentUser.nome} respondeu à sua partilha na comunidade.`,
+             `${currentUser.nome} respondeu à sua publicação na comunidade.`,
              "info",
              "/comunidade"
            );
@@ -298,9 +298,9 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
     try {
       const { error } = await supabase.from('community_posts').delete().eq('id', idBackup);
       if (error) throw error;
-      showToast("Publicação apagada com sucesso.");
+      showToast("Publicação excluída com sucesso.");
     } catch (error) {
-      showToast("Erro ao apagar a publicação.");
+      showToast("Erro ao excluir a publicação.");
     }
   };
 
@@ -317,8 +317,8 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       if (postToApprove && postToApprove.author_id) {
          await NotificationEngine.notifyUser(
            postToApprove.author_id,
-           "✅ Partilha Aprovada!",
-           "A sua publicação foi aprovada pela equipa e já está visível no mural da Comunidade.",
+           "✅ Publicação Aprovada!",
+           "A sua publicação foi aprovada pela equipe e já está visível no mural da Comunidade.",
            "success",
            "/comunidade"
          );
@@ -330,14 +330,14 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
   };
 
   const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
+    return new Date(dateString).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   const getRankName = (exp: number, role: string) => {
-    if (role === 'admin' || role === 'gestor') return "Mentor VRTICE";
+    if (role === 'admin' || role === 'gestor') return "Mentor Liz Design";
     if (!exp || exp < 1000) return "Visionário";
     if (exp < 3000) return "Vanguardista";
-    return "Titã do Legado";
+    return "Marca de Destaque";
   };
 
   if (isLoading) {
@@ -349,7 +349,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
       <div className="flex flex-col items-center justify-center py-20 opacity-50 w-full">
         <AlertCircle size={48} className="mb-4 text-[var(--color-atelier-grafite)]" />
         <h2 className="font-elegant text-3xl">Perfil não encontrado.</h2>
-        <p className="font-roboto text-sm">Este utilizador pode não existir ou o link está incorreto.</p>
+        <p className="font-roboto text-sm">Este usuário pode não existir ou o link está incorreto.</p>
       </div>
     );
   }
@@ -367,12 +367,12 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
               <div className="w-20 h-20 rounded-full bg-red-50 text-red-500 flex items-center justify-center mb-6 shadow-inner border border-red-100">
                 <Trash2 size={28} />
               </div>
-              <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-3">Apagar Publicação?</h2>
-              <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 mb-8 leading-relaxed font-medium">Esta ação é irreversível. A sua partilha será permanentemente removida do feed.</p>
+              <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-3">Excluir Publicação?</h2>
+              <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 mb-8 leading-relaxed font-medium">Esta ação é irreversível. A sua publicação será permanentemente removida do feed.</p>
               
               <div className="flex w-full gap-4">
                 <button onClick={() => setPostToDelete(null)} className="flex-1 py-4 rounded-[1.2rem] bg-gray-50 border border-transparent font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 hover:bg-gray-100 hover:text-[var(--color-atelier-grafite)] transition-colors">Cancelar</button>
-                <button onClick={confirmDeletePost} className="flex-1 py-4 rounded-[1.2rem] bg-red-500 text-white font-roboto text-[11px] font-bold uppercase tracking-[0.1em] hover:bg-red-600 shadow-md hover:-translate-y-0.5 transition-all">Sim, Apagar</button>
+                <button onClick={confirmDeletePost} className="flex-1 py-4 rounded-[1.2rem] bg-red-500 text-white font-roboto text-[11px] font-bold uppercase tracking-[0.1em] hover:bg-red-600 shadow-md hover:-translate-y-0.5 transition-all">Sim, Excluir</button>
               </div>
             </motion.div>
           </div>
@@ -393,11 +393,11 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
               </div>
               <form onSubmit={handleSaveProfile} className="flex flex-col gap-5">
                 <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Username único</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Nome de Usuário único</label>
                   <input type="text" value={editForm.username} onChange={e => setEditForm({...editForm, username: e.target.value})} placeholder="ex: lizdesign" className="w-full bg-white px-5 py-4 rounded-2xl outline-none border border-gray-100 focus:border-[var(--color-atelier-terracota)]/40 shadow-sm text-[13px] font-roboto font-medium transition-colors" />
                 </div>
                 <div className="flex flex-col gap-2">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Bio da Marca (Elevator Pitch)</label>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Bio da Marca (Apresentação Rápida)</label>
                   <textarea value={editForm.bio} onChange={e => setEditForm({...editForm, bio: e.target.value})} placeholder="Escreva sobre o que a sua empresa faz..." className="w-full bg-white px-5 py-4 rounded-2xl outline-none border border-gray-100 focus:border-[var(--color-atelier-terracota)]/40 shadow-sm text-[13px] font-roboto font-medium h-28 resize-none custom-scrollbar transition-colors" />
                 </div>
                 <div className="flex flex-col gap-2">
@@ -405,7 +405,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                   <input type="date" value={editForm.anniversary_date} onChange={e => setEditForm({...editForm, anniversary_date: e.target.value})} className="w-full bg-white px-5 py-4 rounded-2xl outline-none border border-gray-100 focus:border-[var(--color-atelier-terracota)]/40 shadow-sm text-[13px] font-roboto font-medium transition-colors cursor-pointer" />
                 </div>
                 <button type="submit" disabled={isSavingEdit} className="mt-6 py-5 rounded-[1.2rem] bg-[var(--color-atelier-terracota)] text-white font-roboto text-[11px] font-bold uppercase tracking-[0.1em] hover:bg-[#8c562e] shadow-md hover:-translate-y-0.5 disabled:hover:translate-y-0 disabled:opacity-50 transition-all flex items-center justify-center">
-                  {isSavingEdit ? <Loader2 size={16} className="animate-spin" /> : 'Gravar Alterações'}
+                  {isSavingEdit ? <Loader2 size={16} className="animate-spin" /> : 'Salvar Alterações'}
                 </button>
               </form>
             </motion.div>
@@ -500,7 +500,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
         </div>
 
         {/* ==========================================
-            O FEED DO UTILIZADOR (LIMITADO A 800PX)
+            O FEED DO USUÁRIO (LIMITADO A 800PX)
             ========================================== */}
         <div className="w-full max-w-[800px] mt-10 flex flex-col items-center">
           
@@ -508,10 +508,10 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
           <div className="flex w-full overflow-x-auto custom-scrollbar gap-2 mb-8 bg-white/40 p-2 rounded-[1.5rem] border border-white shadow-sm shrink-0">
             {[
               { id: 'publicacoes', label: 'Mural' },
-              { id: 'highlights', label: 'Highlights', icon: <Trophy size={14} /> },
+              { id: 'highlights', label: 'Destaques', icon: <Trophy size={14} /> },
               { id: 'networking', label: 'Networking' },
               { id: 'feedback', label: 'Feedback' },
-              { id: 'aplausos', label: 'Aplausos' }
+              { id: 'aplausos', label: 'Curtidas' }
             ].map((tab) => (
               <button 
                 key={tab.id} 
@@ -530,8 +530,8 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
             {filteredPosts.length === 0 ? (
               <div className="text-center p-16 opacity-60 flex flex-col items-center justify-center glass-panel bg-white/40 border border-white rounded-[3rem]">
                 <Sparkles size={48} className="mb-6 text-[var(--color-atelier-terracota)]" />
-                <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Nenhuma partilha encontrada.</h3>
-                <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">Ainda não existem registos nesta secção.</p>
+                <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Nenhuma publicação encontrada.</h3>
+                <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">Ainda não existem registros nesta seção.</p>
               </div>
             ) : (
               <AnimatePresence>
@@ -583,7 +583,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                             </button>
                           )}
                           {(isMyPost || isAdmin) && activeTab !== 'aplausos' && (
-                            <button onClick={() => setPostToDelete(post.id)} className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-transparent shadow-sm text-[var(--color-atelier-grafite)]/40 hover:border-red-100 hover:bg-red-50 hover:text-red-500 transition-colors" title="Apagar">
+                            <button onClick={() => setPostToDelete(post.id)} className="w-10 h-10 flex items-center justify-center rounded-full bg-white border border-transparent shadow-sm text-[var(--color-atelier-grafite)]/40 hover:border-red-100 hover:bg-red-50 hover:text-red-500 transition-colors" title="Excluir">
                               <Trash2 size={16} />
                             </button>
                           )}
@@ -613,7 +613,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                               ${isLiked ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] border-[var(--color-atelier-terracota)]/20' : 'bg-white text-[var(--color-atelier-grafite)]/60 hover:bg-gray-50 hover:text-[var(--color-atelier-grafite)] border-white'}`}
                           >
                             <Heart size={18} className={isLiked ? 'fill-[var(--color-atelier-terracota)] text-[var(--color-atelier-terracota)]' : ''} /> 
-                            {post.likes_count || 0} {post.likes_count === 1 ? 'Gosto' : 'Gostos'}
+                            {post.likes_count || 0} {post.likes_count === 1 ? 'Curtida' : 'Curtidas'}
                           </button>
                           <button 
                             onClick={() => toggleComments(post.id)} 
@@ -639,7 +639,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                               {!commentsData[post.id] ? (
                                 <div className="flex justify-center p-4"><Loader2 size={20} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>
                               ) : commentsData[post.id]?.length === 0 ? (
-                                <div className="text-[13px] text-[var(--color-atelier-grafite)]/50 italic font-roboto font-medium text-center py-4 bg-white/50 rounded-[1.5rem]">Sem comentários. Partilhe a primeira perspetiva!</div>
+                                <div className="text-[13px] text-[var(--color-atelier-grafite)]/50 italic font-roboto font-medium text-center py-4 bg-white/50 rounded-[1.5rem]">Sem comentários. Compartilhe a primeira perspectiva!</div>
                               ) : (
                                 commentsData[post.id]?.map((comment: any) => (
                                   <div key={comment.id} className="flex gap-4 items-start">

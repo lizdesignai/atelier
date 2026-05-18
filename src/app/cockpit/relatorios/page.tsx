@@ -115,7 +115,7 @@ export default function ClientReportsPage() {
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
-    return date.toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
+    return date.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
   };
 
   if (isLoading) {
@@ -139,24 +139,24 @@ export default function ClientReportsPage() {
         
         {/* NAVEGAÇÃO SUPERIOR */}
         <button 
-          onClick={() => router.push('/cockpit')}
+          onClick={() => router.push('/meu-espaco')}
           className="flex items-center gap-2 text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors mb-8 w-fit bg-white/50 px-4 py-2 rounded-full border border-white shadow-sm"
         >
-          <ArrowLeft size={14} /> Voltar ao Cockpit
+          <ArrowLeft size={14} /> Voltar ao Meu Espaço
         </button>
 
         <header className="mb-10 animate-[fadeInUp_0.5s_ease-out]">
           <div className="flex items-center gap-2 mb-2">
             <FileText size={16} className="text-[var(--color-atelier-terracota)]" />
             <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/60">
-              Arquivo Confidencial
+              Relatório Oficial
             </span>
           </div>
           <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] leading-tight tracking-tight">
-            Auditorias <span className="text-[var(--color-atelier-terracota)] italic">C-Level.</span>
+            Relatórios <span className="text-[var(--color-atelier-terracota)] italic">Executivos.</span>
           </h1>
           <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-3 max-w-xl font-medium leading-relaxed">
-            {clientName}, aqui documentamos a evolução do seu equity digital. Aceda às análises estratégicas mensais e descarregue os documentos oficiais.
+            {clientName}, aqui documentamos a evolução da sua presença digital. Acesse as análises estratégicas mensais e faça o download dos documentos oficiais.
           </p>
         </header>
 
@@ -165,7 +165,7 @@ export default function ClientReportsPage() {
             <div className="w-24 h-24 rounded-[2rem] bg-white border border-[var(--color-atelier-grafite)]/5 flex items-center justify-center mb-6 shadow-inner">
               <Calendar size={40} className="text-[var(--color-atelier-grafite)]/30" />
             </div>
-            <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-2">O cofre está a ser preparado.</h2>
+            <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-2">O seu espaço está sendo preparado.</h2>
             <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/60 font-medium max-w-md">
               O seu primeiro relatório estratégico ficará disponível aqui no encerramento do ciclo mensal atual.
             </p>
@@ -243,7 +243,7 @@ export default function ClientReportsPage() {
                         onClick={() => window.open(selectedReport.pdf_url, '_blank')}
                         className="px-6 py-4 rounded-[1.2rem] bg-[var(--color-atelier-grafite)] text-white font-roboto text-[10px] font-bold uppercase tracking-[0.1em] hover:bg-[var(--color-atelier-terracota)] transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 flex items-center justify-center gap-2"
                       >
-                        <Download size={16} /> Transferir PDF
+                        <Download size={16} /> Baixar PDF
                       </button>
                     </div>
                   </div>
@@ -255,7 +255,7 @@ export default function ClientReportsPage() {
                       <section className="bg-white p-8 rounded-[2rem] shadow-sm border border-gray-50">
                         <div className="flex items-center gap-2 mb-4">
                           <Star size={18} className="text-[var(--color-atelier-terracota)] fill-[var(--color-atelier-terracota)]/20" />
-                          <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Visão do Estrategista</h3>
+                          <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Visão Estratégica</h3>
                         </div>
                         <p className="font-roboto text-[15px] leading-relaxed text-[var(--color-atelier-grafite)] font-medium text-justify">
                           {selectedReport.executive_summary}
@@ -264,7 +264,7 @@ export default function ClientReportsPage() {
 
                       <section>
                         <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-6 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
-                          Auditoria Detalhada
+                          Análise Detalhada
                         </h3>
                         <div className="bg-white/50 p-6 rounded-[2rem] border border-white">
                           {renderRichText(selectedReport.detailed_analysis)}
@@ -274,7 +274,7 @@ export default function ClientReportsPage() {
                       <section className="bg-[var(--color-atelier-creme)]/50 p-8 rounded-[2rem] border border-[var(--color-atelier-terracota)]/20 shadow-inner">
                         <div className="flex items-center gap-2 mb-6">
                           <TrendingUp size={20} className="text-[var(--color-atelier-terracota)]" />
-                          <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Plano de Intervenção</h3>
+                          <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Plano de Ação</h3>
                         </div>
                         <div>
                           {renderRichText(selectedReport.action_plan)}

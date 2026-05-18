@@ -29,7 +29,7 @@ export default function JTBDModals({
   return (
     <>
       {/* =========================================================================
-          MODAL: INJETAR GRANADA (ADMIN/GESTOR)
+          MODAL: ADICIONAR PRIORIDADE (ADMIN/GESTOR)
           ========================================================================= */}
       <AnimatePresence>
         {isAdHocModalOpen && (
@@ -50,10 +50,10 @@ export default function JTBDModals({
               <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <div>
                   <h3 className="font-elegant text-3xl text-orange-600 flex items-center gap-2">
-                    <Flame size={24}/> Granada Ad-Hoc
+                    <Flame size={24}/> Nova Prioridade (Ad-Hoc)
                   </h3>
                   <p className="font-roboto text-[11px] font-bold text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest mt-1">
-                    Injeção direta no JTBD de um membro
+                    Atribuição direta de tarefa urgente
                   </p>
                 </div>
                 <button onClick={() => setIsAdHocModalOpen(false)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)]">
@@ -64,7 +64,7 @@ export default function JTBDModals({
               <div className="flex flex-col gap-4">
                 <input 
                   type="text" 
-                  placeholder="Título da Missão Urgente..." 
+                  placeholder="Título da Tarefa Prioritária..." 
                   value={adHocForm.title} 
                   onChange={(e) => setAdHocForm({...adHocForm, title: e.target.value})} 
                   className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[14px] font-bold text-[var(--color-atelier-grafite)] outline-none focus:border-orange-500 shadow-sm" 
@@ -84,7 +84,7 @@ export default function JTBDModals({
                   onChange={(e) => setAdHocForm({...adHocForm, assigneeId: e.target.value})} 
                   className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-orange-500 shadow-sm"
                 >
-                  <option value="" disabled>Quem deve executar AGORA?</option>
+                  <option value="" disabled>Responsável pela execução</option>
                   {team.map(t => <option key={t.id} value={t.id}>{t.nome} ({t.role})</option>)}
                 </select>
 
@@ -122,7 +122,7 @@ export default function JTBDModals({
                 disabled={adHocProcessing || !adHocForm.title || !adHocForm.projectId || !adHocForm.assigneeId || !adHocForm.deadline} 
                 className="w-full mt-2 bg-orange-500 text-white py-4 rounded-xl text-[12px] font-bold uppercase tracking-widest shadow-[0_10px_20px_rgba(249,115,22,0.3)] hover:bg-orange-600 transition-colors flex justify-center items-center gap-2 disabled:opacity-50"
               >
-                {adHocProcessing ? <Loader2 size={16} className="animate-spin"/> : "Disparar Granada"}
+                {adHocProcessing ? <Loader2 size={16} className="animate-spin"/> : "Atribuir Prioridade"}
               </button>
             </motion.div>
           </div>
