@@ -10,7 +10,8 @@ import {
   Compass, LayoutDashboard, FolderKanban, Users, Inbox, 
   Globe2, CheckCircle2, DollarSign, Sparkles, Briefcase, Crosshair, LogOut
 } from "lucide-react";
-import { supabase } from "../../lib/supabase"; // Note: Adjust the import path if necessary based on your project structure
+import { supabase } from "../../lib/supabase"; 
+import { useDynamicTitle } from "../../hooks/useDynamicTitle"; // 🧠 INJEÇÃO DO HOOK DE TÍTULOS
 
 interface AppSidebarProps {
   userRole: string;
@@ -18,11 +19,33 @@ interface AppSidebarProps {
   onHideSidebar: (hidden: boolean) => void;
 }
 
+// Dicionário de Rotas para os Títulos das Abas do Navegador
+const ROUTE_NAMES: Record<string, string> = {
+  '/cockpit': 'Cockpit',
+  '/brandbook': 'Brandbook',
+  '/curadoria': 'Curadoria',
+  '/': 'Cockpit',
+  '/cofre': 'O Cofre',
+  '/referencias': 'Referências',
+  '/canais': 'Canais',
+  '/comunidade': 'Comunidade',
+  '/admin/jtbd': 'Focus',
+  '/admin': 'Gestão',
+  '/admin/projetos': 'Estúdio',
+  '/admin/inbox': 'Inbox',
+  '/admin/clientes': 'Clientes',
+  '/admin/analytics': 'Analytics',
+  '/admin/financeiro': 'Financeiro'
+};
+
 export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: AppSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [clientServiceType, setClientServiceType] = useState<string>("Identidade Visual");
   const [isProjectArchived, setIsProjectArchived] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  
+  // Estado para capturar o nome do cliente logado
+  const [clientName, setClientName] = useState<string>("");
 
   const pathname = usePathname();
   const router = useRouter();
@@ -32,6 +55,14 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   const isManagerOrAdmin = ['admin', 'gestor'].includes(userRole);
   const isAdminOnly = userRole === 'admin';
 
+  // ==========================================
+  // ATIVAÇÃO DO TÍTULO DINÂMICO
+  // ==========================================
+  useDynamicTitle({
+    projectName: isTeamMember ? "Liz Design" : (clientName || "Atelier"), 
+    tabName: ROUTE_NAMES[pathname] || "Portal"
+  });
+
   // LÓGICA CORE INTACTA
   useEffect(() => {
     const fetchSidebarData = async () => {
@@ -39,6 +70,10 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
       if (!session) return;
 
       if (!isTeamMember) {
+        // Busca o nome do cliente para o Sidebar e o Título
+        const { data: profile } = await supabase.from('profiles').select('nome').eq('id', session.user.id).single();
+        if (profile) setClientName(profile.nome);
+
         const { data: project } = await supabase
           .from('projects')
           .select('status, delivered_at, service_type')
@@ -95,6 +130,9 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
 
   if (!isTeamMember && (isProjectArchived || !isReady)) return null;
 
+  // Definição inteligente da rota Home com base no perfil
+  const homeRoute = isTeamMember ? '/admin' : (clientServiceType === "Gestão de Instagram" ? '/cockpit' : '/');
+
   return (
     <motion.aside 
       initial={false}
@@ -109,10 +147,12 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     >
       {/* CABEÇALHO DA SIDEBAR: LOGO E BRANDING */}
       <div className={`pt-10 pb-6 px-6 flex items-center h-28 shrink-0 ${isCollapsed ? 'justify-center px-0' : 'justify-start gap-4'}`}>
-        <div className="w-10 h-10 shrink-0 relative group cursor-pointer flex items-center justify-center">
+        
+        {/* LOGO AGORA É UM BOTÃO HOME ESTRATÉGICO */}
+        <Link href={homeRoute} className="w-10 h-10 shrink-0 relative group cursor-pointer flex items-center justify-center">
           <div className="absolute inset-0 bg-[var(--color-atelier-terracota)]/20 rounded-full blur-xl group-hover:scale-150 transition-transform duration-700 opacity-0 group-hover:opacity-100"></div>
           <img src="/images/simbolo-rosa.png" alt="Atelier" className="w-8 h-8 object-contain relative z-10 drop-shadow-sm transition-transform duration-500 group-hover:scale-105" />
-        </div>
+        </Link>
         
         <AnimatePresence mode="wait">
           {!isCollapsed && (
@@ -123,8 +163,8 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               className="flex flex-col overflow-hidden whitespace-nowrap"
             >
               <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none mb-0.5 tracking-tight">Atelier</span>
-              <span className="font-roboto text-[0.55rem] text-[var(--color-atelier-terracota)] tracking-[0.25em] uppercase font-bold">
-                {isTeamMember ? 'Studio HQ' : 'Portal do Cliente'}
+              <span className="font-roboto text-[0.55rem] text-[var(--color-atelier-terracota)] tracking-[0.25em] uppercase font-bold truncate max-w-[140px]">
+                {isTeamMember ? 'LizDesign' : (clientName || 'Portal do Cliente')}
               </span>
             </motion.div>
           )}
@@ -140,7 +180,6 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
       </button>
 
       {/* ÁREA DE NAVEGAÇÃO LÍMPIDA */}
-      {/* 🟢 Adicionado flex e flex-col aqui para que o mt-auto funcione */}
       <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2 custom-scrollbar relative flex flex-col">
         <AnimatePresence>
           {!isCollapsed && (
@@ -186,6 +225,11 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
             <>
               {/* Visto por todos */}
               <NavItem href="/admin/jtbd" icon={<Crosshair size={18} strokeWidth={1.5} />} label="Focus" collapsed={isCollapsed} active={pathname === '/admin/jtbd'} />
+              
+              <div className="flex items-center justify-center my-3 opacity-20">
+                <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
+              </div>
+
               <NavItem href="/admin" icon={<LayoutDashboard size={18} strokeWidth={1.5} />} label="Gestão" collapsed={isCollapsed} active={pathname === '/admin'} />
               <NavItem href="/admin/projetos" icon={<FolderKanban size={18} strokeWidth={1.5} />} label="Estúdio" collapsed={isCollapsed} active={pathname === '/admin/projetos'} />
               <NavItem href="/admin/inbox" icon={<Inbox size={18} strokeWidth={1.5} />} label="Inbox" collapsed={isCollapsed} active={pathname === '/admin/inbox'} />

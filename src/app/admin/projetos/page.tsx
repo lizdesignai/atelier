@@ -13,7 +13,6 @@ import {
 import { supabase } from "../../../lib/supabase";
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
 import DiaryModule from "../../../components/admin/DiaryModule";
-import { pdf } from '@react-pdf/renderer';
 import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
 
 // IMPORTAÇÃO EXTERNA: Traz apenas o Motor de Gestão de Instagram
@@ -22,11 +21,8 @@ import { GerenciamentoWorkspace } from "../gerenciamento/page";
 // Importação do nosso Motor de Automação
 import { AtelierPMEngine } from "../../../lib/AtelierPMEngine";
 
-// Importação dos Módulos PDF
-import BriefingPDF from "../../../components/pdf/BriefingPDF"; 
-import CuradoriaPDF from "../../../components/pdf/CuradoriaPDF"; 
-import InstagramBriefingPDF from "../../../components/pdf/InstagramBriefingPDF"; 
-import BrandbookPDF from "../../../components/pdf/BrandbookPDF"; 
+// Novo Hook de Título Dinâmico
+import { useDynamicTitle } from "../../../hooks/useDynamicTitle"; 
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -67,7 +63,7 @@ function InfoBlock({ label, value }: { label: string, value: any }) {
   );
 }
 
-function WorkspaceDesigner() {
+function PainelIdentidade() {
   // ==========================================
   // ESTADOS DO SUPABASE (CONSUMO DE RAM)
   // ==========================================
@@ -82,6 +78,12 @@ function WorkspaceDesigner() {
   const validProjects = activeProjects.filter(p => ['active', 'delivered', 'archived'].includes(p.status));
   const currentProject = validProjects.find(p => p.id === activeProjectId);
   const isIdv = isIdvService(currentProject); 
+
+  // Injeção do Título Dinâmico na Aba do Navegador
+  useDynamicTitle({
+    projectName: currentProject?.profiles?.nome,
+    tabName: isIdv ? "Identidade Visual" : "Gestão de Projeto"
+  });
 
   // Carregamento instantâneo via RAM
   useEffect(() => {
@@ -103,7 +105,7 @@ function WorkspaceDesigner() {
   }, [currentProject]);
 
   // ==========================================
-  // ESTADOS DOS FICHEIROS, CONTRATO E BRIEFING
+  // ESTADOS DOS ARQUIVOS, CONTRATO E BRIEFING
   // ==========================================
   const [projectAssets, setProjectAssets] = useState<any[]>([]);
   const [isUploadingAsset, setIsUploadingAsset] = useState(false);
@@ -392,7 +394,7 @@ function WorkspaceDesigner() {
     try {
       await supabase.from('project_assets').delete().eq('id', assetId);
       setProjectAssets(projectAssets.filter(a => a.id !== assetId));
-      showToast("Arquivo removido.");
+      showToast("Arquivo removido com sucesso.");
     } catch (error) {
       showToast("Erro ao excluir arquivo.");
     }
@@ -684,7 +686,7 @@ function WorkspaceDesigner() {
     try {
       await supabase.from('design_directions').delete().eq('id', id);
     } catch (error) {
-      showToast("Erro ao remover direção no banco.");
+      showToast("Erro ao excluir direção no banco.");
     }
   };
 
@@ -722,12 +724,10 @@ function WorkspaceDesigner() {
                 </div>
                 <div className="flex items-center gap-3">
                   
-                  {/* NOVO BOTÃO: DEVOLVER BRIEFING */}
                   <button onClick={handleReturnBriefing} disabled={!clientBriefing} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-red-500 hover:text-white transition-all shadow-sm disabled:opacity-50">
                     <RotateCcw size={14} /> Solicitar Revisão
                   </button>
                   
-                  {/* BOTÃO CÉREBRO DA IA */}
                   <button onClick={handleGenerateBriefingInsight} disabled={isGeneratingBriefingInsight || !clientBriefing} className="bg-white border border-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-terracota)] px-4 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm disabled:opacity-50">
                     {isGeneratingBriefingInsight ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Gerar Análise (IA)
                   </button>
@@ -754,7 +754,6 @@ function WorkspaceDesigner() {
                       <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/50 mt-2 font-medium">Documento Confidencial do Projeto</p>
                     </div>
 
-                    {/* Exibição em Tempo Real do Insight da IA */}
                     {briefingAiInsight && (
                       <div className="mb-10 bg-white/80 p-8 rounded-[2rem] border border-[var(--color-atelier-terracota)]/20 shadow-sm relative overflow-hidden">
                         <div className="absolute left-0 top-0 h-full w-1.5 bg-[var(--color-atelier-terracota)]"></div>
@@ -874,8 +873,8 @@ function WorkspaceDesigner() {
                       <div>
                         <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">8. Considerações Finais</h3>
                         <div className="flex flex-col gap-4">
-                          <InfoBlock label="Por que escolheu o Atelier?" value={clientBriefing.motivo_escolha} />
-                          <InfoBlock label="Ideias Livres e Extensões" value={clientBriefing.ideias_livres} />
+                          <InfoBlock label="Por que escolheu a Liz Design?" value={clientBriefing.motivo_escolha} />
+                          <InfoBlock label="Observações e Extensões" value={clientBriefing.ideias_livres} />
                         </div>
                       </div>
                     </div>
@@ -1026,7 +1025,7 @@ function WorkspaceDesigner() {
                       <label className="w-full bg-white/50 hover:bg-white border-2 border-dashed border-[var(--color-atelier-grafite)]/20 hover:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-4 flex items-center justify-center gap-2 cursor-pointer transition-colors group/upload shadow-sm">
                         <input type="file" accept=".pdf" className="hidden" onChange={handleContractUpload} disabled={isUploadingContract} />
                         {isUploadingContract ? <Loader2 size={16} className="animate-spin text-[var(--color-atelier-terracota)]" /> : <UploadCloud size={16} className="text-[var(--color-atelier-grafite)]/40 group-hover/upload:text-[var(--color-atelier-terracota)] transition-colors" />}
-                        <span className="font-roboto text-[11px] font-bold text-[var(--color-atelier-grafite)]/60 group-hover/upload:text-[var(--color-atelier-terracota)] transition-colors">{isUploadingContract ? "Anexando..." : "Anexar Assinado (PDF)"}</span>
+                        <span className="font-roboto text-[11px] font-bold text-[var(--color-atelier-grafite)]/60 group-hover/upload:text-[var(--color-atelier-terracota)] transition-colors">{isUploadingContract ? "Processando..." : "Anexar Assinado (PDF)"}</span>
                       </label>
                    ) : (
                       <div className="flex w-full gap-2">
@@ -1037,7 +1036,7 @@ function WorkspaceDesigner() {
                 </div>
 
                 {/* Botões de Ação Rápida */}
-                <div className="mt-auto grid grid-cols-2 gap-3 pt-6 border-t border-[var(--color-atelier-grafite)]/10 shrink-0">
+                <div className="mt-4 grid grid-cols-2 gap-3 pt-6 border-t border-[var(--color-atelier-grafite)]/10 shrink-0">
                   {currentProject.status === 'archived' ? (
                      <button onClick={handleReactivateProject} className="bg-blue-600 text-white rounded-[1.2rem] py-3.5 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-sm hover:-translate-y-0.5"><RotateCcw size={14} /> Reativar</button>
                   ) : currentProject.status === 'delivered' ? (
@@ -1045,14 +1044,14 @@ function WorkspaceDesigner() {
                   ) : (
                      <button onClick={handleMarkAsDelivered} className="bg-green-600 text-white rounded-[1.2rem] py-3.5 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-green-700 transition-all flex items-center justify-center gap-2 shadow-sm hover:-translate-y-0.5"><CheckCircle2 size={14} /> Entregar</button>
                   )}
-                  <button onClick={() => { setIsForceUnlocked(true); showToast("Acesso desbloqueado manualmente."); }} disabled={isCofreUnlocked} className="bg-[var(--color-atelier-grafite)] text-white rounded-[1.2rem] py-3.5 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-[var(--color-atelier-terracota)] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm hover:-translate-y-0.5 disabled:hover:translate-y-0"><Unlock size={14} /> Desbloquear Acesso</button>
+                  <button onClick={() => { setIsForceUnlocked(true); showToast("Acesso desbloqueado manualmente."); }} disabled={isCofreUnlocked} className="bg-[var(--color-atelier-grafite)] text-white rounded-[1.2rem] py-3.5 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-[var(--color-atelier-terracota)] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm hover:-translate-y-0.5 disabled:hover:translate-y-0"><Unlock size={14} /> Liberar Acesso</button>
                 </div>
 
               </div>
             </div>
           </div>
 
-          {/* 2. COLUNA DO MEIO: COFRE / ATIVOS */}
+          {/* 2. COLUNA DO MEIO: MATERIAIS FINAIS / ATIVOS */}
           <div className="w-full lg:w-1/3 flex flex-col h-full shrink-0">
             <div className="glass-panel p-8 rounded-[2.5rem] bg-white/40 flex flex-col border border-white h-full shadow-sm hover:shadow-md transition-shadow">
               <div className="flex flex-col mb-6 shrink-0 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
@@ -1066,7 +1065,7 @@ function WorkspaceDesigner() {
                   <div className="w-14 h-14 rounded-[1rem] bg-white border border-white shadow-inner flex items-center justify-center text-[var(--color-atelier-terracota)] mb-3 group-hover:scale-110 transition-transform">
                     {isUploadingAsset ? <Loader2 size={24} className="animate-spin" /> : <Plus size={24} />}
                   </div>
-                  <span className="block font-roboto font-bold text-[11px] text-[var(--color-atelier-grafite)] uppercase tracking-widest">{isUploadingAsset ? "A processar..." : "Adicionar Arquivo"}</span>
+                  <span className="block font-roboto font-bold text-[11px] text-[var(--color-atelier-grafite)] uppercase tracking-widest">{isUploadingAsset ? "Processando..." : "Adicionar Arquivo"}</span>
                 </label>
 
                 <AnimatePresence>
@@ -1079,7 +1078,7 @@ function WorkspaceDesigner() {
                       </div>
                       <div className="flex justify-between items-center w-full pl-2">
                         <span className="block font-roboto text-[9px] text-[var(--color-atelier-grafite)]/40 font-bold uppercase tracking-widest bg-gray-50 px-2 py-1 rounded-md">{asset.file_size}</span>
-                        <button onClick={() => handleRemoveAsset(asset.id)} className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/30 hover:text-red-500 flex items-center gap-1 transition-colors shrink-0 bg-white border border-transparent hover:border-red-100 hover:bg-red-50 p-1.5 rounded-lg"><Trash2 size={12} /> Apagar</button>
+                        <button onClick={() => handleRemoveAsset(asset.id)} className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/30 hover:text-red-500 flex items-center gap-1 transition-colors shrink-0 bg-white border border-transparent hover:border-red-100 hover:bg-red-50 p-1.5 rounded-lg"><Trash2 size={12} /> Excluir</button>
                       </div>
                     </motion.div>
                   ))}
@@ -1110,7 +1109,7 @@ function WorkspaceDesigner() {
       )}
 
       {/* ==========================================
-          PAINEL DESLIZANTE (CURADORIA & MULTI-IMAGENS)
+          PAINEL DESLIZANTE (CURADORIA VISUAL)
           ========================================== */}
       <AnimatePresence>
         {isIdv && showRefsPanel && (
@@ -1233,7 +1232,7 @@ function WorkspaceDesigner() {
                                 <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Elementos:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q4 || "Não respondido."}</span></p>
                               </div>
 
-                              <button onClick={() => removeAdminRef(adminRefs[activeEvalIndex].id)} className="self-end px-4 py-2 bg-white border border-transparent hover:border-red-100 hover:bg-red-50 rounded-xl text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-600 transition-colors flex items-center gap-1 shadow-sm"><X size={12} /> Apagar Direção</button>
+                              <button onClick={() => removeAdminRef(adminRefs[activeEvalIndex].id)} className="self-end px-4 py-2 bg-white border border-transparent hover:border-red-100 hover:bg-red-50 rounded-xl text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-600 transition-colors flex items-center gap-1 shadow-sm"><X size={12} /> Excluir Direção</button>
                             </div>
                           </div>
                         </motion.div>
@@ -1271,7 +1270,7 @@ function WorkspaceDesigner() {
 
                        <div className="flex flex-col sm:flex-row gap-4">
                          <input type="text" value={newRefTitle} onChange={(e) => setNewRefTitle(e.target.value)} disabled={isSendingRef} placeholder="Título da Rota (Ex: Direção Clean & Minimalista)" className="flex-1 bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-2xl px-5 py-4 text-[13px] font-bold outline-none shadow-sm disabled:opacity-50 transition-colors" />
-                         <button onClick={handleAddAdminRef} disabled={isSendingRef || newRefImageFiles.length === 0} className="px-10 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-2xl font-roboto text-[11px] font-bold uppercase tracking-[0.1em] hover:bg-[var(--color-atelier-terracota)] transition-all shadow-md shrink-0 disabled:opacity-50 flex items-center justify-center gap-2 hover:-translate-y-0.5 disabled:hover:translate-y-0">
+                         <button onClick={handleAddAdminRef} disabled={isSendingRef || newRefImageFiles.length === 0} className="px-10 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-2xl font-roboto text-[11px] font-bold uppercase tracking-[0.1em] hover:bg-[var(--color-atelier-terracota)] transition-all shadow-md shrink-0 disabled:opacity-50 flex items-center justify-center gap-2 hover:-translate-y-0.5 disabled:hover:translate-y-0 mt-4 sm:mt-0">
                            {isSendingRef ? <Loader2 size={16} className="animate-spin" /> : <Send size={16}/>} Enviar
                          </button>
                        </div>
@@ -1288,10 +1287,10 @@ function WorkspaceDesigner() {
   );
 }
 
-export default function WorkspaceDesignerPage() {
+export default function ProjetosAdminPage() {
   return (
     <Suspense fallback={<div className="flex h-screen items-center justify-center font-roboto text-[10px] uppercase tracking-widest opacity-50">Carregando Painel...</div>}>
-      <WorkspaceDesigner />
+      <PainelIdentidade />
     </Suspense>
   );
 }

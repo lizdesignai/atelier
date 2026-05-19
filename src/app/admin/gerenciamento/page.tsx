@@ -19,16 +19,19 @@ import GlobalCalendar from "./views/GlobalCalendar";
 import RelatoriosView from "./views/RelatoriosView"; 
 import MissionsView from "./views/MissionsView";
 
+
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
 };
 
 // ============================================================================
-// COMPONENTE INTERNO: O ROTEADOR DAS ABAS (WORKSPACE)
+// COMPONENTE INTERNO: O ROTEADOR DAS ABAS (PAINEL)
 // ============================================================================
+import { useDynamicTitle } from "../../../hooks/useDynamicTitle";
 export function GerenciamentoWorkspace({ activeProjectId, currentProject }: { activeProjectId: string, currentProject: any }) {
   // Estado centralizado (Agora inclui 'leads_auditorias')
   const [activeTab, setActiveTab] = useState<'calendario' | 'planeamento_mensal' | 'posts' | 'identidade' | 'relatorios' | 'missoes'>('calendario');
+  
 
   return (
     <div className="flex flex-col gap-6 w-full animate-[fadeInUp_0.5s_ease-out] flex-1 min-h-0">
@@ -218,7 +221,7 @@ export function GerenciamentoInstagram() {
         </div>
       </header>
 
-      {/* RENDERIZAÇÃO DO WORKSPACE */}
+      {/* RENDERIZAÇÃO DO PAINEL DE TRABALHO */}
       <GerenciamentoWorkspace activeProjectId={activeProjectId as string} currentProject={currentProject} />
     </div>
   );
@@ -226,7 +229,7 @@ export function GerenciamentoInstagram() {
 
 export default function GerenciamentoPage() {
   return (
-    <Suspense fallback={<div className="flex h-screen items-center justify-center font-roboto text-[10px] uppercase tracking-widest opacity-50">A Carregar Dashboard...</div>}>
+    <Suspense fallback={<div className="flex h-screen items-center justify-center font-roboto text-[10px] uppercase tracking-widest opacity-50">Carregando Painel...</div>}>
       <GerenciamentoInstagram />
     </Suspense>
   );
