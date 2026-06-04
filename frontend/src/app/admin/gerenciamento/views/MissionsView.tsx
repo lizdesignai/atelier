@@ -5,7 +5,8 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Camera, Plus, CheckCircle2, Clock, Download, 
-  Trash2, FolderUp, FileText, Loader2, Send, Target, Search
+  Trash2, FolderUp, FileText, Loader2, Send, Target, 
+  Link as LinkIcon, PenTool, Sparkles, ExternalLink, X
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { NotificationEngine } from "@/lib/NotificationEngine";
@@ -32,6 +33,15 @@ interface Asset {
   created_at: string;
 }
 
+// 🟢 Nova interface para os Links Rápidos
+interface QuickLink {
+  id: string;
+  title: string;
+  url: string;
+  type: string;
+  created_at: string;
+}
+
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
 };
@@ -40,25 +50,33 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
   const [isLoading, setIsLoading] = useState(true);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
+  const [quickLinks, setQuickLinks] = useState<QuickLink[]>([]); // 🟢 Estado dos links
 
   // Estados do Formulário de Nova Missão
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [newMissionTitle, setNewMissionTitle] = useState("");
   const [newMissionDesc, setNewMissionDesc] = useState("");
 
+  // 🟢 Estados do Formulário de Novo Link
+  const [isAddingLink, setIsAddingLink] = useState(false);
+  const [isSubmittingLink, setIsSubmittingLink] = useState(false);
+  const [linkForm, setLinkForm] = useState({ title: "", url: "", type: "design" });
+
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // Busca Solicitações (Pedidos Direcionados) e Assets (Envios Livres) em paralelo
-      const [ { data: missionsData }, { data: assetsData } ] = await Promise.all([
+      // 🟢 Busca Solicitações, Assets e Links Rápidos em paralelo
+      const [ { data: missionsData }, { data: assetsData }, { data: linksData } ] = await Promise.all([
         supabase.from('asset_missions').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false }),
-        supabase.from('project_assets').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false })
+        supabase.from('project_assets').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false }),
+        supabase.from('project_quick_links').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false })
       ]);
 
       setMissions(missionsData || []);
       setAssets(assetsData || []);
+      setQuickLinks(linksData || []);
     } catch (error) {
-      showToast("Erro ao carregar os arquivos do cliente.");
+      showToast("Erro ao carregar os dados desta área.");
     } finally {
       setIsLoading(false);
     }
@@ -67,6 +85,58 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
   useEffect(() => {
     if (activeProjectId) fetchData();
   }, [activeProjectId]);
+
+  // ============================================================================
+  // GESTÃO DE LINKS RÁPIDOS DA EQUIPE (NOVO MÓDULO)
+  // ============================================================================
+  const handleCreateQuickLink = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!linkForm.title.trim() || !linkForm.url.trim()) return;
+
+    setIsSubmittingLink(true);
+    try {
+      const { data, error } = await supabase.from('project_quick_links').insert({
+        project_id: activeProjectId,
+        title: linkForm.title,
+        url: linkForm.url,
+        type: linkForm.type
+      }).select();
+
+      if (error) throw error;
+      if (data) setQuickLinks([data[0], ...quickLinks]);
+
+      setLinkForm({ title: "", url: "", type: "design" });
+      setIsAddingLink(false);
+      showToast("Link rápido adicionado à base do projeto!");
+    } catch (error) {
+      showToast("Erro ao adicionar o link.");
+    } finally {
+      setIsSubmittingLink(false);
+    }
+  };
+
+  const handleDeleteQuickLink = async (linkId: string) => {
+    if (!window.confirm("Deseja apagar este atalho da equipe?")) return;
+    try {
+      await supabase.from('project_quick_links').delete().eq('id', linkId);
+      setQuickLinks(quickLinks.filter(l => l.id !== linkId));
+      showToast("Atalho removido com sucesso.");
+    } catch (error) {
+      showToast("Erro ao apagar atalho.");
+    }
+  };
+
+  const getLinkIconAndColor = (type: string) => {
+    switch(type) {
+      case 'drive_idv': return { icon: <FolderUp size={16} />, colorClass: 'bg-blue-100 text-blue-600 border-blue-200' };
+      case 'drive_fotos': return { icon: <Camera size={16} />, colorClass: 'bg-purple-100 text-purple-600 border-purple-200' };
+      case 'design': return { icon: <PenTool size={16} />, colorClass: 'bg-pink-100 text-pink-600 border-pink-200' };
+      case 'direcionamento': return { icon: <Target size={16} />, colorClass: 'bg-green-100 text-green-600 border-green-200' };
+      case 'referencia': return { icon: <Sparkles size={16} />, colorClass: 'bg-orange-100 text-orange-600 border-orange-200' };
+      default: return { icon: <LinkIcon size={16} />, colorClass: 'bg-gray-100 text-gray-600 border-gray-200' };
+    }
+  };
+
 
   // ============================================================================
   // ORQUESTRAÇÃO DE SOLICITAÇÕES
@@ -100,7 +170,7 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
         "/meu-espaco"
       );
 
-      // Notificação por E-mail
+      // Notificação por E-mail (Preservado)
       if (currentProject.profiles?.email) {
         await fetch('/api/notify', {
           method: 'POST',
@@ -109,7 +179,7 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
             to: currentProject.profiles.email,
             type: 'vault_new_asset', 
             clientName: currentProject.profiles.nome.split(' ')[0],
-            link: "https://seu-dominio.com/meu-espaco" // Mude para o seu domínio real
+            link: "https://seu-dominio.com/meu-espaco" 
           })
         });
       }
@@ -276,11 +346,94 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
       </div>
 
       {/* =========================================================
-          COLUNA DIREITA: INVENTÁRIO GERAL (Arquivos Livres)
+          COLUNA DIREITA: INVENTÁRIO GERAL & LINKS RÁPIDOS DA EQUIPE
           ========================================================= */}
       <div className="w-full xl:w-[45%] flex flex-col h-full overflow-hidden">
         <div className="flex flex-col gap-6 h-full overflow-y-auto custom-scrollbar pr-2 pb-6">
           
+          {/* 🟢 NOVO MÓDULO: COFRE DE RECURSOS (LINKS RÁPIDOS) */}
+          <div className="flex flex-col bg-white/60 p-6 md:p-8 rounded-[2.5rem] border border-white shadow-sm shrink-0 transition-colors hover:bg-white/80">
+            <div className="flex justify-between items-start mb-6 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
+               <div>
+                 <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
+                   <LinkIcon size={20} className="text-[var(--color-atelier-terracota)]"/> Cofre de Recursos
+                 </h2>
+                 <p className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 mt-1.5 uppercase tracking-widest font-bold">
+                   Links rápidos essenciais para a equipe de design.
+                 </p>
+               </div>
+               <button 
+                 onClick={() => setIsAddingLink(!isAddingLink)} 
+                 className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${isAddingLink ? 'bg-gray-100 text-gray-500 hover:bg-red-100 hover:text-red-500' : 'bg-[var(--color-atelier-terracota)] text-white shadow-sm hover:scale-110'}`}
+               >
+                 {isAddingLink ? <X size={14}/> : <Plus size={16}/>}
+               </button>
+            </div>
+
+            <AnimatePresence>
+              {isAddingLink && (
+                <motion.form 
+                  initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }}
+                  onSubmit={handleCreateQuickLink} className="flex flex-col gap-3 mb-6 bg-white p-5 rounded-[1.5rem] border border-gray-100 shadow-sm overflow-hidden"
+                >
+                  <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex-1 flex flex-col gap-1">
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-gray-400 pl-1">Nome do Link</label>
+                      <input type="text" placeholder="Ex: Drive - Identidade Visual" value={linkForm.title} onChange={e => setLinkForm({...linkForm, title: e.target.value})} required className="w-full bg-gray-50 border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl py-2.5 px-3 text-[12px] font-bold outline-none" />
+                    </div>
+                    <div className="w-full sm:w-[140px] flex flex-col gap-1">
+                      <label className="text-[9px] font-bold uppercase tracking-widest text-gray-400 pl-1">Categoria</label>
+                      <select value={linkForm.type} onChange={e => setLinkForm({...linkForm, type: e.target.value})} className="w-full bg-gray-50 border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl py-2.5 px-3 text-[12px] font-bold outline-none cursor-pointer">
+                        <option value="design">Figma/Design</option>
+                        <option value="drive_idv">Drive (IDV)</option>
+                        <option value="drive_fotos">Drive (Fotos)</option>
+                        <option value="direcionamento">Direcionamento</option>
+                        <option value="referencia">Referências</option>
+                        <option value="other">Outro Link</option>
+                      </select>
+                    </div>
+                  </div>
+                  <div className="flex flex-col gap-1">
+                    <label className="text-[9px] font-bold uppercase tracking-widest text-gray-400 pl-1">URL (Link Completo)</label>
+                    <input type="url" placeholder="https://..." value={linkForm.url} onChange={e => setLinkForm({...linkForm, url: e.target.value})} required className="w-full bg-gray-50 border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-xl py-2.5 px-3 text-[12px] font-medium outline-none" />
+                  </div>
+                  <button type="submit" disabled={isSubmittingLink || !linkForm.title || !linkForm.url} className="mt-2 w-full bg-[var(--color-atelier-grafite)] text-white py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] hover:bg-[var(--color-atelier-terracota)] transition-colors flex items-center justify-center gap-2 disabled:opacity-50">
+                    {isSubmittingLink ? <Loader2 size={14} className="animate-spin"/> : <CheckCircle2 size={14}/>} Salvar Link
+                  </button>
+                </motion.form>
+              )}
+            </AnimatePresence>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {quickLinks.length === 0 ? (
+                <div className="col-span-1 sm:col-span-2 text-center py-6 text-[10px] uppercase font-bold text-gray-400 border border-dashed border-gray-200 rounded-2xl bg-white/40">
+                  Nenhum link adicionado.
+                </div>
+              ) : (
+                quickLinks.map(link => {
+                  const { icon, colorClass } = getLinkIconAndColor(link.type);
+                  return (
+                    <div key={link.id} className="bg-white border border-gray-100 p-3.5 rounded-[1.2rem] flex items-center justify-between shadow-sm hover:shadow-md hover:border-[var(--color-atelier-terracota)]/30 transition-all group">
+                      <div className="flex items-center gap-3 overflow-hidden flex-1 cursor-pointer pr-2" onClick={() => window.open(link.url, '_blank')}>
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 border ${colorClass}`}>
+                          {icon}
+                        </div>
+                        <div className="flex flex-col truncate">
+                          <span className="text-[12px] font-bold text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors truncate">{link.title}</span>
+                          <span className="text-[9px] uppercase tracking-widest font-bold text-gray-400 mt-0.5 flex items-center gap-1">Acessar <ExternalLink size={8}/></span>
+                        </div>
+                      </div>
+                      <button onClick={(e) => { e.stopPropagation(); handleDeleteQuickLink(link.id); }} className="w-7 h-7 flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-md transition-colors shrink-0">
+                        <Trash2 size={12}/>
+                      </button>
+                    </div>
+                  )
+                })
+              )}
+            </div>
+          </div>
+
+          {/* ARQUIVOS DO CLIENTE (Envios Livres) */}
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center bg-white/60 p-6 md:p-8 rounded-[2.5rem] border border-white shadow-sm shrink-0 gap-4 transition-colors hover:bg-white/80">
              <div>
                <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-3">
@@ -293,10 +446,9 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
           </div>
 
           {assets.length === 0 ? (
-             <div className="glass-panel bg-white/40 border border-white p-10 rounded-[2.5rem] flex flex-col items-center justify-center text-center h-[300px] shadow-sm shrink-0 opacity-60">
-               <Camera size={48} className="text-[var(--color-atelier-grafite)]/40 mb-4" />
-               <p className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Nenhum Arquivo</p>
-               <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/60 mt-2 font-medium max-w-xs">O cliente ainda não enviou nenhum arquivo livre.</p>
+             <div className="glass-panel bg-white/40 border border-white p-10 rounded-[2.5rem] flex flex-col items-center justify-center text-center h-[200px] shadow-sm shrink-0 opacity-60">
+               <Camera size={32} className="text-[var(--color-atelier-grafite)]/40 mb-4" />
+               <p className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Nenhum Arquivo</p>
              </div>
           ) : (
             <div className="grid grid-cols-1 gap-3">

@@ -8,7 +8,7 @@ import {
   Image as ImageIcon, Send, FileText, CheckCircle2,
   Settings2, Plus, ChevronDown, Calendar,
   Compass, X, Sparkles, Download, Loader2, Trash2, Archive, Eye, RotateCcw, BrainCircuit,
-  LayoutDashboard, Target, CalendarDays, MapPin
+  LayoutDashboard, Target, CalendarDays, MapPin, Camera
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
@@ -16,13 +16,21 @@ import DiaryModule from "../../../components/admin/DiaryModule";
 import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
 
 // IMPORTAÇÃO EXTERNA: Traz apenas o Motor de Gestão de Instagram
-import { GerenciamentoWorkspace } from "../gerenciamento/page";
+import { GerenciamentoWorkspace as ImportWorkspace } from "../gerenciamento/page";
 
 // Importação do nosso Motor de Automação
 import { AtelierPMEngine } from "../../../lib/AtelierPMEngine";
 
 // Novo Hook de Título Dinâmico
 import { useDynamicTitle } from "../../../hooks/useDynamicTitle"; 
+
+// ============================================================================
+// COMPONENTES REUTILIZADOS (Views do Workspace)
+// ============================================================================
+import VisualFlow from "../gerenciamento/views/VisualFlow";
+import BrandIdentity from "../gerenciamento/views/BrandIdentity";
+import GlobalCalendar from "../gerenciamento/views/GlobalCalendar";
+import MissionsView from "../gerenciamento/views/MissionsView";
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -63,9 +71,46 @@ function InfoBlock({ label, value }: { label: string, value: any }) {
   );
 }
 
+// ============================================================================
+// COMPONENTE INTERNO: O ROTEADOR DAS ABAS DO INSTAGRAM
+// ============================================================================
+export function GerenciamentoWorkspace({ activeProjectId, currentProject, activeTab }: { activeProjectId: string, currentProject: any, activeTab: string }) {
+  return (
+    <div className="flex flex-col w-full animate-[fadeInUp_0.5s_ease-out] flex-1 min-h-0 relative">
+      <div className="flex-1 min-h-0 relative pb-6">
+        <AnimatePresence mode="wait">
+          {activeTab === 'calendario' && (
+            <motion.div key="calendar" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
+              <GlobalCalendar activeProjectId={activeProjectId} currentProject={currentProject} />
+            </motion.div>
+          )}
+
+          {activeTab === 'posts' && (
+            <motion.div key="posts" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
+              <VisualFlow activeProjectId={activeProjectId} currentProject={currentProject} />
+            </motion.div>
+          )}
+
+          {activeTab === 'identidade' && (
+            <motion.div key="identidade" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
+              <BrandIdentity activeProjectId={activeProjectId} currentProject={currentProject} />
+            </motion.div>
+          )}
+
+          {activeTab === 'missoes' && (
+            <motion.div key="missoes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
+              <MissionsView activeProjectId={activeProjectId} currentProject={currentProject} />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+    </div>
+  );
+}
+
 function PainelIdentidade() {
   // ==========================================
-  // ESTADOS DO SUPABASE (CONSUMO DE RAM)
+  // ESTADOS DO SUPABASE E NAVEGAÇÃO
   // ==========================================
   const { activeProjects, isGlobalLoading, refreshGlobalData } = useGlobalStore();
   
@@ -74,24 +119,28 @@ function PainelIdentidade() {
   const [isClientMenuOpen, setIsClientMenuOpen] = useState(false);
   const [isBriefingModalOpen, setIsBriefingModalOpen] = useState(false);
 
-  // Derivação automática
+  // 🟢 ESTADO DO MENU INSTAGRAM (LIFTED)
+  const [activeTab, setActiveTab] = useState<'calendario' | 'posts' | 'identidade' | 'missoes'>('calendario');
+
+  const igTabs = [
+    { id: 'calendario', label: 'Analytics & Calendário', icon: <CalendarDays size={18} /> },
+    { id: 'posts', label: 'Peças Gráficas', icon: <LayoutDashboard size={18} /> },
+    { id: 'identidade', label: 'Diretrizes & Briefing', icon: <Target size={18} /> },
+    { id: 'missoes', label: 'Solicitações e Arquivos', icon: <Camera size={18} /> },
+  ];
+
   const validProjects = activeProjects.filter(p => ['active', 'delivered', 'archived'].includes(p.status));
   const currentProject = validProjects.find(p => p.id === activeProjectId);
   const isIdv = isIdvService(currentProject); 
 
-  // Injeção do Título Dinâmico na Aba do Navegador
   useDynamicTitle({
     projectName: currentProject?.profiles?.nome,
     tabName: isIdv ? "Identidade Visual" : "Gestão de Projeto"
   });
 
-  // Carregamento instantâneo via RAM
   useEffect(() => {
     if (isGlobalLoading) return;
-    
-    if (validProjects.length > 0 && !activeProjectId) {
-      setActiveProjectId(validProjects[0].id);
-    }
+    if (validProjects.length > 0 && !activeProjectId) setActiveProjectId(validProjects[0].id);
     setIsLocalLoading(false);
   }, [isGlobalLoading, activeProjects.length]);
 
@@ -104,14 +153,11 @@ function PainelIdentidade() {
     }
   }, [currentProject]);
 
-  // ==========================================
-  // ESTADOS DOS ARQUIVOS, CONTRATO E BRIEFING
-  // ==========================================
+  // ESTADOS DOS ARQUIVOS E BRIEFING
   const [projectAssets, setProjectAssets] = useState<any[]>([]);
   const [isUploadingAsset, setIsUploadingAsset] = useState(false);
   const [contractUrl, setContractUrl] = useState("");
   const [isUploadingContract, setIsUploadingContract] = useState(false);
-  
   const [clientBriefing, setClientBriefing] = useState<any>(null);
   
   // ESTADOS DE IA & PDF
@@ -122,7 +168,6 @@ function PainelIdentidade() {
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isGeneratingCuradoriaPDF, setIsGeneratingCuradoriaPDF] = useState(false);
 
-  // FETCHING PARALELO E DISPARO DO HOT-CHECK DE RECORRÊNCIA
   useEffect(() => {
     if (!activeProjectId) return;
     const fetchAssetsAndBriefing = async () => {
@@ -130,24 +175,18 @@ function PainelIdentidade() {
         const [ { data: assetsData }, { data: briefingData }, { data: { session } } ] = await Promise.all([
           supabase.from('project_assets').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false }),
           supabase.from('client_briefings').select('answers, is_completed').eq('project_id', activeProjectId).maybeSingle(),
-          supabase.auth.getSession() // Busca a sessão para pegar o adminId
+          supabase.auth.getSession()
         ]);
         
         if (assetsData) setProjectAssets(assetsData);
-        
-        if (briefingData && briefingData.answers && briefingData.is_completed !== false) {
-          setClientBriefing(briefingData.answers);
-        } else {
-          setClientBriefing(null);
-        }
+        if (briefingData && briefingData.answers && briefingData.is_completed !== false) setClientBriefing(briefingData.answers);
+        else setClientBriefing(null);
 
-        // 🟢 TRIGGER DO HOT-CHECK (Executa em background para não travar a UI)
         if (session?.user?.id) {
           AtelierPMEngine.runRecurrenceHotCheck(activeProjectId, session.user.id).catch(e => {
             console.error("Erro no Hot-Check Background:", e);
           });
         }
-
       } catch (error) {
         console.error("Erro no fetching paralelo:", error);
       }
@@ -155,22 +194,15 @@ function PainelIdentidade() {
     fetchAssetsAndBriefing();
   }, [activeProjectId]);
 
-  // ==========================================
-  // NOVA AÇÃO: DEVOLVER BRIEFING (Optimistic UI)
-  // ==========================================
   const handleReturnBriefing = async () => {
     if (!activeProjectId || !clientBriefing) return;
     if (!window.confirm("Deseja solicitar uma revisão do briefing para o cliente? Ele precisará revisar e reenviar o documento.")) return;
     
-    // MUTAÇÃO OTIMISTA: Limpa a tela imediatamente
     setClientBriefing(null);
     setIsBriefingModalOpen(false);
     
-    // BACKGROUND SYNC
     try {
       await supabase.from('client_briefings').update({ is_completed: false }).eq('project_id', activeProjectId);
-      
-      // 🔔 NOTIFICAÇÃO: Cliente
       if (currentProject?.client_id) {
         await NotificationEngine.notifyUser(
           currentProject.client_id,
@@ -186,9 +218,6 @@ function PainelIdentidade() {
     }
   };
 
-  // ==========================================
-  // PONTO DE INTERVENÇÃO 4: AUTOMAÇÃO DO DIÁRIO DE BORDO
-  // ==========================================
   const handleDiaryActivity = async () => {
     if (!activeProjectId) return;
     try {
@@ -203,9 +232,6 @@ function PainelIdentidade() {
     }
   };
 
-  // ==========================================
-  // MOTORES DE INTELIGÊNCIA ARTIFICIAL
-  // ==========================================
   const handleGenerateBriefingInsight = async () => {
     if (!activeProjectId || !clientBriefing) return;
     setIsGeneratingBriefingInsight(true);
@@ -225,9 +251,8 @@ function PainelIdentidade() {
 
       await supabase.from('projects').update({ briefing_ai_insight: data.insight }).eq('id', activeProjectId);
       setBriefingAiInsight(data.insight);
-      refreshGlobalData(); // Sincroniza RAM
+      refreshGlobalData();
       
-      // 🔔 NOTIFICAÇÃO: Gestão
       await NotificationEngine.notifyManagement(
         "🧠 Assistente Estratégico: Análise Concluída",
         `O relatório de inteligência estratégica do cliente ${currentProject?.profiles?.nome} está pronto a ser consultado.`,
@@ -262,9 +287,8 @@ function PainelIdentidade() {
 
       await supabase.from('projects').update({ curadoria_ai_insight: data.insight }).eq('id', activeProjectId);
       setCuradoriaAiInsight(data.insight);
-      refreshGlobalData(); // Sincroniza RAM
+      refreshGlobalData(); 
       
-      // 🔔 NOTIFICAÇÃO: Gestão
       await NotificationEngine.notifyManagement(
         "🎨 Assistente de Design: Análise Concluída",
         `O relatório semiótico para o projeto de ${currentProject?.profiles?.nome} foi compilado.`,
@@ -280,9 +304,6 @@ function PainelIdentidade() {
     }
   };
 
-  // ==========================================
-  // MOTORES DE PDF VETORIAL
-  // ==========================================
   const handleDownloadBriefingPDF = async () => {
     if (!clientBriefing) {
       showToast("Erro: O conteúdo do Briefing ainda não foi carregado.");
@@ -308,7 +329,6 @@ function PainelIdentidade() {
 
       showToast("PDF Estratégico exportado com sucesso!");
     } catch (error) {
-      console.error("Crash no PDF:", error);
       showToast("Erro crítico ao gerar o arquivo vetorial.");
     } finally {
       setIsGeneratingPDF(false);
@@ -335,14 +355,12 @@ function PainelIdentidade() {
 
       showToast("Curadoria exportada com sucesso.");
     } catch (error) {
-      console.error(error);
       showToast("Erro ao gerar PDF da Curadoria.");
     } finally {
       setIsGeneratingCuradoriaPDF(false);
     }
   };
 
-  // UPLOAD DE ATIVOS FINAIS E CONTRATO
   const handleAssetUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !activeProjectId) return;
@@ -374,7 +392,6 @@ function PainelIdentidade() {
       if (dbError) throw dbError;
       if (insertedData) setProjectAssets([insertedData[0], ...projectAssets]);
       
-      // 🔔 NOTIFICAÇÃO: Cliente
       if (currentProject?.client_id) {
         await NotificationEngine.notifyUser(
           currentProject.client_id,
@@ -384,10 +401,8 @@ function PainelIdentidade() {
           "/meu-espaco"
         );
       }
-
       showToast("✨ Arquivo adicionado aos Materiais Finais!");
     } catch (error: any) {
-      console.error("Erro no upload:", error);
       showToast("Erro ao fazer upload do arquivo.");
     } finally {
       setIsUploadingAsset(false);
@@ -398,7 +413,6 @@ function PainelIdentidade() {
   const handleRemoveAsset = async (assetId: string) => {
     const confirm = window.confirm("Tem certeza de que deseja excluir este arquivo?");
     if (!confirm) return;
-
     try {
       await supabase.from('project_assets').delete().eq('id', assetId);
       setProjectAssets(projectAssets.filter(a => a.id !== assetId));
@@ -428,9 +442,8 @@ function PainelIdentidade() {
       if (dbError) throw dbError;
       
       setContractUrl(data.publicUrl);
-      refreshGlobalData(); // Sync Global RAM
+      refreshGlobalData();
       
-      // 🔔 NOTIFICAÇÃO: Cliente
       if (currentProject?.client_id) {
         await NotificationEngine.notifyUser(
           currentProject.client_id,
@@ -440,10 +453,8 @@ function PainelIdentidade() {
           "/meu-espaco"
         );
       }
-
       showToast("Contrato anexado com sucesso!");
     } catch (error) {
-      console.error(error);
       showToast("Erro ao fazer upload do contrato.");
     } finally {
       setIsUploadingContract(false);
@@ -451,10 +462,6 @@ function PainelIdentidade() {
     }
   };
 
-
-  // ==========================================
-  // MOTOR DE TEMPO E FASE E ENTREGAS (OTIMISTA)
-  // ==========================================
   const [deadlineDate, setDeadlineDate] = useState("");
   const [daysLeft, setDaysLeft] = useState(0);
   const [isForceUnlocked, setIsForceUnlocked] = useState(false);
@@ -477,11 +484,10 @@ function PainelIdentidade() {
   const handleDeadlineChange = async (newDate: string) => {
     setDeadlineDate(newDate);
     setIsForceUnlocked(false);
-    
     if (activeProjectId) {
       await supabase.from('projects').update({ data_limite: newDate }).eq('id', activeProjectId);
       showToast(`Prazo atualizado: ${newDate.split('-').reverse().join('/')}`);
-      refreshGlobalData(); // Sync
+      refreshGlobalData();
     }
   };
 
@@ -490,7 +496,7 @@ function PainelIdentidade() {
     if (activeProjectId) {
       await supabase.from('projects').update({ fase: novaFase }).eq('id', activeProjectId);
       showToast("Fase do projeto atualizada com sucesso!");
-      refreshGlobalData(); // Sync
+      refreshGlobalData();
     }
   };
 
@@ -499,27 +505,13 @@ function PainelIdentidade() {
     if (!window.confirm("Deseja marcar este projeto como ENTREGUE? O cliente terá 15 dias de acesso ao painel antes do arquivamento.")) return;
 
     try {
-      await supabase
-        .from('projects')
-        .update({ status: 'delivered', delivered_at: new Date().toISOString() })
-        .eq('id', activeProjectId);
-
-      // 🔔 NOTIFICAÇÃO: Cliente
+      await supabase.from('projects').update({ status: 'delivered', delivered_at: new Date().toISOString() }).eq('id', activeProjectId);
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(
-          currentProject.client_id,
-          "🎉 Projeto Entregue!",
-          "Você terá 15 dias de acesso ao Meu Espaço para fazer o download final dos seus materiais.",
-          "success",
-          "/meu-espaco"
-        );
+        await NotificationEngine.notifyUser(currentProject.client_id, "🎉 Projeto Entregue!", "Você terá 15 dias de acesso ao Meu Espaço para fazer o download final dos seus materiais.", "success", "/meu-espaco");
       }
-
       showToast("Projeto marcado como Entregue! A contagem regressiva de 15 dias começou.");
-      refreshGlobalData(); // Sync
-    } catch (error) {
-      showToast("Erro ao marcar projeto como entregue.");
-    }
+      refreshGlobalData();
+    } catch (error) { showToast("Erro ao marcar projeto como entregue."); }
   };
 
   const handleForceArchive = async () => {
@@ -528,22 +520,12 @@ function PainelIdentidade() {
 
     try {
       await supabase.from('projects').update({ status: 'archived' }).eq('id', activeProjectId);
-      
-      // 🔔 NOTIFICAÇÃO: Cliente
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(
-          currentProject.client_id,
-          "🔒 Acesso Fechado",
-          "O seu projeto foi arquivado. O seu acesso ao painel foi encerrado. Obrigado por confiar na Liz Design.",
-          "info"
-        );
+        await NotificationEngine.notifyUser(currentProject.client_id, "🔒 Acesso Fechado", "O seu projeto foi arquivado. O seu acesso ao painel foi encerrado. Obrigado por confiar na Liz Design.", "info");
       }
-
       showToast("Projeto Arquivado com sucesso!");
-      refreshGlobalData(); // Sync
-    } catch (error) {
-      showToast("Erro ao arquivar projeto.");
-    }
+      refreshGlobalData();
+    } catch (error) { showToast("Erro ao arquivar projeto."); }
   };
 
   const handleReactivateProject = async () => {
@@ -552,30 +534,17 @@ function PainelIdentidade() {
 
     try {
       await supabase.from('projects').update({ status: 'active', delivered_at: null }).eq('id', activeProjectId);
-      
-      // 🔔 NOTIFICAÇÃO: Cliente
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(
-          currentProject.client_id,
-          "🔓 Operação Reativada",
-          "O seu projeto voltou a ficar ativo. Você tem acesso total restaurado ao seu espaço.",
-          "success",
-          "/meu-espaco"
-        );
+        await NotificationEngine.notifyUser(currentProject.client_id, "🔓 Operação Reativada", "O seu projeto voltou a ficar ativo. Você tem acesso total restaurado ao seu espaço.", "success", "/meu-espaco");
       }
-
       showToast("Projeto Reativado com sucesso!");
-      refreshGlobalData(); // Sync
-    } catch (error) {
-      showToast("Erro ao reativar projeto.");
-    }
+      refreshGlobalData();
+    } catch (error) { showToast("Erro ao reativar projeto."); }
   };
 
   const isCofreUnlocked = (daysLeft === 0 && deadlineDate !== "") || isForceUnlocked;
 
-  // ==========================================
-  // PAINEL DE CURADORIA (MULTI-IMAGENS & PDF)
-  // ==========================================
+  // PAINEL DE CURADORIA
   const [showRefsPanel, setShowRefsPanel] = useState(false);
   const [clientMoodboard, setClientMoodboard] = useState<string[]>([]);
   const [adminRefs, setAdminRefs] = useState<any[]>([]);
@@ -589,7 +558,6 @@ function PainelIdentidade() {
 
   useEffect(() => {
     if (!showRefsPanel || !activeProjectId) return;
-    
     const fetchCuradoria = async () => {
       const [ { data: strategicData }, { data: directionsData } ] = await Promise.all([
         supabase.from('strategic_answers').select('moodboard_urls').eq('project_id', activeProjectId).maybeSingle(),
@@ -628,7 +596,6 @@ function PainelIdentidade() {
       showToast("Adicione um título e pelo menos uma imagem.");
       return;
     }
-
     setIsSendingRef(true);
     showToast("Enviando Direções Visuais para o cliente...");
 
@@ -659,22 +626,14 @@ function PainelIdentidade() {
         setActiveEvalIndex(adminRefs.length);
       }
       
-      // 🔔 NOTIFICAÇÃO: Cliente
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(
-          currentProject.client_id,
-          "🧭 Nova Direção Visual (Moodboard)",
-          "A equipe enviou referências e um novo caminho criativo para a sua marca. Analise e compartilhe a sua opinião no Meu Espaço.",
-          "action",
-          "/meu-espaco"
-        );
+        await NotificationEngine.notifyUser(currentProject.client_id, "🧭 Nova Direção Visual (Moodboard)", "A equipe enviou referências e um novo caminho criativo para a sua marca. Analise e compartilhe a sua opinião no Meu Espaço.", "action", "/meu-espaco");
       }
 
       showToast("Direção visual enviada com sucesso!");
       setNewRefTitle("");
       setNewRefImageFiles([]);
       setNewRefImagePreviews([]);
-
     } catch (error) {
       showToast("Erro ao enviar Direção Visual.");
     } finally {
@@ -685,17 +644,10 @@ function PainelIdentidade() {
   const removeAdminRef = async (id: string) => {
     const confirm = window.confirm("Remover esta direção visual permanentemente?");
     if (!confirm) return;
-    
-    // MUTAÇÃO OTIMISTA
     setAdminRefs(adminRefs.filter(ref => ref.id !== id));
     setActiveEvalIndex(0); 
     showToast("Direção visual removida.");
-    
-    try {
-      await supabase.from('design_directions').delete().eq('id', id);
-    } catch (error) {
-      showToast("Erro ao excluir direção no banco.");
-    }
+    try { await supabase.from('design_directions').delete().eq('id', id); } catch (error) { showToast("Erro ao excluir direção no banco."); }
   };
 
   if (isGlobalLoading || isLocalLoading) {
@@ -715,9 +667,6 @@ function PainelIdentidade() {
   return (
     <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6 px-4 md:px-0">
       
-      {/* ==========================================
-          MODAL DO BRIEFING (DOSSIÊ ADMIN)
-          ========================================== */}
       <AnimatePresence>
         {isBriefingModalOpen && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 md:p-10">
@@ -966,14 +915,53 @@ function PainelIdentidade() {
           </div>
         </div>
 
-        <div className="flex gap-3 relative z-10 shrink-0">
-          <button onClick={() => setShowRefsPanel(true)} className="glass-panel bg-white/60 px-5 py-3 rounded-[1.2rem] font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-white transition-all flex items-center gap-2 shadow-sm border border-white hover:text-[var(--color-atelier-terracota)]">
-            <Compass size={14} /> Referências Visuais
-          </button>
-          <button onClick={() => setIsBriefingModalOpen(true)} className="glass-panel bg-[var(--color-atelier-grafite)] px-5 py-3 rounded-[1.2rem] font-roboto text-[10px] font-bold uppercase tracking-widest text-white hover:bg-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2 shadow-sm border border-transparent hover:-translate-y-0.5">
-            <FileText size={14} /> Ver Briefing
-          </button>
-        </div>
+        {/* 🟢 RENDERIZAÇÃO CONDICIONAL: Botões IDV ou Menu Instagram */}
+        {isIdv ? (
+          <div className="flex gap-3 relative z-10 shrink-0">
+            <button onClick={() => setShowRefsPanel(true)} className="glass-panel bg-white/60 px-5 py-3 rounded-[1.2rem] font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-white transition-all flex items-center gap-2 shadow-sm border border-white hover:text-[var(--color-atelier-terracota)]">
+              <Compass size={14} /> Referências Visuais
+            </button>
+            <button onClick={() => setIsBriefingModalOpen(true)} className="glass-panel bg-[var(--color-atelier-grafite)] px-5 py-3 rounded-[1.2rem] font-roboto text-[10px] font-bold uppercase tracking-widest text-white hover:bg-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2 shadow-sm border border-transparent hover:-translate-y-0.5">
+              <FileText size={14} /> Ver Briefing
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-1.5 p-1.5 bg-white/70 backdrop-blur-xl border border-white shadow-sm rounded-full relative z-10 shrink-0">
+            {igTabs.map(tab => {
+              const isActive = activeTab === tab.id;
+              return (
+                <button 
+                  key={tab.id}
+                  onClick={() => setActiveTab(tab.id as any)}
+                  className={`relative flex items-center justify-center rounded-full transition-all duration-500 overflow-hidden
+                    ${isActive 
+                      ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md h-12 px-5' 
+                      : 'bg-transparent text-[var(--color-atelier-grafite)]/50 hover:bg-white hover:text-[var(--color-atelier-grafite)] hover:shadow-sm w-12 h-12'
+                    }
+                  `}
+                  title={!isActive ? tab.label : undefined}
+                >
+                  <div className="shrink-0 relative z-10 flex items-center justify-center">
+                    {tab.icon}
+                  </div>
+                  
+                  <AnimatePresence>
+                    {isActive && (
+                      <motion.div 
+                        initial={{ width: 0, opacity: 0, paddingLeft: 0 }}
+                        animate={{ width: "auto", opacity: 1, paddingLeft: 8 }}
+                        exit={{ width: 0, opacity: 0, paddingLeft: 0 }}
+                        className="font-roboto text-[11px] font-bold uppercase tracking-widest whitespace-nowrap z-10"
+                      >
+                        {tab.label}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </button>
+              )
+            })}
+          </div>
+        )}
       </header>
 
       {/* ==========================================
@@ -1112,7 +1100,7 @@ function PainelIdentidade() {
         </div>
       ) : (
         <div className="flex-1 flex flex-col min-h-0 animate-[fadeInUp_0.8s_ease-out_0.2s_both] relative z-10">
-          <GerenciamentoWorkspace activeProjectId={activeProjectId as string} currentProject={currentProject} />
+          <GerenciamentoWorkspace activeProjectId={activeProjectId as string} currentProject={currentProject} activeTab={activeTab} />
         </div>
       )}
 

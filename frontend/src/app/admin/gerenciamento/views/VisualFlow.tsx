@@ -29,18 +29,18 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
   // Dados do Banco de Dados
   const [posts, setPosts] = useState<any[]>([]);
   const [pins, setPins] = useState<any[]>([]);
-  const [approvedPlans, setApprovedPlans] = useState<any[]>([]);
+  const [pendingPostTasks, setPendingPostTasks] = useState<any[]>([]);
 
   // Integração Figma
   const [isFigmaOpen, setIsFigmaOpen] = useState(false);
-  const [isFigmaPromptOpen, setIsFigmaPromptOpen] = useState(false); // Modal para pedir o link
+  const [isFigmaPromptOpen, setIsFigmaPromptOpen] = useState(false);
   const [figmaUrl, setFigmaUrl] = useState(currentProject?.figma_url || "");
   const [tempFigmaUrl, setTempFigmaUrl] = useState("");
 
   // Formulário de Nova Arte
   const [newPostImage, setNewPostImage] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [selectedPlanId, setSelectedPlanId] = useState<string>(""); 
+  const [selectedTaskId, setSelectedTaskId] = useState<string>(""); 
   const [newPostCaption, setNewPostCaption] = useState("");
 
   // ==========================================
@@ -48,30 +48,29 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
   // ==========================================
   useEffect(() => {
     fetchVisualData();
-    // Atualiza o estado do Figma caso troque de projeto
     if (currentProject) {
       setFigmaUrl(currentProject.figma_url || "");
     }
   }, [activeProjectId, currentProject]);
 
-  // Autopreenchimento da legenda com base no planejamento aprovado
   useEffect(() => {
-    if (selectedPlanId) {
-      const selectedPlan = approvedPlans.find(p => p.id === selectedPlanId);
-      if (selectedPlan) {
-        setNewPostCaption(`**${selectedPlan.hook}**\n\n${selectedPlan.briefing}`);
+    if (selectedTaskId) {
+      const selectedTask = pendingPostTasks.find(t => t.id === selectedTaskId);
+      if (selectedTask) {
+        let text = `**${selectedTask.title}**\n\n`;
+        if (selectedTask.description) text += `${selectedTask.description}`;
+        setNewPostCaption(text);
       }
     } else {
       setNewPostCaption("");
     }
-  }, [selectedPlanId, approvedPlans]);
+  }, [selectedTaskId, pendingPostTasks]);
 
   const fetchVisualData = async () => {
     setIsLoading(true);
     try {
       if (!activeProjectId) return;
 
-      // 1. Busca as Artes Enviadas
       const { data: postsData, error: postsError } = await supabase
         .from('social_posts')
         .select('*')
@@ -81,7 +80,6 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
       if (postsError) throw postsError;
       if (postsData) setPosts(postsData);
 
-      // 2. Busca os Apontamentos de Feedback (Pinos do Cliente)
       const postIds = postsData?.map(p => p.id) || [];
       if (postIds.length > 0) {
         const { data: pinsData } = await supabase
@@ -91,14 +89,22 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
         if (pinsData) setPins(pinsData);
       }
 
-      // 3. Busca os Planejamentos Aprovados (para vincular à arte)
-      const { data: plans } = await supabase
-        .from('content_planning')
+      const { data: tasksData } = await supabase
+        .from('tasks')
         .select('*')
         .eq('project_id', activeProjectId)
-        .eq('status', 'approved');
+        .in('status', ['pending', 'in_progress'])
+        .order('deadline', { ascending: true });
       
-      if (plans) setApprovedPlans(plans);
+      if (tasksData) {
+         const designTasks = tasksData.filter(t => 
+           t.task_type === 'design' || 
+           t.title.toLowerCase().includes('post') || 
+           t.title.toLowerCase().includes('arte') || 
+           t.title.toLowerCase().includes('vídeo')
+         );
+         setPendingPostTasks(designTasks);
+      }
 
     } catch (error) {
       console.error("Erro ao carregar Fluxo Visual:", error);
@@ -134,7 +140,6 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
 
   const handleFigmaAction = () => {
     if (figmaUrl) {
-      // Abre diretamente o Figma em uma nova aba para edição total
       window.open(figmaUrl, "_blank");
       showToast("Abrindo o editor do Figma...");
     } else {
@@ -143,7 +148,7 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
   };
 
   // ==========================================
-  // 3. LÓGICA DE SUBMISSÃO DE ARTE
+  // 3. LÓGICA DE SUBMISSÃO DE ARTE E INTERLIGAÇÃO
   // ==========================================
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -154,14 +159,17 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
   };
 
   const handleCreatePost = async () => {
-    if (!newPostImage || !activeProjectId || !currentProject) {
-      showToast("Selecione uma imagem e certifique-se de que há um cliente ativo.");
+    if (!newPostImage || !activeProjectId || !currentProject || !selectedTaskId) {
+      showToast("Selecione uma imagem e certifique-se de vincular a uma tarefa pendente.");
       return;
     }
     setIsProcessing(true);
-    showToast("Enviando arte para o cliente...");
+    showToast("Enviando arte para revisão no Kanban...");
 
     try {
+      const selectedTask = pendingPostTasks.find(t => t.id === selectedTaskId);
+      const postTitle = selectedTask ? selectedTask.title : "Arte Visual";
+
       // 1. Upload para o Storage (community_images)
       const fileExt = newPostImage.name.split('.').pop();
       const fileName = `post_${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
@@ -170,42 +178,44 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
       const { error: uploadError } = await supabase.storage.from('community_images').upload(filePath, newPostImage, { upsert: true });
       if (uploadError) throw uploadError;
 
-      // 2. Resgata a URL pública
       const { data: publicUrlData } = supabase.storage.from('community_images').getPublicUrl(filePath);
 
-      // 3. Cria o registro na tabela social_posts
+      // 2. Cria o registro em social_posts com status de Revisão Interna
       const { data: insertedPost, error: dbError } = await supabase.from('social_posts').insert({
         project_id: activeProjectId,
         client_id: currentProject.client_id,
+        task_id: selectedTaskId, // 🟢 Liga o post à tarefa do Kanban
         image_url: publicUrlData.publicUrl,
         caption: newPostCaption,
-        status: 'pending_approval' // Fila de aprovação do cliente
+        title: postTitle,
+        status: 'internal_review' // 🟢 Fica pendente de aprovação interna primeiro
       }).select().single();
 
       if (dbError) throw dbError;
 
-      // 4. Vincula e conclui a ideia de planejamento (Opcional)
-      if (selectedPlanId) {
-        await supabase.from('content_planning').update({ status: 'completed' }).eq('id', selectedPlanId);
-      }
+      // 3. Mágica do Kanban: Atualiza a Tarefa para "Em Revisão" e injeta a imagem nela
+      await supabase.from('tasks').update({ 
+        status: 'review',
+        attachment_url: publicUrlData.publicUrl // 🟢 O Kanban recebe a imagem aqui
+      }).eq('id', selectedTaskId);
 
-      // 5. Atualiza a UI otimista
+      // 4. Atualiza a UI otimista
       setPosts([insertedPost, ...posts]);
+      setPendingPostTasks(prev => prev.filter(t => t.id !== selectedTaskId));
       setNewPostImage(null); 
       setImagePreview(null);
       setNewPostCaption(""); 
-      setSelectedPlanId("");
+      setSelectedTaskId("");
 
-      // 🔔 NOTIFICAÇÃO: Disparo para o Cliente
-      await NotificationEngine.notifyUser(
-        currentProject.client_id,
-        "🎨 Nova Arte para Aprovação",
-        "A equipe enviou uma nova peça gráfica para o seu painel. Analise e aprove no Meu Espaço.",
-        "action",
-        "/meu-espaco"
+      // 5. Notifica a gestão para aprovar no Kanban
+      await NotificationEngine.notifyManagement(
+        "🔎 Arte em Revisão Interna",
+        `A peça "${postTitle}" foi concluída pela equipa e aguarda a sua aprovação no Kanban.`,
+        "info",
+        "/admin/jtbd"
       );
 
-      showToast("Arte gráfica enviada para aprovação do cliente! ✨");
+      showToast("Arte gráfica enviada para o Kanban (Revisão Interna)! ✨");
     } catch (error) {
       console.error(error);
       showToast("Erro ao criar a peça visual.");
@@ -229,10 +239,9 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
     }
   };
 
-  // Filtramos para mostrar apenas os posts que estão em fluxo ativo
-  const visiblePosts = posts.filter(p => ['pending', 'pending_approval', 'needs_revision', 'approved'].includes(p.status));
+  // 🟢 Inclui 'internal_review' para mostrar ao designer o que ainda está em avaliação interna
+  const visiblePosts = posts.filter(p => ['internal_review', 'pending', 'pending_approval', 'needs_revision', 'approved'].includes(p.status));
 
-  // Renderização de Loading Modular
   if (isLoading) {
     return (
       <div className="flex h-full min-h-[400px] items-center justify-center glass-panel bg-white/40 rounded-[3rem] border border-white">
@@ -244,9 +253,7 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
   return (
     <div className="flex flex-col h-full min-h-0 relative">
       
-      {/* ==========================================
-          BOTÃO FLUTUANTE DO FIGMA (FAB)
-          ========================================== */}
+      {/* BOTÃO FLUTUANTE DO FIGMA (FAB) */}
       <button 
         onClick={handleFigmaAction}
         className="absolute bottom-6 right-6 z-40 w-16 h-16 bg-black text-white rounded-full flex items-center justify-center shadow-[0_15px_30px_rgba(0,0,0,0.3)] hover:scale-110 hover:bg-[#F24E1E] transition-all duration-300 group"
@@ -255,9 +262,7 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
         <Figma size={26} className="group-hover:animate-pulse" />
       </button>
 
-      {/* ==========================================
-          SEÇÃO CENTRAL: FORMULÁRIO & GALERIA
-          ========================================== */}
+      {/* SEÇÃO CENTRAL: FORMULÁRIO & GALERIA */}
       <div className="flex flex-col lg:flex-row gap-6 h-full min-h-0 flex-1">
         
         {/* COLUNA ESQUERDA: FORMULÁRIO DE ENVIO */}
@@ -266,15 +271,17 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
             <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
               <UploadCloud size={24} className="text-[var(--color-atelier-terracota)]"/> Enviar Arte
             </h3>
-            <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/50 font-medium mt-2">Exporte a peça do Figma e anexe para aprovação.</p>
+            <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/50 font-medium mt-2">Exporte a peça do Figma e vincule à tarefa pendente.</p>
           </div>
 
           <div className="flex flex-col gap-1.5 shrink-0 mt-2">
-            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Estratégia Aprovada (Opcional)</span>
-            <select value={selectedPlanId} onChange={(e) => setSelectedPlanId(e.target.value)} className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 rounded-2xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm text-[var(--color-atelier-grafite)] font-medium cursor-pointer transition-colors">
-              <option value="" className="text-gray-400">Enviar arte avulsa...</option>
-              {approvedPlans.map(plan => (
-                <option key={plan.id} value={plan.id}>"{plan.hook}" - {plan.pillar}</option>
+            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Tarefa Associada (Post Pendente) <span className="text-red-500">*</span></span>
+            <select value={selectedTaskId} onChange={(e) => setSelectedTaskId(e.target.value)} className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 rounded-2xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm text-[var(--color-atelier-grafite)] font-medium cursor-pointer transition-colors">
+              <option value="" className="text-gray-400">Selecione a tarefa a entregar...</option>
+              {pendingPostTasks.map(task => (
+                <option key={task.id} value={task.id}>
+                  {task.title} {task.deadline ? `- Entrega: ${new Date(task.deadline).toLocaleDateString('pt-BR')}` : ''}
+                </option>
               ))}
             </select>
           </div>
@@ -305,10 +312,10 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
 
           <button 
             onClick={handleCreatePost} 
-            disabled={isProcessing || !newPostImage} 
+            disabled={isProcessing || !newPostImage || !selectedTaskId} 
             className="w-full bg-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)] text-white py-5 rounded-[1.5rem] text-[11px] font-bold uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-2 mt-4 disabled:opacity-50 shadow-md shrink-0 hover:-translate-y-0.5 disabled:hover:translate-y-0"
           >
-            {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} Enviar para o Cliente
+            {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} Enviar para Validação
           </button>
         </div>
 
@@ -324,7 +331,7 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
               <div className="flex flex-col items-center justify-center h-full opacity-40 bg-white/30 rounded-[2rem] border border-white p-10 text-center">
                 <CheckCircle2 size={48} className="mb-4 text-[var(--color-atelier-terracota)]" />
                 <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Fluxo Limpo</h3>
-                <p className="font-roboto text-[13px] font-medium mt-2">Nenhuma arte gráfica aguardando análise deste cliente.</p>
+                <p className="font-roboto text-[13px] font-medium mt-2">Nenhuma arte gráfica aguardando análise para este cliente.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
@@ -347,17 +354,25 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
                         <div className="w-full aspect-square overflow-hidden shrink-0 relative bg-gray-50 border-b border-gray-100">
                           <img src={post.image_url} alt="Post" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                           <div className={`absolute top-4 left-4 backdrop-blur-xl px-3 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-widest border shadow-sm
-                            ${post.status === 'approved' ? 'bg-green-500/90 border-green-400 text-white' : post.status === 'needs_revision' ? 'bg-orange-500/90 border-orange-400 text-white' : 'bg-black/70 border-white/20 text-white'}
+                            ${post.status === 'approved' ? 'bg-green-500/90 border-green-400 text-white' 
+                            : post.status === 'needs_revision' ? 'bg-orange-500/90 border-orange-400 text-white' 
+                            : post.status === 'internal_review' ? 'bg-purple-500/90 border-purple-400 text-white' 
+                            : 'bg-black/70 border-white/20 text-white'}
                           `}>
-                            {post.status === 'approved' ? 'Aprovado' : post.status === 'needs_revision' ? 'Ajustes' : 'Em Análise'}
+                            {post.status === 'approved' ? 'Aprovado' : post.status === 'needs_revision' ? 'Ajustes' : post.status === 'internal_review' ? 'Revisão Interna' : 'Aguardando Cliente'}
                           </div>
                         </div>
                         
                         {/* Informações e Feedback */}
                         <div className="p-5 flex flex-col flex-1 bg-white">
-                          <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed mb-4 line-clamp-2 font-medium">
-                            {post.caption || <span className="italic opacity-50">Arte visual enviada sem legenda...</span>}
-                          </p>
+                          <div className="mb-4">
+                            <span className="font-roboto text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] mb-1 block">
+                              {post.title || "Post"}
+                            </span>
+                            <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/80 leading-relaxed line-clamp-2 font-medium">
+                              {post.caption || <span className="italic opacity-50">Arte visual enviada sem legenda...</span>}
+                            </p>
+                          </div>
                           
                           {postPins.length > 0 ? (
                             <div className="bg-[var(--color-atelier-creme)]/50 p-4 rounded-2xl border border-[var(--color-atelier-terracota)]/20 shadow-inner mt-auto">
@@ -375,7 +390,9 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
                           ) : (
                             <div className="mt-auto flex items-center gap-2 justify-center opacity-60 bg-gray-50 py-3 rounded-xl border border-gray-100">
                               {post.status === 'approved' ? (
-                                <><CheckCircle2 size={14} className="text-green-600"/><span className="text-[10px] font-bold uppercase tracking-widest text-green-700">Aprovado sem ajustes</span></>
+                                <><CheckCircle2 size={14} className="text-green-600"/><span className="text-[10px] font-bold uppercase tracking-widest text-green-700">Aprovado pelo cliente</span></>
+                              ) : post.status === 'internal_review' ? (
+                                <><Clock size={14} className="text-purple-600"/><span className="text-[10px] font-bold uppercase tracking-widest text-purple-700">Avaliação no Kanban</span></>
                               ) : (
                                 <><Clock size={14} className="text-[var(--color-atelier-grafite)]/50"/><span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60">Aguardando Avaliação</span></>
                               )}
@@ -392,9 +409,7 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
         </div>
       </div>
 
-      {/* ==========================================
-          MODAL: INSERIR LINK DO FIGMA
-          ========================================== */}
+      {/* MODAIS (Omitidos p/ focar no principal... preservado do original) */}
       <AnimatePresence>
         {isFigmaPromptOpen && (
           <div className="fixed inset-0 z-[250] flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm">
