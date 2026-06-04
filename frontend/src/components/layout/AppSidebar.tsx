@@ -200,9 +200,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               {clientServiceType === "Gestão de Instagram" ? (
                 <>
                   <NavItem href="/cockpit" icon={<LayoutDashboard size={18} strokeWidth={1.5} />} label="Cockpit" collapsed={isCollapsed} active={pathname === '/cockpit'} />
-                  <NavItem href="/brandbook" icon={<Sparkles size={18} strokeWidth={1.5} />} label="Brandbook" collapsed={isCollapsed} active={pathname === '/brandbook'} />
-                  <NavItem href="/curadoria" icon={<CheckCircle2 size={18} strokeWidth={1.5} />} label="Curadoria" collapsed={isCollapsed} active={pathname === '/curadoria'} />
-                </>
+                  <NavItem href="/brandbook" icon={<Sparkles size={18} strokeWidth={1.5} />} label="Brandbook" collapsed={isCollapsed} active={pathname === '/brandbook'} />                </>
               ) : (
                 <>
                   <NavItem href="/" icon={<Home size={18} strokeWidth={1.5} />} label="Cockpit" collapsed={isCollapsed} active={pathname === '/'} />

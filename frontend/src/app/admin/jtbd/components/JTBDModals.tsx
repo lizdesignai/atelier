@@ -9,7 +9,7 @@ interface JTBDModalsProps {
   setAdHocForm: (form: any) => void;
   projects: any[];
   team: any[];
-  handleFireGrenade: () => void;
+  handleFireGrenade: () => void; // A função que deve ser executada no pai
   adHocProcessing: boolean;
   earnedExpToast: { show: boolean; amount: number; msg: string };
 }
@@ -28,12 +28,10 @@ export default function JTBDModals({
 
   return (
     <>
-      {/* =========================================================================
-          MODAL: ADICIONAR PRIORIDADE (ADMIN/GESTOR)
-          ========================================================================= */}
+      {/* MODAL: ADICIONAR PRIORIDADE (ADMIN/GESTOR) */}
       <AnimatePresence>
         {isAdHocModalOpen && (
-          <div className="fixed inset-0 z-[400] flex items-center justify-center px-4">
+          <div className="fixed inset-0 z-[500] flex items-center justify-center px-4">
             <motion.div 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
@@ -50,7 +48,7 @@ export default function JTBDModals({
               <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <div>
                   <h3 className="font-elegant text-3xl text-orange-600 flex items-center gap-2">
-                    <Flame size={24}/> Nova Prioridade (Ad-Hoc)
+                    <Flame size={24}/> Nova Prioridade
                   </h3>
                   <p className="font-roboto text-[11px] font-bold text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest mt-1">
                     Atribuição direta de tarefa urgente
@@ -75,7 +73,7 @@ export default function JTBDModals({
                   onChange={(e) => setAdHocForm({...adHocForm, projectId: e.target.value})} 
                   className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-orange-500 shadow-sm"
                 >
-                  <option value="" disabled>Selecione o Projeto do Cliente...</option>
+                  <option value="" disabled>Selecione o Projeto...</option>
                   {projects.map(p => <option key={p.id} value={p.id}>{p.profiles?.nome}</option>)}
                 </select>
 
@@ -90,7 +88,7 @@ export default function JTBDModals({
 
                 <div className="flex gap-4">
                   <div className="flex flex-col gap-1.5 w-1/2">
-                    <span className="font-roboto text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/50 ml-1">Deadline Crucial</span>
+                    <span className="font-roboto text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/50 ml-1">Deadline</span>
                     <input 
                       type="datetime-local" 
                       value={adHocForm.deadline} 
@@ -120,7 +118,7 @@ export default function JTBDModals({
               <button 
                 onClick={handleFireGrenade} 
                 disabled={adHocProcessing || !adHocForm.title || !adHocForm.projectId || !adHocForm.assigneeId || !adHocForm.deadline} 
-                className="w-full mt-2 bg-orange-500 text-white py-4 rounded-xl text-[12px] font-bold uppercase tracking-widest shadow-[0_10px_20px_rgba(249,115,22,0.3)] hover:bg-orange-600 transition-colors flex justify-center items-center gap-2 disabled:opacity-50"
+                className="w-full mt-2 bg-orange-500 text-white py-4 rounded-xl text-[12px] font-bold uppercase tracking-widest shadow-[0_10px_20px_rgba(249,115,22,0.3)] hover:bg-orange-600 transition-all flex justify-center items-center gap-2 disabled:opacity-50"
               >
                 {adHocProcessing ? <Loader2 size={16} className="animate-spin"/> : "Atribuir Prioridade"}
               </button>
@@ -129,16 +127,14 @@ export default function JTBDModals({
         )}
       </AnimatePresence>
 
-      {/* =========================================================================
-          FEEDBACK GAMIFICAÇÃO NA TELA (EXP TOAST)
-          ========================================================================= */}
+      {/* FEEDBACK GAMIFICAÇÃO */}
       <AnimatePresence>
         {earnedExpToast.show && (
           <motion.div 
             initial={{ opacity: 0, y: 50, scale: 0.9 }} 
             animate={{ opacity: 1, y: 0, scale: 1 }} 
             exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed bottom-10 right-10 z-[500] bg-[var(--color-atelier-grafite)] text-white p-6 rounded-3xl shadow-2xl flex items-center gap-5 border border-white/10"
+            className="fixed bottom-10 right-10 z-[600] bg-[var(--color-atelier-grafite)] text-white p-6 rounded-3xl shadow-2xl flex items-center gap-5 border border-white/10"
           >
             <div className={`w-14 h-14 rounded-full flex items-center justify-center text-2xl ${earnedExpToast.amount > 0 ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}`}>
               <Award size={28} />

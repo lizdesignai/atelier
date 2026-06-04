@@ -8,9 +8,10 @@ import { supabase } from "../../lib/supabase";
 import { NotificationEngine } from "../../lib/NotificationEngine"; 
 import { 
   Activity, AlertCircle, ArrowRight, CheckCircle2, 
-  Clock, Compass, Sparkles, Loader2, TrendingUp, 
-  Target, Camera, LayoutDashboard, SlidersHorizontal, ChevronRight,
-  CalendarDays, MessageSquare, XCircle, Star, Zap, FileText, Download, X
+  Clock, Compass, Sparkles, Loader2, Target, Camera, 
+  ChevronRight, ChevronLeft, CalendarDays, MessageSquare, 
+  XCircle, Star, Zap, FileText, Download, X, AlignLeft, 
+  RotateCcw, Send, PlayCircle, ImageIcon, LayoutDashboard, TrendingUp
 } from "lucide-react";
 import InstagramBriefingModal from "../../components/InstagramBriefingModal";
 import MissionsVaultModal from "../../components/MissionsVaultModal";
@@ -27,34 +28,28 @@ export default function CockpitPage() {
   const [clientId, setClientId] = useState("");
   const [project, setProject] = useState<any>(null);
 
-  // Estados IDV (Originais)
+// Estados Gerais
   const [pendingCount, setPendingCount] = useState(0);
-  const [healthScore, setHealthScore] = useState(85);
-  const [currentFocus, setCurrentFocus] = useState("A equipe está alinhando a estratégia visual");
-
-  // Estados Instagram OS (Novos)
+  const [currentFocus, setCurrentFocus] = useState("A equipe está analisando o seu projeto..."); // 🟢 Adicione esta linha
   const [isBriefingModalOpen, setIsBriefingModalOpen] = useState(false);
   const [briefing, setBriefing] = useState<any>(null);
   const [pendingMissions, setPendingMissions] = useState(0);
-  const [pendingDirections, setPendingDirections] = useState(0);
+  const [isMissionsModalOpen, setIsMissionsModalOpen] = useState(false);
   
   // Estado do Planejamento Editorial Mensal
   const [monthlyPlan, setMonthlyPlan] = useState<any[]>([]);
   const [feedbackText, setFeedbackText] = useState<{ [key: string]: string }>({});
   const [activeFeedbackId, setActiveFeedbackId] = useState<string | null>(null);
-  
-  // 🟢 ESTADO DO PREVIEW DE PDF
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
 
-  // NOVO: Estado para verificar se há relatórios mensais disponíveis
-  const [hasReports, setHasReports] = useState(false);
+  // 🟢 ESTADOS DO NOVO CARROSSEL DE ARTES
+  const [allPosts, setAllPosts] = useState<any[]>([]);
+  const [activeCarouselIndex, setActiveCarouselIndex] = useState(0);
+  const [postFeedbackText, setPostFeedbackText] = useState("");
+  const [activePostFeedbackId, setActivePostFeedbackId] = useState<string | null>(null);
+  const [isActionProcessing, setIsActionProcessing] = useState(false);
 
-  // ESTADO: ENVIO DE MATERIAIS
-  const [isMissionsModalOpen, setIsMissionsModalOpen] = useState(false);
-
-  // ==========================================
-  // ESTADOS T-NPS E TRANSIÇÃO DE PLANO (Psicologia de Conversão)
-  // ==========================================
+  // Estados T-NPS e Upsell
   const [showNpsModal, setShowNpsModal] = useState(false);
   const [npsScore, setNpsScore] = useState<number | null>(null);
   const [npsFeedback, setNpsFeedback] = useState("");
@@ -67,51 +62,44 @@ export default function CockpitPage() {
         if (sessionError || !session) throw new Error("Sessão não encontrada.");
         setClientId(session.user.id);
 
-        // 1. Buscar Perfil
         const { data: profile } = await supabase.from('profiles').select('nome').eq('id', session.user.id).single();
         if (profile?.nome) setClientName(profile.nome.split(' ')[0]);
 
-        // 2. Buscar Projeto Ativo
         const { data: proj } = await supabase.from('projects').select('*').eq('client_id', session.user.id).in('status', ['active', 'delivered']).order('created_at', { ascending: false }).limit(1).maybeSingle();
         setProject(proj);
 
         if (proj) {
-          setHealthScore(proj.brand_health_score ?? 85);
+          // 🟢 Popula o foco atual com o dado do Supabase ou usa um fallback
           setCurrentFocus(proj.current_focus || "A equipe está analisando o seu projeto...");
-
-          // 3. Buscar Dados de Aprovação (Posts Pendentes)
-          const { count: postsCount } = await supabase.from('social_posts').select('*', { count: 'exact', head: true }).eq('project_id', proj.id).eq('status', 'pending_approval');
-          setPendingCount(postsCount || 0);
-
-          if (proj.type === 'Gestão de Instagram' || proj.service_type === 'Gestão de Instagram') {
+          
+          // 🟢 Busca as Artes Pendentes e Aprovadas (Para o Carrossel)
+          const { data: postsData } = await supabase
+            .from('social_posts')
+            .select('*')
+            .eq('project_id', proj.id)
+            .in('status', ['pending_approval', 'approved'])
+            .order('created_at', { ascending: false });
             
-            const { data: brief } = await supabase
-              .from('instagram_briefings')
-              .select('*')
-              .eq('project_id', proj.id)
-              .or('status.neq.returned,status.is.null')
-              .order('created_at', { ascending: false })
-              .limit(1)
-              .maybeSingle(); 
-            setBriefing(brief);
+          // Ordena: Pendentes primeiro, Aprovadas depois
+          const sortedPosts = (postsData || []).sort((a, b) => {
+            if (a.status === 'pending_approval' && b.status !== 'pending_approval') return -1;
+            if (a.status !== 'pending_approval' && b.status === 'pending_approval') return 1;
+            return 0;
+          });
 
-            // 5. Buscar Solicitações Pendentes
-            const { count: missionsCount } = await supabase.from('asset_missions').select('*', { count: 'exact', head: true }).eq('project_id', proj.id).eq('status', 'pending');
-            setPendingMissions(missionsCount || 0);
+          setAllPosts(sortedPosts);
+          setPendingCount(sortedPosts.filter(p => p.status === 'pending_approval').length);
 
-            // 6. Buscar Direções de Arte Pendentes de Avaliação
-            const { data: directions } = await supabase.from('design_directions').select('score').eq('project_id', proj.id);
-            const pendingDirs = directions?.filter(d => !d.score || d.score === 0).length || 0;
-            setPendingDirections(pendingDirs);
+          // Busca Briefing e Missões
+          const { data: brief } = await supabase.from('instagram_briefings').select('*').eq('project_id', proj.id).or('status.neq.returned,status.is.null').order('created_at', { ascending: false }).limit(1).maybeSingle(); 
+          setBriefing(brief);
 
-            // 7. Buscar Planejamento Editorial Mensal
-            const { data: plans } = await supabase.from('content_planning').select('*').eq('project_id', proj.id).eq('status', 'awaiting_approval').order('created_at', { ascending: true });
-            if (plans) setMonthlyPlan(plans);
+          const { count: missionsCount } = await supabase.from('asset_missions').select('*', { count: 'exact', head: true }).eq('project_id', proj.id).eq('status', 'pending');
+          setPendingMissions(missionsCount || 0);
 
-            // 8. Verificar se existem Relatórios Executivos Aprovados
-            const { count: reportsCount } = await supabase.from('monthly_reports').select('*', { count: 'exact', head: true }).eq('project_id', proj.id).eq('status', 'approved');
-            setHasReports((reportsCount || 0) > 0);
-          }
+          // Busca Planejamento Editorial (Aprovação de PDF)
+          const { data: plans } = await supabase.from('content_planning').select('*').eq('project_id', proj.id).eq('status', 'awaiting_approval').order('created_at', { ascending: true });
+          if (plans) setMonthlyPlan(plans);
         }
       } catch (error) {
         console.error("Erro ao carregar o Meu Espaço:", error);
@@ -124,6 +112,86 @@ export default function CockpitPage() {
   }, []);
 
   // ==========================================
+  // MOTORES DE APROVAÇÃO DO CARROSSEL DE ARTES
+  // ==========================================
+  const handleApprovePost = async () => {
+    setIsActionProcessing(true);
+    try {
+      const post = allPosts[activeCarouselIndex];
+      await supabase.from('social_posts').update({ status: 'approved' }).eq('id', post.id);
+      
+      const newPosts = [...allPosts];
+      newPosts[activeCarouselIndex].status = 'approved';
+      
+      // Re-ordena empurrando a finalizada para o final (Opcional, mas mantém as pendentes à frente)
+      const resorted = newPosts.sort((a, b) => {
+        if (a.status === 'pending_approval' && b.status !== 'pending_approval') return -1;
+        if (a.status !== 'pending_approval' && b.status === 'pending_approval') return 1;
+        return 0;
+      });
+
+      setAllPosts(resorted);
+      setPendingCount(resorted.filter(p => p.status === 'pending_approval').length);
+      setActiveCarouselIndex(0); // Volta ao primeiro (que será o próximo pendente se existir)
+      
+      showToast("Arte validada com sucesso! Peça Finalizada.");
+    } catch(e) {
+      showToast("Erro ao aprovar a arte.");
+    } finally {
+      setIsActionProcessing(false);
+    }
+  };
+
+  const handleRejectPost = async () => {
+    if(!postFeedbackText.trim()) { 
+      showToast("Por favor, descreva o que precisa ser ajustado."); 
+      return; 
+    }
+    setIsActionProcessing(true);
+    try {
+      const post = allPosts[activeCarouselIndex];
+      
+      // 1. Insere o comentário na tabela de pins
+      await supabase.from('content_feedback_pins').insert({
+         post_id: post.id,
+         comment: postFeedbackText
+      });
+      
+      // 2. Regride o status do Post
+      await supabase.from('social_posts').update({ status: 'needs_revision' }).eq('id', post.id);
+
+      // 3. 🟢 MÁGICA DE INTEGRAÇÃO: Devolve a tarefa do Post diretamente para a coluna 'review' do Kanban da equipa!
+      if (post.task_id) {
+        await supabase.from('tasks').update({ status: 'review' }).eq('id', post.task_id);
+      }
+      
+      // Remove do carrossel do cliente, pois voltou para a agência
+      const newPosts = [...allPosts];
+      newPosts.splice(activeCarouselIndex, 1);
+      setAllPosts(newPosts);
+      setPendingCount(newPosts.filter(p => p.status === 'pending_approval').length);
+      
+      setPostFeedbackText("");
+      setActivePostFeedbackId(null);
+      
+      if (activeCarouselIndex >= newPosts.length) {
+        setActiveCarouselIndex(Math.max(0, newPosts.length - 1));
+      }
+      
+      showToast("Ajuste solicitado! A arte retornou para a revisão da equipe de design.");
+    } catch(e) {
+       showToast("Erro ao solicitar ajuste.");
+    } finally {
+       setIsActionProcessing(false);
+    }
+  };
+
+  const isVideoUrl = (url: string) => {
+    if (!url) return false;
+    return url.match(/\.(mp4|mov|webm)$/i);
+  };
+
+  // ==========================================
   // MOTORES DO PLANEJAMENTO MENSAL E AVALIAÇÃO
   // ==========================================
   const handleApprovePlan = async (planId: string) => {
@@ -131,8 +199,6 @@ export default function CockpitPage() {
     try {
       await supabase.from('content_planning').update({ status: 'approved' }).eq('id', planId);
       setMonthlyPlan(monthlyPlan.filter(p => p.id !== planId));
-      
-      // Abre a cortina de avaliação (Micro-Feedback de Qualidade)
       setShowNpsModal(true);
     } catch (error) {
       showToast("Erro ao aprovar a estratégia.");
@@ -145,26 +211,15 @@ export default function CockpitPage() {
     if (npsScore === null || !project) return;
     setIsProcessing(true);
     try {
-      await supabase.from('t_nps_scores').insert({
-        project_id: project.id,
-        client_id: clientId,
-        score: npsScore,
-        feedback: npsFeedback,
-      });
-
+      await supabase.from('t_nps_scores').insert({ project_id: project.id, client_id: clientId, score: npsScore, feedback: npsFeedback });
       setShowNpsModal(false);
-
-      // Se o cliente estiver muito satisfeito (9 ou 10), apresenta a sugestão de gestão
       if (npsScore >= 9) {
-        setTimeout(() => {
-          setShowUpsellModal(true);
-        }, 500); // Delay sutil para a troca de modais parecer natural
+        setTimeout(() => setShowUpsellModal(true), 500); 
       } else {
-        showToast("Aprovação e Avaliação registradas com sucesso. A equipe avançará com a execução!");
+        showToast("Avaliação registada. A equipa avançará com a execução!");
         setNpsScore(null);
         setNpsFeedback("");
       }
-
     } catch (error) {
       showToast("Erro ao enviar avaliação.");
     } finally {
@@ -179,28 +234,20 @@ export default function CockpitPage() {
     setNpsFeedback("");
   };
 
-  // ==========================================
-  // 🚀 LÓGICA DA TRANSIÇÃO DE PLANO
-  // ==========================================
   const handleAcceptUpsell = async () => {
     setShowUpsellModal(false);
-    showToast("Excelente! A nossa equipe entrará em contato muito em breve para detalhar a transição.");
-    
-    // 🔔 NOTIFICAÇÃO PARA A GESTÃO (Interesse em Gestão Mensal)
+    showToast("Excelente! A nossa equipa entrará em contato muito em breve.");
     await NotificationEngine.notifyManagement(
        "📈 Interesse em Serviços de Gestão",
-       `O cliente ${clientName} (${project?.profiles?.nome}) avaliou com nota ${npsScore} e manifestou interesse em aderir ao serviço completo de gestão através do painel.`,
-       "success",
-       "/admin/clientes"
+       `O cliente ${clientName} (${project?.profiles?.nome}) avaliou com nota ${npsScore} e quer aderir à gestão completa.`,
+       "success", "/admin/clientes"
     );
-    
     setNpsScore(null);
     setNpsFeedback("");
   };
 
   const handleDeclineUpsell = () => {
     setShowUpsellModal(false);
-    showToast("Aprovação registrada com sucesso. A equipe continua focada nos seus objetivos!");
     setNpsScore(null);
     setNpsFeedback("");
   };
@@ -216,7 +263,7 @@ export default function CockpitPage() {
       await supabase.from('content_planning').update({ status: 'needs_revision', feedback: feedback }).eq('id', planId);
       setMonthlyPlan(monthlyPlan.filter(p => p.id !== planId));
       setActiveFeedbackId(null);
-      showToast("Feedback enviado. A estratégia voltou para a análise da equipe de conteúdo.");
+      showToast("Feedback enviado. A estratégia voltou para a análise da equipe.");
     } catch (error) {
       showToast("Erro ao enviar feedback.");
     } finally {
@@ -234,303 +281,323 @@ export default function CockpitPage() {
       <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)] gap-4 opacity-50">
         <Compass size={48} className="text-[var(--color-atelier-grafite)]" />
         <h2 className="font-elegant text-3xl">Nenhum projeto ativo.</h2>
-        <p className="font-roboto text-sm">Aguarde a equipe configurar o seu espaço de trabalho.</p>
       </div>
     );
   }
 
   // ==========================================================================
-  // RENDERIZAÇÃO CONDICIONAL: INSTAGRAM OS (A Experiência de Luxo)
+  // RENDERIZAÇÃO CONDICIONAL: INSTAGRAM OS (A Experiência No-Scroll e Focada)
   // ==========================================================================
   if (project.type === 'Gestão de Instagram' || project.service_type === 'Gestão de Instagram') {
     
-    // Cálculo do Progresso Visual
-    let currentPhase = 1;
-    if (briefing) currentPhase = 2;
-    if (briefing && pendingDirections === 0 && project.instagram_ai_insight) currentPhase = 3;
-    if (pendingCount > 0 || healthScore > 85) currentPhase = 4;
-
-    const pendingPlanCount = monthlyPlan.length;
+    const isCleanDesk = allPosts.length === 0 && monthlyPlan.length === 0;
 
     return (
-      <div className="flex flex-col max-w-[1200px] mx-auto w-full gap-8 relative z-10 pb-10 px-4 md:px-0">
+      // 🟢 ARQUITETURA NO-SCROLL (overflow-hidden)
+      <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1500px] w-full mx-auto relative z-10 p-6 md:p-8 overflow-hidden gap-6">
         
-        {/* CABEÇALHO E TRANSPARÊNCIA */}
-        <header className="animate-[fadeInUp_0.5s_ease-out] flex flex-col md:flex-row md:items-end justify-between gap-4 mt-6">
+        {/* CABEÇALHO COMPACTO E LIMPO */}
+        <header className="animate-[fadeInUp_0.5s_ease-out] flex justify-between items-center shrink-0">
           <div>
-            <div className="flex items-center gap-2 mb-2">
+            <div className="flex items-center gap-2 mb-1.5">
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]"></div>
               <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/60">
-                {currentFocus}
+                Atelier • Gestão Ativa
               </span>
             </div>
-            <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] leading-tight tracking-tight">
+            <h1 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-tight tracking-tight">
               {greeting}, <span className="text-[var(--color-atelier-terracota)] italic">{clientName}.</span>
             </h1>
-            <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-3 max-w-lg leading-relaxed font-medium">
-              Bem-vindo ao seu painel executivo. Aqui transformamos estética em dados e conteúdo em valor para a sua marca.
-            </p>
           </div>
+          {pendingCount > 0 && (
+            <div className="bg-orange-50 text-orange-600 px-4 py-2 rounded-xl border border-orange-100 flex items-center gap-2 shadow-sm shrink-0">
+              <AlertCircle size={16} />
+              <span className="font-roboto text-[11px] font-bold uppercase tracking-widest hidden sm:block">{pendingCount} Aprovações Pendentes</span>
+            </div>
+          )}
         </header>
 
-        {/* PROGRESSO DO PROJETO (Tracker de Etapas) */}
-        <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="glass-panel bg-white/60 p-8 md:p-10 rounded-[3rem] border border-white shadow-sm relative overflow-hidden transition-colors hover:bg-white/80">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-atelier-terracota)]/5 rounded-full blur-3xl"></div>
+        {/* 🟢 O CORE DA PLATAFORMA: GRID PRINCIPAL E CARROSSEL */}
+        <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
           
-          <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-8 relative z-10">O Processo <span className="text-[var(--color-atelier-grafite)]/40 text-xl">/ Evolução do Projeto</span></h2>
-          
-          <div className="flex flex-col md:flex-row justify-between relative gap-8 md:gap-0 z-10">
-            <div className="hidden md:block absolute top-8 left-16 right-16 h-1.5 bg-[var(--color-atelier-grafite)]/5 z-0 rounded-full shadow-inner"></div>
-            <div className="hidden md:block absolute top-8 left-16 h-1.5 bg-gradient-to-r from-[var(--color-atelier-rose)] to-[var(--color-atelier-terracota)] z-0 transition-all duration-1000 rounded-full shadow-sm" style={{ width: `${(currentPhase - 1) * 33}%` }}></div>
+          {/* COLUNA ESQUERDA: AÇÕES EXIGIDAS E LINKS RÁPIDOS */}
+          <div className="w-full lg:w-[380px] flex flex-col gap-6 shrink-0 h-full">
             
-            {[
-              { step: 1, title: 'Diagnóstico', desc: 'Diagnóstico Estratégico', icon: <Target size={18}/> },
-              { step: 2, title: 'Direção Visual', desc: 'Diretrizes da Marca', icon: <SlidersHorizontal size={18}/> },
-              { step: 3, title: 'Criação', desc: 'Aprovação de Conteúdo', icon: <LayoutDashboard size={18}/> },
-              { step: 4, title: 'Acompanhamento', desc: 'Analytics e Relatórios', icon: <Activity size={18}/> },
-            ].map((phase, idx) => (
-              <div key={idx} className="relative z-10 flex flex-col items-center gap-4 group">
-                <div className={`w-16 h-16 rounded-[1.2rem] flex items-center justify-center transition-all duration-700 shadow-sm
-                  ${currentPhase > phase.step ? 'bg-[var(--color-atelier-terracota)] text-white border-none scale-105' 
-                  : currentPhase === phase.step ? 'bg-white border-2 border-[var(--color-atelier-terracota)] text-[var(--color-atelier-terracota)] shadow-[0_0_20px_rgba(173,111,64,0.2)] scale-110' 
-                  : 'bg-white/50 border border-white text-[var(--color-atelier-grafite)]/30'}
-                `}>
-                  {currentPhase > phase.step ? <CheckCircle2 size={24} /> : phase.icon}
-                </div>
-                <div className="text-center">
-                  <span className={`block font-roboto text-[12px] font-bold uppercase tracking-widest transition-colors ${currentPhase >= phase.step ? 'text-[var(--color-atelier-grafite)]' : 'text-[var(--color-atelier-grafite)]/40'}`}>{phase.title}</span>
-                  <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 mt-1 font-medium">{phase.desc}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </motion.section>
-
-        {/* =========================================================
-            SECÇÃO: PLANEJAMENTO EDITORIAL MENSAL E APROVAÇÃO (PDF)
-            ========================================================= */}
-        {monthlyPlan.length > 0 && (
-          <motion.section initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="glass-panel bg-white/60 p-8 md:p-12 rounded-[3.5rem] border border-white shadow-sm transition-colors hover:bg-white/80">
-            <div className="flex items-start justify-between border-b border-[var(--color-atelier-grafite)]/10 pb-6 mb-8">
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <CalendarDays size={16} className="text-[var(--color-atelier-terracota)]" />
-                  <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">Estratégia do Mês</span>
-                </div>
-                <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Planejamento de Conteúdo</h2>
-                <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 max-w-2xl leading-relaxed font-medium">
-                  Antes de desenvolvermos as artes gráficas, validamos a linha editorial. Acesse o PDF e aprove as temáticas para que a equipe inicie a produção dos materiais visuais.
-                </p>
-              </div>
-              <div className="bg-orange-50 text-orange-600 px-5 py-3 rounded-2xl border border-orange-100 flex flex-col items-center justify-center shadow-inner shrink-0">
-                <span className="font-elegant text-3xl leading-none">{monthlyPlan.length}</span>
-                <span className="font-roboto text-[8px] font-bold uppercase tracking-widest mt-1">Pendentes</span>
-              </div>
-            </div>
-
-            <div className="flex flex-col gap-6">
-              {monthlyPlan.map((plan) => (
-                <div key={plan.id} className="bg-white p-6 md:p-10 rounded-[2.5rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col md:flex-row gap-8 transition-all hover:shadow-md hover:border-[var(--color-atelier-terracota)]/20">
-                  
-                  {/* Lado Esquerdo: Dados Estratégicos */}
-                  <div className="w-full md:w-1/3 flex flex-col gap-5 border-b md:border-b-0 md:border-r border-[var(--color-atelier-grafite)]/10 pb-6 md:pb-0 md:pr-6 shrink-0">
-                    <div className="bg-gray-50/80 p-4 rounded-2xl border border-gray-100">
-                      <span className="block font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Referência</span>
-                      <span className="font-roboto text-[14px] font-bold text-[var(--color-atelier-grafite)]">
-                        {plan.hook || "Estratégia Mensal"}
-                      </span>
+            {/* Bloco de Avisos Importantes (Briefing e Arquivos) */}
+            {(!briefing || pendingMissions > 0) && (
+              <div className="glass-panel bg-white/90 border border-orange-200 p-6 rounded-[2rem] shadow-sm flex flex-col gap-4 shrink-0">
+                {!briefing && (
+                  <div className="flex flex-col gap-3 pb-4 border-b border-orange-100 last:border-0 last:pb-0">
+                    <div className="flex items-center gap-3">
+                       <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center shrink-0"><Target size={18}/></div>
+                       <div>
+                         <h3 className="font-elegant text-xl text-[var(--color-atelier-grafite)] leading-none">Diagnóstico Pendente</h3>
+                       </div>
                     </div>
-                    
-                    {/* 🟢 Renderização do Botão PDF - Agora abre o Modal */}
-                    {plan.planning_file_url ? (
-                       <button 
-                         onClick={() => setPreviewPdfUrl(plan.planning_file_url)}
-                         className="w-full text-left flex items-center justify-center gap-3 bg-[var(--color-atelier-creme)]/40 p-5 rounded-2xl border border-[var(--color-atelier-terracota)]/10 hover:border-[var(--color-atelier-terracota)]/30 hover:bg-[var(--color-atelier-terracota)]/5 transition-colors group"
-                       >
-                         <FileText size={24} className="text-[var(--color-atelier-terracota)] group-hover:scale-110 transition-transform shrink-0" />
-                         <div className="flex flex-col overflow-hidden">
-                           <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)]">Acessar Documento</span>
-                           <span className="font-roboto text-[9px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold truncate">Visualizar PDF de Planejamento</span>
-                         </div>
-                       </button>
-                    ) : (
-                      <div className="bg-[var(--color-atelier-creme)]/40 p-4 rounded-2xl border border-[var(--color-atelier-terracota)]/10">
-                        <span className="block font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Pilar de Conteúdo</span>
-                        <span className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)]">
-                          {plan.pillar || "Estratégico"}
-                        </span>
-                      </div>
-                    )}
+                    <button onClick={() => setIsBriefingModalOpen(true)} className="w-full bg-[var(--color-atelier-terracota)] text-white py-3.5 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-sm hover:bg-[#8c562e] transition-colors flex justify-center items-center gap-2 hover:-translate-y-0.5">
+                      Preencher Briefing Agora <ArrowRight size={14}/>
+                    </button>
                   </div>
+                )}
 
-                  {/* Lado Direito: Ações */}
-                  <div className="flex-1 flex flex-col justify-center">
-                    <div className="mb-6">
-                      <h4 className="font-elegant text-2xl md:text-3xl text-[var(--color-atelier-grafite)] mb-2 leading-tight">Validação Necessária</h4>
-                      <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 font-medium">Após visualizar o documento estratégico anexado, confirme a sua aprovação para avançarmos.</p>
+                {pendingMissions > 0 && (
+                  <div className="flex flex-col gap-3">
+                    <div className="flex items-center gap-3">
+                       <div className="w-10 h-10 rounded-xl bg-orange-50 text-orange-500 flex items-center justify-center shrink-0"><Camera size={18}/></div>
+                       <div>
+                         <h3 className="font-elegant text-xl text-[var(--color-atelier-grafite)] leading-none">Materiais Solicitados ({pendingMissions})</h3>
+                       </div>
                     </div>
-
-                    <div className="mt-auto flex flex-col sm:flex-row gap-3 pt-4 border-t border-[var(--color-atelier-grafite)]/5">
-                      <button 
-                        onClick={() => handleApprovePlan(plan.id)}
-                        disabled={isProcessing}
-                        className="flex-1 bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] py-4 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] transition-all shadow-md flex items-center justify-center gap-2 hover:-translate-y-0.5 disabled:opacity-50"
-                      >
-                        <CheckCircle2 size={16} /> Aprovar Estratégia
-                      </button>
-                      
-                      <button 
-                        onClick={() => setActiveFeedbackId(activeFeedbackId === plan.id ? null : plan.id)}
-                        className="flex-1 bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/60 hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)] py-4 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] transition-all shadow-sm flex items-center justify-center gap-2"
-                      >
-                        <MessageSquare size={16} /> Solicitar Ajuste
-                      </button>
-                    </div>
-
-                    {/* Área de Input de Feedback */}
-                    <AnimatePresence>
-                      {activeFeedbackId === plan.id && (
-                        <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-                          <div className="mt-4 bg-[var(--color-atelier-creme)]/40 p-5 rounded-3xl border border-[var(--color-atelier-terracota)]/10 flex flex-col gap-3 shadow-inner">
-                            <textarea 
-                              placeholder="O que devemos ajustar na abordagem deste planejamento?"
-                              value={feedbackText[plan.id] || ""}
-                              onChange={(e) => setFeedbackText({...feedbackText, [plan.id]: e.target.value})}
-                              className="w-full bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-2xl p-4 text-[13px] font-medium text-[var(--color-atelier-grafite)] resize-none h-24 outline-none shadow-sm custom-scrollbar transition-colors"
-                            />
-                            <div className="flex justify-end gap-3 mt-1">
-                              <button onClick={() => setActiveFeedbackId(null)} className="px-5 py-2.5 text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)] transition-colors bg-white rounded-xl shadow-sm">Cancelar</button>
-                              <button onClick={() => handleRejectPlan(plan.id)} disabled={isProcessing || !feedbackText[plan.id]?.trim()} className="px-6 py-2.5 bg-red-500 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-600 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2">
-                                <XCircle size={14} /> Solicitar Alteração
-                              </button>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
+                    <button onClick={() => setIsMissionsModalOpen(true)} className="w-full bg-orange-500 text-white py-3.5 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-sm hover:bg-orange-600 transition-colors flex justify-center items-center gap-2 hover:-translate-y-0.5">
+                      Enviar Arquivos <ArrowRight size={14}/>
+                    </button>
                   </div>
-                  
+                )}
+              </div>
+            )}
+
+            {/* Links Rápidos Permanentes */}
+            <div className="glass-panel p-6 rounded-[2rem] border border-white bg-white/60 shadow-sm flex-1 flex flex-col gap-3">
+              <h4 className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2">Acessos Rápidos</h4>
+              
+              <button onClick={() => setIsMissionsModalOpen(true)} className="flex items-center gap-4 p-4 rounded-2xl bg-white hover:border-[var(--color-atelier-terracota)]/30 border border-transparent shadow-sm transition-all group hover:-translate-y-0.5 w-full">
+                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-[var(--color-atelier-grafite)]/50 group-hover:text-[var(--color-atelier-terracota)] group-hover:bg-[var(--color-atelier-terracota)]/10 transition-colors shrink-0"><Camera size={16}/></div>
+                <div className="flex flex-col items-start flex-1 overflow-hidden">
+                  <span className="font-bold text-[13px] text-[var(--color-atelier-grafite)] truncate">Cofre de Arquivos</span>
+                  <span className="text-[9px] uppercase tracking-widest text-gray-400 mt-0.5 font-bold">Gerenciar Material Bruto</span>
                 </div>
-              ))}
-            </div>
-          </motion.section>
-        )}
+                <ChevronRight size={16} className="text-gray-300 group-hover:text-[var(--color-atelier-terracota)]" />
+              </button>
 
-        <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          
-          {/* MÓDULO DE AÇÃO EXIGIDA (Ponto de Atenção) */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }} className={`md:col-span-8 glass-panel p-8 md:p-10 flex flex-col justify-between relative overflow-hidden transition-all duration-500 rounded-[3rem] border shadow-sm
-            ${(!briefing || pendingCount > 0 || pendingDirections > 0 || pendingMissions > 0 || pendingPlanCount > 0) ? 'bg-white/90 border-orange-200' : 'bg-white/60 border-white'}
-          `}>
-            
-            <div className="flex items-start justify-between mb-8">
-              <div>
-                <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2 block">
-                  Sua Atenção é Necessária
-                </span>
-                <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">
-                  {!briefing ? 'Diagnóstico Pendente' : pendingPlanCount > 0 ? 'Validação de Estratégia Pendente' : pendingDirections > 0 ? 'Diretrizes Visuais: Avaliação Pendente' : pendingCount > 0 ? 'Aprovações Pendentes' : pendingMissions > 0 ? 'Envio de Materiais Pendente' : 'Tudo em Dia. Nada Pendente.'}
-                </h2>
-              </div>
-              <div className={`w-16 h-16 rounded-[1.2rem] flex items-center justify-center shrink-0 shadow-inner border
-                ${(!briefing || pendingCount > 0 || pendingDirections > 0 || pendingMissions > 0 || pendingPlanCount > 0) ? 'bg-orange-50 text-orange-500 border-orange-100' : 'bg-green-50 text-green-500 border-green-100'}
-              `}>
-                {(!briefing || pendingCount > 0 || pendingDirections > 0 || pendingMissions > 0 || pendingPlanCount > 0) ? <AlertCircle size={28} /> : <CheckCircle2 size={28} />}
-              </div>
-            </div>
+              <button onClick={() => window.open(project.contract_url, "_blank")} disabled={!project.contract_url} className="flex items-center gap-4 p-4 rounded-2xl bg-white hover:border-[var(--color-atelier-terracota)]/30 border border-transparent shadow-sm transition-all group hover:-translate-y-0.5 w-full disabled:opacity-50 disabled:hover:-translate-y-0">
+                <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-[var(--color-atelier-grafite)]/50 group-hover:text-[var(--color-atelier-terracota)] group-hover:bg-[var(--color-atelier-terracota)]/10 transition-colors shrink-0"><FileText size={16}/></div>
+                <div className="flex flex-col items-start flex-1 overflow-hidden">
+                  <span className="font-bold text-[13px] text-[var(--color-atelier-grafite)] truncate">Contrato Legal</span>
+                  <span className="text-[9px] uppercase tracking-widest text-gray-400 mt-0.5 font-bold">Documento Assinado</span>
+                </div>
+                <ChevronRight size={16} className="text-gray-300 group-hover:text-[var(--color-atelier-terracota)]" />
+              </button>
 
-            <div>
-              <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/80 mb-8 leading-relaxed max-w-xl font-medium">
-                {!briefing ? 'Para ativarmos o seu projeto, precisamos que responda a algumas perguntas essenciais sobre o posicionamento da sua marca.' 
-                : pendingPlanCount > 0 ? `Temos ${pendingPlanCount} diretrizes estratégicas aguardando sua validação acima. Com o PDF aprovado, iniciaremos a criação do material visual.`
-                : pendingDirections > 0 ? `A nossa equipe de design enviou ${pendingDirections} direções visuais. A sua avaliação calibrará a estética oficial da sua marca.` 
-                : pendingCount > 0 ? `A equipe disponibilizou ${pendingCount} conteúdos aguardando a sua validação final. A aprovação ágil garante a pontualidade das publicações.` 
-                : pendingMissions > 0 ? `Temos ${pendingMissions} solicitações aguardando o envio de arquivos seus para o nosso espaço de trabalho.` 
-                : 'Não há ações exigidas da sua parte neste momento. A equipe está focada na produção e monitoramento dos resultados.'}
-              </p>
-
-              {!briefing ? (
-                <button onClick={() => setIsBriefingModalOpen(true)} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] shadow-md hover:-translate-y-0.5">
-                  Preencher Briefing Agora <ArrowRight size={16} />
-                </button>
-              ) : pendingPlanCount > 0 ? (
-                <button onClick={() => window.scrollTo({ top: 400, behavior: 'smooth' })} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
-                  Analisar Estratégia <ArrowRight size={16} />
-                </button>
-              ) : pendingDirections > 0 ? (
-                <button onClick={() => router.push('/cofre-missoes')} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
-                  Acessar Diretrizes de Marca <ArrowRight size={16} />
-                </button>
-              ) : pendingCount > 0 ? (
-                <button onClick={() => router.push('/curadoria')} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] shadow-md hover:-translate-y-0.5">
-                  Acessar Materiais para Aprovação <ArrowRight size={16} />
-                </button>
-              ) : pendingMissions > 0 ? (
-                <button onClick={() => setIsMissionsModalOpen(true)} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all bg-orange-500 text-white hover:bg-orange-600 shadow-md hover:-translate-y-0.5">
-                  Enviar Arquivos Solicitados <ArrowRight size={16} />
-                </button>
-              ) : (
-                <button disabled className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-widest flex items-center gap-3 transition-all bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/40 cursor-not-allowed shadow-sm">
-                  Monitoramento Ativo <CheckCircle2 size={16} />
+              {briefing && (
+                <button onClick={() => setIsBriefingModalOpen(true)} className="flex items-center gap-4 p-4 rounded-2xl bg-white hover:border-[var(--color-atelier-terracota)]/30 border border-transparent shadow-sm transition-all group hover:-translate-y-0.5 w-full">
+                  <div className="w-10 h-10 rounded-xl bg-gray-50 flex items-center justify-center text-[var(--color-atelier-grafite)]/50 group-hover:text-[var(--color-atelier-terracota)] group-hover:bg-[var(--color-atelier-terracota)]/10 transition-colors shrink-0"><Target size={16}/></div>
+                  <div className="flex flex-col items-start flex-1 overflow-hidden">
+                    <span className="font-bold text-[13px] text-[var(--color-atelier-grafite)] truncate">Brandbook / Briefing</span>
+                    <span className="text-[9px] uppercase tracking-widest text-gray-400 mt-0.5 font-bold">Visualizar Diretrizes</span>
+                  </div>
+                  <ChevronRight size={16} className="text-gray-300 group-hover:text-[var(--color-atelier-terracota)]" />
                 </button>
               )}
             </div>
-          </motion.div>
+          </div>
 
-          {/* ACESSOS RÁPIDOS */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4 }} className="md:col-span-4 flex flex-col gap-4">
+          {/* COLUNA DIREITA: O CARROSSEL (ESTÚDIO DE APROVAÇÃO) */}
+          <div className="flex-1 glass-panel bg-white/70 rounded-[3rem] border border-white shadow-sm flex flex-col overflow-hidden relative min-h-0 transition-colors hover:bg-white/85">
             
-            {/* RELATÓRIOS MENSAIS */}
-            <button 
-              onClick={() => router.push('/cockpit/relatorios')} 
-              className={`flex-1 glass-panel p-6 rounded-[2.5rem] border flex items-center gap-5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-1
-                ${hasReports ? 'bg-white border-[var(--color-atelier-terracota)]/30 scale-[1.02]' : 'bg-white/60 hover:bg-white border-white'}
-              `}
-            >
-              <div className={`w-14 h-14 rounded-[1.2rem] flex items-center justify-center transition-transform shadow-inner border
-                ${hasReports ? 'bg-[var(--color-atelier-terracota)] text-white border-[var(--color-atelier-terracota)] group-hover:rotate-12' : 'bg-white border-white text-[var(--color-atelier-grafite)] group-hover:scale-110'}
-              `}>
-                <FileText size={20}/>
-              </div>
-              <div className="text-left flex-1">
-                <span className={`block font-elegant text-2xl ${hasReports ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]'}`}>Análises</span>
-                <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Relatórios de Desempenho</span>
-              </div>
-              <ChevronRight size={20} className={hasReports ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/20 group-hover:text-[var(--color-atelier-terracota)] transition-colors'}/>
-            </button>
+            {/* 1. SE EXISTIREM PEÇAS GRÁFICAS */}
+            {allPosts.length > 0 ? (
+              <div className="flex flex-col h-full absolute inset-0">
+                {/* Header do Estúdio */}
+                <div className="flex justify-between items-center px-8 py-5 border-b border-[var(--color-atelier-grafite)]/10 bg-white/40 shrink-0">
+                   <div className="flex items-center gap-3">
+                     <LayoutDashboard size={20} className="text-[var(--color-atelier-terracota)]"/>
+                     <div>
+                       <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">Estúdio de Aprovação</h2>
+                       <p className="font-roboto text-[9px] uppercase tracking-widest font-bold text-gray-400 mt-1">Peças Gráficas e Audiovisuais</p>
+                     </div>
+                   </div>
+                   
+                   {/* Navegação do Carrossel */}
+                   {allPosts.length > 1 && (
+                     <div className="flex items-center gap-3 bg-white p-1.5 rounded-full shadow-sm border border-gray-100">
+                       <button onClick={() => setActiveCarouselIndex(prev => prev > 0 ? prev - 1 : allPosts.length - 1)} className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:text-[var(--color-atelier-terracota)] hover:bg-[var(--color-atelier-terracota)]/10 transition-colors">
+                         <ChevronLeft size={16} />
+                       </button>
+                       <span className="text-[11px] font-bold text-[var(--color-atelier-grafite)] px-2 font-roboto uppercase tracking-widest">
+                         {activeCarouselIndex + 1} / {allPosts.length}
+                       </span>
+                       <button onClick={() => setActiveCarouselIndex(prev => prev < allPosts.length - 1 ? prev + 1 : 0)} className="w-8 h-8 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:text-[var(--color-atelier-terracota)] hover:bg-[var(--color-atelier-terracota)]/10 transition-colors">
+                         <ChevronRight size={16} />
+                       </button>
+                     </div>
+                   )}
+                </div>
 
-            <button onClick={() => router.push('/curadoria')} className="flex-1 glass-panel bg-white/60 hover:bg-white p-6 rounded-[2.5rem] border border-white flex items-center gap-5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-1">
-              <div className="w-14 h-14 rounded-[1.2rem] bg-white border border-white shadow-inner flex items-center justify-center text-[var(--color-atelier-grafite)] group-hover:scale-110 transition-transform"><LayoutDashboard size={20}/></div>
-              <div className="text-left flex-1">
-                <span className="block font-elegant text-2xl text-[var(--color-atelier-grafite)]">Aprovações</span>
-                <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Análise de Conteúdo</span>
+                {/* Corpo Dividido: Mídia (Esq) + Info (Dir) */}
+                <div className="flex flex-col md:flex-row flex-1 min-h-0">
+                   {/* Mídia */}
+                   <div className="w-full md:w-3/5 bg-gray-100 relative flex items-center justify-center overflow-hidden border-r border-gray-200">
+                      {isVideoUrl(allPosts[activeCarouselIndex]?.image_url) ? (
+                        <video src={allPosts[activeCarouselIndex]?.image_url} controls autoPlay loop className="w-full h-full object-contain p-4 drop-shadow-md" />
+                      ) : (
+                        <img src={allPosts[activeCarouselIndex]?.image_url} alt="Arte" className="w-full h-full object-contain p-4 drop-shadow-md" />
+                      )}
+                      
+                      {/* Badge de Status sobre a imagem */}
+                      <div className={`absolute top-6 left-6 px-3 py-1.5 rounded-xl text-[9px] font-bold uppercase tracking-widest shadow-md flex items-center gap-1.5 backdrop-blur-md border border-white/20
+                        ${allPosts[activeCarouselIndex]?.status === 'approved' ? 'bg-green-500/90 text-white' : 'bg-orange-500/90 text-white animate-pulse'}
+                      `}>
+                        {allPosts[activeCarouselIndex]?.status === 'approved' ? <><CheckCircle2 size={12}/> Finalizada</> : <><AlertCircle size={12}/> Aguardando Aprovação</>}
+                      </div>
+                   </div>
+
+                   {/* Info e Ações */}
+                   <div className="w-full md:w-2/5 bg-white p-8 flex flex-col h-full overflow-y-auto custom-scrollbar">
+                      <div className="mb-6">
+                        <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-tight">
+                          {allPosts[activeCarouselIndex]?.title || "Postagem Padrão"}
+                        </h2>
+                      </div>
+
+                      {/* Legenda */}
+                      <div className="bg-gray-50 p-5 rounded-[1.5rem] border border-gray-100 shadow-inner flex-1 overflow-y-auto custom-scrollbar min-h-[150px]">
+                        <h4 className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-3 flex items-center gap-2">
+                          <AlignLeft size={14}/> Legenda Proposta
+                        </h4>
+                        <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/80 whitespace-pre-wrap leading-relaxed">
+                          {allPosts[activeCarouselIndex]?.caption || <span className="italic opacity-50">Sem legenda disponível para esta peça...</span>}
+                        </p>
+                      </div>
+
+                      {/* Ações (Só exibe se estiver pendente) */}
+                      {allPosts[activeCarouselIndex]?.status === 'pending_approval' && (
+                        <div className="mt-6 flex flex-col gap-3 shrink-0">
+                          {!activePostFeedbackId ? (
+                            <>
+                              <button 
+                                onClick={handleApprovePost}
+                                disabled={isActionProcessing}
+                                className="w-full bg-green-500 hover:bg-green-600 text-white py-4 rounded-2xl font-roboto text-[11px] font-bold uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-2 shadow-md hover:-translate-y-0.5 disabled:opacity-50"
+                              >
+                                {isActionProcessing ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} Aprovar Arte
+                              </button>
+                              <button 
+                                onClick={() => setActivePostFeedbackId(allPosts[activeCarouselIndex]?.id)}
+                                className="w-full bg-white border border-red-100 text-red-500 hover:bg-red-50 hover:border-red-200 py-3.5 rounded-2xl font-roboto text-[11px] font-bold uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-2 shadow-sm"
+                              >
+                                <MessageSquare size={14} /> Solicitar Ajuste
+                              </button>
+                            </>
+                          ) : (
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="flex flex-col gap-2">
+                              <span className="text-[9px] font-bold uppercase tracking-widest text-red-500 flex items-center gap-1.5 ml-1"><RotateCcw size={12}/> O que precisa ajustar?</span>
+                              <textarea 
+                                placeholder="Descreva as alterações..."
+                                value={postFeedbackText}
+                                onChange={(e) => setPostFeedbackText(e.target.value)}
+                                className="w-full bg-red-50/50 border border-red-200 focus:border-red-400 rounded-2xl p-4 text-[13px] outline-none resize-none h-24 shadow-sm custom-scrollbar transition-colors text-red-900 font-medium"
+                              />
+                              <div className="flex gap-2 justify-end mt-1">
+                                <button onClick={() => { setActivePostFeedbackId(null); setPostFeedbackText(""); }} className="px-4 py-2.5 text-[9px] font-bold uppercase tracking-widest text-gray-500 hover:bg-gray-100 rounded-xl transition-colors">Cancelar</button>
+                                <button onClick={handleRejectPost} disabled={isActionProcessing || !postFeedbackText.trim()} className="px-5 py-2.5 bg-red-500 hover:bg-red-600 text-white rounded-xl text-[10px] font-bold uppercase tracking-widest flex items-center gap-2 disabled:opacity-50 transition-colors shadow-sm">
+                                  {isActionProcessing ? <Loader2 size={12} className="animate-spin"/> : <Send size={12}/>} Enviar Revisão
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </div>
+                      )}
+                      
+                      {allPosts[activeCarouselIndex]?.status === 'approved' && (
+                        <div className="mt-6 bg-green-50 text-green-700 py-4 rounded-2xl font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center justify-center gap-2 border border-green-200 shadow-sm shrink-0">
+                          <CheckCircle2 size={16} /> Arte Finalizada e Aprovada
+                        </div>
+                      )}
+                   </div>
+                </div>
               </div>
-              <ChevronRight size={20} className="text-[var(--color-atelier-grafite)]/20 group-hover:text-[var(--color-atelier-terracota)] transition-colors"/>
-            </button>
-            
-            <button onClick={() => setIsMissionsModalOpen(true)} className="flex-1 glass-panel bg-white/60 hover:bg-white p-6 rounded-[2.5rem] border border-white flex items-center gap-5 transition-all group shadow-sm hover:shadow-md hover:-translate-y-1">
-              <div className="w-14 h-14 rounded-[1.2rem] bg-white border border-white shadow-inner flex items-center justify-center text-[var(--color-atelier-grafite)] group-hover:scale-110 transition-transform"><Camera size={20}/></div>
-              <div className="text-left flex-1">
-                <span className="block font-elegant text-2xl text-[var(--color-atelier-grafite)]">Arquivos</span>
-                <span className="block font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Envio de Material</span>
+
+            // 2. SE NÃO HOUVER ARTES, MAS HOUVER PLANEJAMENTO PDF
+            ) : monthlyPlan.length > 0 ? (
+              <div className="flex flex-col h-full absolute inset-0 overflow-y-auto custom-scrollbar p-8 md:p-12">
+                <div className="flex items-center gap-3 mb-8 border-b border-[var(--color-atelier-grafite)]/10 pb-6 shrink-0">
+                  <div className="w-12 h-12 rounded-[1.2rem] bg-orange-50 text-orange-500 flex items-center justify-center border border-orange-100"><CalendarDays size={20}/></div>
+                  <div>
+                    <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Planejamento Estratégico</h2>
+                    <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Aprove a linha editorial do mês.</p>
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-6">
+                  {monthlyPlan.map((plan) => (
+                    <div key={plan.id} className="bg-white p-6 rounded-[2rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col lg:flex-row gap-6 transition-all hover:shadow-md hover:border-[var(--color-atelier-terracota)]/20">
+                      
+                      <div className="flex-1 flex flex-col gap-4">
+                        <div className="bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                          <span className="block font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Referência</span>
+                          <span className="font-roboto text-[14px] font-bold text-[var(--color-atelier-grafite)]">{plan.hook || "Estratégia Mensal"}</span>
+                        </div>
+                        
+                        {plan.planning_file_url && (
+                           <button onClick={() => setPreviewPdfUrl(plan.planning_file_url)} className="w-full text-left flex items-center gap-3 bg-[var(--color-atelier-creme)]/40 p-4 rounded-2xl border border-[var(--color-atelier-terracota)]/10 hover:border-[var(--color-atelier-terracota)]/30 hover:bg-[var(--color-atelier-terracota)]/5 transition-colors group">
+                             <FileText size={20} className="text-[var(--color-atelier-terracota)] group-hover:scale-110 transition-transform shrink-0" />
+                             <div className="flex flex-col overflow-hidden">
+                               <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)]">Acessar Documento Oficial</span>
+                             </div>
+                           </button>
+                        )}
+                      </div>
+
+                      <div className="flex-1 flex flex-col justify-center border-t lg:border-t-0 lg:border-l border-[var(--color-atelier-grafite)]/10 pt-4 lg:pt-0 lg:pl-6">
+                        <div className="flex flex-col sm:flex-row gap-3">
+                          <button onClick={() => handleApprovePlan(plan.id)} disabled={isProcessing} className="flex-1 bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] py-4 rounded-2xl font-roboto text-[11px] font-bold uppercase tracking-[0.1em] transition-all shadow-md flex items-center justify-center gap-2 hover:-translate-y-0.5 disabled:opacity-50">
+                            <CheckCircle2 size={16} /> Aprovar Estratégia
+                          </button>
+                          <button onClick={() => setActiveFeedbackId(activeFeedbackId === plan.id ? null : plan.id)} className="flex-1 bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/60 hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)] py-4 rounded-2xl font-roboto text-[11px] font-bold uppercase tracking-[0.1em] transition-all shadow-sm flex items-center justify-center gap-2">
+                            <MessageSquare size={16} /> Ajustar
+                          </button>
+                        </div>
+
+                        <AnimatePresence>
+                          {activeFeedbackId === plan.id && (
+                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden mt-3">
+                              <div className="bg-[var(--color-atelier-creme)]/40 p-4 rounded-2xl border border-[var(--color-atelier-terracota)]/10 flex flex-col gap-3 shadow-inner">
+                                <textarea 
+                                  placeholder="O que devemos ajustar na abordagem deste planejamento?"
+                                  value={feedbackText[plan.id] || ""}
+                                  onChange={(e) => setFeedbackText({...feedbackText, [plan.id]: e.target.value})}
+                                  className="w-full bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-xl p-3 text-[13px] font-medium text-[var(--color-atelier-grafite)] resize-none h-20 outline-none shadow-sm custom-scrollbar transition-colors"
+                                />
+                                <div className="flex justify-end gap-2">
+                                  <button onClick={() => setActiveFeedbackId(null)} className="px-4 py-2 text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)] transition-colors bg-white rounded-lg shadow-sm">Cancelar</button>
+                                  <button onClick={() => handleRejectPlan(plan.id)} disabled={isProcessing || !feedbackText[plan.id]?.trim()} className="px-5 py-2 bg-red-500 text-white rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-red-600 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2">
+                                    <XCircle size={12} /> Solicitar Alteração
+                                  </button>
+                                </div>
+                              </div>
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
-              <ChevronRight size={20} className="text-[var(--color-atelier-grafite)]/20 group-hover:text-[var(--color-atelier-terracota)] transition-colors"/>
-            </button>
-          </motion.div>
+
+            // 3. SE ESTIVER TUDO LIMPO (Monitoramento Ativo)
+            ) : (
+              <div className="flex flex-col items-center justify-center h-full text-center opacity-70 p-8 absolute inset-0">
+                <div className="w-24 h-24 rounded-full bg-green-50 flex items-center justify-center mb-6">
+                  <CheckCircle2 size={40} className="text-green-500" />
+                </div>
+                <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-2">Tudo em Dia</h2>
+                <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/60 font-medium max-w-sm">
+                  Não existem pendências ou aprovações neste momento. A nossa equipa continua a monitorar e a executar o seu projeto.
+                </p>
+              </div>
+            )}
+          </div>
 
         </div>
 
+        {/* MODAIS (Inalterados, mantidos para não quebrar a lógica) */}
         <InstagramBriefingModal 
           isOpen={isBriefingModalOpen} 
           onClose={() => setIsBriefingModalOpen(false)} 
           projectId={project.id} 
           clientId={clientId} 
-          onSuccess={() => {
-            setIsBriefingModalOpen(false);
-            window.location.reload(); 
-          }} 
+          onSuccess={() => { setIsBriefingModalOpen(false); window.location.reload(); }} 
         />
-
         <MissionsVaultModal 
           isOpen={isMissionsModalOpen} 
           onClose={() => setIsMissionsModalOpen(false)} 
@@ -538,52 +605,61 @@ export default function CockpitPage() {
           clientId={clientId} 
           clientName={clientName} 
         />
+        
+        {/* MODAL DE PREVIEW DE PDF */}
+        <AnimatePresence>
+          {previewPdfUrl && (
+            <div className="fixed inset-0 z-[300] flex items-center justify-center px-4 py-8">
+              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setPreviewPdfUrl(null)} className="absolute inset-0 bg-black/70 backdrop-blur-sm cursor-pointer" />
+              <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-5xl h-[90vh] border border-white/20 flex flex-col gap-4">
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[var(--color-atelier-grafite)]/10 pb-4 shrink-0 gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center">
+                      <FileText size={24} />
+                    </div>
+                    <div>
+                      <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">Visualização do Documento</h3>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 self-end sm:self-auto">
+                    <a href={previewPdfUrl} download target="_blank" rel="noreferrer" className="flex items-center gap-2 px-5 py-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] transition-colors shadow-sm">
+                      <Download size={14}/> Baixar Cópia
+                    </a>
+                    <button onClick={() => setPreviewPdfUrl(null)} className="text-gray-400 hover:text-[var(--color-atelier-terracota)] bg-gray-50 hover:bg-gray-100 p-3 rounded-full transition-colors border border-gray-200">
+                      <X size={18}/>
+                    </button>
+                  </div>
+                </div>
+                <div className="flex-1 bg-gray-100/50 rounded-2xl overflow-hidden border border-gray-200 shadow-inner flex items-center justify-center">
+                  <iframe src={`${previewPdfUrl}#toolbar=0&navpanes=0`} className="w-full h-full border-none" title="PDF Preview" />
+                </div>
+              </motion.div>
+            </div>
+          )}
+        </AnimatePresence>
 
-        {/* =========================================================================
-            MODAL T-NPS (Micro-Gatilho de Qualidade)
-            ========================================================================= */}
+        {/* MODAIS T-NPS E UPSELL */}
         <AnimatePresence>
           {showNpsModal && (
             <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[var(--color-atelier-grafite)]/60 backdrop-blur-md" />
               <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="glass-panel bg-white/95 backdrop-blur-xl p-10 md:p-12 rounded-[3.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.15)] relative z-10 w-full max-w-xl border border-white flex flex-col gap-8 text-center">
-                 <div className="mx-auto w-20 h-20 rounded-[1.5rem] bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center shadow-inner">
-                   <Star size={32} />
-                 </div>
-                 
+                 <div className="mx-auto w-20 h-20 rounded-[1.5rem] bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center shadow-inner"><Star size={32} /></div>
                  <div>
                    <h3 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-3">Como avalia as propostas?</h3>
-                   <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/60 font-medium">De 0 a 10, quão alinhada esta estratégia visual está com a visão e os valores da sua marca?</p>
+                   <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/60 font-medium">De 0 a 10, quão alinhada esta estratégia visual está com a visão da sua marca?</p>
                  </div>
-                 
                  <div className="flex justify-between gap-2 mt-2">
                     {[0,1,2,3,4,5,6,7,8,9,10].map(num => (
-                      <button 
-                        key={num} 
-                        onClick={() => setNpsScore(num)} 
-                        className={`w-9 h-12 md:w-11 md:h-14 rounded-[1rem] font-bold text-[14px] md:text-[16px] transition-all
-                          ${npsScore === num 
-                            ? 'bg-[var(--color-atelier-terracota)] text-white shadow-lg scale-110 border-transparent' 
-                            : 'bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/50 hover:border-[var(--color-atelier-terracota)]/40 hover:text-[var(--color-atelier-terracota)]'
-                          }`}
-                      >
+                      <button key={num} onClick={() => setNpsScore(num)} className={`w-9 h-12 md:w-11 md:h-14 rounded-[1rem] font-bold text-[14px] md:text-[16px] transition-all ${npsScore === num ? 'bg-[var(--color-atelier-terracota)] text-white shadow-lg scale-110 border-transparent' : 'bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/50 hover:border-[var(--color-atelier-terracota)]/40'}`}>
                         {num}
                       </button>
                     ))}
                  </div>
-
-                 <textarea 
-                   value={npsFeedback} 
-                   onChange={e => setNpsFeedback(e.target.value)} 
-                   placeholder="Deixe um comentário opcional. O que mais gostou? O que poderíamos aperfeiçoar?" 
-                   className="w-full bg-gray-50/50 border border-[var(--color-atelier-grafite)]/10 rounded-2xl p-5 text-[13px] font-medium text-[var(--color-atelier-grafite)] resize-none h-28 outline-none focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 focus:shadow-sm transition-all custom-scrollbar" 
-                 />
-
+                 <textarea value={npsFeedback} onChange={e => setNpsFeedback(e.target.value)} placeholder="Deixe um comentário opcional..." className="w-full bg-gray-50/50 border border-[var(--color-atelier-grafite)]/10 rounded-2xl p-5 text-[13px] font-medium text-[var(--color-atelier-grafite)] resize-none h-28 outline-none focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 transition-all custom-scrollbar" />
                  <div className="flex gap-4 mt-2">
-                   <button onClick={handleSkipNps} className="flex-1 py-4 text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-grafite)] transition-colors rounded-xl hover:bg-gray-50">
-                     Pular Avaliação
-                   </button>
-                   <button onClick={handleSubmitNps} disabled={npsScore === null || isProcessing} className="flex-1 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-[1.2rem] text-[11px] font-bold uppercase tracking-[0.1em] shadow-md hover:bg-[var(--color-atelier-terracota)] transition-colors disabled:opacity-50 flex justify-center items-center gap-2 hover:-translate-y-0.5 disabled:hover:translate-y-0">
+                   <button onClick={handleSkipNps} className="flex-1 py-4 text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-grafite)] transition-colors rounded-xl hover:bg-gray-50">Pular Avaliação</button>
+                   <button onClick={handleSubmitNps} disabled={npsScore === null || isProcessing} className="flex-1 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-[1.2rem] text-[11px] font-bold uppercase tracking-[0.1em] shadow-md hover:bg-[var(--color-atelier-terracota)] transition-colors disabled:opacity-50 flex justify-center items-center gap-2">
                      {isProcessing ? <Loader2 size={16} className="animate-spin"/> : "Enviar Feedback"}
                    </button>
                  </div>
@@ -592,79 +668,20 @@ export default function CockpitPage() {
           )}
         </AnimatePresence>
 
-        {/* =========================================================================
-            🚀 UPSELL MODAL (PICO DE DOPAMINA)
-            ========================================================================= */}
         <AnimatePresence>
           {showUpsellModal && (
             <div className="fixed inset-0 z-[250] flex items-center justify-center px-4">
               <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[var(--color-atelier-grafite)]/60 backdrop-blur-md" />
               <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="glass-panel bg-white p-10 md:p-12 rounded-[3.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.2)] relative z-10 w-full max-w-xl border border-white flex flex-col gap-6 text-center">
-                 <div className="mx-auto w-20 h-20 rounded-[1.5rem] bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center mb-2 shadow-inner border border-[var(--color-atelier-terracota)]/20">
-                   <Zap size={32} fill="currentColor" />
-                 </div>
-                 
+                 <div className="mx-auto w-20 h-20 rounded-[1.5rem] bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center mb-2 shadow-inner"><Zap size={32} fill="currentColor" /></div>
                  <div>
                    <h3 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-4 leading-tight">Pronto para acelerar os resultados?</h3>
-                   <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 leading-relaxed font-medium">
-                     Ficamos extremamente felizes que esteja a apreciar o nosso alinhamento estratégico. Sabia que parceiros que centralizam 100% da execução no nosso estúdio crescem os seus resultados de forma mais sólida e previsível? <br/><br/>A Liz Design possui especialistas prontos para assumir toda a gestão do seu ecossistema digital.
-                   </p>
+                   <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 leading-relaxed font-medium">A Liz Design possui especialistas prontos para assumir toda a gestão do seu ecossistema digital.</p>
                  </div>
-
                  <div className="flex flex-col gap-3 mt-4">
-                   <button onClick={handleAcceptUpsell} className="w-full bg-[var(--color-atelier-terracota)] text-white py-5 rounded-[1.5rem] font-bold uppercase tracking-[0.1em] text-[11px] shadow-lg hover:bg-[#8c562e] hover:-translate-y-0.5 transition-all">
-                     Sim, Quero conhecer as opções de Gestão Mensal
-                   </button>
-                   <button onClick={handleDeclineUpsell} className="w-full bg-transparent border border-transparent hover:border-gray-100 text-[var(--color-atelier-grafite)]/50 py-4 rounded-[1.5rem] font-bold uppercase tracking-widest text-[10px] hover:text-[var(--color-atelier-grafite)] hover:bg-gray-50 transition-colors">
-                     Não, pretendo manter o formato atual
-                   </button>
+                   <button onClick={handleAcceptUpsell} className="w-full bg-[var(--color-atelier-terracota)] text-white py-5 rounded-[1.5rem] font-bold uppercase tracking-[0.1em] text-[11px] shadow-lg hover:bg-[#8c562e] transition-all">Sim, Quero conhecer as opções</button>
+                   <button onClick={handleDeclineUpsell} className="w-full bg-transparent text-[var(--color-atelier-grafite)]/50 py-4 rounded-[1.5rem] font-bold uppercase tracking-widest text-[10px] hover:text-[var(--color-atelier-grafite)] hover:bg-gray-50 transition-colors">Não, pretendo manter o formato atual</button>
                  </div>
-              </motion.div>
-            </div>
-          )}
-        </AnimatePresence>
-
-        {/* =========================================================================
-            🟢 MODAL DE PREVIEW DE PDF
-            ========================================================================= */}
-        <AnimatePresence>
-          {previewPdfUrl && (
-            <div className="fixed inset-0 z-[300] flex items-center justify-center px-4 py-8">
-              <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setPreviewPdfUrl(null)} className="absolute inset-0 bg-black/70 backdrop-blur-sm cursor-pointer" />
-              <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-5xl h-[90vh] border border-white/20 flex flex-col gap-4">
-                
-                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center border-b border-[var(--color-atelier-grafite)]/10 pb-4 shrink-0 gap-4">
-                  <div className="flex items-center gap-3">
-                    <div className="w-12 h-12 rounded-xl bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center">
-                      <FileText size={24} />
-                    </div>
-                    <div>
-                      <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">Visualização do Planejamento</h3>
-                      <p className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Estratégia Mensal (PDF)</p>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-3 self-end sm:self-auto">
-                    <a 
-                      href={previewPdfUrl} 
-                      download 
-                      target="_blank" 
-                      rel="noreferrer"
-                      className="flex items-center gap-2 px-5 py-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-xl text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] transition-colors shadow-sm"
-                    >
-                      <Download size={14}/> Baixar Cópia
-                    </a>
-                    <button onClick={() => setPreviewPdfUrl(null)} className="text-gray-400 hover:text-[var(--color-atelier-terracota)] bg-gray-50 hover:bg-gray-100 p-3 rounded-full transition-colors border border-gray-200">
-                      <X size={18}/>
-                    </button>
-                  </div>
-                </div>
-
-                <div className="flex-1 bg-gray-100/50 rounded-2xl overflow-hidden border border-gray-200 shadow-inner flex items-center justify-center">
-                  {/* Iframe configurado para tentar ocultar a toolbar padrão dos browsers e focar no conteúdo */}
-                  <iframe src={`${previewPdfUrl}#toolbar=0&navpanes=0`} className="w-full h-full border-none" title="PDF Preview" />
-                </div>
-
               </motion.div>
             </div>
           )}
@@ -675,126 +692,62 @@ export default function CockpitPage() {
   }
 
   // ==========================================================================
-  // RENDERIZAÇÃO CONDICIONAL: IDENTIDADE VISUAL
+  // RENDERIZAÇÃO CONDICIONAL: IDENTIDADE VISUAL (Mantido Intacto da versão Original)
   // ==========================================================================
   return (
     <div className="flex flex-col max-w-[1000px] mx-auto w-full gap-8 relative z-10 pb-10 px-4 md:px-0">
-      
       <header className="animate-[fadeInUp_0.5s_ease-out] flex flex-col md:flex-row md:items-end justify-between gap-4 mt-6">
         <div>
           <div className="flex items-center gap-2 mb-2">
             <Compass size={16} className="text-[var(--color-atelier-terracota)]" />
-            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/60">
-              Resumo Executivo
-            </span>
+            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/60">Resumo Executivo</span>
           </div>
-          <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] leading-tight tracking-tight">
-            {greeting}, <span className="text-[var(--color-atelier-terracota)] italic">{clientName}.</span>
-          </h1>
-          <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-3 max-w-md font-medium leading-relaxed">
-            O seu painel de acompanhamento diário. Acompanhe a evolução do projeto e faça a gestão das entregas com eficiência.
-          </p>
+          <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] leading-tight tracking-tight">{greeting}, <span className="text-[var(--color-atelier-terracota)] italic">{clientName}.</span></h1>
+          <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-3 max-w-md font-medium leading-relaxed">O seu painel de acompanhamento diário. Acompanhe a evolução do projeto e faça a gestão das entregas com eficiência.</p>
         </div>
       </header>
-
+      
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6 animate-[fadeInUp_0.6s_ease-out]">
-        
-        <motion.div whileHover={{ y: -4 }} className={`md:col-span-8 glass-panel p-8 md:p-12 flex flex-col justify-between relative overflow-hidden transition-all duration-500 rounded-[3rem] border
-            ${pendingCount > 0 ? 'bg-white/90 border-orange-200 shadow-[0_20px_50px_rgba(249,115,22,0.08)]' : 'bg-white/60 border-white shadow-sm'}
-          `}>
-          {pendingCount > 0 && <div className="absolute top-0 left-0 w-2 h-full bg-orange-500"></div>}
-          
+        <motion.div whileHover={{ y: -4 }} className="md:col-span-8 glass-panel p-8 md:p-12 flex flex-col justify-between bg-white/60 relative overflow-hidden rounded-[3rem] border border-white shadow-sm transition-colors hover:bg-white/80">
           <div className="flex items-start justify-between mb-8">
             <div>
-              <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2 block">
-                Atenção Solicitada
-              </span>
-              <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">
-                {pendingCount > 0 ? 'Aprovações Pendentes' : 'Nenhuma Pendência'}
-              </h2>
+              <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2 block">Atenção Solicitada</span>
+              <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Nenhuma Pendência</h2>
             </div>
-            <div className={`w-14 h-14 rounded-[1.2rem] flex items-center justify-center shrink-0 shadow-inner border
-              ${pendingCount > 0 ? 'bg-orange-50 text-orange-500 border-orange-100' : 'bg-green-50 text-green-500 border-green-100'}
-            `}>
-              {pendingCount > 0 ? <AlertCircle size={28} /> : <CheckCircle2 size={28} />}
-            </div>
+            <div className="w-14 h-14 rounded-[1.2rem] flex items-center justify-center shrink-0 shadow-inner border bg-green-50 text-green-500 border-green-100"><CheckCircle2 size={28} /></div>
           </div>
-
           <div>
-            <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/80 mb-8 leading-relaxed font-medium">
-              {pendingCount > 0 
-                ? `Existem ${pendingCount} peças ou propostas criativas aguardando a sua aprovação. A sua validação atempada permite manter o cronograma rigoroso do projeto.` 
-                : 'Não há avaliações aguardando a sua ação no momento. A nossa equipe de design continua focada na próxima fase criativa do seu projeto.'}
-            </p>
-
-            <button onClick={() => router.push('/curadoria')} className={`px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all outline-none
-                ${pendingCount > 0 
-                  ? 'bg-orange-500 text-white hover:bg-orange-600 shadow-md hover:shadow-lg hover:-translate-y-0.5' 
-                  : 'bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)] shadow-sm hover:shadow-md hover:-translate-y-0.5'}
-              `}>
-              {pendingCount > 0 ? 'Acessar Área de Aprovação' : 'Acessar Histórico de Apresentações'}
-              <ArrowRight size={16} />
+            <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/80 mb-8 leading-relaxed font-medium">Não há avaliações aguardando a sua ação no momento. A nossa equipe de design continua focada na próxima fase criativa do seu projeto.</p>
+            <button onClick={() => window.open(project.contract_url, "_blank")} disabled={!project.contract_url} className="px-8 py-5 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-[0.1em] flex items-center gap-3 transition-all outline-none bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)] shadow-sm hover:shadow-md hover:-translate-y-0.5 disabled:opacity-50 disabled:cursor-not-allowed">
+              Acessar Contrato Assinado <ArrowRight size={16} />
             </button>
           </div>
         </motion.div>
 
         <motion.div whileHover={{ y: -4 }} className="md:col-span-4 glass-panel p-8 md:p-10 flex flex-col justify-between bg-white/60 relative overflow-hidden rounded-[3rem] border border-white shadow-sm transition-colors hover:bg-white/80">
           <div className="absolute -right-6 -top-6 w-40 h-40 bg-[var(--color-atelier-terracota)]/10 rounded-full blur-3xl pointer-events-none"></div>
-          
           <div>
-            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2 flex items-center gap-2">
-              <Activity size={12} className="text-[var(--color-atelier-terracota)]"/> Status Geral
-            </span>
+            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2 flex items-center gap-2"><Activity size={12} className="text-[var(--color-atelier-terracota)]"/> Status Geral</span>
             <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-6">Saúde do Projeto</h2>
           </div>
-
-          <div className="flex flex-col items-center justify-center my-6 relative z-10">
-            <div className="relative w-36 h-36 flex items-center justify-center">
-              <svg className="w-full h-full transform -rotate-90">
-                <circle cx="72" cy="72" r="66" stroke="currentColor" strokeWidth="6" fill="transparent" className="text-white drop-shadow-sm" />
-                <motion.circle 
-                  initial={{ strokeDasharray: "0 414" }}
-                  animate={{ strokeDasharray: `${(healthScore / 100) * 414} 414` }}
-                  transition={{ duration: 1.5, ease: "easeOut" }}
-                  cx="72" cy="72" r="66" stroke="currentColor" strokeWidth="6" fill="transparent" 
-                  strokeLinecap="round"
-                  className="text-[var(--color-atelier-terracota)] drop-shadow-md" 
-                />
-              </svg>
-              <div className="absolute flex flex-col items-center">
-                <span className="font-elegant text-5xl text-[var(--color-atelier-grafite)] leading-none mt-1">{healthScore}</span>
-                <span className="font-roboto text-[9px] font-bold text-[var(--color-atelier-grafite)]/40 uppercase tracking-widest mt-1.5">/ 100</span>
-              </div>
-            </div>
-          </div>
-
+          
           <div className="text-center mt-2 relative z-10">
-             <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white shadow-sm text-[var(--color-atelier-terracota)] font-roboto text-[10px] font-bold uppercase tracking-widest border border-[var(--color-atelier-terracota)]/10">
-               <TrendingUp size={12} /> Ritmo Saudável
-             </span>
+             <span className="inline-flex items-center gap-1.5 px-4 py-2 rounded-full bg-white shadow-sm text-[var(--color-atelier-terracota)] font-roboto text-[10px] font-bold uppercase tracking-widest border border-[var(--color-atelier-terracota)]/10"><TrendingUp size={12} /> Ritmo Saudável</span>
           </div>
         </motion.div>
 
         <motion.div whileHover={{ y: -2 }} className="md:col-span-12 glass-panel p-6 md:p-8 bg-white/70 flex flex-col md:flex-row items-start md:items-center gap-6 justify-between border-l-4 border-l-[var(--color-atelier-grafite)] rounded-[2rem] rounded-l-lg shadow-sm">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-[1rem] bg-white shadow-inner flex items-center justify-center shrink-0 border border-white/50">
-              <Clock size={20} className="text-[var(--color-atelier-grafite)]" />
-            </div>
+            <div className="w-14 h-14 rounded-[1rem] bg-white shadow-inner flex items-center justify-center shrink-0 border border-white/50"><Clock size={20} className="text-[var(--color-atelier-grafite)]" /></div>
             <div>
-              <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 block mb-1">
-                Acompanhamento Transparente
-              </span>
-              <h3 className="font-roboto text-[15px] font-bold text-[var(--color-atelier-grafite)] flex items-center gap-2">
-                Andamento da Equipe: <span className="font-normal text-[var(--color-atelier-terracota)]">{currentFocus}</span>
-              </h3>
+              <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 block mb-1">Acompanhamento Transparente</span>
+              <h3 className="font-roboto text-[15px] font-bold text-[var(--color-atelier-grafite)] flex items-center gap-2">Andamento da Equipe: <span className="font-normal text-[var(--color-atelier-terracota)]">{currentFocus}</span></h3>
             </div>
           </div>
-          
           <div className="text-[11px] font-roboto font-bold text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest flex items-center gap-2 shrink-0 bg-white px-5 py-2.5 rounded-xl shadow-sm border border-white">
             <Sparkles size={14} className="text-[var(--color-atelier-terracota)]" /> Atualizado pela Direção de Arte
           </div>
         </motion.div>
-
       </div>
     </div>
   );

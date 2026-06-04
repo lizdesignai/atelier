@@ -1,5 +1,7 @@
 // src/app/admin/jtbd/views/DailyKanban.tsx
-import { Clock, Crosshair, PlayCircle, AlertTriangle, CheckCircle2, Image as ImageIcon } from "lucide-react";
+import { useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { Clock, AlertTriangle, CheckCircle2, Image as ImageIcon, PlayCircle, Crosshair } from "lucide-react";
 import TaskCard from "../components/TaskCard";
 import { supabase } from "../../../../lib/supabase";
 
@@ -27,15 +29,23 @@ export default function DailyKanban({
   handleReschedule,
   isRescheduling,
   handleDragOver,
-  handleDrop
+  handleDrop,
+  handleFileUpload
 }: DailyKanbanProps) {
 
   // ==========================================================================
-  // MOTORES DE INTERCEPTAÇÃO: KANBAN <-> VISUAL FLOW <-> COCKPIT CLIENTE
+  // ESTADO GLOBAL DO MODAL DO KANBAN (O MESTRE DE EXIBIÇÃO)
+  // ==========================================================================
+  const [activeTaskModal, setActiveTaskModal] = useState<any | null>(null);
+
+  // 🟢 UNIFICAÇÃO DA FILA: Junta as tarefas pendentes com as em andamento
+  const activeQueueTasks = [...inProgressTasks, ...pendingTasks];
+
+  // ==========================================================================
+  // MOTORES DE INTERCEPTAÇÃO: KANBAN -> COCKPIT CLIENTE
   // ==========================================================================
   const promotePostToClient = async (taskId: string) => {
     try {
-      // Quando a tarefa for aprovada no Kanban, o post avança para a aprovação do cliente
       await supabase.from('social_posts')
         .update({ status: 'pending_approval' })
         .eq('task_id', taskId)
@@ -52,22 +62,26 @@ export default function DailyKanban({
     if (newStatus === 'completed' && task.attachment_url) {
       await promotePostToClient(task.id);
     }
+    setActiveTaskModal(null);
   };
 
   const handleDropIntercept = async (e: React.DragEvent, newStatus: string) => {
+    e.preventDefault(); 
     const taskId = e.dataTransfer.getData("taskId");
-    if (taskId && newStatus === 'completed') {
-      const allTasks = [...pendingTasks, ...inProgressTasks, ...reviewTasks, ...completedTasks];
-      const task = allTasks.find(t => t.id === taskId);
-      if (task && task.attachment_url) {
-        await promotePostToClient(task.id);
-      }
+    
+    if (!taskId) return;
+
+    const allTasks = [...pendingTasks, ...inProgressTasks, ...reviewTasks, ...completedTasks];
+    const task = allTasks.find(t => t.id === taskId);
+    
+    if (task) {
+       handleDrop(e, newStatus);
+       if (newStatus === 'completed' && task.attachment_url) {
+         await promotePostToClient(task.id);
+       }
     }
-    handleDrop(e, newStatus);
   };
 
-  // 🟢 O SUPER-MOTOR DE UPLOAD DO KANBAN
-  // Se o designer fizer o upload da imagem POR DENTRO DO KANBAN, ele faz todo o fluxo inverso!
   const processKanbanUpload = async (taskId: string, file: File) => {
     try {
       const allTasks = [...pendingTasks, ...inProgressTasks, ...reviewTasks, ...completedTasks];
@@ -76,11 +90,9 @@ export default function DailyKanban({
 
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Processando arte gráfica e conectando ao Visual Flow..." }));
 
-      // 1. Resgatar Client ID
       const { data: projData } = await supabase.from('projects').select('client_id').eq('id', task.project_id).single();
       const clientId = projData?.client_id || 'unassigned';
 
-      // 2. Storage Upload Seguro
       const fileExt = file.name.split('.').pop();
       const fileName = `post_${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${clientId}/${fileName}`;
@@ -91,7 +103,6 @@ export default function DailyKanban({
       const { data: publicUrlData } = supabase.storage.from('community_images').getPublicUrl(filePath);
       const fileUrl = publicUrlData.publicUrl;
 
-      // 3. Cadastrar Post no Visual Flow (internal_review = Oculto do cliente, visível para a Gestão)
       await supabase.from('social_posts').insert({
         project_id: task.project_id,
         client_id: clientId,
@@ -102,16 +113,14 @@ export default function DailyKanban({
         status: 'internal_review'
       });
 
-      // 4. Atualizar a Tarefa do Kanban (Adiciona imagem e move para a coluna de Revisão)
       await supabase.from('tasks').update({ 
         attachment_url: fileUrl,
         status: 'review'
       }).eq('id', task.id);
 
-      // 5. Mutação Otimista na Interface
       updateTaskStatus({ ...task, attachment_url: fileUrl }, 'review');
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Arte enviada para a fila de Revisão Interna! 🎨" }));
-
+      setActiveTaskModal(null); 
     } catch (error) {
       console.error(error);
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Falha ao enviar a mídia." }));
@@ -119,179 +128,282 @@ export default function DailyKanban({
   };
 
   // ==========================================================================
-  // RENDERIZADOR DE CARTÕES PREMIUM (COM CAPA VISUAL INTELIGENTE)
+  // RENDERIZADOR DE CARTÕES PREMIUM (COM COVER TRELLO E FÍSICA CINEMATOGRÁFICA)
   // ==========================================================================
   const renderTask = (task: any, isFocus = false, isReview = false, isCompleted = false) => {
     const badgeColor = isCompleted ? 'bg-green-500/90' : isReview ? 'bg-purple-500/90' : 'bg-[var(--color-atelier-terracota)]/90';
     const badgeText = isCompleted ? 'Aprovado' : isReview ? 'Em Revisão' : 'Anexado';
+    
+    const isLive = task.status === 'in_progress' || isFocus;
 
     return (
-      <div key={task.id} className="shrink-0 flex flex-col relative w-full mb-1 group/wrapper">
-        {/* 🟢 Capa da Arte Visual (Correção de Esmagamento) */}
-        {task.attachment_url && (
-           <div className="w-full h-32 rounded-[1.2rem] rounded-b-none overflow-hidden relative border border-b-0 border-white/80 shadow-sm -mb-4 z-0 bg-gray-100">
-             <img src={task.attachment_url} className="w-full h-full object-cover opacity-90 group-hover/wrapper:scale-105 transition-transform duration-500" alt="Capa Visual" />
-             <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
-             <div className={`absolute top-3 right-3 ${badgeColor} backdrop-blur-md text-white text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-md shadow-sm flex items-center gap-1`}>
-               <ImageIcon size={10} /> {badgeText}
+      <motion.div 
+        key={task.id}
+        layout="position"
+        layoutId={`task-${task.id}`}
+        
+        // 🟢 Entrada e Saída Cinematográfica (Aparece desfocado e sobe suavemente)
+        initial={{ opacity: 0, y: 30, scale: 0.95, filter: "blur(8px)" }}
+        animate={{ 
+          opacity: 1, 
+          y: 0, 
+          scale: 1, 
+          filter: "blur(0px)",
+          ...(isLive ? { backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] } : {}) 
+        }}
+        exit={{ opacity: 0, scale: 0.9, filter: "blur(5px)", transition: { duration: 0.2 } }}
+        
+        // 🟢 Transição de Layout Suave e Organizada
+        transition={{ 
+          layout: { type: "spring", stiffness: 350, damping: 28, mass: 0.8 }, 
+          opacity: { duration: 0.3 },
+          ...(isLive ? { backgroundPosition: { duration: 3, repeat: Infinity, ease: "linear" } } : {})
+        }}
+        
+        // 🟢 Micro-interações: Flutua no hover, afunda no clique, descola e gira no drag
+        whileHover={{ y: -4, scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        whileDrag={{ 
+          scale: 1.06, 
+          rotate: 3, 
+          zIndex: 9999, 
+          cursor: "grabbing",
+          boxShadow: "0px 25px 50px -12px rgba(0,0,0,0.3)"
+        }}
+        
+        draggable={!task.is_blocked && !isCompleted}
+        onDragStart={(e: any) => {
+          if (task.is_blocked || isCompleted) {
+            e.preventDefault();
+            return;
+          }
+          e.dataTransfer.setData("taskId", task.id);
+        }}
+        style={isLive ? { backgroundImage: 'linear-gradient(270deg, #3b82f6, #06b6d4, #3b82f6)', backgroundSize: '200% 200%' } : {}}
+        className={`shrink-0 flex flex-col relative w-full mb-4 group/wrapper 
+          ${isLive ? 'p-[3px] rounded-[1.4rem] shadow-[0_0_20px_rgba(59,130,246,0.4)]' : 'rounded-[1.4rem] cursor-grab active:cursor-grabbing'}
+        `}
+      >
+        <div className={`flex flex-col relative w-full h-full ${isLive ? 'bg-white rounded-[1.3rem] overflow-hidden' : ''}`}>
+          
+          {/* Capa da Arte Visual Integrada Estilo Trello */}
+          {task.attachment_url && (
+             <div 
+               className={`w-full h-36 relative border border-white/80 shadow-sm z-0 bg-gray-100 cursor-pointer overflow-hidden
+                 ${isLive ? '' : 'rounded-[1.2rem] rounded-b-none border-b-0 -mb-4'}
+               `}
+               onClick={() => setActiveTaskModal({ task, isFocus: isLive, isReview, isCompleted })}
+             >
+               <img src={task.attachment_url} className="w-full h-full object-cover opacity-90 group-hover/wrapper:scale-105 transition-transform duration-700" alt="Capa Visual" />
+               <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none"></div>
+               <div className={`absolute top-3 right-3 ${badgeColor} backdrop-blur-md text-white text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-md shadow-sm flex items-center gap-1`}>
+                 <ImageIcon size={10} /> {badgeText}
+               </div>
              </div>
-           </div>
-        )}
-        <div className="relative z-10 w-full">
-          <TaskCard 
-            task={task} 
-            isFocus={isFocus}
-            isReview={isReview}
-            isCompleted={isCompleted}
-            isAdmin={isAdminOrManager} 
-            onAction={(newStatus: string) => handleActionIntercept(task, newStatus)} 
-            onReschedule={() => handleReschedule(task)} 
-            isRescheduling={isRescheduling === task.id}
-            onUpload={processKanbanUpload} // 🟢 Injeção do Motor de Upload
-          />
+          )}
+          
+          {/* O Cartão - Agora com botões 100% funcionais */}
+          <div 
+            className="relative z-10 w-full"
+            onClick={(e) => {
+              if ((e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
+                setActiveTaskModal({ task, isFocus: isLive, isReview, isCompleted });
+              }
+            }}
+          >
+            <TaskCard 
+              task={task} 
+              isFocus={isLive}
+              isReview={isReview}
+              isCompleted={isCompleted}
+              isAdmin={isAdminOrManager} 
+              onAction={(newStatus: string) => handleActionIntercept(task, newStatus)} 
+              onReschedule={() => handleReschedule(task)} 
+              isRescheduling={isRescheduling === task.id}
+              forceStaticMode={true} 
+              onRevert={() => updateTaskStatus(task, 'review')} 
+            />
+          </div>
+
         </div>
-      </div>
+      </motion.div>
     );
   };
 
   return (
-    // 🟢 ENGENHARIA SÊNIOR: Removido o `transform` (animate) da raiz para evitar que os pop-ups `fixed` fiquem presos dentro da coluna
-    <div className="flex-1 w-full flex relative z-10 animate-[fadeIn_0.5s_ease-out]">
-      <div className="flex-1 flex gap-6 overflow-x-auto custom-scrollbar pb-6 px-1 h-full items-stretch">
-        
-        {/* =========================================
-            COLUNA 1: FILA DE ESPERA (Backlog Diário)
-            ========================================= */}
-        <div 
-          className="flex flex-col min-w-[340px] w-[340px] shrink-0 h-full relative group/col"
-          onDragOver={handleDragOver}
-          onDrop={(e) => handleDropIntercept(e, 'pending')}
-        >
-          <div className="absolute inset-0 bg-white/50 backdrop-blur-xl rounded-[2.5rem] border border-white shadow-sm group-hover/col:shadow-md transition-shadow duration-300 overflow-hidden pointer-events-none z-0"></div>
+    <>
+      <div className="flex-1 w-full flex relative z-10 h-full overflow-hidden animate-[fadeIn_0.5s_ease-out]">
+        <div className="flex-1 flex gap-6 overflow-x-auto overflow-y-hidden custom-scrollbar pb-2 px-1 h-full items-stretch">
           
-          <div className="relative z-10 flex flex-col h-full p-5">
-            <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
-              <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
-                <Clock size={18} className="text-[var(--color-atelier-grafite)]/40"/> Fila de Espera
-              </h3>
-              <span className="bg-white px-3 py-1 rounded-lg text-[11px] font-bold text-[var(--color-atelier-grafite)]/60 shadow-sm border border-[var(--color-atelier-grafite)]/5">
-                {pendingTasks.length}
-              </span>
-            </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4 pb-4">
-              {pendingTasks.length === 0 ? (
-                <div className="text-center flex flex-col items-center justify-center text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/30 mt-10 pointer-events-none border-2 border-dashed border-[var(--color-atelier-grafite)]/10 rounded-3xl py-12 bg-white/20">
-                  <Clock size={32} className="mb-3 opacity-20" />
-                  Arraste para cá
-                </div>
-              ) : (
-                pendingTasks.map(task => renderTask(task, false, false, false))
-              )}
+          {/* =========================================
+              COLUNA 1: FILA DE TRABALHO (Pending + Live)
+              ========================================= */}
+          <div 
+            className="flex flex-col min-w-[360px] w-[360px] shrink-0 h-full max-h-full relative group/col"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDropIntercept(e, 'pending')}
+          >
+            <div className="absolute inset-0 bg-white/50 backdrop-blur-xl rounded-[2.5rem] border border-white shadow-sm group-hover/col:shadow-md transition-shadow duration-300 overflow-hidden pointer-events-none z-0"></div>
+            
+            <div className="relative z-10 flex flex-col h-full p-6">
+              <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
+                <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
+                  <PlayCircle size={20} className="text-[var(--color-atelier-grafite)]/50"/> Fila de Trabalho
+                </h3>
+                <span className="bg-white px-3 py-1 rounded-lg text-[11px] font-bold text-[var(--color-atelier-grafite)]/60 shadow-sm border border-[var(--color-atelier-grafite)]/5">
+                  {activeQueueTasks.length}
+                </span>
+              </div>
+              <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pr-3 flex flex-col pt-2 pb-4">
+                <AnimatePresence mode="popLayout">
+                  {activeQueueTasks.length === 0 ? (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9 }} 
+                      animate={{ opacity: 1, scale: 1 }} 
+                      exit={{ opacity: 0, scale: 0.9 }} 
+                      className="text-center flex flex-col items-center justify-center text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/30 mt-10 pointer-events-none border-2 border-dashed border-[var(--color-atelier-grafite)]/10 rounded-3xl py-12 bg-white/20"
+                    >
+                      <Clock size={32} className="mb-3 opacity-20" />
+                      Mesa Limpa
+                    </motion.div>
+                  ) : (
+                    activeQueueTasks.map(task => {
+                      const isLive = task.status === 'in_progress';
+                      return renderTask(task, isLive, false, false);
+                    })
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
-        </div>
 
-        {/* =========================================
-            COLUNA 2: EM ANDAMENTO (Live Execution)
-            ========================================= */}
-        <div 
-          className="flex flex-col min-w-[340px] w-[340px] shrink-0 h-full relative group/col"
-          onDragOver={handleDragOver}
-          onDrop={(e) => handleDropIntercept(e, 'in_progress')}
-        >
-          <div className="absolute inset-0 bg-blue-50/60 backdrop-blur-xl rounded-[2.5rem] border border-blue-100 shadow-[inset_0_4px_20px_rgba(59,130,246,0.05)] group-hover/col:shadow-md transition-shadow duration-300 overflow-hidden pointer-events-none z-0">
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-1/2 h-1.5 bg-blue-500 rounded-b-full shadow-[0_0_15px_rgba(59,130,246,0.8)]"></div>
-            <div className="absolute top-[-50px] left-[-50px] w-40 h-40 bg-blue-400/10 rounded-full blur-3xl"></div>
-          </div>
-          
-          <div className="relative z-10 flex flex-col h-full p-5">
-            <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-blue-200/50 pb-4">
-              <h3 className="font-elegant text-2xl text-blue-900 flex items-center gap-2">
-                <Crosshair size={18} className="text-blue-500"/> Em Andamento 
-                <span className="text-[10px] font-sans uppercase font-bold tracking-widest text-blue-500 bg-blue-100 px-2 py-0.5 rounded animate-pulse shadow-sm">Live</span>
-              </h3>
-            </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4 pb-4">
-              {inProgressTasks.length === 0 ? (
-                 <div className="h-full flex flex-col items-center justify-center text-center opacity-60 pointer-events-none border-2 border-dashed border-blue-300/50 rounded-3xl p-6 bg-blue-100/20">
-                   <PlayCircle size={48} className="mb-4 text-blue-500 opacity-50"/>
-                   <span className="font-roboto text-[11px] uppercase tracking-widest font-bold text-blue-900/60 max-w-[200px]">Arraste uma tarefa para iniciar a Execução</span>
-                 </div>
-              ) : (
-                inProgressTasks.map(task => renderTask(task, true, false, false))
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* =========================================
-            COLUNA 3: REVISÃO INTERNA (Aprovação)
-            ========================================= */}
-        <div 
-          className="flex flex-col min-w-[340px] w-[340px] shrink-0 h-full relative group/col"
-          onDragOver={handleDragOver}
-          onDrop={(e) => handleDropIntercept(e, 'review')}
-        >
-          <div className="absolute inset-0 bg-orange-50/60 backdrop-blur-xl rounded-[2.5rem] border border-orange-200 shadow-[inset_0_4px_20px_rgba(249,115,22,0.03)] group-hover/col:shadow-md transition-shadow duration-300 overflow-hidden pointer-events-none z-0">
-            <div className="absolute top-[-50px] right-[-50px] w-40 h-40 bg-orange-400/10 rounded-full blur-3xl"></div>
-          </div>
-          
-          <div className="relative z-10 flex flex-col h-full p-5">
-            <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-orange-200/50 pb-4">
-              <h3 className="font-elegant text-2xl text-orange-900 flex items-center gap-2">
-                <AlertTriangle size={18} className="text-orange-500"/> Revisão Interna
-              </h3>
-              <span className="bg-white px-3 py-1 rounded-lg text-[11px] font-bold text-orange-600 shadow-sm border border-orange-200">
-                {reviewTasks.length}
-              </span>
-            </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4 pb-4">
-              {reviewTasks.length === 0 ? (
-                <div className="text-center flex flex-col items-center justify-center text-[10px] uppercase font-bold text-orange-900/30 mt-10 pointer-events-none border-2 border-dashed border-orange-300/50 rounded-3xl py-12 bg-orange-100/20">
-                  <AlertTriangle size={32} className="mb-3 opacity-20" />
-                  Aguardando aprovações
-                </div>
-              ) : (
-                reviewTasks.map(task => renderTask(task, false, true, false))
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* =========================================
-            COLUNA 4: CONCLUÍDAS (Feitos)
-            ========================================= */}
-        <div 
-          className="flex flex-col min-w-[340px] w-[340px] shrink-0 h-full relative group/col opacity-90 hover:opacity-100 transition-opacity duration-300"
-          onDragOver={handleDragOver}
-          onDrop={(e) => handleDropIntercept(e, 'completed')}
-        >
-          <div className="absolute inset-0 bg-white/40 backdrop-blur-md rounded-[2.5rem] border border-white/80 shadow-sm overflow-hidden pointer-events-none z-0"></div>
-          
-          <div className="relative z-10 flex flex-col h-full p-5">
-            <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
-              <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
-                <CheckCircle2 size={18} className="text-green-500"/> Concluídas
-              </h3>
+          {/* =========================================
+              COLUNA 2: REVISÃO INTERNA (Aprovação)
+              ========================================= */}
+          <div 
+            className="flex flex-col min-w-[360px] w-[360px] shrink-0 h-full max-h-full relative group/col"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDropIntercept(e, 'review')}
+          >
+            <div className="absolute inset-0 bg-orange-50/60 backdrop-blur-xl rounded-[2.5rem] border border-orange-200 shadow-[inset_0_4px_20px_rgba(249,115,22,0.03)] group-hover/col:shadow-md transition-shadow duration-300 overflow-hidden pointer-events-none z-0">
+              <div className="absolute top-[-50px] right-[-50px] w-40 h-40 bg-orange-400/10 rounded-full blur-3xl"></div>
             </div>
             
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4 pb-4">
-              {completedTasks.length === 0 ? (
-                <div className="text-center flex flex-col items-center justify-center text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/30 mt-10 pointer-events-none border-2 border-dashed border-[var(--color-atelier-grafite)]/10 rounded-3xl py-12 bg-white/20">
-                  <CheckCircle2 size={32} className="mb-3 opacity-20" />
-                  Mesa limpa
-                </div>
-              ) : (
-                completedTasks.map(task => renderTask(task, false, false, true))
-              )}
+            <div className="relative z-10 flex flex-col h-full p-6">
+              <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-orange-200/50 pb-4">
+                <h3 className="font-elegant text-2xl text-orange-900 flex items-center gap-2">
+                  <AlertTriangle size={20} className="text-orange-500"/> Revisão Interna
+                </h3>
+                <span className="bg-white px-3 py-1 rounded-lg text-[11px] font-bold text-orange-600 shadow-sm border border-orange-200">
+                  {reviewTasks.length}
+                </span>
+              </div>
+              <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pr-3 flex flex-col pt-2 pb-4">
+                <AnimatePresence mode="popLayout">
+                  {reviewTasks.length === 0 ? (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9 }} 
+                      animate={{ opacity: 1, scale: 1 }} 
+                      exit={{ opacity: 0, scale: 0.9 }} 
+                      className="text-center flex flex-col items-center justify-center text-[10px] uppercase font-bold text-orange-900/30 mt-10 pointer-events-none border-2 border-dashed border-orange-300/50 rounded-3xl py-12 bg-orange-100/20"
+                    >
+                      <AlertTriangle size={32} className="mb-3 opacity-20" />
+                      Aguardando Aprovações
+                    </motion.div>
+                  ) : (
+                    reviewTasks.map(task => renderTask(task, false, true, false))
+                  )}
+                </AnimatePresence>
+              </div>
             </div>
           </div>
+
+          {/* =========================================
+              COLUNA 3: CONCLUÍDAS (Feitos)
+              ========================================= */}
+          <div 
+            className="flex flex-col min-w-[360px] w-[360px] shrink-0 h-full max-h-full relative group/col opacity-90 hover:opacity-100 transition-opacity duration-300"
+            onDragOver={handleDragOver}
+            onDrop={(e) => handleDropIntercept(e, 'completed')}
+          >
+            <div className="absolute inset-0 bg-white/40 backdrop-blur-md rounded-[2.5rem] border border-white/80 shadow-sm overflow-hidden pointer-events-none z-0"></div>
+            
+            <div className="relative z-10 flex flex-col h-full p-6">
+              <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
+                <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
+                  <CheckCircle2 size={20} className="text-green-500"/> Concluídas
+                </h3>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pr-3 flex flex-col pt-2 pb-4">
+                <AnimatePresence mode="popLayout">
+                  {completedTasks.length === 0 ? (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.9 }} 
+                      animate={{ opacity: 1, scale: 1 }} 
+                      exit={{ opacity: 0, scale: 0.9 }} 
+                      className="text-center flex flex-col items-center justify-center text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/30 mt-10 pointer-events-none border-2 border-dashed border-[var(--color-atelier-grafite)]/10 rounded-3xl py-12 bg-white/20"
+                    >
+                      <CheckCircle2 size={32} className="mb-3 opacity-20" />
+                      Mesa Limpa
+                    </motion.div>
+                  ) : (
+                    completedTasks.map(task => renderTask(task, false, false, true))
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+          </div>
+
+          <div className="min-w-[12px] shrink-0 pointer-events-none"></div>
         </div>
-
-        {/* SPACER INVISÍVEL */}
-        <div className="min-w-[12px] shrink-0 pointer-events-none"></div>
-
       </div>
-    </div>
+
+      {/* ==========================================================================
+          O MODAL MESTRE (RENDERIZADO FORA DAS COLUNAS PARA NÃO BUGAR)
+          ========================================================================== */}
+      <AnimatePresence>
+        {activeTaskModal && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center px-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+              onClick={() => setActiveTaskModal(null)}
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 40 }} 
+              animate={{ scale: 1, opacity: 1, y: 0 }} 
+              exit={{ scale: 0.9, opacity: 0, y: 40 }} 
+              transition={{ type: "spring", stiffness: 350, damping: 25 }}
+              className="relative z-10 w-full max-w-lg pointer-events-auto shadow-[0_30px_60px_rgba(0,0,0,0.4)] rounded-[2.5rem]"
+            >
+              {/* Renderiza o TaskCard verdadeiro (com botões clicáveis e feedback admin) dentro do modal global */}
+              <TaskCard 
+                task={activeTaskModal.task} 
+                isFocus={activeTaskModal.isFocus}
+                isReview={activeTaskModal.isReview}
+                isCompleted={activeTaskModal.isCompleted}
+                isAdmin={isAdminOrManager} 
+                onAction={(newStatus: string) => handleActionIntercept(activeTaskModal.task, newStatus)} 
+                onReschedule={() => {
+                  handleReschedule(activeTaskModal.task);
+                  setActiveTaskModal(null);
+                }} 
+                isRescheduling={isRescheduling === activeTaskModal.task.id}
+                onUpload={processKanbanUpload} 
+                forceOpenModal={true} 
+                onCloseModal={() => setActiveTaskModal(null)}
+                onRevert={(taskId) => {
+                  updateTaskStatus(activeTaskModal.task, 'review');
+                }}
+              />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }

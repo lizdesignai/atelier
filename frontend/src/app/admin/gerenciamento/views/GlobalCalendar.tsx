@@ -278,7 +278,7 @@ export default function GlobalCalendar({ activeProjectId, currentProject }: Glob
                 const isSelected = selectedDayDetails?.day === day;
                 const hasContent = dayPlannings.length > 0 || dayTasks.length > 0;
                 
-                // 🟢 IDENTIFICAR SE É DIA DE CAPTAÇÃO
+                // IDENTIFICAR SE É DIA DE CAPTAÇÃO
                 const hasCaptacao = dayTasks.some(t => t.task_type === 'captacao' || t.title?.toLowerCase().includes('captação') || t.stage === 'Logística Externa');
 
                 return (
@@ -308,7 +308,7 @@ export default function GlobalCalendar({ activeProjectId, currentProject }: Glob
                       {day}
                     </span>
                     
-                    {/* 🟢 DOTS MINIMALISTAS EM VEZ DE TEXTO */}
+                    {/* DOTS MINIMALISTAS EM VEZ DE TEXTO */}
                     <div className="flex flex-wrap justify-center gap-1 z-10 mt-2">
                       {dayPlannings.map(plan => (
                         <div key={`dot-plan-${plan.id}`} className={`w-2 h-2 rounded-full ${plan.status === 'approved' ? 'bg-purple-500' : plan.status === 'needs_revision' ? 'bg-red-500' : 'bg-orange-500'}`} title="Planejamento (PDF)" />
@@ -329,7 +329,7 @@ export default function GlobalCalendar({ activeProjectId, currentProject }: Glob
         </div>
 
         {/* ============================== */}
-        {/* WIDGET DE ACOMPANHAMENTO (DIREITA) */}
+        {/* WIDGET DE ACOMPANHAMENTO (DIREITA) COM VISUALIZAÇÃO DE FEEDBACK DE PDF */}
         {/* ============================== */}
         <div className="w-full lg:w-[400px] shrink-0 glass-panel bg-white/60 p-6 rounded-[2.5rem] border border-white shadow-sm flex flex-col h-full min-h-0">
            {selectedDayDetails ? (
@@ -367,7 +367,8 @@ export default function GlobalCalendar({ activeProjectId, currentProject }: Glob
                               {plan.status === 'approved' ? 'Aprovado' : plan.status === 'needs_revision' ? 'Ajuste Solicitado' : 'Aguardando Avaliação'}
                             </span>
                          </div>
-                         {plan.feedback && (
+                         {/* 🟢 EXIBIÇÃO DE FEEDBACK DO PDF (O CLIENTE PEDIU AJUSTE NO COCKPIT) */}
+                         {plan.status === 'needs_revision' && plan.feedback && (
                            <div className="bg-red-50/50 p-3 rounded-xl border border-red-100 mt-1">
                               <span className="text-[9px] uppercase tracking-widest font-bold text-red-500 mb-1 flex items-center gap-1"><MessageSquare size={10}/> Feedback / Ajuste</span>
                               <p className="text-[11px] text-red-900/80 font-medium italic">"{plan.feedback}"</p>
