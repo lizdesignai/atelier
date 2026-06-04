@@ -1,0 +1,1304 @@
+// src/app/admin/projetos/page.tsx
+"use client";
+
+import { useState, useEffect, Suspense } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  UploadCloud, Lock, Unlock, 
+  Image as ImageIcon, Send, FileText, CheckCircle2,
+  Settings2, Plus, ChevronDown, Calendar,
+  Compass, X, Sparkles, Download, Loader2, Trash2, Archive, Eye, RotateCcw, BrainCircuit,
+  LayoutDashboard, Target, CalendarDays, MapPin
+} from "lucide-react";
+import { supabase } from "../../../lib/supabase";
+import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
+import DiaryModule from "../../../components/admin/DiaryModule";
+import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
+
+// IMPORTAÇÃO EXTERNA: Traz apenas o Motor de Gestão de Instagram
+import { GerenciamentoWorkspace } from "../gerenciamento/page";
+
+// Importação do nosso Motor de Automação
+import { AtelierPMEngine } from "../../../lib/AtelierPMEngine";
+
+// Novo Hook de Título Dinâmico
+import { useDynamicTitle } from "../../../hooks/useDynamicTitle"; 
+
+const showToast = (message: string) => {
+  window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
+};
+
+// ============================================================================
+// DICIONÁRIOS GLOBAIS (Partilhados)
+// ============================================================================
+const isIdvService = (project: any) => {
+  if (!project) return false;
+  return project.service_type === 'Identidade Visual' || project.type?.includes('Identidade Visual');
+};
+
+const SEMIOTICS_MAP: Record<string, { A: string, B: string }> = {
+  lighting: { A: "Luz Natural (Acolhedor)", B: "Luz Dura & Sombras (Cinemático)" },
+  framing: { A: "Macro/Detalhe (Intimista)", B: "Plano Aberto (Operacional)" },
+  presence: { A: "Movimento Real (Cândido)", B: "Retrato Posado (Autoridade)" },
+  temperature: { A: "Tons Quentes (Tradição)", B: "Tons Frios (Hiper-modernidade)" },
+  composition: { A: "Caos Criativo (Assimétrico)", B: "Rigor Técnico (Simetria)" },
+  setting: { A: "Urbano/Rua (Vivência)", B: "Interior Polido (Isolamento/Luxo)" },
+  post_prod: { A: "Granulação/Analógico (Verdade)", B: "Nitidez 4K (Sofisticação)" },
+  negative_space: { A: "Informação Densa (Complexidade)", B: "Espaço Vazio (Minimalismo)" }
+};
+
+const VOICE_MAP: Record<string, string> = {
+  A: "Oculto/Educativo",
+  B: "Estrategista Frio/Soberano",
+  C: "Implacável/Agressivo"
+};
+
+function InfoBlock({ label, value }: { label: string, value: any }) {
+  if (!value) return null;
+  return (
+    <div className="flex flex-col">
+      <span className="font-roboto text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/50">{label}</span>
+      <span className="font-roboto text-sm text-[var(--color-atelier-grafite)] mt-1 whitespace-pre-wrap font-medium">{value}</span>
+    </div>
+  );
+}
+
+function PainelIdentidade() {
+  // ==========================================
+  // ESTADOS DO SUPABASE (CONSUMO DE RAM)
+  // ==========================================
+  const { activeProjects, isGlobalLoading, refreshGlobalData } = useGlobalStore();
+  
+  const [isLocalLoading, setIsLocalLoading] = useState(true);
+  const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [isClientMenuOpen, setIsClientMenuOpen] = useState(false);
+  const [isBriefingModalOpen, setIsBriefingModalOpen] = useState(false);
+
+  // Derivação automática
+  const validProjects = activeProjects.filter(p => ['active', 'delivered', 'archived'].includes(p.status));
+  const currentProject = validProjects.find(p => p.id === activeProjectId);
+  const isIdv = isIdvService(currentProject); 
+
+  // Injeção do Título Dinâmico na Aba do Navegador
+  useDynamicTitle({
+    projectName: currentProject?.profiles?.nome,
+    tabName: isIdv ? "Identidade Visual" : "Gestão de Projeto"
+  });
+
+  // Carregamento instantâneo via RAM
+  useEffect(() => {
+    if (isGlobalLoading) return;
+    
+    if (validProjects.length > 0 && !activeProjectId) {
+      setActiveProjectId(validProjects[0].id);
+    }
+    setIsLocalLoading(false);
+  }, [isGlobalLoading, activeProjects.length]);
+
+  useEffect(() => {
+    if (currentProject) {
+      setDeadlineDate(currentProject.data_limite || "");
+      setContractUrl(currentProject.contract_url || "");
+      setBriefingAiInsight(currentProject.briefing_ai_insight || null);
+      setCuradoriaAiInsight(currentProject.curadoria_ai_insight || null);
+    }
+  }, [currentProject]);
+
+  // ==========================================
+  // ESTADOS DOS ARQUIVOS, CONTRATO E BRIEFING
+  // ==========================================
+  const [projectAssets, setProjectAssets] = useState<any[]>([]);
+  const [isUploadingAsset, setIsUploadingAsset] = useState(false);
+  const [contractUrl, setContractUrl] = useState("");
+  const [isUploadingContract, setIsUploadingContract] = useState(false);
+  
+  const [clientBriefing, setClientBriefing] = useState<any>(null);
+  
+  // ESTADOS DE IA & PDF
+  const [briefingAiInsight, setBriefingAiInsight] = useState<string | null>(null);
+  const [curadoriaAiInsight, setCuradoriaAiInsight] = useState<string | null>(null);
+  const [isGeneratingBriefingInsight, setIsGeneratingBriefingInsight] = useState(false);
+  const [isGeneratingCuradoriaInsight, setIsGeneratingCuradoriaInsight] = useState(false);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const [isGeneratingCuradoriaPDF, setIsGeneratingCuradoriaPDF] = useState(false);
+
+  // FETCHING PARALELO E DISPARO DO HOT-CHECK DE RECORRÊNCIA
+  useEffect(() => {
+    if (!activeProjectId) return;
+    const fetchAssetsAndBriefing = async () => {
+      try {
+        const [ { data: assetsData }, { data: briefingData }, { data: { session } } ] = await Promise.all([
+          supabase.from('project_assets').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false }),
+          supabase.from('client_briefings').select('answers, is_completed').eq('project_id', activeProjectId).maybeSingle(),
+          supabase.auth.getSession() // Busca a sessão para pegar o adminId
+        ]);
+        
+        if (assetsData) setProjectAssets(assetsData);
+        
+        if (briefingData && briefingData.answers && briefingData.is_completed !== false) {
+          setClientBriefing(briefingData.answers);
+        } else {
+          setClientBriefing(null);
+        }
+
+        // 🟢 TRIGGER DO HOT-CHECK (Executa em background para não travar a UI)
+        if (session?.user?.id) {
+          AtelierPMEngine.runRecurrenceHotCheck(activeProjectId, session.user.id).catch(e => {
+            console.error("Erro no Hot-Check Background:", e);
+          });
+        }
+
+      } catch (error) {
+        console.error("Erro no fetching paralelo:", error);
+      }
+    };
+    fetchAssetsAndBriefing();
+  }, [activeProjectId]);
+
+  // ==========================================
+  // NOVA AÇÃO: DEVOLVER BRIEFING (Optimistic UI)
+  // ==========================================
+  const handleReturnBriefing = async () => {
+    if (!activeProjectId || !clientBriefing) return;
+    if (!window.confirm("Deseja solicitar uma revisão do briefing para o cliente? Ele precisará revisar e reenviar o documento.")) return;
+    
+    // MUTAÇÃO OTIMISTA: Limpa a tela imediatamente
+    setClientBriefing(null);
+    setIsBriefingModalOpen(false);
+    
+    // BACKGROUND SYNC
+    try {
+      await supabase.from('client_briefings').update({ is_completed: false }).eq('project_id', activeProjectId);
+      
+      // 🔔 NOTIFICAÇÃO: Cliente
+      if (currentProject?.client_id) {
+        await NotificationEngine.notifyUser(
+          currentProject.client_id,
+          "⚠️ Briefing Devolvido (Revisão Necessária)",
+          "A equipe analisou o seu Briefing e solicita mais profundidade nas respostas. Por favor, revise-o no Meu Espaço.",
+          "action",
+          "/meu-espaco"
+        );
+      }
+      showToast("Solicitação de revisão enviada ao cliente.");
+    } catch (e) {
+      showToast("Erro ao processar devolução de briefing.");
+    }
+  };
+
+  // ==========================================
+  // PONTO DE INTERVENÇÃO 4: AUTOMAÇÃO DO DIÁRIO DE BORDO
+  // ==========================================
+  const handleDiaryActivity = async () => {
+    if (!activeProjectId) return;
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session && session.user) {
+        if ((AtelierPMEngine as any).triggerSystemAction) {
+          await (AtelierPMEngine as any).triggerSystemAction(activeProjectId, 'community', session.user.id);
+        }
+      }
+    } catch (error) {
+      console.error("Erro na automação do Diário de Bordo:", error);
+    }
+  };
+
+  // ==========================================
+  // MOTORES DE INTELIGÊNCIA ARTIFICIAL
+  // ==========================================
+  const handleGenerateBriefingInsight = async () => {
+    if (!activeProjectId || !clientBriefing) return;
+    setIsGeneratingBriefingInsight(true);
+    showToast("Assistente Estratégico: Analisando o briefing...");
+    try {
+      const res = await fetch('/api/insights/briefing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          briefingData: clientBriefing,
+          clientName: currentProject?.profiles?.nome,
+          companyName: currentProject?.profiles?.empresa
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      await supabase.from('projects').update({ briefing_ai_insight: data.insight }).eq('id', activeProjectId);
+      setBriefingAiInsight(data.insight);
+      refreshGlobalData(); // Sincroniza RAM
+      
+      // 🔔 NOTIFICAÇÃO: Gestão
+      await NotificationEngine.notifyManagement(
+        "🧠 Assistente Estratégico: Análise Concluída",
+        `O relatório de inteligência estratégica do cliente ${currentProject?.profiles?.nome} está pronto a ser consultado.`,
+        "success",
+        "/admin/projetos"
+      );
+
+      showToast("Análise Estratégica gerada com sucesso! ✨");
+    } catch (e) {
+      showToast("Erro ao processar análise da IA.");
+    } finally {
+      setIsGeneratingBriefingInsight(false);
+    }
+  };
+
+  const handleGenerateCuradoriaInsight = async () => {
+    if (!activeProjectId || adminRefs.length === 0) return;
+    setIsGeneratingCuradoriaInsight(true);
+    showToast("Assistente de Design: Analisando direções visuais...");
+    try {
+      const res = await fetch('/api/insights/curadoria', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminRefs: adminRefs,
+          clientMoodboard: clientMoodboard,
+          clientName: currentProject?.profiles?.nome
+        })
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+
+      await supabase.from('projects').update({ curadoria_ai_insight: data.insight }).eq('id', activeProjectId);
+      setCuradoriaAiInsight(data.insight);
+      refreshGlobalData(); // Sincroniza RAM
+      
+      // 🔔 NOTIFICAÇÃO: Gestão
+      await NotificationEngine.notifyManagement(
+        "🎨 Assistente de Design: Análise Concluída",
+        `O relatório semiótico para o projeto de ${currentProject?.profiles?.nome} foi compilado.`,
+        "success",
+        "/admin/projetos"
+      );
+
+      showToast("Análise Visual gerada com sucesso! ✨");
+    } catch (e) {
+      showToast("Erro ao processar análise da IA.");
+    } finally {
+      setIsGeneratingCuradoriaInsight(false);
+    }
+  };
+
+  // ==========================================
+  // MOTORES DE PDF VETORIAL
+  // ==========================================
+  const handleDownloadBriefingPDF = async () => {
+    if (!clientBriefing) {
+      showToast("Erro: O conteúdo do Briefing ainda não foi carregado.");
+      return;
+    }
+    
+    setIsGeneratingPDF(true);
+    showToast("Gerando PDF Estratégico...");
+    
+    try {
+      const { pdf } = await import('@react-pdf/renderer');
+      const BriefingPDF = (await import('../../../components/pdf/BriefingPDF')).default;
+      
+      const doc = <BriefingPDF clientBriefing={clientBriefing} projectName={currentProject?.profiles?.nome || 'Cliente'} aiInsight={briefingAiInsight || undefined} />;
+      const blob = await pdf(doc).toBlob();
+      
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Briefing_Estrategico_${currentProject?.profiles?.nome || 'Cliente'}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      showToast("PDF Estratégico exportado com sucesso!");
+    } catch (error) {
+      console.error("Crash no PDF:", error);
+      showToast("Erro crítico ao gerar o arquivo vetorial.");
+    } finally {
+      setIsGeneratingPDF(false);
+    }
+  };
+
+  const handleDownloadCuradoriaPDF = async () => {
+    if (adminRefs.length === 0) return;
+    setIsGeneratingCuradoriaPDF(true);
+    showToast("Gerando PDF da Curadoria...");
+    try {
+      const { pdf } = await import('@react-pdf/renderer');
+      const CuradoriaPDF = (await import('../../../components/pdf/CuradoriaPDF')).default;
+      
+      const doc = <CuradoriaPDF adminRefs={adminRefs} projectName={currentProject?.profiles?.nome || 'Cliente'} aiInsight={curadoriaAiInsight || undefined} />;
+      const blob = await pdf(doc).toBlob();
+      
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Curadoria_${currentProject?.profiles?.nome || 'Cliente'}.pdf`;
+      link.click();
+      URL.revokeObjectURL(url);
+
+      showToast("Curadoria exportada com sucesso.");
+    } catch (error) {
+      console.error(error);
+      showToast("Erro ao gerar PDF da Curadoria.");
+    } finally {
+      setIsGeneratingCuradoriaPDF(false);
+    }
+  };
+
+  // UPLOAD DE ATIVOS FINAIS E CONTRATO
+  const handleAssetUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeProjectId) return;
+
+    setIsUploadingAsset(true);
+    showToast("Enviando arquivo para o espaço seguro...");
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+      const filePath = `${activeProjectId}/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage.from('vault_assets').upload(filePath, file);
+      if (uploadError) throw uploadError;
+
+      const { data: publicUrlData } = supabase.storage.from('vault_assets').getPublicUrl(filePath);
+      const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      
+      const { data: insertedData, error: dbError } = await supabase
+        .from('project_assets')
+        .insert({
+          project_id: activeProjectId,
+          file_name: file.name,
+          file_url: publicUrlData.publicUrl,
+          file_size: `${fileSizeMB} MB`
+        })
+        .select();
+
+      if (dbError) throw dbError;
+      if (insertedData) setProjectAssets([insertedData[0], ...projectAssets]);
+      
+      // 🔔 NOTIFICAÇÃO: Cliente
+      if (currentProject?.client_id) {
+        await NotificationEngine.notifyUser(
+          currentProject.client_id,
+          "📦 Novo Material Disponível",
+          `A equipe adicionou o arquivo final "${file.name}" ao seu espaço.`,
+          "info",
+          "/meu-espaco"
+        );
+      }
+
+      showToast("✨ Arquivo adicionado aos Materiais Finais!");
+    } catch (error: any) {
+      console.error("Erro no upload:", error);
+      showToast("Erro ao fazer upload do arquivo.");
+    } finally {
+      setIsUploadingAsset(false);
+      e.target.value = '';
+    }
+  };
+
+  const handleRemoveAsset = async (assetId: string) => {
+    const confirm = window.confirm("Tem certeza de que deseja excluir este arquivo?");
+    if (!confirm) return;
+
+    try {
+      await supabase.from('project_assets').delete().eq('id', assetId);
+      setProjectAssets(projectAssets.filter(a => a.id !== assetId));
+      showToast("Arquivo removido com sucesso.");
+    } catch (error) {
+      showToast("Erro ao excluir arquivo.");
+    }
+  };
+
+  const handleContractUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeProjectId) return;
+
+    setIsUploadingContract(true);
+    showToast("Fazendo upload do contrato assinado...");
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${activeProjectId}_contrato_${Date.now()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage.from('vault_assets').upload(fileName, file);
+      if (uploadError) throw uploadError;
+      
+      const { data } = supabase.storage.from('vault_assets').getPublicUrl(fileName);
+      
+      const { error: dbError } = await supabase.from('projects').update({ contract_url: data.publicUrl }).eq('id', activeProjectId);
+      if (dbError) throw dbError;
+      
+      setContractUrl(data.publicUrl);
+      refreshGlobalData(); // Sync Global RAM
+      
+      // 🔔 NOTIFICAÇÃO: Cliente
+      if (currentProject?.client_id) {
+        await NotificationEngine.notifyUser(
+          currentProject.client_id,
+          "📜 Contrato Disponível",
+          "A cópia digital do seu contrato assinado já está disponível no seu espaço.",
+          "info",
+          "/meu-espaco"
+        );
+      }
+
+      showToast("Contrato anexado com sucesso!");
+    } catch (error) {
+      console.error(error);
+      showToast("Erro ao fazer upload do contrato.");
+    } finally {
+      setIsUploadingContract(false);
+      e.target.value = ''; 
+    }
+  };
+
+
+  // ==========================================
+  // MOTOR DE TEMPO E FASE E ENTREGAS (OTIMISTA)
+  // ==========================================
+  const [deadlineDate, setDeadlineDate] = useState("");
+  const [daysLeft, setDaysLeft] = useState(0);
+  const [isForceUnlocked, setIsForceUnlocked] = useState(false);
+
+  useEffect(() => {
+    if (!deadlineDate) {
+      setDaysLeft(0);
+      return;
+    }
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const target = new Date(deadlineDate);
+    target.setHours(0, 0, 0, 0);
+    
+    const diffTime = target.getTime() - today.getTime();
+    const diffDays = Math.max(0, Math.ceil(diffTime / (1000 * 60 * 60 * 24)));
+    setDaysLeft(diffDays);
+  }, [deadlineDate]);
+
+  const handleDeadlineChange = async (newDate: string) => {
+    setDeadlineDate(newDate);
+    setIsForceUnlocked(false);
+    
+    if (activeProjectId) {
+      await supabase.from('projects').update({ data_limite: newDate }).eq('id', activeProjectId);
+      showToast(`Prazo atualizado: ${newDate.split('-').reverse().join('/')}`);
+      refreshGlobalData(); // Sync
+    }
+  };
+
+  const handleStageChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const novaFase = e.target.value;
+    if (activeProjectId) {
+      await supabase.from('projects').update({ fase: novaFase }).eq('id', activeProjectId);
+      showToast("Fase do projeto atualizada com sucesso!");
+      refreshGlobalData(); // Sync
+    }
+  };
+
+  const handleMarkAsDelivered = async () => {
+    if (!activeProjectId) return;
+    if (!window.confirm("Deseja marcar este projeto como ENTREGUE? O cliente terá 15 dias de acesso ao painel antes do arquivamento.")) return;
+
+    try {
+      await supabase
+        .from('projects')
+        .update({ status: 'delivered', delivered_at: new Date().toISOString() })
+        .eq('id', activeProjectId);
+
+      // 🔔 NOTIFICAÇÃO: Cliente
+      if (currentProject?.client_id) {
+        await NotificationEngine.notifyUser(
+          currentProject.client_id,
+          "🎉 Projeto Entregue!",
+          "Você terá 15 dias de acesso ao Meu Espaço para fazer o download final dos seus materiais.",
+          "success",
+          "/meu-espaco"
+        );
+      }
+
+      showToast("Projeto marcado como Entregue! A contagem regressiva de 15 dias começou.");
+      refreshGlobalData(); // Sync
+    } catch (error) {
+      showToast("Erro ao marcar projeto como entregue.");
+    }
+  };
+
+  const handleForceArchive = async () => {
+    if (!activeProjectId) return;
+    if (!window.confirm("ATENÇÃO: O cliente perderá acesso IMEDIATO ao painel e canais deste projeto. Deseja prosseguir?")) return;
+
+    try {
+      await supabase.from('projects').update({ status: 'archived' }).eq('id', activeProjectId);
+      
+      // 🔔 NOTIFICAÇÃO: Cliente
+      if (currentProject?.client_id) {
+        await NotificationEngine.notifyUser(
+          currentProject.client_id,
+          "🔒 Acesso Fechado",
+          "O seu projeto foi arquivado. O seu acesso ao painel foi encerrado. Obrigado por confiar na Liz Design.",
+          "info"
+        );
+      }
+
+      showToast("Projeto Arquivado com sucesso!");
+      refreshGlobalData(); // Sync
+    } catch (error) {
+      showToast("Erro ao arquivar projeto.");
+    }
+  };
+
+  const handleReactivateProject = async () => {
+    if (!activeProjectId) return;
+    if (!window.confirm("Deseja REATIVAR este projeto? O cliente voltará a ter acesso total ao painel.")) return;
+
+    try {
+      await supabase.from('projects').update({ status: 'active', delivered_at: null }).eq('id', activeProjectId);
+      
+      // 🔔 NOTIFICAÇÃO: Cliente
+      if (currentProject?.client_id) {
+        await NotificationEngine.notifyUser(
+          currentProject.client_id,
+          "🔓 Operação Reativada",
+          "O seu projeto voltou a ficar ativo. Você tem acesso total restaurado ao seu espaço.",
+          "success",
+          "/meu-espaco"
+        );
+      }
+
+      showToast("Projeto Reativado com sucesso!");
+      refreshGlobalData(); // Sync
+    } catch (error) {
+      showToast("Erro ao reativar projeto.");
+    }
+  };
+
+  const isCofreUnlocked = (daysLeft === 0 && deadlineDate !== "") || isForceUnlocked;
+
+  // ==========================================
+  // PAINEL DE CURADORIA (MULTI-IMAGENS & PDF)
+  // ==========================================
+  const [showRefsPanel, setShowRefsPanel] = useState(false);
+  const [clientMoodboard, setClientMoodboard] = useState<string[]>([]);
+  const [adminRefs, setAdminRefs] = useState<any[]>([]);
+  const [activeEvalIndex, setActiveEvalIndex] = useState(0);
+  
+  const [newRefTitle, setNewRefTitle] = useState("");
+  const [newRefImageFiles, setNewRefImageFiles] = useState<File[]>([]);
+  const [newRefImagePreviews, setNewRefImagePreviews] = useState<string[]>([]);
+  
+  const [isSendingRef, setIsSendingRef] = useState(false);
+
+  useEffect(() => {
+    if (!showRefsPanel || !activeProjectId) return;
+    
+    const fetchCuradoria = async () => {
+      const [ { data: strategicData }, { data: directionsData } ] = await Promise.all([
+        supabase.from('strategic_answers').select('moodboard_urls').eq('project_id', activeProjectId).maybeSingle(),
+        supabase.from('design_directions').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: true })
+      ]);
+      
+      if (strategicData && strategicData.moodboard_urls) setClientMoodboard(strategicData.moodboard_urls);
+      else setClientMoodboard([]);
+
+      if (directionsData) {
+        setAdminRefs(directionsData);
+        if (directionsData.length > 0) setActiveEvalIndex(directionsData.length - 1); 
+      } else {
+        setAdminRefs([]);
+      }
+    };
+    fetchCuradoria();
+  }, [showRefsPanel, activeProjectId]);
+
+  const handleMultiImageUploadRef = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setNewRefImageFiles(prev => [...prev, ...files]);
+      const previews = files.map(f => URL.createObjectURL(f));
+      setNewRefImagePreviews(prev => [...prev, ...previews]);
+    }
+  };
+
+  const handleRemoveRefImage = (index: number) => {
+    setNewRefImageFiles(prev => prev.filter((_, i) => i !== index));
+    setNewRefImagePreviews(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handleAddAdminRef = async () => {
+    if (!newRefTitle || newRefImageFiles.length === 0 || !activeProjectId) {
+      showToast("Adicione um título e pelo menos uma imagem.");
+      return;
+    }
+
+    setIsSendingRef(true);
+    showToast("Enviando Direções Visuais para o cliente...");
+
+    try {
+      const uploadPromises = newRefImageFiles.map(async (file) => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `${activeProjectId}/${fileName}`;
+        const { error: uploadError } = await supabase.storage.from('moodboard').upload(filePath, file);
+        if (uploadError) throw uploadError;
+        const { data } = supabase.storage.from('moodboard').getPublicUrl(filePath);
+        return data.publicUrl;
+      });
+
+      const uploadedUrls = await Promise.all(uploadPromises);
+
+      const { data: newRefData, error: dbError } = await supabase.from('design_directions').insert({
+        project_id: activeProjectId,
+        title: newRefTitle,
+        image_url: uploadedUrls[0], 
+        image_urls: uploadedUrls    
+      }).select();
+
+      if (dbError) throw dbError;
+
+      if (newRefData) {
+        setAdminRefs([...adminRefs, newRefData[0]]);
+        setActiveEvalIndex(adminRefs.length);
+      }
+      
+      // 🔔 NOTIFICAÇÃO: Cliente
+      if (currentProject?.client_id) {
+        await NotificationEngine.notifyUser(
+          currentProject.client_id,
+          "🧭 Nova Direção Visual (Moodboard)",
+          "A equipe enviou referências e um novo caminho criativo para a sua marca. Analise e compartilhe a sua opinião no Meu Espaço.",
+          "action",
+          "/meu-espaco"
+        );
+      }
+
+      showToast("Direção visual enviada com sucesso!");
+      setNewRefTitle("");
+      setNewRefImageFiles([]);
+      setNewRefImagePreviews([]);
+
+    } catch (error) {
+      showToast("Erro ao enviar Direção Visual.");
+    } finally {
+      setIsSendingRef(false);
+    }
+  };
+
+  const removeAdminRef = async (id: string) => {
+    const confirm = window.confirm("Remover esta direção visual permanentemente?");
+    if (!confirm) return;
+    
+    // MUTAÇÃO OTIMISTA
+    setAdminRefs(adminRefs.filter(ref => ref.id !== id));
+    setActiveEvalIndex(0); 
+    showToast("Direção visual removida.");
+    
+    try {
+      await supabase.from('design_directions').delete().eq('id', id);
+    } catch (error) {
+      showToast("Erro ao excluir direção no banco.");
+    }
+  };
+
+  if (isGlobalLoading || isLocalLoading) {
+    return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
+  }
+
+  if (!currentProject) {
+    return (
+      <div className="flex flex-col items-center justify-center h-full gap-4 opacity-50">
+        <Settings2 size={48} className="text-[var(--color-atelier-grafite)]" />
+        <h2 className="font-elegant text-3xl">Nenhum projeto ativo.</h2>
+        <p className="font-roboto text-sm font-medium">Crie um projeto na Base de Clientes para acessar o painel.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6 px-4 md:px-0">
+      
+      {/* ==========================================
+          MODAL DO BRIEFING (DOSSIÊ ADMIN)
+          ========================================== */}
+      <AnimatePresence>
+        {isBriefingModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 md:p-10">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[var(--color-atelier-grafite)]/40 backdrop-blur-md" onClick={() => setIsBriefingModalOpen(false)}></motion.div>
+            
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-[var(--color-atelier-creme)] w-full h-full max-w-4xl rounded-[2.5rem] shadow-2xl relative z-10 flex flex-col overflow-hidden border border-white">
+              
+              <div className="p-6 border-b border-white/40 flex justify-between items-center bg-white/60 backdrop-blur-xl shrink-0">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center border border-white shadow-inner"><FileText size={18} className="text-[var(--color-atelier-terracota)]" /></div>
+                  <span className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Briefing Estratégico</span>
+                </div>
+                <div className="flex items-center gap-3">
+                  
+                  <button onClick={handleReturnBriefing} disabled={!clientBriefing} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-red-500 hover:text-white transition-all shadow-sm disabled:opacity-50">
+                    <RotateCcw size={14} /> Solicitar Revisão
+                  </button>
+                  
+                  <button onClick={handleGenerateBriefingInsight} disabled={isGeneratingBriefingInsight || !clientBriefing} className="bg-white border border-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-terracota)] px-4 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm disabled:opacity-50">
+                    {isGeneratingBriefingInsight ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Gerar Análise (IA)
+                  </button>
+
+                  <button onClick={handleDownloadBriefingPDF} disabled={isGeneratingPDF || !clientBriefing} className="bg-[var(--color-atelier-grafite)] text-white px-5 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-md disabled:opacity-50 hover:-translate-y-0.5 disabled:hover:translate-y-0">
+                    {isGeneratingPDF ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Baixar PDF Oficial
+                  </button>
+                  
+                  <button onClick={() => setIsBriefingModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-white text-[var(--color-atelier-grafite)]/50 hover:text-red-500 transition-colors shadow-sm">
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+              
+              <div className="flex-1 w-full overflow-y-auto custom-scrollbar p-8">
+                {clientBriefing ? (
+                  <div className="max-w-3xl mx-auto glass-panel bg-white/60 p-10 border border-white rounded-[2.5rem] shadow-sm">
+                    <div className="text-center mb-12 border-b border-[var(--color-atelier-grafite)]/10 pb-8">
+                      <div className="flex justify-center mb-6">
+                        <img src="/images/simbolo-rosa.png" alt="Atelier" className="w-16 h-16 object-contain grayscale opacity-50 drop-shadow-sm" />
+                      </div>
+                      <h1 className="font-elegant text-5xl text-[var(--color-atelier-grafite)] mb-2">Briefing Oficial</h1>
+                      <h2 className="font-roboto text-lg text-[var(--color-atelier-terracota)] uppercase tracking-widest font-bold">{currentProject.profiles?.nome}</h2>
+                      <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/50 mt-2 font-medium">Documento Confidencial do Projeto</p>
+                    </div>
+
+                    {briefingAiInsight && (
+                      <div className="mb-10 bg-white/80 p-8 rounded-[2rem] border border-[var(--color-atelier-terracota)]/20 shadow-sm relative overflow-hidden">
+                        <div className="absolute left-0 top-0 h-full w-1.5 bg-[var(--color-atelier-terracota)]"></div>
+                        <h3 className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] mb-4 flex items-center gap-2">
+                          <Sparkles size={14}/> Diagnóstico de Marca (Assistente IA)
+                        </h3>
+                        <div className="font-roboto text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed whitespace-pre-wrap font-medium">
+                           {briefingAiInsight}
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="flex flex-col gap-10">
+                      <div>
+                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">1. Dados & Contato</h3>
+                        <div className="grid grid-cols-2 gap-4">
+                          <InfoBlock label="Nome do Responsável" value={clientBriefing.nome} />
+                          <InfoBlock label="WhatsApp" value={clientBriefing.whatsapp} />
+                          <InfoBlock label="E-mail de Contato" value={clientBriefing.email} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">2. A Marca</h3>
+                        <div className="flex flex-col gap-4">
+                          <InfoBlock label="Nome a ser utilizado no Logotipo" value={clientBriefing.nome_logo} />
+                          <InfoBlock label="Significado da Escolha do Nome" value={clientBriefing.significado_nome} />
+                          <div className="grid grid-cols-2 gap-4">
+                            <InfoBlock label="Tagline (Subtítulo)" value={clientBriefing.tagline} />
+                            <InfoBlock label="Slogan da Empresa" value={clientBriefing.slogan} />
+                          </div>
+                          <InfoBlock label="Produtos ou Serviços Oferecidos" value={clientBriefing.produtos_servicos} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">3. Essência & História</h3>
+                        <div className="flex flex-col gap-4">
+                          <InfoBlock label="Por que a empresa foi aberta? Qual a motivação?" value={clientBriefing.motivo_abertura} />
+                          <InfoBlock label="Propósito principal além de lucrar" value={clientBriefing.proposito} />
+                          <div className="grid grid-cols-3 gap-4">
+                            <InfoBlock label="Tempo de Mercado" value={clientBriefing.tempo_mercado} />
+                            <InfoBlock label="A Marca em Emojis" value={clientBriefing.emoji} />
+                            <InfoBlock label="Música que a define" value={clientBriefing.musica} />
+                          </div>
+                          <InfoBlock label="O Sentimento que a marca vende" value={clientBriefing.sentimento} />
+                          <InfoBlock label="Visão de Futuro (Em 5 Anos)" value={clientBriefing.visao_5_anos} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">4. Público Alvo</h3>
+                        <div className="grid grid-cols-3 gap-4 mb-4">
+                          <InfoBlock label="Gênero" value={clientBriefing.genero === 'Outro' ? clientBriefing.genero_outro : clientBriefing.genero} />
+                          <InfoBlock label="Classe Social" value={clientBriefing.classe === 'Outro' ? clientBriefing.classe_outro : clientBriefing.classe} />
+                          <InfoBlock label="Idade" value={clientBriefing.idade === 'Outro' ? clientBriefing.idade_outro : clientBriefing.idade} />
+                        </div>
+                        <InfoBlock label="Resumo Comportamental do Público" value={clientBriefing.resumo_publico} />
+                      </div>
+
+                      <div>
+                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">5. Posicionamento de Mercado</h3>
+                        <div className="flex flex-col gap-4">
+                          <InfoBlock label="Concorrentes Principais" value={clientBriefing.concorrentes_links} />
+                          <InfoBlock label="Diferencial Competitivo" value={clientBriefing.diferencial} />
+                          <InfoBlock label="O que definitivamente NÃO fazer (Vícios da concorrência)" value={clientBriefing.nao_fazer} />
+                          <InfoBlock label="Referências Visuais do Cliente" value={clientBriefing.referencias} />
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">6. Personalidade e Estética</h3>
+                        <div className="flex flex-col gap-4">
+                          <InfoBlock label="Sentimento Exigido da Marca" value={clientBriefing.sentimento_marca} />
+                          <InfoBlock label="A Missão Oficial" value={clientBriefing.missao} />
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2 bg-white/60 p-6 rounded-3xl border border-white shadow-sm">
+                            <div>
+                              <p className="font-roboto text-[10px] uppercase font-bold text-[var(--color-atelier-terracota)] mb-2 flex items-center gap-1.5"><CheckCircle2 size={12}/> Adjetivos Positivos (A Marca É)</p>
+                              <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)] leading-relaxed">
+                                {clientBriefing.adjetivos_positivos?.join(", ")} {clientBriefing.adjetivos_positivos_outro && `, ${clientBriefing.adjetivos_positivos_outro}`}
+                              </p>
+                              <p className="mt-3 text-[13px] text-[var(--color-atelier-grafite)] bg-white/80 p-3 rounded-xl border border-white"><strong>Top 3:</strong> <br/><span className="font-medium">{clientBriefing.top_3_adjetivos}</span></p>
+                            </div>
+                            <div>
+                              <p className="font-roboto text-[10px] uppercase font-bold text-red-600 mb-2 flex items-center gap-1.5"><X size={12}/> Adjetivos Negativos (A Marca NÃO É)</p>
+                              <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)] leading-relaxed">
+                                {clientBriefing.adjetivos_negativos?.join(", ")} {clientBriefing.adjetivos_negativos_outro && `, ${clientBriefing.adjetivos_negativos_outro}`}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">7. Restrições e Direções Visuais</h3>
+                        <div className="flex flex-col gap-4">
+                          <InfoBlock label="Pedido de Símbolo Específico" value={clientBriefing.simbolo} />
+                          <div className="grid grid-cols-2 gap-4">
+                            <InfoBlock label="Cores Desejadas" value={clientBriefing.cor_desejada} />
+                            <InfoBlock label="Cores Bloqueadas (Não usar)" value={clientBriefing.cor_nao_desejada} />
+                          </div>
+                          <InfoBlock label="Onde a Identidade será mais aplicada?" value={clientBriefing.onde_verao} />
+                          
+                          <div className="mt-4 p-6 border border-white bg-white/40 rounded-3xl shadow-sm">
+                            <InfoBlock label="Sobre o Logotipo Atual (O que gosta/não gosta)" value={clientBriefing.logo_atual} />
+                            {clientBriefing.logo_atual_url && (
+                              <div className="mt-4">
+                                <p className="font-roboto text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/50 mb-2">Logotipo Antigo Anexado:</p>
+                                <img src={clientBriefing.logo_atual_url} alt="Logo Atual" className="max-w-[250px] border-4 border-white shadow-sm rounded-[1rem] hover:scale-105 transition-transform" />
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">8. Considerações Finais</h3>
+                        <div className="flex flex-col gap-4">
+                          <InfoBlock label="Por que escolheu a Liz Design?" value={clientBriefing.motivo_escolha} />
+                          <InfoBlock label="Observações e Extensões" value={clientBriefing.ideias_livres} />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center justify-center h-full opacity-50">
+                    <FileText size={48} className="mb-4 text-[var(--color-atelier-grafite)]" />
+                    <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Briefing não encontrado.</h2>
+                    <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/70 font-medium">O cliente ainda não preencheu o formulário estratégico.</p>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ==========================================
+          CABEÇALHO PRINCIPAL DO ESTÚDIO
+          ========================================== */}
+      <header className="flex justify-between items-end shrink-0 animate-[fadeInUp_0.5s_ease-out] relative z-20">
+        <div className="flex items-center gap-6">
+          <div className="w-16 h-16 rounded-[1.5rem] bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-terracota)]/20 shadow-sm flex items-center justify-center text-[var(--color-atelier-terracota)] font-elegant text-3xl overflow-hidden shrink-0 hover:scale-105 transition-transform">
+             {currentProject.profiles?.avatar_url ? (
+               <img src={currentProject.profiles.avatar_url} alt="Avatar" className="w-full h-full object-cover opacity-90" />
+             ) : (
+               currentProject.profiles?.nome?.charAt(0) || "C"
+             )}
+          </div>
+          <div className="relative">
+            <div className="flex items-center gap-3 mb-1">
+              <span className={`px-3 py-1 rounded-lg text-[9px] uppercase tracking-widest font-bold border shadow-inner 
+                ${currentProject.status === 'archived' ? 'bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] border-[var(--color-atelier-grafite)]/20' 
+                : currentProject.status === 'delivered' ? 'bg-orange-500/10 text-orange-700 border-orange-500/20' 
+                : 'bg-green-500/10 text-green-700 border-green-500/20'}`}>
+                {currentProject.status === 'archived' ? 'Arquivado (Sem Acesso)' : currentProject.status === 'delivered' ? 'Entregue (Aviso 15 Dias)' : 'Ativo'}
+              </span>
+              <span className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">{currentProject.type}</span>
+            </div>
+            <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setIsClientMenuOpen(!isClientMenuOpen)}>
+              <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] leading-none flex items-center gap-2 group-hover:text-[var(--color-atelier-terracota)] transition-colors truncate max-w-[300px] md:max-w-md">
+                {currentProject.profiles?.nome || "Cliente"} 
+                <ChevronDown size={20} className={`text-[var(--color-atelier-grafite)]/40 transition-transform duration-300 shrink-0 ${isClientMenuOpen ? 'rotate-180' : ''}`} />
+                <span className="text-[var(--color-atelier-grafite)]/40 px-2 shrink-0 hidden md:inline">/</span> <span className="text-[var(--color-atelier-terracota)] italic text-3xl shrink-0 hidden md:inline"></span>
+              </h1>
+            </div>
+            
+            <AnimatePresence>
+              {isClientMenuOpen && (
+                <motion.div 
+                  initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.2 }}
+                  className="absolute top-[110%] left-0 w-[300px] bg-white/90 backdrop-blur-xl border border-white shadow-[0_20px_50px_rgba(122,116,112,0.15)] rounded-2xl overflow-hidden z-50 flex flex-col py-2"
+                >
+                  <div className="px-4 py-2 border-b border-[var(--color-atelier-grafite)]/5 text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">Projetos Ativos</div>
+                  <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
+                    {validProjects.map(p => (
+                      <div 
+                        key={p.id} 
+                        onClick={() => { 
+                          setActiveProjectId(p.id); 
+                          setIsClientMenuOpen(false); 
+                          showToast(`Acessando espaço de ${p.profiles?.nome}...`); 
+                        }}
+                        className={`px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors ${p.id === activeProjectId ? 'bg-[var(--color-atelier-terracota)]/5' : 'hover:bg-white'}`}
+                      >
+                        <div className="w-8 h-8 rounded-xl border border-[var(--color-atelier-terracota)]/20 bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)] flex items-center justify-center overflow-hidden text-xs font-bold shrink-0 shadow-inner">
+                          {p.profiles?.avatar_url ? <img src={p.profiles.avatar_url} alt="" className="w-full h-full object-cover" /> : p.profiles?.nome?.charAt(0)}
+                        </div>
+                        <div className="flex flex-col truncate">
+                          <span className={`font-roboto text-[13px] truncate ${p.id === activeProjectId ? 'font-bold text-[var(--color-atelier-terracota)]' : 'font-medium text-[var(--color-atelier-grafite)]'}`}>{p.profiles?.nome}</span>
+                          <span className="font-roboto text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40 truncate mt-0.5">
+                            {p.status === 'archived' ? 'Arquivado' : p.status === 'delivered' ? 'Entregue' : p.type}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+
+        <div className="flex gap-3 relative z-10 shrink-0">
+          <button onClick={() => setShowRefsPanel(true)} className="glass-panel bg-white/60 px-5 py-3 rounded-[1.2rem] font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-white transition-all flex items-center gap-2 shadow-sm border border-white hover:text-[var(--color-atelier-terracota)]">
+            <Compass size={14} /> Referências Visuais
+          </button>
+          <button onClick={() => setIsBriefingModalOpen(true)} className="glass-panel bg-[var(--color-atelier-grafite)] px-5 py-3 rounded-[1.2rem] font-roboto text-[10px] font-bold uppercase tracking-widest text-white hover:bg-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2 shadow-sm border border-transparent hover:-translate-y-0.5">
+            <FileText size={14} /> Ver Briefing
+          </button>
+        </div>
+      </header>
+
+      {/* ==========================================
+          MESA DE TRABALHO DINÂMICA (IDV ou INSTAGRAM)
+          ========================================== */}
+      {isIdv ? (
+        <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0 animate-[fadeInUp_0.8s_ease-out_0.2s_both] relative z-10">
+          
+          {/* 1. COLUNA ESQUERDA: ENGENHARIA DO PROJETO */}
+          <div className="w-full lg:w-1/3 flex flex-col h-full shrink-0">
+            <div className="glass-panel p-8 rounded-[2.5rem] bg-white/40 flex flex-col border border-white h-full shadow-sm hover:shadow-md transition-shadow">
+              
+              <div className="flex justify-between items-center mb-8 pb-4 border-b border-[var(--color-atelier-grafite)]/10 shrink-0">
+                <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
+                  <Settings2 size={20} className="text-[var(--color-atelier-terracota)]" /> Gestão do Projeto
+                </h3>
+                <div className="flex items-center gap-2">
+                  {isCofreUnlocked ? (
+                    <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg border border-green-200 shadow-sm"><Unlock size={12}/> Aberto</span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg border border-orange-200 shadow-sm"><Lock size={12}/> Fechado</span>
+                  )}
+                </div>
+              </div>
+              
+              <div className="flex flex-col gap-5 flex-1 overflow-y-auto custom-scrollbar pr-2 pb-2">
+                
+                {/* Box: Deadline */}
+                <div className="bg-white/60 border border-white p-5 rounded-[1.5rem] shadow-sm flex flex-col gap-3 group transition-all hover:bg-white">
+                   <div className="flex items-center justify-between w-full">
+                     <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2"><Calendar size={14} className="text-[var(--color-atelier-terracota)]" /> Deadline</label>
+                     <span className="font-elegant text-3xl text-[var(--color-atelier-terracota)] leading-none">{deadlineDate ? daysLeft : "-"} <span className="text-[10px] uppercase font-bold opacity-40 font-roboto">Dias</span></span>
+                   </div>
+                   <input type="date" value={deadlineDate} onChange={(e) => handleDeadlineChange(e.target.value)} className="w-full bg-white px-4 py-3 rounded-xl text-[13px] text-[var(--color-atelier-grafite)] outline-none cursor-pointer font-bold border border-transparent focus:border-[var(--color-atelier-terracota)]/30 shadow-sm transition-colors" />
+                </div>
+
+                {/* Box: Fase Atual */}
+                <div className="bg-white/60 border border-white p-5 rounded-[1.5rem] shadow-sm flex flex-col gap-3 group transition-all hover:bg-white">
+                   <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2"><Sparkles size={14} className="text-[var(--color-atelier-terracota)]" /> Fase Atual</label>
+                   <select value={currentProject?.fase || "reuniao"} onChange={handleStageChange} className="w-full bg-white px-4 py-3 rounded-xl text-[13px] font-bold text-[var(--color-atelier-terracota)] outline-none cursor-pointer border border-transparent focus:border-[var(--color-atelier-terracota)]/30 shadow-sm transition-colors">
+                      <option value="reuniao">1. Reunião de Alinhamento</option>
+                      <option value="pesquisa">2. Estudo e Pesquisa</option>
+                      <option value="direcionamento">3. Direcionamento Criativo</option>
+                      <option value="processo">4. Processo Criativo IDV</option>
+                      <option value="apresentacao">5. Apresentação Oficial</option>
+                   </select>
+                </div>
+
+                {/* Box: Contrato */}
+                <div className="bg-white/60 border border-white p-5 rounded-[1.5rem] shadow-sm flex flex-col gap-3 group transition-all hover:bg-white">
+                   <div className="flex justify-between items-center w-full">
+                     <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2"><FileText size={14} className="text-[var(--color-atelier-terracota)]" /> Contrato</label>
+                     {contractUrl && <CheckCircle2 size={14} className="text-green-500" />}
+                   </div>
+                   
+                   {!contractUrl ? (
+                      <label className="w-full bg-white/50 hover:bg-white border-2 border-dashed border-[var(--color-atelier-grafite)]/20 hover:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-4 flex items-center justify-center gap-2 cursor-pointer transition-colors group/upload shadow-sm">
+                        <input type="file" accept=".pdf" className="hidden" onChange={handleContractUpload} disabled={isUploadingContract} />
+                        {isUploadingContract ? <Loader2 size={16} className="animate-spin text-[var(--color-atelier-terracota)]" /> : <UploadCloud size={16} className="text-[var(--color-atelier-grafite)]/40 group-hover/upload:text-[var(--color-atelier-terracota)] transition-colors" />}
+                        <span className="font-roboto text-[11px] font-bold text-[var(--color-atelier-grafite)]/60 group-hover/upload:text-[var(--color-atelier-terracota)] transition-colors">{isUploadingContract ? "Processando..." : "Anexar Assinado (PDF)"}</span>
+                      </label>
+                   ) : (
+                      <div className="flex w-full gap-2">
+                        <button onClick={() => window.open(contractUrl, "_blank")} className="flex-1 bg-white border border-transparent shadow-sm rounded-xl py-3 flex items-center justify-center gap-2 hover:border-[var(--color-atelier-terracota)]/30 transition-colors"><Eye size={14} className="text-[var(--color-atelier-terracota)]" /><span className="font-roboto text-[11px] font-bold">Visualizar</span></button>
+                        <button onClick={() => { if(window.confirm("Deseja substituir este contrato?")) setContractUrl("") }} className="w-12 rounded-xl bg-white border border-transparent shadow-sm text-[var(--color-atelier-grafite)]/40 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors"><X size={14}/></button>
+                      </div>
+                   )}
+                </div>
+
+                {/* Botões de Ação Rápida */}
+                <div className="mt-4 grid grid-cols-2 gap-3 pt-6 border-t border-[var(--color-atelier-grafite)]/10 shrink-0">
+                  {currentProject.status === 'archived' ? (
+                     <button onClick={handleReactivateProject} className="bg-blue-600 text-white rounded-[1.2rem] py-3.5 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-sm hover:-translate-y-0.5"><RotateCcw size={14} /> Reativar</button>
+                  ) : currentProject.status === 'delivered' ? (
+                     <button onClick={handleForceArchive} className="bg-orange-600 text-white rounded-[1.2rem] py-3.5 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-orange-700 transition-all flex items-center justify-center gap-2 shadow-sm hover:-translate-y-0.5"><Archive size={14} /> Arquivar</button>
+                  ) : (
+                     <button onClick={handleMarkAsDelivered} className="bg-green-600 text-white rounded-[1.2rem] py-3.5 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-green-700 transition-all flex items-center justify-center gap-2 shadow-sm hover:-translate-y-0.5"><CheckCircle2 size={14} /> Entregar</button>
+                  )}
+                  <button onClick={() => { setIsForceUnlocked(true); showToast("Acesso desbloqueado manualmente."); }} disabled={isCofreUnlocked} className="bg-[var(--color-atelier-grafite)] text-white rounded-[1.2rem] py-3.5 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-[var(--color-atelier-terracota)] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm hover:-translate-y-0.5 disabled:hover:translate-y-0"><Unlock size={14} /> Liberar Acesso</button>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+          {/* 2. COLUNA DO MEIO: MATERIAIS FINAIS / ATIVOS */}
+          <div className="w-full lg:w-1/3 flex flex-col h-full shrink-0">
+            <div className="glass-panel p-8 rounded-[2.5rem] bg-white/40 flex flex-col border border-white h-full shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex flex-col mb-6 shrink-0 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
+                <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><UploadCloud size={20} className="text-[var(--color-atelier-terracota)]" /> Materiais Finais</h3>
+                <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 mt-1 uppercase tracking-widest font-bold">Arquivos disponibilizados para o cliente no fim do projeto.</p>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-4 pr-2">
+                <label className="w-full bg-white/60 hover:bg-white border-2 border-dashed border-[var(--color-atelier-terracota)]/20 hover:border-[var(--color-atelier-terracota)]/50 rounded-[1.5rem] p-8 flex flex-col items-center justify-center group cursor-pointer transition-all shrink-0 shadow-sm">
+                  <input type="file" onChange={handleAssetUpload} disabled={isUploadingAsset} className="hidden" />
+                  <div className="w-14 h-14 rounded-[1rem] bg-white border border-white shadow-inner flex items-center justify-center text-[var(--color-atelier-terracota)] mb-3 group-hover:scale-110 transition-transform">
+                    {isUploadingAsset ? <Loader2 size={24} className="animate-spin" /> : <Plus size={24} />}
+                  </div>
+                  <span className="block font-roboto font-bold text-[11px] text-[var(--color-atelier-grafite)] uppercase tracking-widest">{isUploadingAsset ? "Processando..." : "Adicionar Arquivo"}</span>
+                </label>
+
+                <AnimatePresence>
+                  {projectAssets.map(asset => (
+                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} key={asset.id} className="bg-white border border-[var(--color-atelier-grafite)]/5 rounded-[1.2rem] p-5 flex flex-col items-start shadow-sm hover:shadow-md hover:border-[var(--color-atelier-terracota)]/30 transition-all group shrink-0 relative overflow-hidden">
+                      <div className="absolute top-0 left-0 w-1.5 h-full bg-[var(--color-atelier-terracota)]/50"></div>
+                      <div className="flex items-center gap-3 overflow-hidden w-full mb-3 pl-2">
+                        <div className="w-10 h-10 rounded-xl bg-[var(--color-atelier-terracota)]/10 flex items-center justify-center text-[var(--color-atelier-terracota)] shrink-0 shadow-inner"><FileText size={16} /></div>
+                        <a href={asset.file_url} target="_blank" rel="noreferrer" className="block font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] hover:text-[var(--color-atelier-terracota)] transition-colors truncate leading-tight pr-2 w-full">{asset.file_name}</a>
+                      </div>
+                      <div className="flex justify-between items-center w-full pl-2">
+                        <span className="block font-roboto text-[9px] text-[var(--color-atelier-grafite)]/40 font-bold uppercase tracking-widest bg-gray-50 px-2 py-1 rounded-md">{asset.file_size}</span>
+                        <button onClick={() => handleRemoveAsset(asset.id)} className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/30 hover:text-red-500 flex items-center gap-1 transition-colors shrink-0 bg-white border border-transparent hover:border-red-100 hover:bg-red-50 p-1.5 rounded-lg"><Trash2 size={12} /> Excluir</button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                {projectAssets.length === 0 && !isUploadingAsset && (
+                  <div className="text-center p-6 text-[var(--color-atelier-grafite)]/30 font-roboto text-[11px] uppercase tracking-widest font-bold h-full flex flex-col items-center justify-center gap-3 opacity-60 bg-white/20 rounded-[1.5rem]">
+                    <UploadCloud size={32}/> Nenhum arquivo anexado.
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* 3. COLUNA DIREITA: DIÁRIO (MÓDULO EXTRAÍDO) */}
+          <div className="w-full lg:w-1/3 h-[500px] lg:h-full shrink-0">
+              <DiaryModule 
+                 activeProjectId={activeProjectId} 
+                 currentProject={currentProject} 
+                 onActivity={handleDiaryActivity} 
+              />
+          </div>
+
+        </div>
+      ) : (
+        <div className="flex-1 flex flex-col min-h-0 animate-[fadeInUp_0.8s_ease-out_0.2s_both] relative z-10">
+          <GerenciamentoWorkspace activeProjectId={activeProjectId as string} currentProject={currentProject} />
+        </div>
+      )}
+
+      {/* ==========================================
+          PAINEL DESLIZANTE (CURADORIA VISUAL)
+          ========================================== */}
+      <AnimatePresence>
+        {isIdv && showRefsPanel && (
+          <div className="fixed inset-0 z-[100] flex justify-end">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowRefsPanel(false)} className="absolute inset-0 bg-[var(--color-atelier-grafite)]/40 backdrop-blur-md cursor-pointer"></motion.div>
+            
+            <motion.div
+              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-[850px] h-full bg-[var(--color-atelier-creme)] shadow-[-20px_0_50px_rgba(122,116,112,0.2)] flex flex-col border-l border-white overflow-hidden"
+            >
+              <div className="p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 backdrop-blur-xl flex justify-between items-start shrink-0 z-20">
+                <div>
+                  <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-3">Avaliações do Cliente</h2>
+                  <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-2">
+                    Projeto: {currentProject?.profiles?.nome} • {adminRefs.length} Direções
+                  </p>
+                </div>
+                <div className="flex gap-3">
+
+                  {/* BOTÃO DE CÉREBRO DA IA DA CURADORIA */}
+                  <button onClick={handleGenerateCuradoriaInsight} disabled={isGeneratingCuradoriaInsight || adminRefs.length === 0} className="bg-white border border-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-terracota)] px-4 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:border-[var(--color-atelier-terracota)] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm disabled:opacity-50">
+                    {isGeneratingCuradoriaInsight ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Analisar com IA
+                  </button>
+
+                  <button onClick={handleDownloadCuradoriaPDF} disabled={isGeneratingCuradoriaPDF || adminRefs.length === 0} className="bg-[var(--color-atelier-grafite)] border border-transparent text-white px-5 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-atelier-terracota)] transition-all shadow-md disabled:opacity-50">
+                    {isGeneratingCuradoriaPDF ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} PDF Curadoria
+                  </button>
+
+                  <button onClick={() => setShowRefsPanel(false)} className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-red-500 transition-all shadow-sm border border-white">
+                    <X size={18} />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-8 gap-8 relative z-10">
+                
+                {/* Exibição em Tempo Real do Insight da IA da Curadoria */}
+                {curadoriaAiInsight && (
+                  <div className="mb-4 bg-white/80 p-8 rounded-[2rem] border border-[var(--color-atelier-terracota)]/20 shadow-sm relative overflow-hidden">
+                    <div className="absolute left-0 top-0 h-full w-1.5 bg-[var(--color-atelier-terracota)]"></div>
+                    <h3 className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] mb-4 flex items-center gap-2">
+                      <Sparkles size={14}/> Análise Semiótica (Direção de Arte)
+                    </h3>
+                    <div className="font-roboto text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed whitespace-pre-wrap font-medium">
+                        {curadoriaAiInsight}
+                    </div>
+                  </div>
+                )}
+
+                <section className="pb-8 border-b border-[var(--color-atelier-grafite)]/5">
+                  <div className="flex items-center gap-2 mb-6 pb-2 border-b border-[var(--color-atelier-grafite)]/5">
+                    <ImageIcon size={16} className="text-[var(--color-atelier-terracota)]" />
+                    <h3 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Moodboard do Cliente</h3>
+                  </div>
+                  {clientMoodboard.length === 0 ? (
+                    <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 italic font-medium">O cliente ainda não adicionou referências ao Brandbook.</p>
+                  ) : (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {clientMoodboard.map((img, i) => (
+                        <div key={i} className="aspect-square rounded-2xl overflow-hidden border-4 border-white shadow-sm group relative">
+                          <img src={img} onClick={() => window.open(img, "_blank")} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-pointer" alt="Ref Cliente" />
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </section>
+
+                <section>
+                  <div className="flex items-center gap-2 mb-6 pb-2 border-b border-[var(--color-atelier-grafite)]/5">
+                    <Sparkles size={16} className="text-[var(--color-atelier-terracota)]" />
+                    <h3 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Direções Enviadas e Avaliações</h3>
+                  </div>
+                  
+                  {adminRefs.length === 0 ? (
+                    <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 italic mb-6 font-medium">Nenhuma direção visual enviada ainda.</p>
+                  ) : (
+                    <>
+                      <div className="flex overflow-x-auto custom-scrollbar gap-3 pb-4 shrink-0 -mx-2 px-2">
+                        {adminRefs.map((ref, index) => {
+                          const coverImage = ref.image_urls && ref.image_urls.length > 0 ? ref.image_urls[0] : ref.image_url;
+                          return (
+                            <button key={ref.id} onClick={() => setActiveEvalIndex(index)} className={`shrink-0 w-36 flex flex-col gap-3 p-3 rounded-[1.2rem] border transition-all cursor-pointer text-left ${activeEvalIndex === index ? 'bg-white border-[var(--color-atelier-terracota)]/40 shadow-md scale-[1.02]' : 'bg-white/50 border-transparent hover:bg-white/80'}`}>
+                              <div className="w-full h-20 rounded-xl overflow-hidden border border-white shadow-inner"><img src={coverImage} className="w-full h-full object-cover" alt={ref.title} /></div>
+                              <span className={`font-roboto text-[10px] uppercase tracking-widest font-bold truncate w-full pl-1 ${activeEvalIndex === index ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/60'}`}>{ref.title}</span>
+                            </button>
+                          )
+                        })}
+                      </div>
+
+                      {adminRefs[activeEvalIndex] && (
+                        <motion.div key={activeEvalIndex} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-6 mt-4">
+                          <div className="flex gap-6 items-start glass-panel bg-white/60 p-8 rounded-[2rem] border border-white shadow-sm flex-col">
+                            
+                            <div className="flex justify-between w-full items-start">
+                              <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-1">{adminRefs[activeEvalIndex].title}</h3>
+                              <div className="flex items-center gap-2">
+                                <span className={`border px-5 py-2 rounded-[1rem] text-[11px] uppercase tracking-widest font-bold font-roboto shadow-sm ${adminRefs[activeEvalIndex].score > 0 ? 'bg-[var(--color-atelier-terracota)] text-white border-transparent' : 'bg-white text-[var(--color-atelier-grafite)]/40 border-white'}`}>
+                                  {adminRefs[activeEvalIndex].score > 0 ? `Nota: ${adminRefs[activeEvalIndex].score}/10` : 'Avaliação Pendente'}
+                                </span>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 w-full">
+                              {(adminRefs[activeEvalIndex].image_urls && adminRefs[activeEvalIndex].image_urls.length > 0 
+                                  ? adminRefs[activeEvalIndex].image_urls 
+                                  : [adminRefs[activeEvalIndex].image_url]
+                               ).map((imgUrl: string, idx: number) => (
+                                <div key={idx} className="w-full aspect-square rounded-[1.2rem] overflow-hidden border-4 border-white shadow-sm cursor-pointer" onClick={() => window.open(imgUrl, "_blank")}>
+                                  <img src={imgUrl} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" alt="" />
+                                </div>
+                              ))}
+                            </div>
+
+                            <div className="flex flex-col pt-4 flex-1 w-full">
+                              <div className="flex flex-col gap-4 w-full bg-white/80 p-6 rounded-3xl mb-4 border border-white shadow-sm">
+                                <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] border-b border-[var(--color-atelier-grafite)]/5 pb-2">Feedback do Cliente (Matriz)</span>
+                                <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Atmosfera:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q1 || "Não respondido."}</span></p>
+                                <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Tipografia:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q2 || "Não respondido."}</span></p>
+                                <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Cores:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q3 || "Não respondido."}</span></p>
+                                <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Elementos:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q4 || "Não respondido."}</span></p>
+                              </div>
+
+                              <button onClick={() => removeAdminRef(adminRefs[activeEvalIndex].id)} className="self-end px-4 py-2 bg-white border border-transparent hover:border-red-100 hover:bg-red-50 rounded-xl text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-600 transition-colors flex items-center gap-1 shadow-sm"><X size={12} /> Excluir Direção</button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      )}
+                    </>
+                  )}
+                </section>
+
+                <div className="mt-2 border-t border-[var(--color-atelier-grafite)]/10 pt-8">
+                  <div className="flex items-center gap-2 mb-6">
+                    <div className="w-8 h-8 rounded-full bg-[var(--color-atelier-terracota)] text-white flex items-center justify-center shadow-md"><Plus size={14} strokeWidth={3} /></div>
+                    <h3 className="font-roboto text-[13px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Nova Direção Visual</h3>
+                  </div>
+                  <div className="bg-white/80 p-8 rounded-[2rem] border border-white shadow-sm">
+                    <div className="flex flex-col gap-5">
+                       <label className="w-full min-h-[120px] rounded-2xl border-2 border-dashed border-[var(--color-atelier-terracota)]/20 hover:border-[var(--color-atelier-terracota)]/50 bg-white/50 cursor-pointer flex flex-col items-center justify-center transition-colors group relative p-6">
+                         <input type="file" accept="image/*" multiple className="hidden" onChange={handleMultiImageUploadRef} disabled={isSendingRef} />
+                         
+                         {newRefImagePreviews.length > 0 ? (
+                           <div className="flex flex-wrap gap-4 justify-center w-full relative z-20">
+                             {newRefImagePreviews.map((preview, i) => (
+                               <div key={i} className="w-24 h-24 rounded-xl overflow-hidden relative shadow-sm border-2 border-white">
+                                 <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+                                 <button type="button" onClick={(e) => { e.preventDefault(); handleRemoveRefImage(i); }} className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500/90 backdrop-blur-md rounded-full text-white flex items-center justify-center hover:scale-110 shadow-sm border border-white/20"><X size={12}/></button>
+                               </div>
+                             ))}
+                             <div className="w-24 h-24 rounded-xl border-2 border-dashed border-[var(--color-atelier-grafite)]/20 flex flex-col items-center justify-center text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] transition-colors">
+                               <Plus size={24}/>
+                             </div>
+                           </div>
+                         ) : (
+                           <><UploadCloud size={28} className="mb-3 text-[var(--color-atelier-grafite)]/40 group-hover:text-[var(--color-atelier-terracota)] transition-colors" /><span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 group-hover:text-[var(--color-atelier-terracota)] transition-colors">Upload das Referências Gráficas</span></>
+                         )}
+                       </label>
+
+                       <div className="flex flex-col sm:flex-row gap-4">
+                         <input type="text" value={newRefTitle} onChange={(e) => setNewRefTitle(e.target.value)} disabled={isSendingRef} placeholder="Título da Rota (Ex: Direção Clean & Minimalista)" className="flex-1 bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-2xl px-5 py-4 text-[13px] font-bold outline-none shadow-sm disabled:opacity-50 transition-colors" />
+                         <button onClick={handleAddAdminRef} disabled={isSendingRef || newRefImageFiles.length === 0} className="px-10 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-2xl font-roboto text-[11px] font-bold uppercase tracking-[0.1em] hover:bg-[var(--color-atelier-terracota)] transition-all shadow-md shrink-0 disabled:opacity-50 flex items-center justify-center gap-2 hover:-translate-y-0.5 disabled:hover:translate-y-0 mt-4 sm:mt-0">
+                           {isSendingRef ? <Loader2 size={16} className="animate-spin" /> : <Send size={16}/>} Enviar
+                         </button>
+                       </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+    </div>
+  );
+}
+
+export default function ProjetosAdminPage() {
+  return (
+    <Suspense fallback={<div className="flex h-screen items-center justify-center font-roboto text-[10px] uppercase tracking-widest opacity-50">Carregando Painel...</div>}>
+      <PainelIdentidade />
+    </Suspense>
+  );
+}
