@@ -99,23 +99,34 @@ export default function ProjectsManager({
       <div className="w-full lg:w-[320px] glass-panel bg-white/40 p-5 rounded-[2.5rem] border border-white shadow-sm flex flex-col h-[300px] lg:h-full shrink-0 transition-all hover:bg-white/50">
         <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-4 px-2 block border-b border-[var(--color-atelier-grafite)]/10 pb-4">Carteira Unificada</span>
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-1">
-          {unifiedWallet.map(item => (
-            <button 
-                key={`${item.type}-${item.id}`} 
-                onClick={() => { setSelectedEntityId(item.id); setSelectedEntityType(item.type as any); }} 
-                className={`p-4 rounded-[1.2rem] text-left transition-all border ${selectedEntityId === item.id ? 'bg-white border-[var(--color-atelier-terracota)]/30 shadow-sm scale-[1.02]' : 'border-transparent hover:bg-white/50'}`}
-            >
-              <div className="flex items-center gap-3">
-                <div className={`w-8 h-8 rounded-xl flex items-center justify-center shadow-inner border border-white/50 ${item.type === 'agency' ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-[var(--color-atelier-terracota)]'}`}>
-                  {item.type === 'agency' ? <Briefcase size={14}/> : <UserCircle2 size={14}/>}
+          {unifiedWallet.map(item => {
+            // 🟢 Resgatar a imagem de perfil, priorizando o campo avatar_url vindo do joined profiles ou da própria estrutura
+            const avatarUrl = item.avatar_url || item.profiles?.avatar_url || item.logo_url;
+            
+            return (
+              <button 
+                  key={`${item.type}-${item.id}`} 
+                  onClick={() => { setSelectedEntityId(item.id); setSelectedEntityType(item.type as any); }} 
+                  className={`p-4 rounded-[1.2rem] text-left transition-all border ${selectedEntityId === item.id ? 'bg-white border-[var(--color-atelier-terracota)]/30 shadow-sm scale-[1.02]' : 'border-transparent hover:bg-white/50'}`}
+              >
+                <div className="flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shadow-inner border border-white/50 overflow-hidden shrink-0 ${item.type === 'agency' ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-[var(--color-atelier-terracota)]'}`}>
+                    {avatarUrl ? (
+                      <img src={avatarUrl} alt={item.name} className="w-full h-full object-cover" />
+                    ) : item.type === 'agency' ? (
+                      <Briefcase size={14}/>
+                    ) : (
+                      <span className="font-elegant text-[14px] leading-none uppercase">{item.name?.charAt(0) || "U"}</span>
+                    )}
+                  </div>
+                  <div className="flex flex-col truncate">
+                    <span className={`font-roboto font-bold text-[13px] truncate transition-colors ${selectedEntityId === item.id ? 'text-[var(--color-atelier-grafite)]' : 'text-[var(--color-atelier-grafite)]/70'}`}>{item.name}</span>
+                    <span className={`text-[9px] uppercase font-bold tracking-widest ${item.type === 'agency' ? 'text-blue-500' : 'text-[var(--color-atelier-terracota)]/80'}`}>{item.label}</span>
+                  </div>
                 </div>
-                <div className="flex flex-col truncate">
-                  <span className={`font-roboto font-bold text-[13px] truncate transition-colors ${selectedEntityId === item.id ? 'text-[var(--color-atelier-grafite)]' : 'text-[var(--color-atelier-grafite)]/70'}`}>{item.name}</span>
-                  <span className={`text-[9px] uppercase font-bold tracking-widest ${item.type === 'agency' ? 'text-blue-500' : 'text-[var(--color-atelier-terracota)]/80'}`}>{item.label}</span>
-                </div>
-              </div>
-            </button>
-          ))}
+              </button>
+            )
+          })}
         </div>
       </div>
 
@@ -136,8 +147,13 @@ export default function ProjectsManager({
 
             <div className="flex flex-col lg:flex-row justify-between lg:items-start gap-4 mb-6 shrink-0">
               <div className="flex items-center gap-4">
-                <div className={`w-14 h-14 rounded-[1.2rem] flex items-center justify-center shadow-inner border border-white/50 ${selectedEntityType === 'agency' ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-[var(--color-atelier-terracota)]'}`}>
-                  {selectedEntityType === 'agency' ? <Briefcase size={28}/> : <span className="font-elegant text-2xl">{selectedEntityData?.profiles?.nome?.charAt(0) || "W"}</span>}
+                <div className={`w-14 h-14 rounded-[1.2rem] flex items-center justify-center shadow-inner border border-white/50 overflow-hidden shrink-0 ${selectedEntityType === 'agency' ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-[var(--color-atelier-terracota)]'}`}>
+                  {/* 🟢 Imagem Dinâmica no Header do Painel */}
+                  {selectedEntityType === 'agency' ? (
+                    selectedEntityData?.logo_url ? <img src={selectedEntityData.logo_url} className="w-full h-full object-cover" /> : <Briefcase size={28}/>
+                  ) : (
+                    selectedEntityData?.profiles?.avatar_url ? <img src={selectedEntityData.profiles.avatar_url} className="w-full h-full object-cover" /> : <span className="font-elegant text-2xl uppercase">{selectedEntityData?.profiles?.nome?.charAt(0) || "W"}</span>
+                  )}
                 </div>
                 <div>
                   <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] tracking-tight">{selectedEntityType === 'agency' ? selectedEntityData?.name : selectedEntityData?.profiles?.nome}</h2>
@@ -217,7 +233,7 @@ export default function ProjectsManager({
                               <div className="flex justify-between items-end border-t border-[var(--color-atelier-grafite)]/5 pt-3 mt-1">
                                  <div className="flex items-center gap-2">
                                     <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-100 border border-white shadow-inner flex items-center justify-center text-xs font-bold text-gray-400">
-                                      {task.profiles?.avatar_url ? <img src={task.profiles.avatar_url} className="w-full h-full object-cover"/> : task.profiles?.nome?.charAt(0) || <UserCircle2 size={10} className="text-gray-300"/>}
+                                      {task.profiles?.avatar_url ? <img src={task.profiles.avatar_url} className="w-full h-full object-cover"/> : <UserCircle2 size={10} className="text-gray-300"/>}
                                     </div>
                                     <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">
                                       {executorName}
