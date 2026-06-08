@@ -14,12 +14,15 @@ interface RoutingEngineProps {
   team: any[];
   handleSaveRule: () => void;
   routingRules: any[];
-  validProjects: any[];
+  validProjects: any[]; // Mantido, contém Projetos + Agências
   isIdvService: (project: any) => boolean;
   isBulkMode: boolean;
   selectedRuleIds: string[];
   toggleRuleSelection: (id: string) => void;
   handleDeleteRule: (ruleId: string) => void;
+  
+  // 🟢 INJEÇÃO: Passando os subclientes para podermos criar regras para eles
+  agencySubclients?: any[]; 
 }
 
 export default function RoutingEngine({
@@ -36,9 +39,34 @@ export default function RoutingEngine({
   isBulkMode,
   selectedRuleIds,
   toggleRuleSelection,
-  handleDeleteRule
+  handleDeleteRule,
+  agencySubclients = [] // fallback
 }: RoutingEngineProps) {
   
+  // 🟢 Helper para localizar o nome real da entidade associada à regra (Projeto Direto ou Subcliente)
+  const getEntityNameAndAvatar = (ruleProjectId: string) => {
+    // 1. Tenta achar nos projetos normais
+    const proj = validProjects.find(p => p.id === ruleProjectId);
+    if (proj) {
+      return { 
+        name: proj.profiles?.nome || proj.name || "Desconhecido", 
+        avatar: proj.profiles?.avatar_url || proj.logo_url 
+      };
+    }
+    
+    // 2. Tenta achar nos Subclientes
+    const sub = agencySubclients.find(s => s.id === ruleProjectId);
+    if (sub) {
+      const agency = validProjects.find(p => p.id === sub.agency_id);
+      return { 
+        name: `${sub.name} (Subcliente)`, 
+        avatar: agency?.logo_url || null 
+      };
+    }
+    
+    return { name: "Excluído", avatar: null };
+  };
+
   return (
     <motion.div key="routing" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col lg:flex-row gap-6 h-full min-h-0">
       
@@ -52,10 +80,20 @@ export default function RoutingEngine({
         
         <div className="flex flex-col gap-4 relative z-10">
           <div className="flex flex-col gap-1.5">
-            <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-white/60 ml-1">1. Qual Projeto?</span>
-            <select value={routeConfig.projectId} onChange={(e) => setRouteConfig({...routeConfig, projectId: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-[1.2rem] p-4 text-[13px] text-white outline-none cursor-pointer focus:border-[var(--color-atelier-terracota)]/50 transition-colors">
-              <option value="" disabled className="text-black">Selecionar Cliente...</option>
-              {activeProjectsList.map(p => <option key={p.id} value={p.id} className="text-black">{p.profiles?.nome}</option>)}
+            <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-white/60 ml-1">1. Qual Projeto ou Cliente?</span>
+            <select value={routeConfig.projectId} onChange={(e) => setRouteConfig({...routeConfig, projectId: e.target.value})} className="w-full bg-white/10 border border-white/20 rounded-[1.2rem] p-4 text-[13px] text-white outline-none cursor-pointer focus:border-[var(--color-atelier-terracota)]/50 transition-colors custom-scrollbar">
+              <option value="" disabled className="text-black">Selecionar Cliente/Projeto...</option>
+              
+              <optgroup label="Clientes Diretos / Agências" className="text-black">
+                {activeProjectsList.map(p => <option key={p.id} value={p.id} className="text-black">{p.profiles?.nome || p.name}</option>)}
+              </optgroup>
+
+              {/* 🟢 Adicionado: Subclientes das Agências */}
+              {agencySubclients.length > 0 && (
+                <optgroup label="Subclientes (White-Label)" className="text-black">
+                  {agencySubclients.map(sub => <option key={sub.id} value={sub.id} className="text-black">{sub.name} (Subcliente)</option>)}
+                </optgroup>
+              )}
             </select>
           </div>
           
@@ -103,7 +141,8 @@ export default function RoutingEngine({
             </div>
           ) : (
             routingRules.map(rule => {
-              const proj = validProjects.find(p => p.id === rule.project_id);
+              // 🟢 Utilizando o Helper seguro para identificar se é um Projeto Principal ou um Subcliente
+              const entityInfo = getEntityNameAndAvatar(rule.project_id);
               const member = team.find(t => t.id === rule.assignee_id);
               
               const taskTypeLabel = rule.task_type;
@@ -126,9 +165,9 @@ export default function RoutingEngine({
                       <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">Cliente</span>
                       <div className="flex items-center gap-2">
                         <div className="w-8 h-8 rounded-xl overflow-hidden bg-gray-50 border border-gray-100 flex items-center justify-center shadow-inner shrink-0">
-                          {proj?.profiles?.avatar_url ? <img src={proj.profiles.avatar_url} className="w-full h-full object-cover" /> : <span className="font-elegant text-sm text-[var(--color-atelier-terracota)]">{proj?.profiles?.nome?.charAt(0) || "W"}</span>}
+                          {entityInfo.avatar ? <img src={entityInfo.avatar} className="w-full h-full object-cover" /> : <span className="font-elegant text-sm text-[var(--color-atelier-terracota)]">{entityInfo.name.charAt(0)}</span>}
                         </div>
-                        <span className="font-roboto font-bold text-[14px] text-[var(--color-atelier-grafite)] truncate">{proj?.profiles?.nome || "Excluído"}</span>
+                        <span className="font-roboto font-bold text-[14px] text-[var(--color-atelier-grafite)] truncate" title={entityInfo.name}>{entityInfo.name}</span>
                       </div>
                     </div>
                     

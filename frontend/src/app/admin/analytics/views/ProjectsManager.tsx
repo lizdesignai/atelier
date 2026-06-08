@@ -1,10 +1,11 @@
 // src/app/admin/analytics/views/ProjectsManager.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "../../../../lib/supabase";
 import { 
   FolderKanban, Briefcase, UserCircle2, MapPin, 
   Sparkles, Loader2, PlusCircle, Trash2, Save, 
-  Layers, CheckSquare, Square, Flame, Edit3, Check, X 
+  Layers, CheckSquare, Square, Flame, Edit3, Check, X, ArrowRight
 } from "lucide-react";
 import { ALL_SKILLS } from "../constants";
 
@@ -12,14 +13,14 @@ interface ProjectsManagerProps {
   unifiedWallet: any[];
   selectedEntityId: string;
   setSelectedEntityId: (id: string) => void;
-  selectedEntityType: 'project' | 'agency';
-  setSelectedEntityType: (type: 'project' | 'agency') => void;
+  selectedEntityType: 'project' | 'agency' | 'subclient';
+  setSelectedEntityType: (type: 'project' | 'agency' | 'subclient') => void;
   selectedEntityData: any;
   setIsCaptacaoModalOpen: (isOpen: boolean) => void;
-  handleAutoDeploy: (project: any) => void;
+  handleAutoDeploy: (project: any, subclient_id?: string) => void;
   isProcessing: boolean;
   tasks: any[];
-  adHocDemand: { title: string; projectId: string; assigneeId: string; taskType: string; urgency: boolean };
+  adHocDemand: { title: string; projectId: string; assigneeId: string; taskType: string; urgency: boolean; subclientId?: string; description: string };
   setAdHocDemand: (demand: any) => void;
   team: any[];
   handleAddAdHocDemand: () => void;
@@ -35,6 +36,9 @@ interface ProjectsManagerProps {
   isIdvService: (project: any) => boolean;
   showToast: (msg: string) => void;
   handleStartTask: (taskId: string, userId: string) => Promise<void>;
+  
+  // 🟢 INJEÇÃO: Passando o routingRules como prop para poder utilizá-lo no Auto-Fill do Modal
+  routingRules?: any[]; 
 }
 
 export default function ProjectsManager({
@@ -63,44 +67,120 @@ export default function ProjectsManager({
   handleCompleteTask,
   isIdvService,
   showToast,
-  handleStartTask
+  handleStartTask,
+  routingRules = [] // fallback vazio
 }: ProjectsManagerProps) {
 
-  // 🟢 ESTADO LOCAL PARA OS MODAIS
   const [isAdHocModalOpen, setIsAdHocModalOpen] = useState(false);
+  const [isSubclientModalOpen, setIsSubclientModalOpen] = useState(false);
+  const [isCreatingSubclient, setIsCreatingSubclient] = useState(false);
+  const [subclientForm, setSubclientForm] = useState({ name: "", count: 0 });
+
+  const isSubclientView = selectedEntityType === 'subclient';
+  const displayData = isSubclientView 
+    ? agencySubclients.find(s => s.id === selectedEntityId) 
+    : selectedEntityData;
+
+  // =======================================================================
+  // 🟢 MAGIA DE ROTEAMENTO NO AD-HOC (Auto-Fill baseado nas regras salvas)
+  // =======================================================================
+  useEffect(() => {
+    // Sempre que o "Escopo (Tag)" muda no formulário de Ad-Hoc, procuramos uma regra que corresponda a esse Projeto + Tag
+    if (isAdHocModalOpen && adHocDemand.taskType) {
+      
+      const currentProjectAnchorId = isSubclientView && displayData ? displayData.agency_id : selectedEntityId;
+      
+      // Existe uma regra gravada para este Projeto/Agência e para esta Tag?
+      const existingRule = routingRules.find(
+        r => r.project_id === currentProjectAnchorId && r.task_type === adHocDemand.taskType
+      );
+
+      // Se sim, e o assign atual estiver vazio ou for diferente do roteamento, atualiza automaticamente
+      if (existingRule && adHocDemand.assigneeId !== existingRule.assignee_id) {
+        setAdHocDemand({ ...adHocDemand, assigneeId: existingRule.assignee_id });
+        console.log(`[Routing Engine] Roteamento Automático aplicado: Executor preenchido.`);
+      }
+    }
+  }, [adHocDemand.taskType, isAdHocModalOpen, selectedEntityId, isSubclientView, displayData]);
 
   // ==========================================
   // FUNÇÃO BLINDADA: ADICIONAR DEMANDA PONTUAL
   // ==========================================
   const executeAdHocSubmit = () => {
-    // 1. Validação estrita: Impede envio de UUID vazio ou nulo
     if (!adHocDemand.title.trim() || !adHocDemand.assigneeId.trim()) {
       showToast("Preencha o título e selecione um executor obrigatoriamente.");
       return;
     }
 
-    // 2. Garante a ligação correta do projeto/agência ao estado global
-    setAdHocDemand({
-      ...adHocDemand,
-      projectId: selectedEntityType === 'project' ? selectedEntityId : "",
-    });
+    if (isSubclientView && displayData) {
+      setAdHocDemand({
+        ...adHocDemand,
+        projectId: displayData.agency_id, 
+        subclientId: displayData.id       
+      });
+    } else {
+      setAdHocDemand({
+        ...adHocDemand,
+        projectId: selectedEntityType === 'project' || selectedEntityType === 'agency' ? selectedEntityId : "",
+        subclientId: undefined
+      });
+    }
 
-    // 3. Dispara a submissão no próximo ciclo do React e fecha a UI
     setTimeout(() => {
       handleAddAdHocDemand();
       setIsAdHocModalOpen(false);
     }, 50);
   };
 
+  const handleCreateSubclient = async () => {
+    if (!subclientForm.name.trim()) {
+      showToast("O nome da marca/cliente é obrigatório.");
+      return;
+    }
+    
+    setIsCreatingSubclient(true);
+    try {
+      const { error } = await supabase.from('agency_subclients').insert({
+        agency_id: selectedEntityId,
+        name: subclientForm.name,
+        deliverables_count: subclientForm.count
+      });
+
+      if (error) throw error;
+      
+      showToast("Perfil White-Label criado com sucesso!");
+      setIsSubclientModalOpen(false);
+      setSubclientForm({ name: "", count: 0 });
+      
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+      
+    } catch(e) {
+      console.error(e);
+      showToast("Erro ao criar perfil de cliente delegado.");
+    } finally {
+      setIsCreatingSubclient(false);
+    }
+  };
+
+  const getTasksForCurrentView = () => {
+    if (isSubclientView && displayData) {
+      return tasks.filter(t => t.subclient_id === displayData.id);
+    }
+    return tasks.filter(t => t.project_id === selectedEntityId && !t.subclient_id);
+  };
+
+  const visibleTasks = getTasksForCurrentView();
+
   return (
     <motion.div key="projects" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col lg:flex-row gap-6 h-full overflow-hidden">
       
-      {/* SIDEBAR UNIFICADA (70/30 Contextual) */}
+      {/* SIDEBAR UNIFICADA */}
       <div className="w-full lg:w-[320px] glass-panel bg-white/40 p-5 rounded-[2.5rem] border border-white shadow-sm flex flex-col h-[300px] lg:h-full shrink-0 transition-all hover:bg-white/50">
         <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-4 px-2 block border-b border-[var(--color-atelier-grafite)]/10 pb-4">Carteira Unificada</span>
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-1">
           {unifiedWallet.map(item => {
-            // 🟢 Resgatar a imagem de perfil, priorizando o campo avatar_url vindo do joined profiles ou da própria estrutura
             const avatarUrl = item.avatar_url || item.profiles?.avatar_url || item.logo_url;
             
             return (
@@ -136,7 +216,6 @@ export default function ProjectsManager({
           <div className="flex-1 flex flex-col items-center justify-center opacity-40"><FolderKanban size={48} className="mb-4 text-[var(--color-atelier-terracota)]"/><p className="font-elegant text-3xl">Selecione um Cliente ou Agência</p></div>
         ) : (
           <>
-            {/* 🟢 BOTÃO FLUTUANTE (FAB) PARA DEMANDAS PONTUAIS */}
             <button 
               onClick={() => setIsAdHocModalOpen(true)}
               className="absolute bottom-8 right-8 z-40 bg-[var(--color-atelier-grafite)] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-[0_10px_25px_rgba(0,0,0,0.3)] hover:scale-110 hover:bg-[var(--color-atelier-terracota)] transition-all duration-300 group"
@@ -147,17 +226,24 @@ export default function ProjectsManager({
 
             <div className="flex flex-col lg:flex-row justify-between lg:items-start gap-4 mb-6 shrink-0">
               <div className="flex items-center gap-4">
-                <div className={`w-14 h-14 rounded-[1.2rem] flex items-center justify-center shadow-inner border border-white/50 overflow-hidden shrink-0 ${selectedEntityType === 'agency' ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-[var(--color-atelier-terracota)]'}`}>
-                  {/* 🟢 Imagem Dinâmica no Header do Painel */}
+                <div className={`w-14 h-14 rounded-[1.2rem] flex items-center justify-center shadow-inner border border-white/50 overflow-hidden shrink-0 
+                  ${selectedEntityType === 'agency' ? 'bg-blue-50 text-blue-600' : isSubclientView ? 'bg-indigo-50 text-indigo-500' : 'bg-gray-50 text-[var(--color-atelier-terracota)]'}
+                `}>
                   {selectedEntityType === 'agency' ? (
-                    selectedEntityData?.logo_url ? <img src={selectedEntityData.logo_url} className="w-full h-full object-cover" /> : <Briefcase size={28}/>
+                    displayData?.logo_url ? <img src={displayData.logo_url} className="w-full h-full object-cover" /> : <Briefcase size={28}/>
+                  ) : isSubclientView ? (
+                    <UserCircle2 size={28} />
                   ) : (
-                    selectedEntityData?.profiles?.avatar_url ? <img src={selectedEntityData.profiles.avatar_url} className="w-full h-full object-cover" /> : <span className="font-elegant text-2xl uppercase">{selectedEntityData?.profiles?.nome?.charAt(0) || "W"}</span>
+                    displayData?.profiles?.avatar_url ? <img src={displayData.profiles.avatar_url} className="w-full h-full object-cover" /> : <span className="font-elegant text-2xl uppercase">{displayData?.profiles?.nome?.charAt(0) || "W"}</span>
                   )}
                 </div>
                 <div>
-                  <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] tracking-tight">{selectedEntityType === 'agency' ? selectedEntityData?.name : selectedEntityData?.profiles?.nome}</h2>
-                  <p className="text-[11px] font-bold text-[var(--color-atelier-grafite)]/40 uppercase tracking-widest mt-1">{selectedEntityType === 'agency' ? 'Operação White-Label' : selectedEntityData?.service_type}</p>
+                  <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] tracking-tight">
+                    {selectedEntityType === 'agency' || isSubclientView ? displayData?.name : displayData?.profiles?.nome}
+                  </h2>
+                  <p className="text-[11px] font-bold text-[var(--color-atelier-grafite)]/40 uppercase tracking-widest mt-1">
+                    {selectedEntityType === 'agency' ? 'Operação White-Label (Agência)' : isSubclientView ? 'Subcliente Delegado (White-Label)' : displayData?.service_type}
+                  </p>
                 </div>
               </div>
               
@@ -165,51 +251,75 @@ export default function ProjectsManager({
                  <button onClick={() => setIsCaptacaoModalOpen(true)} className="bg-[var(--color-atelier-grafite)] text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-sm hover:-translate-y-0.5">
                    <MapPin size={14} className="text-[var(--color-atelier-terracota)]"/> Agendar Captação
                  </button>
-                 {selectedEntityType === 'project' && (
-                   <button onClick={() => handleAutoDeploy(selectedEntityData)} disabled={isProcessing} className="bg-[var(--color-atelier-terracota)] text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#8c562e] transition-all flex items-center gap-2 shadow-sm hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0">
+                 {(selectedEntityType === 'project' || isSubclientView) && (
+                   <button 
+                     onClick={() => {
+                       const projectToDeploy = isSubclientView ? { id: displayData.agency_id } : displayData;
+                       handleAutoDeploy(projectToDeploy, isSubclientView ? displayData.id : undefined);
+                     }} 
+                     disabled={isProcessing} 
+                     className="bg-[var(--color-atelier-terracota)] text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#8c562e] transition-all flex items-center gap-2 shadow-sm hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
+                   >
                      {isProcessing ? <Loader2 size={14} className="animate-spin"/> : <Sparkles size={14}/>} 
-                     {tasks.filter(t => t.project_id === selectedEntityData.id).length > 0 ? "Renovar Ciclo Mensal" : "Iniciar Produção"}
+                     {visibleTasks.length > 0 ? "Renovar Ciclo Mensal" : "Iniciar Produção"}
                    </button>
                  )}
               </div>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-16"> {/* pb-16 para dar espaço ao FAB */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 pb-16">
                {selectedEntityType === 'agency' ? (
                  <div className="flex flex-col gap-6 animate-[fadeIn_0.4s_ease-out]">
                     <div className="flex justify-between items-center border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                       <h4 className="font-roboto font-bold text-[12px] uppercase tracking-widest text-gray-500">Perfis Sob Demanda</h4>
-                      <button onClick={() => showToast("Adicionar novo perfil em breve...")} className="text-[10px] font-bold text-[var(--color-atelier-terracota)] flex items-center gap-1 hover:underline"><PlusCircle size={14}/> Novo Perfil</button>
+                      <button onClick={() => setIsSubclientModalOpen(true)} className="text-[10px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-blue-100 transition-colors shadow-sm border border-blue-100">
+                        <PlusCircle size={14}/> Novo Perfil
+                      </button>
                     </div>
+                    
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                       {agencySubclients.filter(s => s.agency_id === selectedEntityId).map(sub => (
-                         <div key={sub.id} className="bg-white/80 p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-4 group hover:border-[var(--color-atelier-terracota)]/30 transition-all hover:bg-white">
-                            <div className="flex justify-between items-start">
-                               <span className="font-roboto font-bold text-[15px] text-[var(--color-atelier-grafite)]">{sub.name}</span>
-                               <button onClick={() => handleDeleteSubclient(sub.id)} className="text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16}/></button>
-                            </div>
-                            <div className="flex items-center gap-4 bg-gray-50/50 p-4 rounded-xl border border-gray-100">
-                               <div className="flex-1">
-                                  <span className="text-[9px] uppercase font-bold text-gray-400 block mb-1">Carga Mensal (Posts)</span>
-                                  <input 
-                                    type="number" 
-                                    defaultValue={sub.deliverables_count} 
-                                    onBlur={(e) => handleUpdateSubclientDemand(sub.id, parseInt(e.target.value))}
-                                    className="bg-transparent font-bold text-[18px] outline-none w-full text-[var(--color-atelier-terracota)]" 
-                                  />
-                               </div>
-                               <Save size={18} className="text-gray-300 group-hover:text-[var(--color-atelier-terracota)] transition-colors cursor-pointer"/>
-                            </div>
+                       {agencySubclients.filter(s => s.agency_id === selectedEntityId).length === 0 ? (
+                         <div className="col-span-1 md:col-span-2 text-center py-10 opacity-50">
+                           <UserCircle2 size={32} className="mx-auto mb-2 text-gray-400" />
+                           <span className="font-bold text-[12px] uppercase tracking-widest">Nenhum cliente cadastrado</span>
                          </div>
-                       ))}
+                       ) : (
+                         agencySubclients.filter(s => s.agency_id === selectedEntityId).map(sub => (
+                           <div key={sub.id} className="bg-white/80 p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-4 group hover:border-[var(--color-atelier-terracota)]/30 transition-all hover:bg-white relative overflow-hidden">
+                              <div className="flex justify-between items-start z-10 relative">
+                                 <span className="font-roboto font-bold text-[16px] text-[var(--color-atelier-grafite)]">{sub.name}</span>
+                                 <button onClick={() => handleDeleteSubclient(sub.id)} className="text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16}/></button>
+                              </div>
+                              <div className="flex items-center gap-4 bg-gray-50/50 p-4 rounded-xl border border-gray-100 z-10 relative">
+                                 <div className="flex-1">
+                                    <span className="text-[9px] uppercase font-bold text-gray-400 block mb-1">Carga Mensal (Posts)</span>
+                                    <input 
+                                      type="number" 
+                                      defaultValue={sub.deliverables_count} 
+                                      onBlur={(e) => handleUpdateSubclientDemand(sub.id, parseInt(e.target.value))}
+                                      className="bg-transparent font-bold text-[18px] outline-none w-full text-blue-600" 
+                                    />
+                                 </div>
+                                 <Save size={18} className="text-gray-300 hover:text-blue-500 transition-colors cursor-pointer"/>
+                              </div>
+                              
+                              <button 
+                                onClick={() => { setSelectedEntityId(sub.id); setSelectedEntityType('subclient'); }}
+                                className="w-full bg-blue-50 text-blue-600 hover:bg-blue-600 hover:text-white py-3 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-colors mt-2 flex items-center justify-center gap-2 relative z-10"
+                              >
+                                Gerir Este Cliente <ArrowRight size={14}/>
+                              </button>
+                           </div>
+                         ))
+                       )}
                     </div>
                  </div>
                ) : (
-                 Object.keys(groupTasksByStage(tasks.filter(t => t.project_id === selectedEntityId))).map(stage => (
-                    <div key={stage} className="mb-6">
+                 Object.keys(groupTasksByStage(visibleTasks)).map(stage => (
+                    <div key={stage} className="mb-6 animate-[fadeIn_0.4s_ease-out]">
                       <h4 className="font-roboto font-bold text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-3 flex items-center gap-2 border-b border-[var(--color-atelier-grafite)]/5 pb-2"><Layers size={12}/> {stage}</h4>
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                        {tasks.filter(t => t.project_id === selectedEntityId && t.stage === stage).map(task => {
+                        {visibleTasks.filter(t => t.stage === stage).map(task => {
                           const isSelected = selectedTaskIds.includes(task.id);
                           const executorName = task.profiles?.nome ? task.profiles.nome.split(" ")[0] : "Aguardando Responsável";
 
@@ -256,7 +366,7 @@ export default function ProjectsManager({
       </div>
 
       {/* ==========================================
-          MODAL DE DEMANDA PONTUAL (UI Limpa e Blindada)
+          MODAL DE DEMANDA PONTUAL (Com Descrição e Routing Automático)
           ========================================== */}
       <AnimatePresence>
         {isAdHocModalOpen && (
@@ -267,7 +377,7 @@ export default function ProjectsManager({
               <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <div>
                   <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><Flame size={24} className="text-[var(--color-atelier-terracota)]"/> Demanda Pontual</h3>
-                  <p className="font-roboto text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Adicionar tarefa urgente à fila</p>
+                  <p className="font-roboto text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Adicionar tarefa para: {displayData?.name || displayData?.profiles?.nome}</p>
                 </div>
                 <button onClick={() => setIsAdHocModalOpen(false)} className="text-gray-400 hover:text-black transition-colors"><X size={20}/></button>
               </div>
@@ -281,6 +391,17 @@ export default function ProjectsManager({
                     value={adHocDemand.title} 
                     onChange={(e) => setAdHocDemand({...adHocDemand, title: e.target.value})} 
                     className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium transition-colors" 
+                  />
+                </div>
+
+                {/* CAMPO DE DESCRIÇÃO BLINDADO */}
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Instruções / Descrição</span>
+                  <textarea 
+                    placeholder="Detalhes para o executor, links de referência, etc..." 
+                    value={adHocDemand.description || ""} 
+                    onChange={(e) => setAdHocDemand({...adHocDemand, description: e.target.value})} 
+                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium resize-none h-24 custom-scrollbar transition-colors" 
                   />
                 </div>
                 
@@ -326,6 +447,59 @@ export default function ProjectsManager({
                 className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[11px] shadow-md hover:bg-[var(--color-atelier-terracota)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-2 hover:-translate-y-0.5 disabled:hover:translate-y-0"
               >
                 {isProcessing ? <Loader2 className="animate-spin" size={16}/> : <PlusCircle size={16}/>} Despachar Tarefa
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ==========================================
+          MODAL: CRIAR PERFIL WHITE-LABEL
+          ========================================== */}
+      <AnimatePresence>
+        {isSubclientModalOpen && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center px-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsSubclientModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-blue-500/20 flex flex-col gap-6">
+              
+              <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
+                <div>
+                  <h3 className="font-elegant text-3xl text-blue-600 flex items-center gap-2"><Briefcase size={24} /> Novo Perfil</h3>
+                  <p className="font-roboto text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Cliente Delegado (White-Label)</p>
+                </div>
+                <button onClick={() => setIsSubclientModalOpen(false)} className="text-gray-400 hover:text-black transition-colors"><X size={20}/></button>
+              </div>
+              
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Nome do Cliente/Marca <span className="text-red-500">*</span></span>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: Clínica Odonto..." 
+                    value={subclientForm.name} 
+                    onChange={(e) => setSubclientForm({...subclientForm, name: e.target.value})} 
+                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-blue-500 text-[var(--color-atelier-grafite)] font-medium transition-colors" 
+                  />
+                </div>
+                
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Volume Mensal Contratado (Posts)</span>
+                  <input 
+                    type="number" 
+                    placeholder="Ex: 12" 
+                    value={subclientForm.count || ""} 
+                    onChange={(e) => setSubclientForm({...subclientForm, count: parseInt(e.target.value) || 0})} 
+                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-blue-500 text-[var(--color-atelier-grafite)] font-medium transition-colors" 
+                  />
+                </div>
+              </div>
+
+              <button 
+                onClick={handleCreateSubclient} 
+                disabled={isCreatingSubclient || !subclientForm.name.trim()} 
+                className="w-full bg-blue-600 text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[11px] shadow-md hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-2 hover:-translate-y-0.5 disabled:hover:translate-y-0"
+              >
+                {isCreatingSubclient ? <Loader2 className="animate-spin" size={16}/> : <Save size={16}/>} Criar Perfil
               </button>
             </motion.div>
           </div>
