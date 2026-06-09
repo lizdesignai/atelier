@@ -219,6 +219,16 @@ export class AtelierPMEngine {
           briefing: 'Revisão das métricas do mês passado e alinhamento do novo cronograma.',
           status: 'pending',
           is_avulso: false
+        },
+        {
+          project_id: projectId,
+          client_id: project.client_id,
+          month_year: nextMonthLabel,
+          pillar: 'Conteúdo Pilar',
+          hook: 'Lote de Produção Principal',
+          briefing: 'Aguardando aprovação de pautas para iniciar a produção.',
+          status: 'draft',
+          is_avulso: false
         }
       ];
 
@@ -291,15 +301,12 @@ export class AtelierPMEngine {
   /**
    * ============================================================================
    * 1.5 FOCO DIÁRIO ABSOLUTO (Daily Focus Engine)
-   * 🟢 Oculta tarefas futuras (draft) e exibe apenas as que têm prazo para hoje (pending).
-   * Sem alterar a equipa, sem criar gargalos artificiais no ecrã.
    * ============================================================================
    */
   static async executeDailyWorkloadAllocation() {
     try {
       const endOfToday = endOfDay(new Date()).toISOString();
 
-      // 1. Esconder tarefas que estão pendentes mas o prazo é amanhã ou depois
       const { data: futureTasks } = await supabase
         .from('tasks')
         .select('id')
@@ -312,7 +319,6 @@ export class AtelierPMEngine {
           .in('id', futureTasks.map(t => t.id));
       }
 
-      // 2. Acordar tarefas que estavam escondidas (draft) mas o prazo de entrega é hoje ou já passou
       const { data: todayTasks } = await supabase
         .from('tasks')
         .select('id')
@@ -379,7 +385,6 @@ export class AtelierPMEngine {
   /**
    * ============================================================================
    * 2. SMART SCHEDULING (Critical Chain Method - CCPM)
-   * 🟢 AJUSTE: Não altera mais as datas de entrega (deadlines). Retorna as tarefas intactas.
    * ============================================================================
    */
   static generateSmartSchedule(tasks: any[], startDate: Date, endDate: Date): any[] {
@@ -399,11 +404,10 @@ export class AtelierPMEngine {
 
   /**
    * ============================================================================
-   * 3. RISK MITIGATION (Desativado para evitar spam visual no Kanban)
+   * 3. RISK MITIGATION (Desativado)
    * ============================================================================
    */
   static async runDailyRiskMitigation(adminId: string) {
-    // Função silenciada por ordem da Direção.
     return;
   }
 
@@ -495,7 +499,7 @@ export class AtelierPMEngine {
 
   /**
    * ============================================================================
-   * 6. CYCLE TIME TRACKER (INÍCIO DA TAREFA)
+   * 6. CYCLE TIME TRACKER E SESSÕES DE TRABALHO (RH TELEMETRY)
    * ============================================================================
    */
   static async startTask(taskId: string, userId: string) {
@@ -508,8 +512,51 @@ export class AtelierPMEngine {
         .eq('assigned_to', userId); 
 
       if (error) throw error;
+
+      // 🟢 Inicia a Sessão de Trabalho no Novo Módulo RH
+      await supabase.from('work_sessions').insert({
+        user_id: userId,
+        task_id: taskId,
+        start_time: now
+      });
+
+      console.log(`[PM Engine] Tarefa iniciada. Sessão de trabalho ativa para ${userId}.`);
     } catch (error) {
-      console.error("[PM Engine] Erro ao iniciar Cycle Time:", error);
+      console.error("[PM Engine] Erro ao iniciar Cycle Time e Sessão:", error);
+    }
+  }
+
+  /**
+   * Encerra a Sessão de Trabalho Ativa, calculando a duração para o Módulo RH
+   */
+  static async stopTaskSession(taskId: string, userId: string) {
+    try {
+      const now = new Date();
+      
+      // Encontra a sessão aberta
+      const { data: openSession } = await supabase
+        .from('work_sessions')
+        .select('*')
+        .eq('task_id', taskId)
+        .eq('user_id', userId)
+        .is('end_time', null)
+        .order('start_time', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (openSession) {
+        const start = new Date(openSession.start_time);
+        const diffMinutes = Math.floor((now.getTime() - start.getTime()) / 60000);
+
+        await supabase.from('work_sessions').update({
+          end_time: now.toISOString(),
+          duration_minutes: diffMinutes > 0 ? diffMinutes : 0
+        }).eq('id', openSession.id);
+        
+        console.log(`[PM Engine] Sessão de trabalho encerrada. Duração: ${diffMinutes}m.`);
+      }
+    } catch (error) {
+      console.error("[PM Engine] Erro ao fechar sessão de trabalho:", error);
     }
   }
 
@@ -560,7 +607,7 @@ export class AtelierPMEngine {
 
   /**
    * ============================================================================
-   * 8. OVERWRITE DINÂMICO DE TAREFAS (SINCRONIZAÇÃO DE CONTEÚDO)
+   * 8. OVERWRITE DINÂMICO DE TAREFAS
    * ============================================================================
    */
   static async syncTaskContent(projectId: string, originalTaskName: string, newTitle: string, descriptionText: string) {
@@ -587,7 +634,7 @@ export class AtelierPMEngine {
 
   /**
    * ============================================================================
-   * 9. GAMIFICATION ENGINE (Recompensas de Performance)
+   * 9. GAMIFICATION ENGINE
    * ============================================================================
    */
   private static async applyGamification(userId: string, expAmount: number) {
@@ -602,11 +649,10 @@ export class AtelierPMEngine {
 
   /**
    * ============================================================================
-   * 10. FEVER CHART CCPM (Desativado para evitar spam visual)
+   * 10. FEVER CHART CCPM (Desativado)
    * ============================================================================
    */
   static async evaluateProjectBufferHealth(projectId: string, adminId: string) {
-    // Função silenciada por ordem da Direção.
     return;
   }
 
@@ -630,11 +676,10 @@ export class AtelierPMEngine {
 
   /**
    * ============================================================================
-   * 12. CALIBRAÇÃO BIDIRECIONAL (Desativado para evitar spam visual)
+   * 12. CALIBRAÇÃO BIDIRECIONAL (Desativado)
    * ============================================================================
    */
   static async calibrateUnitEconomics(adminId: string) {
-    // Função silenciada por ordem da Direção.
     return;
   }
 }

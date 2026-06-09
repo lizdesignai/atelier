@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Home, Lock, MessageSquare, ChevronLeft, ChevronRight, 
   Compass, LayoutDashboard, FolderKanban, Users, Inbox, 
-  Globe2, CheckCircle2, DollarSign, Sparkles, Briefcase, Crosshair, LogOut
+  Globe2, CheckCircle2, DollarSign, Sparkles, Briefcase, Crosshair, LogOut, Activity
 } from "lucide-react";
 import { supabase } from "../../lib/supabase"; 
 import { useDynamicTitle } from "../../hooks/useDynamicTitle"; // 🧠 INJEÇÃO DO HOOK DE TÍTULOS
@@ -30,7 +30,7 @@ const ROUTE_NAMES: Record<string, string> = {
   '/canais': 'Canais',
   '/comunidade': 'Comunidade',
   '/admin/jtbd': 'Focus',
-  '/admin': 'Gestão',
+  '/admin/gestao': 'Produtividade',
   '/admin/projetos': 'Estúdio',
   '/admin/inbox': 'Inbox',
   '/admin/clientes': 'Clientes',
@@ -130,8 +130,10 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
 
   if (!isTeamMember && (isProjectArchived || !isReady)) return null;
 
-  // Definição inteligente da rota Home com base no perfil
-  const homeRoute = isTeamMember ? '/admin' : (clientServiceType === "Gestão de Instagram" ? '/cockpit' : '/');
+  // 🟢 Definição inteligente da rota Home (Logo) com base na patente
+  const homeRoute = isTeamMember 
+    ? (isManagerOrAdmin ? '/admin/gestao' : '/admin/jtbd') 
+    : (clientServiceType === "Gestão de Instagram" ? '/cockpit' : '/');
 
   return (
     <motion.aside 
@@ -171,7 +173,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
         </AnimatePresence>
       </div>
 
-      {/* BOTÃO DE COLAPSO FLUTUANTE (Design Refinado) */}
+      {/* BOTÃO DE COLAPSO FLUTUANTE */}
       <button 
         onClick={() => setIsCollapsed(!isCollapsed)}
         className="absolute -right-3.5 top-14 bg-white/90 backdrop-blur-md border border-[var(--color-atelier-grafite)]/10 shadow-[0_4px_12px_rgba(0,0,0,0.06)] text-[var(--color-atelier-grafite)]/60 rounded-full w-7 h-7 flex items-center justify-center cursor-pointer z-50 hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all duration-300 hover:scale-110 hover:border-transparent"
@@ -200,7 +202,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               {clientServiceType === "Gestão de Instagram" ? (
                 <>
                   <NavItem href="/cockpit" icon={<LayoutDashboard size={18} strokeWidth={1.5} />} label="Cockpit" collapsed={isCollapsed} active={pathname === '/cockpit'} />
-                  <NavItem href="/brandbook" icon={<Sparkles size={18} strokeWidth={1.5} />} label="Brandbook" collapsed={isCollapsed} active={pathname === '/brandbook'} />                </>
+                  <NavItem href="/brandbook" icon={<Sparkles size={18} strokeWidth={1.5} />} label="Brandbook" collapsed={isCollapsed} active={pathname === '/brandbook'} />               </>
               ) : (
                 <>
                   <NavItem href="/" icon={<Home size={18} strokeWidth={1.5} />} label="Cockpit" collapsed={isCollapsed} active={pathname === '/'} />
@@ -224,11 +226,13 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               {/* Visto por todos */}
               <NavItem href="/admin/jtbd" icon={<Crosshair size={18} strokeWidth={1.5} />} label="Focus" collapsed={isCollapsed} active={pathname === '/admin/jtbd'} />
               
+              {/* 🟢 ROTA DE PRODUTIVIDADE (VISTA POR TODOS, CADA UM VÊ O SEU) */}
+              <NavItem href="/admin/gestao" icon={<Activity size={18} strokeWidth={1.5} />} label="Produtividade" collapsed={isCollapsed} active={pathname === '/admin/gestao'} />
+              
               <div className="flex items-center justify-center my-3 opacity-20">
                 <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
               </div>
 
-              <NavItem href="/admin" icon={<LayoutDashboard size={18} strokeWidth={1.5} />} label="Gestão" collapsed={isCollapsed} active={pathname === '/admin'} />
               <NavItem href="/admin/projetos" icon={<FolderKanban size={18} strokeWidth={1.5} />} label="Estúdio" collapsed={isCollapsed} active={pathname === '/admin/projetos'} />
               <NavItem href="/admin/inbox" icon={<Inbox size={18} strokeWidth={1.5} />} label="Inbox" collapsed={isCollapsed} active={pathname === '/admin/inbox'} />
               <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
@@ -252,7 +256,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
             </>
           )}
 
-          {/* 🟢 BOTÃO DE DESCONECTAR (Ajustado com mt-auto e cores vermelhas) */}
+          {/* BOTÃO DE DESCONECTAR */}
           <button 
             onClick={() => handleLogout && handleLogout()}
             title={isCollapsed ? "Desconectar" : ""} 

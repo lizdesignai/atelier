@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { supabase } from "../../../lib/supabase";
 import { AtelierPMEngine } from "../../../lib/AtelierPMEngine";
 import { CalendarEngine } from "../../../lib/CalendarEngine";
-import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
+import { NotificationEngine } from "../../../lib/NotificationEngine"; 
 import { Loader2, Plus, Flame, User } from "lucide-react";
 
 // VIEWS E COMPONENTES
@@ -58,25 +58,25 @@ export default function JTBDPage() {
   }, [weekOffset]);
 
   useEffect(() => {
-  const bootEngine = async () => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const adminId = session.user.id; // Or fetch a specific admin ID
+    const bootEngine = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+        const adminId = session.user.id; 
 
-      // Run daily maintenance tasks in the background without blocking UI
-      Promise.all([
-        AtelierPMEngine.executeDailyWorkloadAllocation(),
-        AtelierPMEngine.runDailyRiskMitigation(adminId),
-        AtelierPMEngine.calibrateUnitEconomics(adminId)
-      ]).catch(console.error);
-    } catch (e) {
-      console.error("Engine boot failed", e);
-    }
-  };
+        // Run daily maintenance tasks in the background without blocking UI
+        Promise.all([
+          AtelierPMEngine.executeDailyWorkloadAllocation(),
+          AtelierPMEngine.runDailyRiskMitigation(adminId),
+          AtelierPMEngine.calibrateUnitEconomics(adminId)
+        ]).catch(console.error);
+      } catch (e) {
+        console.error("Engine boot failed", e);
+      }
+    };
 
-  bootEngine();
-}, []);
+    bootEngine();
+  }, []);
 
   // Fetch Inicial
   useEffect(() => {
@@ -101,7 +101,7 @@ export default function JTBDPage() {
         const { data: tData } = await supabase.from('profiles').select('*').in('role', ['admin', 'gestor', 'colaborador']).order('nome');
         if (tData) teamData = tData;
         
-        const { data: pData } = await supabase.from('projects').select('id, profiles(nome), type').eq('status', 'active');
+        const { data: pData } = await supabase.from('projects').select('id, profiles(nome), type, client_id').eq('status', 'active');
         if (pData) setProjects(pData);
       } else {
         teamData = [profile];
@@ -112,7 +112,7 @@ export default function JTBDPage() {
       
       const { data: tasksData } = await supabase
         .from('tasks')
-        .select('*, projects(profiles(nome), type)')
+        .select('*, projects(profiles(nome), type, client_id)')
         .in('assigned_to', teamIds)
         .order('priority_score', { ascending: false }) 
         .order('deadline', { ascending: true });
@@ -130,28 +130,94 @@ export default function JTBDPage() {
     }
   };
 
-  const updateTaskStatus = async (task: any, newStatus: string) => {
-    if (task.status === newStatus) return;
+  // ==========================================================================
+  // 🚀 MOTORES DE ROTEAMENTO (FASE 2)
+  // ==========================================================================
+  const handleClientApprovalRouting = async (task: any) => {
+    // 1. O Gestor tentou "Aprovar" (Concluir) uma tarefa que tem ficheiro anexado.
+    // Em vez de fechar, nós enviamos a bola para o Cockpit do Cliente.
     try {
-      const updates: any = { status: newStatus };
+      const isPlanning = task.title?.toLowerCase().includes('planejamento') || task.title?.toLowerCase().includes('estratégia');
+      const clientId = task.projects?.client_id;
+      
+      if (!clientId) {
+        showToast("Projeto sem cliente associado. Tarefa concluída internamente.");
+        return 'completed'; // Se não há cliente para aprovar, fecha a tarefa.
+      }
+
+      showToast("Encaminhando para aprovação do cliente...");
+
+      if (isPlanning) {
+        // Rota de Planejamento Mensal (PDF)
+        await supabase.from('content_planning').insert({
+          project_id: task.project_id,
+          client_id: clientId,
+          hook: task.title,
+          planning_file_url: task.attachment_url,
+          status: 'awaiting_approval',
+          is_avulso: true,
+          created_at: new Date().toISOString()
+        });
+      } else {
+        // Rota de Post / Peça Gráfica
+        // A entrada em social_posts é criada no momento do Upload, agora apenas mudamos o status.
+        await supabase.from('social_posts')
+          .update({ status: 'pending_approval' })
+          .eq('task_id', task.id);
+      }
+
+      // Notifica o cliente
+      await NotificationEngine.notifyUser(
+        clientId,
+        isPlanning ? "📅 Planejamento Disponível" : "🎨 Arte Aguardando Avaliação",
+        `Há material referente a "${task.title}" aguardando sua validação no painel.`,
+        "action",
+        "/cockpit"
+      );
+
+      return 'pending_client_approval'; // Retorna o novo status real
+    } catch (e) {
+      console.error("Erro no roteamento para o cliente", e);
+      showToast("Erro ao enviar ao cliente. Mantida em revisão.");
+      return 'review';
+    }
+  };
+
+  const updateTaskStatus = async (task: any, requestedStatus: string) => {
+    if (task.status === requestedStatus) return;
+    try {
       const now = new Date();
+      let finalStatus = requestedStatus;
+      let updates: any = {};
 
-      if (newStatus === 'in_progress') updates.started_at = now.toISOString();
+      // 🟢 O Roteador Interceptador
+      if (requestedStatus === 'completed' && task.attachment_url && task.status !== 'pending_client_approval') {
+        // O Gestor clicou em concluir e a tarefa tem anexo. Vamos encaminhar para o cliente.
+        finalStatus = await handleClientApprovalRouting(task);
+      }
 
-      if (task.status === 'in_progress' && task.started_at) {
+      // 🟢 O Motor de Tempo Live (Fase 3 - Base)
+      if (finalStatus === 'in_progress') {
+         updates.started_at = now.toISOString();
+      }
+
+      if (task.status === 'in_progress' && task.started_at && finalStatus !== 'in_progress') {
         const startTime = new Date(task.started_at).getTime();
         const diffMinutes = Math.floor((now.getTime() - startTime) / 60000);
         updates.actual_time = (task.actual_time || 0) + diffMinutes;
         updates.started_at = null; 
       }
 
-      if (newStatus === 'review' || newStatus === 'completed') {
-        updates.completed_at = now.toISOString();
-        if (newStatus === 'completed') {
+      if (finalStatus === 'review' || finalStatus === 'completed' || finalStatus === 'pending_client_approval') {
+        updates.completed_at = finalStatus === 'completed' ? now.toISOString() : null;
+        if (finalStatus === 'completed') {
            await AtelierPMEngine.unlockDependencies(task.id);
         }
       }
 
+      updates.status = finalStatus;
+
+      // 🟢 Atualização Otimista
       setAllTasks(prev => prev.map(t => t.id === task.id ? { ...t, ...updates } : t));
 
       const { error } = await supabase.from('tasks').update(updates).eq('id', task.id);
@@ -224,7 +290,6 @@ export default function JTBDPage() {
 
       if (error) throw error;
       
-      // 🔔 NOTIFICAÇÃO: Disparo Direto (Lançar Prioridade)
       if (adHocForm.assigneeId !== currentUser.id) {
          await NotificationEngine.notifyUser(
            adHocForm.assigneeId,
@@ -255,24 +320,25 @@ export default function JTBDPage() {
     ? allUserTasks.filter(t => new Date(t.deadline).toISOString().split('T')[0] === selectedDate)
     : allUserTasks;
 
+  // 🟢 FILTROS DE COLUNAS
   const pendingTasks = displayedTasks.filter(t => t.status === 'pending');
   const inProgressTasks = displayedTasks.filter(t => t.status === 'in_progress');
-  const reviewTasks = displayedTasks.filter(t => t.status === 'review');
+  
+  // 🟢 MÁGICA VISUAL: Tarefas 'pending_client_approval' ficam ancoradas na coluna de revisão, mas o Kanban lidará com a desativação visual dos botões
+  const reviewTasks = displayedTasks.filter(t => t.status === 'review' || t.status === 'pending_client_approval');
+  
   const completedTasks = displayedTasks.filter(t => t.status === 'completed').slice(0, 20); 
 
   const isAdminOrManager = currentUser?.role === 'admin' || currentUser?.role === 'gestor';
   const isViewingSelf = viewingUserId === currentUser?.id;
 
   return (
-    // 1. Removido o 'overflow-hidden' desta linha para deixar o Kanban respirar
     <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1500px] mx-auto relative z-10 px-4 md:px-0">
       
       <div className="flex flex-col xl:flex-row gap-6 w-full mt-6 h-full flex-1 min-h-0">
         
         {/* COLUNA ESQUERDA (SIDEBAR COMPACTA) */}
-        {/* 2. Mantemos o pr-2 e a custom-scrollbar para que ESTA coluna role se tiver muitos itens */}
         <div className="flex flex-col gap-6 w-full xl:w-[340px] shrink-0 h-full overflow-y-auto custom-scrollbar pr-2 pb-6">
-          
           <PersonalDesk 
             viewedUser={viewedUser}
             isViewingSelf={isViewingSelf}
@@ -287,11 +353,9 @@ export default function JTBDPage() {
             setSelectedDate={setSelectedDate}
             allUserTasks={allUserTasks}
           />
-
         </div>
 
-        {/* COLUNA DIREITA (PAINEL PRINCIPAL KANBAN - OCUPA TODA A ALTURA) */}
-        {/* 3. A caixa do Daily Kanban agora flui sem cortes */}
+        {/* COLUNA DIREITA (PAINEL PRINCIPAL KANBAN) */}
         <div className="flex-1 flex flex-col h-full pb-6 relative z-10">
           <DailyKanban 
             pendingTasks={pendingTasks}
@@ -317,7 +381,7 @@ export default function JTBDPage() {
             <Plus size={28} />
           </button>
 
-          {/* Menu Oculto (Aparece ao passar o rato na área) */}
+          {/* Menu Oculto */}
           <div className="flex flex-col-reverse items-end gap-3 opacity-0 translate-y-4 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 origin-bottom">
             
             {/* Atribuir Prioridade */}
@@ -361,7 +425,7 @@ export default function JTBDPage() {
         team={team}
         handleFireGrenade={handleFireGrenade}
         adHocProcessing={adHocProcessing}
-        earnedExpToast={{ show: false, amount: 0, msg: "" }} // Como removemos a gamificação, passamos um state vazio para o toast não quebrar
+        earnedExpToast={{ show: false, amount: 0, msg: "" }} 
       />
 
     </div>

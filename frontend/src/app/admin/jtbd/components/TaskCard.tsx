@@ -5,7 +5,8 @@ import { supabase } from "../../../../lib/supabase";
 import { 
   Clock, Target, Activity, Flame, ArrowRight, 
   Loader2, PlayCircle, PauseCircle, ChevronRight, 
-  CheckCircle2, X, Save, AlignLeft, Paperclip, UploadCloud, Eye, Image as ImageIcon, ZoomIn, RotateCcw, MessageSquare, Send 
+  CheckCircle2, X, Save, AlignLeft, Paperclip, UploadCloud, Eye, 
+  Image as ImageIcon, ZoomIn, RotateCcw, MessageSquare, Send, FileText, Timer 
 } from "lucide-react";
 
 interface TaskCardProps {
@@ -55,10 +56,13 @@ export default function TaskCard({
   const [adminFeedback, setAdminFeedback] = useState("");
   const [isProcessingFeedback, setIsProcessingFeedback] = useState(false);
 
+  // 🟢 TELEMETRIA DE TEMPO (LIVE TIMER)
+  const [liveSeconds, setLiveSeconds] = useState(0);
+
   const isEffectivelyModalOpen = isModalOpen || forceOpenModal;
   const isDelayed = !isCompleted && localDeadline && new Date(localDeadline) < new Date();
 
-  // Busca a imagem do social_post para ser a "Capa do Card" se o Kanban ainda não a tiver nativamente
+  // Busca a imagem do social_post se o Kanban ainda não a tiver nativamente
   useEffect(() => {
     if (task.id && !task.attachment_url) {
       const fetchRelatedPost = async () => {
@@ -79,8 +83,48 @@ export default function TaskCard({
     }
   }, [task.id, task.attachment_url]);
 
+  // 🟢 MOTOR DE CÁLCULO AO VIVO (CRONÓMETRO)
+  useEffect(() => {
+    let interval: NodeJS.Timeout;
+
+    if (task.status === 'in_progress' && task.started_at) {
+      const startTimestamp = new Date(task.started_at).getTime();
+      
+      const updateTimer = () => {
+        const now = Date.now();
+        const diff = Math.floor((now - startTimestamp) / 1000);
+        setLiveSeconds(diff > 0 ? diff : 0);
+      };
+
+      updateTimer(); // Atualiza instantaneamente ao renderizar
+      interval = setInterval(updateTimer, 1000); // Roda a cada segundo
+    } else {
+      setLiveSeconds(0);
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [task.status, task.started_at]);
+
   const displayImageUrl = task.attachment_url || relatedPost?.image_url;
   const isRejectedByClient = relatedPost?.status === 'needs_revision';
+  const isPdf = displayImageUrl?.toLowerCase().includes('.pdf');
+
+  const badgeColor = isCompleted ? 'bg-green-500/90' : isReview ? 'bg-purple-500/90' : 'bg-[var(--color-atelier-terracota)]/90';
+  const badgeText = isCompleted ? 'Aprovado' : isReview ? 'Em Revisão' : 'Anexado';
+
+  // Formatador de Segundos para HH:MM:SS
+  const formatTime = (totalSecs: number) => {
+    const h = Math.floor(totalSecs / 3600);
+    const m = Math.floor((totalSecs % 3600) / 60);
+    const s = totalSecs % 60;
+    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+  };
+
+  // Tempo Acumulado Global (Minutos armazenados + Segundos ativos)
+  const totalAccumulatedSeconds = (task.actual_time || 0) * 60;
+  const totalSpentSeconds = totalAccumulatedSeconds + liveSeconds;
 
   // ==========================================
   // MOTORES DE AÇÃO INTERNA
@@ -123,7 +167,6 @@ export default function TaskCard({
 
   const handleReturnToReview = async () => {
     if (!onRevert) {
-      // Caso onRevert não exista, usa onAction como fallback para voltar a revisão
       onAction('review');
       handleCloseModal();
       return;
@@ -174,9 +217,6 @@ export default function TaskCard({
 
   return (
     <>
-      {/* =====================================================================
-          O CARTÃO DO KANBAN (MINIATURA ESTÁTICA OU ARRASTÁVEL)
-          ===================================================================== */}
       <motion.div 
         draggable={!task.is_blocked && !isCompleted && !forceStaticMode}
         onDragStart={(e: any) => {
@@ -201,16 +241,21 @@ export default function TaskCard({
         {isFocus && <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)] z-20"></div>}
         {task.urgency && !isCompleted && !isFocus && <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500 z-20"></div>}
 
-        {/* 🟢 COVER VISUAL ESTILO TRELLO UNIFICADO */}
-        {displayImageUrl && (
-          <div className="w-full h-36 relative bg-gray-100 border-b border-[var(--color-atelier-grafite)]/10 shrink-0 overflow-hidden pointer-events-none">
-            <img src={displayImageUrl} alt="Cover" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-95" />
+        {/* COVER VISUAL (Oculta se forceStaticMode para evitar duplicação no Kanban) */}
+        {displayImageUrl && !forceStaticMode && (
+          <div className="w-full h-36 relative bg-gray-100 border-b border-[var(--color-atelier-grafite)]/10 shrink-0 overflow-hidden pointer-events-none flex items-center justify-center">
+            {isPdf ? (
+              <div className="flex flex-col items-center justify-center opacity-40">
+                <FileText size={48} className="text-[var(--color-atelier-grafite)] mb-2" />
+                <span className="font-bold text-[10px] uppercase tracking-widest text-[var(--color-atelier-grafite)]">Documento PDF</span>
+              </div>
+            ) : (
+              <img src={displayImageUrl} alt="Cover" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-95" />
+            )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent"></div>
-            
-            {/* Badges Overlay */}
             <div className="absolute bottom-3 left-4 right-4 flex justify-between items-end">
                <span className="bg-white/95 backdrop-blur-sm text-[var(--color-atelier-grafite)] px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest shadow-sm flex items-center gap-1.5">
-                 <ImageIcon size={12} /> Prévia
+                 {isPdf ? <FileText size={12}/> : <ImageIcon size={12} />} Mídia Anexada
                </span>
                {isReview && <span className="bg-purple-500 text-white px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest shadow-sm border border-purple-400">Em Revisão</span>}
                {isRejectedByClient && <span className="bg-red-500 text-white px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest shadow-sm border border-red-400 animate-pulse">Ajuste Exigido</span>}
@@ -238,20 +283,34 @@ export default function TaskCard({
                 <span className={`text-[10px] uppercase font-bold tracking-widest flex items-center gap-1 ${isDelayed ? 'text-red-500' : 'text-[var(--color-atelier-grafite)]/50'}`}>
                   <Clock size={12}/> {task.deadline ? new Date(localDeadline).toLocaleDateString('pt-BR') : 'Sem Prazo'}
                 </span>
-                <div className="flex items-center gap-2">
-                  <span className="text-[9px] text-[var(--color-atelier-grafite)]/30 uppercase font-bold tracking-widest bg-gray-50 px-2 py-0.5 rounded">Est: {task.estimated_time}m</span>
+                
+                {/* 🟢 BLABLA DE TEMPO (ESTIMADO vs INVESTIDO) */}
+                <div className="flex items-center gap-2 flex-wrap mt-1">
+                  <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 uppercase font-bold tracking-widest bg-gray-50 px-2 py-0.5 rounded border border-gray-100">
+                    Est: {task.estimated_time}m
+                  </span>
                   
-                  <button 
-                    onClick={(e) => { e.stopPropagation(); onReschedule(); }}
-                    disabled={isRescheduling}
-                    className={`text-[9px] uppercase font-bold tracking-widest px-2 py-0.5 rounded transition-colors flex items-center gap-1 text-blue-500 hover:bg-blue-50 cursor-pointer pointer-events-auto disabled:opacity-50`}
-                  >
-                    {isRescheduling ? <Loader2 size={10} className="animate-spin"/> : <ArrowRight size={10}/>} Adiar
-                  </button>
+                  {totalSpentSeconds > 0 && (
+                    <span className={`text-[9px] uppercase font-bold tracking-widest px-2 py-0.5 rounded flex items-center gap-1 shadow-sm border
+                      ${task.status === 'in_progress' ? 'bg-blue-50 text-blue-600 border-blue-200 animate-pulse' : 'bg-gray-100 text-gray-500 border-gray-200'}
+                    `}>
+                      <Timer size={10} /> {formatTime(totalSpentSeconds)}
+                    </span>
+                  )}
+
+                  {!isFocus && (
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); onReschedule(); }}
+                      disabled={isRescheduling}
+                      className={`text-[9px] uppercase font-bold tracking-widest px-2 py-0.5 rounded transition-colors flex items-center gap-1 text-blue-500 hover:bg-blue-50 cursor-pointer pointer-events-auto disabled:opacity-50`}
+                    >
+                      {isRescheduling ? <Loader2 size={10} className="animate-spin"/> : <ArrowRight size={10}/>} Adiar
+                    </button>
+                  )}
                 </div>
               </div>
 
-              {/* 🟢 ZONA DE BOTÕES REATIVADA (pointer-events-auto garante o clique no Kanban) */}
+              {/* ZONA DE BOTÕES */}
               <div className="flex items-center gap-2 relative z-10 pointer-events-auto">
                 {task.is_blocked ? (
                   <span className="text-[9px] uppercase font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm" title="Aguardando fase anterior">Pendente</span>
@@ -276,13 +335,17 @@ export default function TaskCard({
 
                     {isReview && (
                       <>
-                        {isAdmin ? (
+                        {task.status === 'pending_client_approval' ? (
+                          <span className="px-3 h-8 rounded-lg flex items-center justify-center text-[9px] font-bold uppercase tracking-widest cursor-not-allowed bg-blue-50 border border-blue-200 text-blue-600 animate-pulse shadow-sm gap-1.5">
+                            <Timer size={12} /> Cliente Avaliando
+                          </span>
+                        ) : isAdmin ? (
                           <button onClick={(e) => { e.stopPropagation(); onAction('completed'); }} className="bg-green-500 border border-green-600 text-white hover:bg-green-600 px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_10px_rgba(34,197,94,0.3)] hover:-translate-y-0.5 flex items-center gap-1">
                             Aprovar <CheckCircle2 size={14}/>
                           </button>
                         ) : (
                           <span className={`px-3 h-8 rounded-lg flex items-center justify-center text-[9px] font-bold uppercase tracking-widest cursor-not-allowed ${isRejectedByClient ? 'bg-red-50 border border-red-200 text-red-600 animate-pulse' : 'bg-orange-50 border border-orange-200 text-orange-600 animate-pulse'}`}>
-                            {isRejectedByClient ? 'Ajuste Exigido' : 'Aguardando'}
+                            {isRejectedByClient ? 'Ajuste Exigido' : 'Em Análise'}
                           </span>
                         )}
                       </>
@@ -293,7 +356,6 @@ export default function TaskCard({
             </div>
           )}
           
-          {/* Opção rápida de Reverter na própria capa se estiver Concluída (apenas Admin) */}
           {isCompleted && isAdmin && (
              <div className="flex items-center justify-end border-t border-[var(--color-atelier-grafite)]/5 pt-3 mt-1 relative z-10 pointer-events-auto">
                <button onClick={(e) => { e.stopPropagation(); handleReturnToReview(); }} className="bg-orange-50 border border-orange-200 text-orange-600 hover:bg-orange-600 hover:text-white px-3 h-8 rounded-lg text-[9px] font-bold uppercase tracking-widest transition-colors shadow-sm flex items-center gap-2">
@@ -305,7 +367,7 @@ export default function TaskCard({
       </motion.div>
 
       {/* =====================================================================
-          MODAL DE DETALHES RÁPIDOS DA TAREFA E VISUALIZADOR DE ARTE
+          MODAL DE DETALHES RÁPIDOS DA TAREFA E VISUALIZADOR DE ARTE/PDF
           ===================================================================== */}
       <AnimatePresence>
         {isEffectivelyModalOpen && (
@@ -344,20 +406,15 @@ export default function TaskCard({
                 </div>
               </div>
 
-              {/* EXIBIÇÃO RENDERIZADA DA IMAGEM E UPLOAD */}
               <div className="flex flex-col gap-3 shrink-0">
                 <div className="flex items-center justify-between">
                   <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-2">
-                    <ImageIcon size={14}/> Material Final (Arte Visual)
+                    {isPdf ? <FileText size={14}/> : <ImageIcon size={14}/>} Material Final Anexado
                   </h4>
-                  
                   {isRejectedByClient && (
                     <div className="flex items-center gap-2">
                       <span className="bg-red-100 text-red-600 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest">Recusado pelo Cliente</span>
-                      <button 
-                        onClick={handleReturnToReview}
-                        className="bg-gray-100 text-[var(--color-atelier-grafite)] hover:bg-orange-500 hover:text-white px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest transition-colors flex items-center gap-1 shadow-sm"
-                      >
+                      <button onClick={handleReturnToReview} className="bg-gray-100 text-[var(--color-atelier-grafite)] hover:bg-orange-500 hover:text-white px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest transition-colors flex items-center gap-1 shadow-sm">
                         <RotateCcw size={10} /> Retornar p/ Revisão
                       </button>
                     </div>
@@ -366,17 +423,30 @@ export default function TaskCard({
                 
                 {displayImageUrl ? (
                   <div className="flex flex-col gap-3">
-                    <div 
-                      className={`w-full h-48 sm:h-56 rounded-[1.5rem] overflow-hidden border border-gray-200 shadow-sm relative group cursor-pointer bg-gray-100 ${isRejectedByClient ? 'border-red-300 ring-2 ring-red-500/20' : ''}`}
-                      onClick={() => setIsLightboxOpen(true)}
-                    >
-                      <img src={displayImageUrl} alt="Arte Anexada" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                      <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                        <div className="bg-white/95 backdrop-blur-md px-5 py-3 rounded-full text-[var(--color-atelier-grafite)] opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl transform translate-y-4 group-hover:translate-y-0 flex items-center gap-2">
-                           <ZoomIn size={18} /> <span className="text-[10px] font-bold uppercase tracking-widest">Expandir Arte</span>
+                    {isPdf ? (
+                      <div className={`w-full h-48 sm:h-56 rounded-[1.5rem] overflow-hidden border border-gray-200 shadow-sm relative group bg-gray-100 flex flex-col items-center justify-center ${isRejectedByClient ? 'border-red-300 ring-2 ring-red-500/20' : ''}`}>
+                         <FileText size={48} className="text-gray-300 mb-4" />
+                         <span className="font-bold uppercase tracking-widest text-[11px] text-gray-500">Documento PDF</span>
+                         
+                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
+                           <a href={displayImageUrl} target="_blank" rel="noreferrer" className="bg-white text-[var(--color-atelier-grafite)] px-5 py-2.5 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg flex items-center gap-2 hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-colors">
+                             <Eye size={14}/> Ler Documento
+                           </a>
+                           <a href={displayImageUrl} download target="_blank" rel="noreferrer" className="text-white font-bold uppercase tracking-widest text-[9px] underline hover:text-[var(--color-atelier-terracota)] transition-colors">
+                             Fazer Download
+                           </a>
+                         </div>
+                      </div>
+                    ) : (
+                      <div className={`w-full h-48 sm:h-56 rounded-[1.5rem] overflow-hidden border border-gray-200 shadow-sm relative group cursor-pointer bg-gray-100 ${isRejectedByClient ? 'border-red-300 ring-2 ring-red-500/20' : ''}`} onClick={() => setIsLightboxOpen(true)}>
+                        <img src={displayImageUrl} alt="Arte Anexada" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                          <div className="bg-white/95 backdrop-blur-md px-5 py-3 rounded-full text-[var(--color-atelier-grafite)] opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl transform translate-y-4 group-hover:translate-y-0 flex items-center gap-2">
+                             <ZoomIn size={18} /> <span className="text-[10px] font-bold uppercase tracking-widest">Expandir Arte</span>
+                          </div>
                         </div>
                       </div>
-                    </div>
+                    )}
 
                     <div className="flex items-center justify-between bg-white p-3 rounded-2xl border border-gray-200 shadow-sm transition-colors hover:border-[var(--color-atelier-terracota)]/30">
                       <div className="flex items-center gap-3 overflow-hidden">
@@ -384,21 +454,14 @@ export default function TaskCard({
                           <Paperclip size={16} />
                         </div>
                         <div className="flex flex-col truncate">
-                          <span className="text-[12px] font-bold text-[var(--color-atelier-grafite)] truncate">Mídia Anexada</span>
-                          <span className="text-[9px] uppercase font-bold tracking-widest text-green-600 mt-0.5 flex items-center gap-1"><CheckCircle2 size={10}/> Vinculada ao Fluxo</span>
+                          <span className="text-[12px] font-bold text-[var(--color-atelier-grafite)] truncate">Arquivo Anexado</span>
+                          <span className="text-[9px] uppercase font-bold tracking-widest text-green-600 mt-0.5 flex items-center gap-1"><CheckCircle2 size={10}/> Vinculado ao Fluxo</span>
                         </div>
                       </div>
-                      
                       <div className="flex items-center gap-2 shrink-0 pl-2">
                         {onUpload && (
                           <label className="flex items-center justify-center gap-2 h-9 px-4 bg-orange-50 hover:bg-orange-100 border border-transparent hover:border-orange-200 rounded-xl text-orange-600 transition-all shadow-sm cursor-pointer" title="Substituir Arquivo">
-                            <input 
-                              type="file" 
-                              accept="image/*,video/*,application/pdf" 
-                              className="hidden" 
-                              onChange={handleFileSelection} 
-                              disabled={isUploading} 
-                            />
+                            <input type="file" accept="image/*,video/*,application/pdf" className="hidden" onChange={handleFileSelection} disabled={isUploading} />
                             {isUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />}
                             <span className="font-bold text-[10px] uppercase tracking-widest hidden sm:block">Substituir</span>
                           </label>
@@ -406,8 +469,7 @@ export default function TaskCard({
                       </div>
                     </div>
 
-                    {/* 🟢 REVISÃO INTERNA (GESTÃO / ADMIN) */}
-                    {isAdmin && isReview && !isCompleted && (
+                    {isAdmin && isReview && !isCompleted && task.status !== 'pending_client_approval' && (
                       <div className="border-t border-gray-100 pt-4 mt-2">
                          {!isAdminReviewing ? (
                            <div className="flex gap-3">
@@ -415,14 +477,14 @@ export default function TaskCard({
                                <MessageSquare size={14} /> Solicitar Ajuste
                              </button>
                              <button onClick={() => { onAction('completed'); handleCloseModal(); }} className="flex-1 bg-green-500 text-white hover:bg-green-600 py-3.5 rounded-xl font-bold uppercase tracking-[0.1em] transition-all shadow-md flex items-center justify-center gap-2 hover:-translate-y-0.5">
-                               <CheckCircle2 size={14} /> Aprovar Arte
+                               <CheckCircle2 size={14} /> Aprovar p/ Cliente
                              </button>
                            </div>
                          ) : (
                            <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="flex flex-col gap-3 bg-red-50/50 p-4 rounded-2xl border border-red-100">
                              <span className="text-[10px] font-bold uppercase tracking-widest text-red-500 flex items-center gap-1.5"><RotateCcw size={12}/> Feedback</span>
                              <textarea 
-                               placeholder="Detalhe o que precisa ser alterado nesta arte..." 
+                               placeholder="Detalhe o que precisa ser alterado neste arquivo..." 
                                value={adminFeedback}
                                onChange={(e) => setAdminFeedback(e.target.value)}
                                className="w-full bg-white border border-red-100 focus:border-red-300 rounded-xl p-3 text-[13px] font-medium outline-none resize-none h-24 shadow-sm custom-scrollbar"
@@ -437,24 +499,9 @@ export default function TaskCard({
                          )}
                       </div>
                     )}
-
-                    {/* Botão de Retornar para Revisão quando concluída */}
-                    {isAdmin && isCompleted && (
-                      <div className="border-t border-gray-100 pt-4 mt-2">
-                        <button 
-                          onClick={handleReturnToReview}
-                          className="w-full bg-orange-50 border border-orange-200 text-orange-600 hover:bg-orange-600 hover:text-white py-3.5 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-colors flex items-center justify-center gap-2 shadow-sm"
-                        >
-                          <RotateCcw size={14} /> Reverter para Revisão Interna
-                        </button>
-                      </div>
-                    )}
-
                   </div>
                 ) : (
-                  <div className={`p-6 rounded-2xl border-2 border-dashed flex flex-col items-center gap-3 transition-colors text-center
-                    ${onUpload ? 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-[var(--color-atelier-terracota)]/50 cursor-pointer' : 'bg-gray-50 border-gray-100 opacity-60'}`}
-                  >
+                  <div className={`p-6 rounded-2xl border-2 border-dashed flex flex-col items-center gap-3 transition-colors text-center ${(!isCompleted && onUpload) ? 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-[var(--color-atelier-terracota)]/50 cursor-pointer' : 'bg-gray-50 border-gray-100 opacity-60'}`}>
                     {isUploading ? (
                       <>
                         <Loader2 size={28} className="animate-spin text-[var(--color-atelier-terracota)]" />
@@ -464,19 +511,13 @@ export default function TaskCard({
                       <>
                         <UploadCloud size={28} className="text-gray-300" />
                         <span className="font-bold uppercase tracking-widest text-[10px] text-gray-500">Área de Entrega de Peças</span>
-                        {onUpload ? (
+                        {!isCompleted && onUpload ? (
                           <label className="mt-2 bg-white border border-gray-200 px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:text-white hover:bg-[var(--color-atelier-terracota)] hover:border-transparent cursor-pointer shadow-sm transition-all">
-                            <input 
-                              type="file" 
-                              accept="image/*,video/*,application/pdf" 
-                              className="hidden" 
-                              onChange={handleFileSelection} 
-                              disabled={isUploading} 
-                            />
-                            Anexar Imagem ou Material
+                            <input type="file" accept="image/*,video/*,application/pdf" className="hidden" onChange={handleFileSelection} disabled={isUploading} />
+                            Anexar Imagem ou PDF
                           </label>
                         ) : (
-                          <span className="text-[10px] italic text-gray-400 max-w-[200px] mt-1">Nenhuma imagem anexada e a tarefa encontra-se encerrada.</span>
+                          <span className="text-[10px] italic text-gray-400 max-w-[200px] mt-1">Nenhum ficheiro anexado e a tarefa encontra-se encerrada.</span>
                         )}
                       </>
                     )}
@@ -484,26 +525,40 @@ export default function TaskCard({
                 )}
               </div>
 
-              {/* ÁREA ADMINISTRATIVA: ALTERAÇÃO DE PRAZO */}
+              {/* 🟢 DASHBOARD DE TELEMETRIA E GESTÃO DE PRAZO (ADMIN VIEW) */}
               {isAdmin && (
-                <div className="mt-4 pt-6 border-t border-gray-100 flex flex-col gap-3 shrink-0">
-                  <h4 className="font-roboto text-[10px] font-bold uppercase tracking-widest text-orange-500 flex items-center gap-2">
-                    <Clock size={12}/> Ajuste de Prazo (Admin)
-                  </h4>
-                  <div className="flex items-center gap-3">
-                    <input 
-                      type="datetime-local" 
-                      value={localDeadline ? new Date(localDeadline).toISOString().slice(0, 16) : ""} 
-                      onChange={(e) => setLocalDeadline(e.target.value ? new Date(e.target.value).toISOString() : null)} 
-                      className="flex-1 bg-white border border-gray-200 rounded-xl p-3 text-[13px] outline-none focus:border-orange-400 shadow-sm" 
-                    />
-                    <button 
-                      onClick={handleUpdateDeadline} 
-                      disabled={isSavingDeadline || localDeadline === task.deadline}
-                      className="bg-orange-100 text-orange-700 hover:bg-orange-500 hover:text-white px-5 h-[46px] rounded-xl text-[11px] font-bold uppercase tracking-widest transition-colors flex items-center gap-2 disabled:opacity-50 shadow-sm"
-                    >
-                      {isSavingDeadline ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Atualizar
-                    </button>
+                <div className="mt-4 pt-6 border-t border-gray-100 flex flex-col gap-5 shrink-0">
+                  <div className="flex flex-col gap-3">
+                    <h4 className="font-roboto text-[10px] font-bold uppercase tracking-widest text-orange-500 flex items-center gap-2">
+                      <Clock size={12}/> Ajuste de Prazo
+                    </h4>
+                    <div className="flex items-center gap-3">
+                      <input 
+                        type="datetime-local" 
+                        value={localDeadline ? new Date(localDeadline).toISOString().slice(0, 16) : ""} 
+                        onChange={(e) => setLocalDeadline(e.target.value ? new Date(e.target.value).toISOString() : null)} 
+                        className="flex-1 bg-white border border-gray-200 rounded-xl p-3 text-[13px] outline-none focus:border-orange-400 shadow-sm" 
+                      />
+                      <button onClick={handleUpdateDeadline} disabled={isSavingDeadline || localDeadline === task.deadline} className="bg-orange-100 text-orange-700 hover:bg-orange-500 hover:text-white px-5 h-[46px] rounded-xl text-[11px] font-bold uppercase tracking-widest transition-colors flex items-center gap-2 disabled:opacity-50 shadow-sm">
+                        {isSavingDeadline ? <Loader2 size={14} className="animate-spin"/> : <Save size={14}/>} Atualizar
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-5 flex flex-col gap-3">
+                     <h4 className="font-roboto text-[10px] font-bold uppercase tracking-widest text-blue-500 flex items-center gap-2">
+                       <Timer size={12}/> Telemetria de Produção
+                     </h4>
+                     <div className="flex justify-between items-center">
+                       <span className="text-[12px] font-bold text-[var(--color-atelier-grafite)]/70">Tempo Total Investido</span>
+                       <span className="font-elegant text-2xl text-blue-600">{formatTime(totalSpentSeconds)}</span>
+                     </div>
+                     {task.status === 'in_progress' && (
+                       <div className="flex justify-between items-center pt-3 border-t border-blue-200/50 mt-1">
+                         <span className="text-[11px] font-medium text-blue-500/70">Sessão Atual (Ativa)</span>
+                         <span className="text-[13px] font-bold text-blue-500 animate-pulse bg-blue-100 px-3 py-1 rounded-lg shadow-sm">{formatTime(liveSeconds)}</span>
+                       </div>
+                     )}
                   </div>
                 </div>
               )}
@@ -514,31 +569,15 @@ export default function TaskCard({
       </AnimatePresence>
 
       {/* =====================================================================
-          LIGHTBOX IMERSIVO (EXIBE A IMAGEM EM TELA CHEIA DENTRO DO SISTEMA)
+          LIGHTBOX IMERSIVO
           ===================================================================== */}
       <AnimatePresence>
-        {isLightboxOpen && displayImageUrl && (
+        {isLightboxOpen && displayImageUrl && !isPdf && (
           <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 md:p-10">
-            <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }} 
-              onClick={() => setIsLightboxOpen(false)} 
-              className="absolute inset-0 bg-black/80 backdrop-blur-xl cursor-zoom-out" 
-            />
-            <motion.div 
-              initial={{ scale: 0.9, opacity: 0 }} 
-              animate={{ scale: 1, opacity: 1 }} 
-              exit={{ scale: 0.9, opacity: 0 }} 
-              className="relative z-10 max-w-5xl max-h-full flex flex-col items-center pointer-events-none"
-            >
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsLightboxOpen(false)} className="absolute inset-0 bg-black/80 backdrop-blur-xl cursor-zoom-out" />
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative z-10 max-w-5xl max-h-full flex flex-col items-center pointer-events-none">
               <img src={displayImageUrl} alt="Arte Expandida" className="w-auto h-auto max-w-full max-h-[85vh] object-contain rounded-2xl shadow-2xl border border-white/10 pointer-events-auto" />
-              <button 
-                onClick={() => setIsLightboxOpen(false)} 
-                className="absolute -top-12 right-0 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors pointer-events-auto border border-white/20 shadow-sm"
-              >
-                <X size={20} />
-              </button>
+              <button onClick={() => setIsLightboxOpen(false)} className="absolute -top-12 right-0 w-10 h-10 flex items-center justify-center rounded-full bg-white/10 hover:bg-white/20 text-white backdrop-blur-md transition-colors pointer-events-auto border border-white/20 shadow-sm"><X size={20} /></button>
             </motion.div>
           </div>
         )}

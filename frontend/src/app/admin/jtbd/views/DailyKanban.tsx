@@ -1,7 +1,7 @@
 // src/app/admin/jtbd/views/DailyKanban.tsx
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, AlertTriangle, CheckCircle2, Image as ImageIcon, PlayCircle, Crosshair } from "lucide-react";
+import { Clock, AlertTriangle, CheckCircle2, Image as ImageIcon, PlayCircle, FileText } from "lucide-react";
 import TaskCard from "../components/TaskCard";
 import { supabase } from "../../../../lib/supabase";
 
@@ -88,7 +88,7 @@ export default function DailyKanban({
       const task = allTasks.find(t => t.id === taskId);
       if (!task) return;
 
-      window.dispatchEvent(new CustomEvent("showToast", { detail: "Processando arte gráfica e conectando ao Visual Flow..." }));
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Processando arquivo gráfico e conectando ao Visual Flow..." }));
 
       const { data: projData } = await supabase.from('projects').select('client_id').eq('id', task.project_id).single();
       const clientId = projData?.client_id || 'unassigned';
@@ -119,7 +119,7 @@ export default function DailyKanban({
       }).eq('id', task.id);
 
       updateTaskStatus({ ...task, attachment_url: fileUrl }, 'review');
-      window.dispatchEvent(new CustomEvent("showToast", { detail: "Arte enviada para a fila de Revisão Interna! 🎨" }));
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Ficheiro enviado para a fila de Revisão Interna! 🎨" }));
       setActiveTaskModal(null); 
     } catch (error) {
       console.error(error);
@@ -135,6 +135,9 @@ export default function DailyKanban({
     const badgeText = isCompleted ? 'Aprovado' : isReview ? 'Em Revisão' : 'Anexado';
     
     const isLive = task.status === 'in_progress' || isFocus;
+    
+    // 🟢 UTILITÁRIO: DETETAR SE É PDF
+    const isPdf = task.attachment_url?.toLowerCase().includes('.pdf');
 
     return (
       <motion.div 
@@ -142,7 +145,6 @@ export default function DailyKanban({
         layout="position"
         layoutId={`task-${task.id}`}
         
-        // 🟢 Entrada e Saída Cinematográfica (Aparece desfocado e sobe suavemente)
         initial={{ opacity: 0, y: 30, scale: 0.95, filter: "blur(8px)" }}
         animate={{ 
           opacity: 1, 
@@ -153,14 +155,12 @@ export default function DailyKanban({
         }}
         exit={{ opacity: 0, scale: 0.9, filter: "blur(5px)", transition: { duration: 0.2 } }}
         
-        // 🟢 Transição de Layout Suave e Organizada
         transition={{ 
           layout: { type: "spring", stiffness: 350, damping: 28, mass: 0.8 }, 
           opacity: { duration: 0.3 },
           ...(isLive ? { backgroundPosition: { duration: 3, repeat: Infinity, ease: "linear" } } : {})
         }}
         
-        // 🟢 Micro-interações: Flutua no hover, afunda no clique, descola e gira no drag
         whileHover={{ y: -4, scale: 1.02 }}
         whileTap={{ scale: 0.98 }}
         whileDrag={{ 
@@ -186,18 +186,26 @@ export default function DailyKanban({
       >
         <div className={`flex flex-col relative w-full h-full ${isLive ? 'bg-white rounded-[1.3rem] overflow-hidden' : ''}`}>
           
-          {/* Capa da Arte Visual Integrada Estilo Trello */}
+          {/* 🟢 Capa da Arte Visual Integrada Estilo Trello (Miniatura do Kanban) */}
           {task.attachment_url && (
              <div 
-               className={`w-full h-36 relative border border-white/80 shadow-sm z-0 bg-gray-100 cursor-pointer overflow-hidden
+               className={`w-full h-36 relative border border-white/80 shadow-sm z-0 bg-gray-100 cursor-pointer overflow-hidden flex items-center justify-center
                  ${isLive ? '' : 'rounded-[1.2rem] rounded-b-none border-b-0 -mb-4'}
                `}
                onClick={() => setActiveTaskModal({ task, isFocus: isLive, isReview, isCompleted })}
              >
-               <img src={task.attachment_url} className="w-full h-full object-cover opacity-90 group-hover/wrapper:scale-105 transition-transform duration-700" alt="Capa Visual" />
+               {isPdf ? (
+                 <div className="flex flex-col items-center justify-center opacity-40">
+                   <FileText size={40} className="text-[var(--color-atelier-grafite)] mb-1" />
+                   <span className="font-bold text-[9px] uppercase tracking-widest text-[var(--color-atelier-grafite)]">Doc. PDF</span>
+                 </div>
+               ) : (
+                 <img src={task.attachment_url} className="w-full h-full object-cover opacity-90 group-hover/wrapper:scale-105 transition-transform duration-500" alt="Capa Visual" />
+               )}
+               
                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none"></div>
                <div className={`absolute top-3 right-3 ${badgeColor} backdrop-blur-md text-white text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-md shadow-sm flex items-center gap-1`}>
-                 <ImageIcon size={10} /> {badgeText}
+                 {isPdf ? <FileText size={10} /> : <ImageIcon size={10} />} {badgeText}
                </div>
              </div>
           )}
@@ -380,7 +388,6 @@ export default function DailyKanban({
               transition={{ type: "spring", stiffness: 350, damping: 25 }}
               className="relative z-10 w-full max-w-lg pointer-events-auto shadow-[0_30px_60px_rgba(0,0,0,0.4)] rounded-[2.5rem]"
             >
-              {/* Renderiza o TaskCard verdadeiro (com botões clicáveis e feedback admin) dentro do modal global */}
               <TaskCard 
                 task={activeTaskModal.task} 
                 isFocus={activeTaskModal.isFocus}
