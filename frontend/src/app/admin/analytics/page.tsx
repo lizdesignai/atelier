@@ -65,7 +65,7 @@ export default function AnalyticsPage() {
   const [routeConfig, setRouteConfig] = useState({ projectId: "", taskType: "", assigneeId: "" });
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const [adHocDemand, setAdHocDemand] = useState({ title: "", projectId: "", assigneeId: "", taskType: "", urgency: false });
+  const [adHocDemand, setAdHocDemand] = useState({ title: "", projectId: "", assigneeId: "", taskType: "", urgency: false, description: "" });
 
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
@@ -75,7 +75,7 @@ export default function AnalyticsPage() {
   const [bulkDeadline, setBulkDeadline] = useState("");
 
   const [selectedEntityId, setSelectedEntityId] = useState<string>(""); 
-  const [selectedEntityType, setSelectedEntityType] = useState<'project' | 'agency'>('project');
+  const [selectedEntityType, setSelectedEntityType] = useState<'project' | 'agency' | 'subclient'>('project');
   const [agencies, setAgencies] = useState<any[]>([]);
   const [agencySubclients, setAgencySubclients] = useState<any[]>([]);
 
@@ -412,7 +412,7 @@ export default function AnalyticsPage() {
       );
 
       showToast("Demanda adicionada às tarefas do colaborador!");
-      setAdHocDemand({ title: "", projectId: "", assigneeId: "", taskType: "", urgency: false });
+      setAdHocDemand({ title: "", projectId: "", assigneeId: "", taskType: "", urgency: false, description: "" });
       await fetchOperationalData();
     } catch (e) {
       showToast("Erro ao adicionar demanda.");
