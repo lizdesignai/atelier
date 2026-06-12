@@ -109,7 +109,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
 
         const isInstagram = service === "Gestão de Instagram";
 
-        // BLINDAGEM DE ROTAS
+        // BLINDAGEM DE ROTAS PARA CLIENTES
         if (shouldArchive) {
           const lockedRoutes = ['/', '/cofre', '/referencias', '/cockpit', '/curadoria', '/cofre-missoes'];
           if (lockedRoutes.includes(pathname)) router.replace('/comunidade');
@@ -120,13 +120,18 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
             router.replace('/');
           }
         }
+      } else {
+        // 🟢 BLINDAGEM DE ROTAS PARA A EQUIPA (Interceção da Rota Descontinuada)
+        if (pathname === '/admin') {
+          router.replace(isManagerOrAdmin ? '/admin/gestao' : '/admin/jtbd');
+        }
       }
       
       setIsReady(true);
     };
 
     fetchSidebarData();
-  }, [pathname, isTeamMember, router, onHideSidebar]);
+  }, [pathname, isTeamMember, isManagerOrAdmin, router, onHideSidebar]);
 
   if (!isTeamMember && (isProjectArchived || !isReady)) return null;
 
@@ -225,8 +230,6 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
             <>
               {/* Visto por todos */}
               <NavItem href="/admin/jtbd" icon={<Crosshair size={18} strokeWidth={1.5} />} label="Focus" collapsed={isCollapsed} active={pathname === '/admin/jtbd'} />
-              
-              {/* 🟢 ROTA DE PRODUTIVIDADE (VISTA POR TODOS, CADA UM VÊ O SEU) */}
               <NavItem href="/admin/gestao" icon={<Activity size={18} strokeWidth={1.5} />} label="Produtividade" collapsed={isCollapsed} active={pathname === '/admin/gestao'} />
               
               <div className="flex items-center justify-center my-3 opacity-20">
