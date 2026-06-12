@@ -30,7 +30,7 @@ export default function CockpitPage() {
 
 // Estados Gerais
   const [pendingCount, setPendingCount] = useState(0);
-  const [currentFocus, setCurrentFocus] = useState("A equipe está analisando o seu projeto..."); // 🟢 Adicione esta linha
+  const [currentFocus, setCurrentFocus] = useState("A equipe está analisando o seu projeto...");
   const [isBriefingModalOpen, setIsBriefingModalOpen] = useState(false);
   const [briefing, setBriefing] = useState<any>(null);
   const [pendingMissions, setPendingMissions] = useState(0);
@@ -42,7 +42,7 @@ export default function CockpitPage() {
   const [activeFeedbackId, setActiveFeedbackId] = useState<string | null>(null);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
 
-  // 🟢 ESTADOS DO NOVO CARROSSEL DE ARTES
+  // ESTADOS DO NOVO CARROSSEL DE ARTES
   const [allPosts, setAllPosts] = useState<any[]>([]);
   const [activeCarouselIndex, setActiveCarouselIndex] = useState(0);
   const [postFeedbackText, setPostFeedbackText] = useState("");
@@ -69,10 +69,8 @@ export default function CockpitPage() {
         setProject(proj);
 
         if (proj) {
-          // 🟢 Popula o foco atual com o dado do Supabase ou usa um fallback
           setCurrentFocus(proj.current_focus || "A equipe está analisando o seu projeto...");
           
-          // 🟢 Busca as Artes Pendentes e Aprovadas (Para o Carrossel)
           const { data: postsData } = await supabase
             .from('social_posts')
             .select('*')
@@ -80,7 +78,6 @@ export default function CockpitPage() {
             .in('status', ['pending_approval', 'approved'])
             .order('created_at', { ascending: false });
             
-          // Ordena: Pendentes primeiro, Aprovadas depois
           const sortedPosts = (postsData || []).sort((a, b) => {
             if (a.status === 'pending_approval' && b.status !== 'pending_approval') return -1;
             if (a.status !== 'pending_approval' && b.status === 'pending_approval') return 1;
@@ -90,14 +87,12 @@ export default function CockpitPage() {
           setAllPosts(sortedPosts);
           setPendingCount(sortedPosts.filter(p => p.status === 'pending_approval').length);
 
-          // Busca Briefing e Missões
           const { data: brief } = await supabase.from('instagram_briefings').select('*').eq('project_id', proj.id).or('status.neq.returned,status.is.null').order('created_at', { ascending: false }).limit(1).maybeSingle(); 
           setBriefing(brief);
 
           const { count: missionsCount } = await supabase.from('asset_missions').select('*', { count: 'exact', head: true }).eq('project_id', proj.id).eq('status', 'pending');
           setPendingMissions(missionsCount || 0);
 
-          // Busca Planejamento Editorial (Aprovação de PDF)
           const { data: plans } = await supabase.from('content_planning').select('*').eq('project_id', proj.id).eq('status', 'awaiting_approval').order('created_at', { ascending: true });
           if (plans) setMonthlyPlan(plans);
         }
@@ -118,12 +113,21 @@ export default function CockpitPage() {
     setIsActionProcessing(true);
     try {
       const post = allPosts[activeCarouselIndex];
+      
+      // 1. Atualiza Post para Aprovado
       await supabase.from('social_posts').update({ status: 'approved' }).eq('id', post.id);
       
+      // 2. 🟢 SINC. KANBAN: Dá baixa na tarefa de produção da agência
+      if (post.task_id) {
+         await supabase.from('tasks').update({ 
+             status: 'completed', 
+             completed_at: new Date().toISOString() 
+         }).eq('id', post.task_id);
+      }
+
       const newPosts = [...allPosts];
       newPosts[activeCarouselIndex].status = 'approved';
       
-      // Re-ordena empurrando a finalizada para o final (Opcional, mas mantém as pendentes à frente)
       const resorted = newPosts.sort((a, b) => {
         if (a.status === 'pending_approval' && b.status !== 'pending_approval') return -1;
         if (a.status !== 'pending_approval' && b.status === 'pending_approval') return 1;
@@ -132,7 +136,7 @@ export default function CockpitPage() {
 
       setAllPosts(resorted);
       setPendingCount(resorted.filter(p => p.status === 'pending_approval').length);
-      setActiveCarouselIndex(0); // Volta ao primeiro (que será o próximo pendente se existir)
+      setActiveCarouselIndex(0); 
       
       showToast("Arte validada com sucesso! Peça Finalizada.");
     } catch(e) {
@@ -160,12 +164,11 @@ export default function CockpitPage() {
       // 2. Regride o status do Post
       await supabase.from('social_posts').update({ status: 'needs_revision' }).eq('id', post.id);
 
-      // 3. 🟢 MÁGICA DE INTEGRAÇÃO: Devolve a tarefa do Post diretamente para a coluna 'review' do Kanban da equipa!
+      // 3. Devolve a tarefa do Post diretamente para a coluna 'review' do Kanban da equipa
       if (post.task_id) {
         await supabase.from('tasks').update({ status: 'review' }).eq('id', post.task_id);
       }
       
-      // Remove do carrossel do cliente, pois voltou para a agência
       const newPosts = [...allPosts];
       newPosts.splice(activeCarouselIndex, 1);
       setAllPosts(newPosts);
@@ -197,7 +200,28 @@ export default function CockpitPage() {
   const handleApprovePlan = async (planId: string) => {
     setIsProcessing(true);
     try {
+      // 1. Atualiza Planejamento para Aprovado
       await supabase.from('content_planning').update({ status: 'approved' }).eq('id', planId);
+      
+      // 2. 🟢 SINC. KANBAN: Dá baixa na tarefa de produção da agência (Se associada)
+      // Nota: Como o plano pode não ter link direto com a task (task_id não é nativo do planning), 
+      // nós fazemos uma query reversa baseada no attachment_url para encontrar a tarefa matriz.
+      const plan = monthlyPlan.find(p => p.id === planId);
+      if (plan && plan.planning_file_url) {
+         const { data: matchedTasks } = await supabase
+            .from('tasks')
+            .select('id')
+            .eq('attachment_url', plan.planning_file_url)
+            .limit(1);
+         
+         if (matchedTasks && matchedTasks.length > 0) {
+             await supabase.from('tasks').update({ 
+                 status: 'completed', 
+                 completed_at: new Date().toISOString() 
+             }).eq('id', matchedTasks[0].id);
+         }
+      }
+
       setMonthlyPlan(monthlyPlan.filter(p => p.id !== planId));
       setShowNpsModal(true);
     } catch (error) {
@@ -286,14 +310,11 @@ export default function CockpitPage() {
   }
 
   // ==========================================================================
-  // RENDERIZAÇÃO CONDICIONAL: INSTAGRAM OS (A Experiência No-Scroll e Focada)
+  // RENDERIZAÇÃO CONDICIONAL: INSTAGRAM OS
   // ==========================================================================
   if (project.type === 'Gestão de Instagram' || project.service_type === 'Gestão de Instagram') {
     
-    const isCleanDesk = allPosts.length === 0 && monthlyPlan.length === 0;
-
     return (
-      // 🟢 ARQUITETURA NO-SCROLL (overflow-hidden)
       <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1500px] w-full mx-auto relative z-10 p-6 md:p-8 overflow-hidden gap-6">
         
         {/* CABEÇALHO COMPACTO E LIMPO */}
@@ -590,7 +611,7 @@ export default function CockpitPage() {
 
         </div>
 
-        {/* MODAIS (Inalterados, mantidos para não quebrar a lógica) */}
+        {/* MODAIS */}
         <InstagramBriefingModal 
           isOpen={isBriefingModalOpen} 
           onClose={() => setIsBriefingModalOpen(false)} 
@@ -692,7 +713,7 @@ export default function CockpitPage() {
   }
 
   // ==========================================================================
-  // RENDERIZAÇÃO CONDICIONAL: IDENTIDADE VISUAL (Mantido Intacto da versão Original)
+  // RENDERIZAÇÃO CONDICIONAL: IDENTIDADE VISUAL
   // ==========================================================================
   return (
     <div className="flex flex-col max-w-[1000px] mx-auto w-full gap-8 relative z-10 pb-10 px-4 md:px-0">

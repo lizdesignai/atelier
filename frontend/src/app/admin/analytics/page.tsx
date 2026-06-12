@@ -65,7 +65,7 @@ export default function AnalyticsPage() {
   const [routeConfig, setRouteConfig] = useState({ projectId: "", taskType: "", assigneeId: "" });
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const [adHocDemand, setAdHocDemand] = useState({ title: "", projectId: "", assigneeId: "", taskType: "", urgency: false, description: "" });
+  const [adHocDemand, setAdHocDemand] = useState({ title: "", projectId: "", assigneeId: "", taskType: "", urgency: false, description: "", subclientId: "" });
 
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
@@ -393,13 +393,15 @@ export default function AnalyticsPage() {
       const { error } = await supabase.from('tasks').insert({
         project_id: targetProject,
         agency_id: selectedEntityType === 'agency' ? selectedEntityId : null,
+        subclient_id: adHocDemand.subclientId || null, // 🟢 FIX: Garantir vínculo do Subcliente
         assigned_to: adHocDemand.assigneeId,
         title: adHocDemand.title,
+        description: adHocDemand.description, // 🟢 FIX: O Mapeamento da Descrição faltava aqui!
         urgency: adHocDemand.urgency,
         status: 'pending',
         stage: 'Demanda Pontual',
         task_type: adHocDemand.taskType || 'setup',
-        deadline: new Date(Date.now() + 86400000).toISOString()
+        deadline: new Date(Date.now() + 86400000).toISOString() // +24h
       });
       if (error) throw error;
       
@@ -412,7 +414,7 @@ export default function AnalyticsPage() {
       );
 
       showToast("Demanda adicionada às tarefas do colaborador!");
-      setAdHocDemand({ title: "", projectId: "", assigneeId: "", taskType: "", urgency: false, description: "" });
+      setAdHocDemand({ title: "", projectId: "", assigneeId: "", taskType: "", urgency: false, description: "", subclientId: "" });
       await fetchOperationalData();
     } catch (e) {
       showToast("Erro ao adicionar demanda.");
