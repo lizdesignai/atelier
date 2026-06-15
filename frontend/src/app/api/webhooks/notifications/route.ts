@@ -4,20 +4,79 @@ import { Resend } from 'resend';
 import { createClient } from '@supabase/supabase-js';
 
 const ADMIN_EMAIL = 'lizbranddesign@gmail.com';
-const FROM_EMAIL = 'Atelier Liz Design <onboarding@resend.dev>'; // Substitua quando o seu domínio estiver verificado no Resend
+const FROM_EMAIL = 'Atelier Liz Design <sistema@lizdesign.com.br>'; 
 
-// Tipagem rigorosa para calar os erros do TypeScript
 type ProfileData = { nome: string; email: string; role?: string };
 
+// ============================================================================
+// TEMPLATE ENGINE (App-Like Push Notifications)
+// ============================================================================
+function buildAppLikeEmail(icon: string, title: string, message: string, buttonText: string, link: string) {
+  return `
+    <!DOCTYPE html>
+    <html lang="pt-PT">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body style="margin: 0; padding: 0; background-color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+      <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f4f4f5; padding: 40px 20px;">
+        <tr>
+          <td align="center">
+            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 420px; background-color: #ffffff; border-radius: 24px; box-shadow: 0 12px 32px rgba(0,0,0,0.06); border: 1px solid #f0f0f0; overflow: hidden;">
+              <tr>
+                <td align="center" style="padding: 40px 30px 16px;">
+                  <div style="display: inline-block; width: 56px; height: 56px; border-radius: 18px; background-color: #fcf4ef; border: 1px solid #f8e5d7; font-size: 26px; line-height: 56px; text-align: center; margin-bottom: 20px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                    ${icon}
+                  </div>
+                  <h1 style="margin: 0; font-size: 22px; color: #18181b; font-weight: 700; letter-spacing: -0.5px; line-height: 1.2;">
+                    ${title}
+                  </h1>
+                </td>
+              </tr>
+              <tr>
+                <td align="center" style="padding: 0 30px 32px;">
+                  <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #52525b;">
+                    ${message}
+                  </p>
+                </td>
+              </tr>
+              <tr>
+                <td align="center" style="padding: 0 30px 40px;">
+                  <a href="${link}" style="display: inline-block; width: 100%; box-sizing: border-box; background-color: #18181b; color: #ffffff; text-decoration: none; padding: 18px 24px; border-radius: 14px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; text-align: center; transition: background-color 0.2s;">
+                    ${buttonText}
+                  </a>
+                </td>
+              </tr>
+              <tr>
+                <td align="center" style="padding: 20px; background-color: #fafafa; border-top: 1px solid #f4f4f5;">
+                  <p style="margin: 0; font-size: 10px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">
+                    Atelier Liz Design &bull; OS 2.0
+                  </p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
+}
+
+// ============================================================================
+// MAIN WEBHOOK HANDLER
+// ============================================================================
 export async function POST(request: Request) {
   try {
-    // 🛠️ Proteção de Build do Vercel (Utilizando a variável correta)
     const resend = new Resend(process.env.RESEND_API_KEY);
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY || ''; 
+    
+    // 🟢 FIX CRÍTICO: Usa a Chave de Serviço para furar o RLS e ler e-mails de clientes
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY || ''; 
     
     if (!supabaseUrl || !supabaseKey) {
-      console.error("Chaves do Supabase não encontradas.");
+      console.error("[Webhook] Chaves do Supabase não encontradas.");
       return NextResponse.json({ error: 'Erro de configuração' }, { status: 500 });
     }
 
@@ -25,12 +84,12 @@ export async function POST(request: Request) {
     const payload = await request.json();
     const { table, type, record, old_record } = payload;
 
-    // 🛠️ FUNÇÃO EXTRATORA BLINDADA (Resolve o erro Property 'email' does not exist)
+    const portalUrl = 'https://atelier.lizdesign.com.br';
+
+    // Função extratora blindada
     const getClientProfile = async (projectId: string): Promise<ProfileData | null> => {
       const { data } = await supabase.from('projects').select('profiles(nome, email)').eq('id', projectId).single();
       if (!data?.profiles) return null;
-      
-      // Força o TypeScript a entender que pode ser Objeto ou Array
       const profileRaw = data.profiles as unknown as ProfileData | ProfileData[];
       return Array.isArray(profileRaw) ? profileRaw[0] : profileRaw;
     };
@@ -42,62 +101,56 @@ export async function POST(request: Request) {
       const clientName = record.answers?.nome || 'Cliente';
       const clientEmail = record.answers?.email;
       
-      // 📧 Notifica ADMIN
       await resend.emails.send({
         from: FROM_EMAIL, to: ADMIN_EMAIL,
         subject: `🔥 Novo Briefing: ${clientName}`,
-        html: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #5c4b3c; background-color: #FEF5E6;"><h2 style="color: #8c6e54;">Alerta de Briefing!</h2><p>O cliente <strong>${clientName}</strong> acabou de preencher o briefing estratégico.</p><a href="https://atelier.lizdesign.com.br/admin" style="display: inline-block; margin-top: 20px; padding: 12px 24px; background-color: #8c6e54; color: white; text-decoration: none; border-radius: 8px;">Mesa de Trabalho</a></div>`
+        html: buildAppLikeEmail("🎯", "Diagnóstico Pronto", `O cliente <strong>${clientName}</strong> concluiu o Dossiê Estratégico. A operação está pronta para ser iniciada.`, "Acessar Mesa de Trabalho", `${portalUrl}/admin`)
       });
 
-      // 📧 Notifica CLIENTE
       if (clientEmail) {
         await resend.emails.send({
           from: FROM_EMAIL, to: clientEmail,
-          subject: `Briefing Recebido - Atelier Liz Design`,
-          html: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #5c4b3c; background-color: #FEF5E6;"><h2 style="color: #8c6e54;">Tudo certo, ${clientName.split(' ')[0]}!</h2><p>Recebemos as respostas do seu Briefing Estratégico. A nossa equipa já foi notificada e o seu projeto está a ganhar forma.</p></div>`
+          subject: `Dossiê Recebido - Atelier Liz Design`,
+          html: buildAppLikeEmail("📝", "Dossiê Recebido", `As respostas do seu Briefing Estratégico foram processadas. A nossa equipa já foi notificada para iniciar a estruturação do projeto.`, "Acessar Painel", portalUrl)
         });
       }
     }
 
     // =========================================================================
-    // 2. GATILHO: DIREÇÃO VISUAL
+    // 2. GATILHO: DIREÇÃO VISUAL E AVALIAÇÕES
     // =========================================================================
     if (table === 'design_directions') {
       const client = await getClientProfile(record.project_id);
       const clientName = client?.nome || 'Cliente';
 
       if (type === 'INSERT') {
-        // 📧 Notifica ADMIN (Auditoria)
         await resend.emails.send({
           from: FROM_EMAIL, to: ADMIN_EMAIL,
           subject: `[Sistema] Direção Visual Enviada: ${clientName}`,
-          html: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #5c4b3c; background-color: #FEF5E6;"><h2 style="color: #8c6e54;">Direção Partilhada</h2><p>A direção visual "${record.title}" foi enviada com sucesso para o cofre do cliente.</p></div>`
+          html: buildAppLikeEmail("🎨", "Curadoria Partilhada", `A direção visual "${record.title}" foi enviada com sucesso para o cofre do cliente.`, "Acompanhar Projeto", `${portalUrl}/admin/projetos`)
         });
 
-        // 📧 Notifica CLIENTE
         if (client?.email) {
           await resend.emails.send({
             from: FROM_EMAIL, to: client.email,
-            subject: `✨ Nova Direção Visual disponível no seu Cofre`,
-            html: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #5c4b3c; background-color: #FEF5E6;"><h2 style="color: #8c6e54;">Olá, ${clientName.split(' ')[0]}!</h2><p>Uma nova direção visual foi adicionada ao seu projeto: <strong>${record.title}</strong>.</p><p>Aceda ao portal para avaliar, dar a sua nota e deixar o seu feedback.</p><a href="https://atelier.lizdesign.com.br" style="display: inline-block; margin-top: 20px; padding: 12px 24px; background-color: #8c6e54; color: white; text-decoration: none; border-radius: 8px;">Acessar Meu Cofre</a></div>`
+            subject: `Nova Direção Visual disponível`,
+            html: buildAppLikeEmail("✨", "Curadoria Visual", `Uma nova direção visual foi adicionada ao seu projeto: <strong>${record.title}</strong>.<br><br>Aceda ao portal para avaliar e guiar os próximos passos.`, "Avaliar Direção", portalUrl)
           });
         }
       }
 
       if (type === 'UPDATE' && record.score !== undefined && record.score !== old_record?.score) {
-        // 📧 Notifica ADMIN
         await resend.emails.send({
           from: FROM_EMAIL, to: ADMIN_EMAIL,
           subject: `⭐ Avaliação Recebida: ${clientName}`,
-          html: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #5c4b3c; background-color: #FEF5E6;"><h2 style="color: #8c6e54;">Feedback Recebido</h2><p>O cliente <strong>${clientName}</strong> avaliou a direção "${record.title}".</p><p><strong>Nota Atribuída:</strong> ${record.score}/10</p><a href="https://atelier.lizdesign.com.br/admin/projetos" style="display: inline-block; margin-top: 20px; padding: 12px 24px; background-color: #8c6e54; color: white; text-decoration: none; border-radius: 8px;">Ver Feedback Completo</a></div>`
+          html: buildAppLikeEmail("⭐", "Avaliação Tática", `O cliente <strong>${clientName}</strong> avaliou a direção "${record.title}".<br><br><strong>Nota Atribuída:</strong> ${record.score}/10`, "Ver Feedback Completo", `${portalUrl}/admin/projetos`)
         });
 
-        // 📧 Notifica CLIENTE
         if (client?.email) {
           await resend.emails.send({
             from: FROM_EMAIL, to: client.email,
-            subject: `Avaliação Registada - Atelier Liz Design`,
-            html: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #5c4b3c; background-color: #FEF5E6;"><h2 style="color: #8c6e54;">Obrigado pelo seu feedback!</h2><p>A sua nota (${record.score}/10) foi registada e enviada para a nossa equipa.</p></div>`
+            subject: `Feedback Registado - Atelier Liz Design`,
+            html: buildAppLikeEmail("✅", "Feedback Registado", `A sua avaliação (${record.score}/10) foi sincronizada com a nossa equipa operacional.`, "Acessar Portal", portalUrl)
           });
         }
       }
@@ -111,19 +164,17 @@ export async function POST(request: Request) {
       const isDiary = table === 'diary_posts';
       const clientName = client?.nome || 'Cliente';
       
-      // 📧 Notifica ADMIN (Auditoria)
       await resend.emails.send({
         from: FROM_EMAIL, to: ADMIN_EMAIL,
         subject: `[Sistema] ${isDiary ? 'Diário' : 'Cofre'} Atualizado: ${clientName}`,
-        html: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #5c4b3c; background-color: #FEF5E6;"><h2 style="color: #8c6e54;">Ação Confirmada</h2><p>O perfil de ${clientName} foi atualizado com novos conteúdos de projeto.</p></div>`
+        html: buildAppLikeEmail("📓", "Registro Atualizado", `O perfil de ${clientName} foi atualizado com novos conteúdos operacionais.`, "Acompanhar", `${portalUrl}/admin`)
       });
 
-      // 📧 Notifica CLIENTE
       if (client?.email) {
         await resend.emails.send({
           from: FROM_EMAIL, to: client.email,
-          subject: isDiary ? `📓 Nova atualização no seu Diário de Bordo` : `📦 Novos Arquivos no seu Cofre!`,
-          html: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #5c4b3c; background-color: #FEF5E6;"><h2 style="color: #8c6e54;">Olá, ${clientName.split(' ')[0]}!</h2><p>${isDiary ? 'Acabámos de publicar uma nova atualização sobre o processo da sua marca.' : 'Disponibilizámos novos ficheiros finais no seu Cofre de Identidade.'}</p><a href="https://atelier.lizdesign.com.br" style="display: inline-block; margin-top: 20px; padding: 12px 24px; background-color: #8c6e54; color: white; text-decoration: none; border-radius: 8px;">Acessar Portal</a></div>`
+          subject: isDiary ? `Nova atualização no Diário de Bordo` : `Novo Ativo no Cofre`,
+          html: buildAppLikeEmail("💎", "Nova Atualização", `Existem novas informações ou ativos finalizados disponíveis no seu espaço de trabalho.`, "Acessar Portal", portalUrl)
         });
       }
     }
@@ -138,44 +189,38 @@ export async function POST(request: Request) {
         return Array.isArray(author) ? author[0] : author;
       };
 
-      // A) Novo post pendente
       if (type === 'INSERT' && record.status === 'pending') {
         const author = await getAuthor(record.author_id);
         
-        // 📧 Notifica ADMIN
         await resend.emails.send({
           from: FROM_EMAIL, to: ADMIN_EMAIL,
           subject: `🛡️ Moderação: Novo Post na Comunidade`,
-          html: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #5c4b3c; background-color: #FEF5E6;"><h2 style="color: #8c6e54;">Post Pendente</h2><p>O cliente <strong>${author?.nome}</strong> acabou de publicar na comunidade.</p><p><strong>Conteúdo:</strong> "${record.text_content}"</p><a href="https://atelier.lizdesign.com.br/comunidade" style="display: inline-block; margin-top: 20px; padding: 12px 24px; background-color: #8c6e54; color: white; text-decoration: none; border-radius: 8px;">Moderar Publicação</a></div>`
+          html: buildAppLikeEmail("🛡️", "Ação de Moderação", `O cliente <strong>${author?.nome}</strong> publicou na comunidade e aguarda aprovação.<br><br>"${record.text_content}"`, "Moderar Publicação", `${portalUrl}/admin/comunidade`)
         });
 
-        // 📧 Notifica CLIENTE
         if (author?.email) {
           await resend.emails.send({
             from: FROM_EMAIL, to: author.email,
             subject: `A sua publicação está em análise`,
-            html: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #5c4b3c; background-color: #FEF5E6;"><h2 style="color: #8c6e54;">Recebemos a sua partilha!</h2><p>A sua publicação foi enviada para o Atelier e será aprovada em breve.</p></div>`
+            html: buildAppLikeEmail("⏳", "Post em Análise", `A sua publicação foi submetida e encontra-se em fase de moderação pela nossa curadoria.`, "Ver Comunidade", `${portalUrl}/comunidade`)
           });
         }
       }
 
-      // B) Post Aprovado
       if (type === 'UPDATE' && record.status === 'approved' && old_record?.status === 'pending') {
         const author = await getAuthor(record.author_id);
         
-        // 📧 Notifica ADMIN (Auditoria)
         await resend.emails.send({
           from: FROM_EMAIL, to: ADMIN_EMAIL,
           subject: `✅ Post Aprovado na Comunidade: ${author?.nome}`,
-          html: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #5c4b3c; background-color: #FEF5E6;"><p>A publicação do cliente foi aprovada e já está pública no Mural.</p></div>`
+          html: buildAppLikeEmail("✅", "Publicação Visível", `A partilha do cliente foi aprovada e encontra-se pública no Mural da Comunidade.`, "Ver Mural", `${portalUrl}/comunidade`)
         });
 
-        // 📧 Notifica CLIENTE
         if (author?.email) {
           await resend.emails.send({
             from: FROM_EMAIL, to: author.email,
-            subject: `🎉 A sua publicação foi aprovada!`,
-            html: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #5c4b3c; background-color: #FEF5E6;"><h2 style="color: #8c6e54;">Boas notícias, ${author.nome.split(' ')[0]}!</h2><p>A sua publicação foi aprovada e já está visível na Comunidade. Você ganhou +150 EXP!</p></div>`
+            subject: `A sua publicação foi aprovada!`,
+            html: buildAppLikeEmail("🎉", "Partilha Aprovada", `A sua publicação foi aprovada e já se encontra visível na Comunidade. Foram creditados +150 EXP na sua conta.`, "Ver Publicação", `${portalUrl}/comunidade`)
           });
         }
       }
@@ -187,27 +232,32 @@ export async function POST(request: Request) {
     if (table === 'messages' && type === 'INSERT') {
       const { data: senderData } = await supabase.from('profiles').select('role, nome').eq('id', record.sender_id).single();
       const senderProfile = (Array.isArray(senderData) ? senderData[0] : senderData) as ProfileData;
-      const isSenderAdmin = senderProfile?.role === 'admin';
+      const isSenderAdmin = senderProfile?.role === 'admin' || senderProfile?.role === 'gestor';
 
       const { data: channel } = await supabase.from('channels').select('project_id, is_private').eq('id', record.channel_id).single();
       
-      if (channel && !channel.is_private) {
-        const client = await getClientProfile(channel.project_id);
-        const clientName = client?.nome || 'Cliente';
+      // Permite se for um canal público OU se for o canal global (channel = null)
+      if (!channel || !channel.is_private) {
+        let clientEmail = null;
+        let clientName = 'Cliente';
+
+        if (channel && channel.project_id) {
+            const client = await getClientProfile(channel.project_id);
+            clientEmail = client?.email;
+            clientName = client?.nome || 'Cliente';
+        }
         
-        // 📧 SEMPRE Notifica o ADMIN
         await resend.emails.send({
           from: FROM_EMAIL, to: ADMIN_EMAIL,
           subject: isSenderAdmin ? `[Sistema] Mensagem enviada para ${clientName}` : `💬 Nova Mensagem de ${senderProfile?.nome}`,
-          html: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #5c4b3c; background-color: #FEF5E6;"><h2 style="color: #8c6e54;">Caixa de Entrada</h2><p>${isSenderAdmin ? `Você enviou uma mensagem para ${clientName}` : `O cliente <strong>${senderProfile?.nome}</strong> enviou uma mensagem.`}</p><a href="https://atelier.lizdesign.com.br/admin/inbox" style="display: inline-block; margin-top: 20px; padding: 12px 24px; background-color: #8c6e54; color: white; text-decoration: none; border-radius: 8px;">Abrir Inbox</a></div>`
+          html: buildAppLikeEmail("📨", "Caixa de Entrada", isSenderAdmin ? `Você enviou uma mensagem através do painel.` : `O cliente <strong>${senderProfile?.nome}</strong> enviou uma nova comunicação.`, "Abrir Inbox", `${portalUrl}/admin/inbox`)
         });
 
-        // 📧 Notifica CLIENTE
-        if (isSenderAdmin && client?.email) {
+        if (isSenderAdmin && clientEmail) {
           await resend.emails.send({
-            from: FROM_EMAIL, to: client.email,
-            subject: `💬 Nova mensagem da equipa Liz Design`,
-            html: `<div style="font-family: Arial, sans-serif; padding: 20px; color: #5c4b3c; background-color: #FEF5E6;"><h2 style="color: #8c6e54;">Olá!</h2><p>Tem uma nova mensagem na sua Caixa de Comunicação Corporativa.</p><a href="https://atelier.lizdesign.com.br/canais" style="display: inline-block; margin-top: 20px; padding: 12px 24px; background-color: #8c6e54; color: white; text-decoration: none; border-radius: 8px;">Ler Mensagem</a></div>`
+            from: FROM_EMAIL, to: clientEmail,
+            subject: `Nova mensagem corporativa`,
+            html: buildAppLikeEmail("📨", "Comunicação Recebida", `A equipa do Atelier partilhou uma nova mensagem na sua linha direta.`, "Ler Mensagem", `${portalUrl}/canais`)
           });
         }
       }

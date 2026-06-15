@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../../lib/supabase"; 
 import { useDynamicTitle } from "../../hooks/useDynamicTitle"; // 🧠 INJEÇÃO DO HOOK DE TÍTULOS
+import { usePresenceTracker } from "../../hooks/usePresenceTracker";
 
 interface AppSidebarProps {
   userRole: string;
@@ -62,6 +63,18 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     projectName: isTeamMember ? "Liz Design" : (clientName || "Atelier"), 
     tabName: ROUTE_NAMES[pathname] || "Portal"
   });
+
+  // 🟢 INJEÇÃO DO MOTOR DE PRESENÇA
+  // Só ativamos o rastreamento se o utilizador for da Equipa (Admin/Gestor/Colaborador)
+  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
+  
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) setSessionUserId(session.user.id);
+    });
+  }, []);
+
+  const presenceStatus = usePresenceTracker(isTeamMember ? sessionUserId : null);
 
   // LÓGICA CORE INTACTA
   useEffect(() => {

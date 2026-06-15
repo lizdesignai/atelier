@@ -3,14 +3,20 @@ import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../../lib/supabase";
 import { 
-  Activity, Users, Clock, CheckCircle2, 
-  Target, Zap, Coffee, ChevronRight, PlayCircle, Loader2
+  CheckCircle2, Target, Coffee, 
+  PlayCircle, Loader2, Zap, Clock
 } from "lucide-react";
 import { startOfDay, endOfDay, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface PulseDashboardProps {
   currentUser: any;
+}
+
+// 🟢 UTILITÁRIO: Extração segura de nós do Supabase (Array vs Object)
+function extractNode(node: any): any {
+  if (!node) return null;
+  return Array.isArray(node) ? node[0] : node;
 }
 
 export default function PulseDashboard({ currentUser }: PulseDashboardProps) {
@@ -34,13 +40,16 @@ export default function PulseDashboard({ currentUser }: PulseDashboardProps) {
   useEffect(() => {
     fetchPulseData();
 
-    // 🟢 Escuta alterações na tabela de work_sessions em tempo real
+    // 🟢 Escuta alterações nas sessões, tarefas e AGORA NOS PERFIS (Presença Absoluta)
     const channel = supabase.channel('pulse-sync')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'work_sessions' }, (payload) => {
-        console.log("Mudança de sessão detectada, atualizando Pulso...", payload);
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'work_sessions' }, () => {
         fetchPulseData();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+        fetchPulseData();
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, () => {
+        // Dispara quando um colaborador fica Online, Idle ou Offline
         fetchPulseData();
       })
       .subscribe();
@@ -55,9 +64,20 @@ export default function PulseDashboard({ currentUser }: PulseDashboardProps) {
       const todayStart = startOfDay(new Date()).toISOString();
       const todayEnd = endOfDay(new Date()).toISOString();
 
-      // Busca Equipa
-      const { data: teamData } = await supabase.from('profiles').select('id, nome, avatar_url, role').in('role', ['colaborador', 'gestor', 'admin']);
-      if (teamData) setTeam(teamData);
+      // Busca Equipa (Agora com o current_status de Telemetria)
+      const { data: teamData } = await supabase
+        .from('profiles')
+        .select('id, nome, avatar_url, role, current_status')
+        .in('role', ['colaborador', 'gestor', 'admin']);
+      
+      if (teamData) {
+        // Ordena para que os 'online' fiquem primeiro, 'idle' depois, e 'offline' no fim
+        const sortedTeam = teamData.sort((a, b) => {
+          const statusRank: Record<string, number> = { 'online': 1, 'idle': 2, 'offline': 3 };
+          return (statusRank[a.current_status || 'offline'] || 3) - (statusRank[b.current_status || 'offline'] || 3);
+        });
+        setTeam(sortedTeam);
+      }
 
       // Busca Sessões de Hoje
       const { data: sessionsData } = await supabase
@@ -89,9 +109,6 @@ export default function PulseDashboard({ currentUser }: PulseDashboardProps) {
   const closedSessions = useMemo(() => todaySessions.filter(s => s.end_time !== null), [todaySessions]);
 
   const metrics = useMemo(() => {
-    // Membros Ativos agora
-    const activeMembersCount = new Set(activeSessions.map(s => s.user_id)).size;
-    
     // Total de horas logadas hoje (Fechadas + Ativas até o momento)
     let totalMinutesToday = closedSessions.reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
     activeSessions.forEach(s => {
@@ -102,12 +119,12 @@ export default function PulseDashboard({ currentUser }: PulseDashboardProps) {
     const avgFocusMinutes = closedSessions.length > 0 ? Math.round(closedSessions.reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0) / closedSessions.length) : 0;
 
     // Burn Down de Tarefas de Hoje
-    const tasksDueOrActive = todayTasks.filter(t => t.deadline && new Date(t.deadline) <= endOfDay(new Date()) || t.status === 'completed');
+    const tasksDueOrActive = todayTasks.filter(t => (t.deadline && new Date(t.deadline) <= endOfDay(new Date())) || t.status === 'completed');
     const tasksCompletedToday = tasksDueOrActive.filter(t => t.status === 'completed').length;
     const totalTasksToday = tasksDueOrActive.length;
     const completionRate = totalTasksToday > 0 ? Math.round((tasksCompletedToday / totalTasksToday) * 100) : 0;
 
-    return { activeMembersCount, totalMinutesToday, avgFocusMinutes, tasksCompletedToday, totalTasksToday, completionRate };
+    return { totalMinutesToday, avgFocusMinutes, tasksCompletedToday, totalTasksToday, completionRate };
   }, [activeSessions, closedSessions, todayTasks, now]);
 
   // Formatação de Cronómetro HH:MM:SS
@@ -142,11 +159,47 @@ export default function PulseDashboard({ currentUser }: PulseDashboardProps) {
 
       {/* TOP METRICS (At a Glance) */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 shrink-0">
-        <div className="glass-panel bg-white/70 p-5 rounded-[1.5rem] border border-white shadow-sm flex items-center gap-4">
-          <div className="w-12 h-12 rounded-[1rem] bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100"><Activity size={20} /></div>
-          <div className="flex flex-col">
-            <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none">{metrics.activeMembersCount} <span className="text-lg text-gray-400">/ {team.length}</span></span>
-            <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-gray-400 mt-1">Colaboradores Online</span>
+        
+        {/* 🟢 O NOVO WIDGET DE STATUS DA EQUIPE */}
+        <div className="glass-panel bg-white/70 p-5 rounded-[1.5rem] border border-white shadow-sm flex flex-col justify-center">
+          <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-gray-400 mb-2">Telemetria da Equipe</span>
+          
+          <div className="flex items-center -space-x-3 overflow-x-auto custom-scrollbar pb-1 pt-1 pl-1">
+            {team.map((member) => {
+              const status = member.current_status || 'offline';
+              const isOnline = status === 'online';
+              const isIdle = status === 'idle';
+              const dotColor = isOnline ? 'bg-green-500' : isIdle ? 'bg-orange-400' : 'bg-gray-300';
+              
+              return (
+                <div key={member.id} className="relative group cursor-pointer hover:z-20 transition-transform hover:scale-110 shrink-0">
+                  <div className={`w-11 h-11 rounded-full border-2 border-white bg-gray-100 overflow-hidden shadow-sm flex items-center justify-center transition-all ${isOnline ? 'ring-2 ring-green-500/30' : ''}`}>
+                    {member.avatar_url ? (
+                      <img src={member.avatar_url} alt={member.nome} className="w-full h-full object-cover" />
+                    ) : (
+                      <span className="font-elegant text-[13px] text-[var(--color-atelier-grafite)] font-bold">{member.nome.charAt(0)}</span>
+                    )}
+                  </div>
+                  
+                  {/* Ponto de Status Absoluto */}
+                  <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-white border-2 border-white rounded-full z-10 flex items-center justify-center shadow-sm">
+                    {isOnline && <div className="absolute w-full h-full bg-green-500 rounded-full animate-ping opacity-60"></div>}
+                    <div className={`relative w-full h-full rounded-full ${dotColor}`}></div>
+                  </div>
+                  
+                  {/* Tooltip Hover */}
+                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 bg-[var(--color-atelier-grafite)] text-white text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded transition-opacity pointer-events-none whitespace-nowrap z-50 shadow-lg">
+                    {member.nome.split(" ")[0]} • {status}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          
+          <div className="mt-2 flex items-center gap-3 text-[8px] font-bold uppercase tracking-widest text-gray-400">
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-green-500"></span> On</span>
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-orange-400"></span> Inativo</span>
+            <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full bg-gray-300"></span> Off</span>
           </div>
         </div>
         
@@ -196,7 +249,7 @@ export default function PulseDashboard({ currentUser }: PulseDashboardProps) {
           <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3 pr-2">
             <AnimatePresence mode="popLayout">
               {activeSessions.length === 0 ? (
-                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center justify-center h-full text-center opacity-40">
+                <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="flex flex-col items-center justify-center h-full text-center opacity-40">
                   <Coffee size={48} className="mb-4 text-[var(--color-atelier-grafite)]" />
                   <p className="font-elegant text-2xl">Operação Silenciosa</p>
                   <p className="font-roboto text-[11px] font-bold uppercase tracking-widest mt-2">Nenhum colaborador com tarefas ativas no momento.</p>
@@ -204,12 +257,19 @@ export default function PulseDashboard({ currentUser }: PulseDashboardProps) {
               ) : (
                 activeSessions.map((session) => {
                   const member = team.find(t => t.id === session.user_id);
-                  const clientName = session.tasks?.projects?.profiles?.nome || "Projeto Interno";
+                  
+                  // 🟢 FIX: Blindagem contra dados aninhados do Supabase
+                  const safeTask = extractNode(session.tasks);
+                  const safeProject = extractNode(safeTask?.projects);
+                  const safeProfile = extractNode(safeProject?.profiles);
+                  
+                  const clientName = safeProfile?.nome || "Projeto Interno";
+                  const taskTitle = safeTask?.title || "Tarefa Sem Título";
                   
                   return (
                     <motion.div 
                       layout
-                      initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, scale: 0.9 }}
+                      initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, scale: 0.9, x: 20 }}
                       key={session.id} 
                       className="bg-white p-4 rounded-[1.5rem] border border-blue-100 shadow-sm flex items-center gap-4 group hover:border-blue-300 transition-colors relative overflow-hidden"
                     >
@@ -220,9 +280,6 @@ export default function PulseDashboard({ currentUser }: PulseDashboardProps) {
                         <div className="w-12 h-12 rounded-[1rem] bg-gray-100 flex items-center justify-center overflow-hidden border border-gray-200">
                           {member?.avatar_url ? <img src={member.avatar_url} className="w-full h-full object-cover" /> : <span className="font-elegant text-lg">{member?.nome?.charAt(0)}</span>}
                         </div>
-                        <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center shadow-sm">
-                          <div className="w-2.5 h-2.5 bg-blue-500 rounded-full animate-ping"></div>
-                        </div>
                       </div>
 
                       {/* Info */}
@@ -231,7 +288,7 @@ export default function PulseDashboard({ currentUser }: PulseDashboardProps) {
                         <div className="flex items-center gap-1.5 mt-0.5 truncate">
                           <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] shrink-0">{clientName}</span>
                           <span className="text-gray-300">•</span>
-                          <span className="text-[11px] text-gray-500 truncate">{session.tasks?.title || "Tarefa Sem Título"}</span>
+                          <span className="text-[11px] text-gray-500 truncate">{taskTitle}</span>
                         </div>
                       </div>
 
@@ -261,6 +318,8 @@ export default function PulseDashboard({ currentUser }: PulseDashboardProps) {
               ) : (
                 closedSessions.map((session, index) => {
                   const member = team.find(t => t.id === session.user_id);
+                  const safeTask = extractNode(session.tasks);
+                  
                   return (
                     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} key={session.id} className="relative pl-6">
                       {/* Ponto na Timeline */}
@@ -271,7 +330,7 @@ export default function PulseDashboard({ currentUser }: PulseDashboardProps) {
                           <span className="font-bold text-[12px] text-[var(--color-atelier-grafite)] flex items-center gap-1.5"><PlayCircle size={12} className="text-gray-400"/> {member?.nome.split(" ")[0]} concluiu sessão</span>
                           <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 bg-gray-50 px-2 py-0.5 rounded">{new Date(session.end_time).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}</span>
                         </div>
-                        <p className="text-[11px] text-gray-500 mb-2 truncate">{session.tasks?.title || "Tarefa"}</p>
+                        <p className="text-[11px] text-gray-500 mb-2 truncate">{safeTask?.title || "Tarefa Sem Título"}</p>
                         <div className="flex items-center gap-2">
                           <span className="text-[9px] font-bold uppercase tracking-widest bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-2 py-1 rounded border border-[var(--color-atelier-terracota)]/20">
                             Duração: {session.duration_minutes} min

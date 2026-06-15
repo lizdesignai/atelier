@@ -6,6 +6,21 @@ export type NotificationType = 'info' | 'success' | 'warning' | 'error' | 'actio
 export class NotificationEngine {
   
   /**
+   * 🟢 UTILITÁRIO: Validação de Segurança de E-mail
+   * Impede o disparo de APIs pagas para domínios de teste/fictícios.
+   */
+  private static isValidRealEmail(email: string | null | undefined): boolean {
+    if (!email) return false;
+    
+    // Lista de domínios fictícios que estamos usando em ambiente de homologação
+    const fakeDomains = ['gestor.com', 'admin.com', 'teste.com', 'example.com', 'atelier.local'];
+    const domain = email.split('@')[1];
+    
+    // Retorna true apenas se o e-mail for válido e não pertencer à lista de fakes
+    return email.includes('@') && !fakeDomains.includes(domain);
+  }
+
+  /**
    * Dispara uma notificação para um utilizador específico (Cliente ou Colaborador)
    */
   static async notifyUser(
@@ -33,7 +48,6 @@ export class NotificationEngine {
 
   /**
    * Dispara uma notificação em massa para todos os Admins e Gestores (Avisos de Gestão)
-   * 🔔 ADIÇÃO TÁTICA: Dispara também um e-mail de aviso aos líderes.
    */
   static async notifyManagement(
     title: string,
@@ -42,7 +56,7 @@ export class NotificationEngine {
     actionUrl?: string
   ) {
     try {
-      // 1. Encontra quem são os líderes do Atelier (trazemos também o email agora)
+      // 1. Encontra quem são os líderes do Atelier
       const { data: managers, error: fetchError } = await supabase
         .from('profiles')
         .select('id, email')
@@ -51,7 +65,7 @@ export class NotificationEngine {
       if (fetchError) throw fetchError;
       if (!managers || managers.length === 0) return;
 
-      // 2. Prepara o array (batch insert) de notificações para cada gestor no banco de dados
+      // 2. Prepara o array (batch insert) de notificações no banco (In-App)
       const notificationsToInsert = managers.map(manager => ({
         user_id: manager.id,
         title,
@@ -68,20 +82,26 @@ export class NotificationEngine {
 
       if (insertError) throw insertError;
 
-      // 4. NOVO: Disparo de E-mail (Fire and Forget - Não trava a UI se a API demorar)
-      const managerEmails = managers.map(m => m.email).filter(email => email); // Garante que só pega emails válidos
+      // 4. DISPARO DE E-MAIL (Blindado contra e-mails fictícios e com Rota Corrigida)
+      // O filtro garante que só tentaremos enviar para e-mails reais (ex: @gmail.com, domínio da agência)
+      const validManagerEmails = managers
+        .map(m => m.email)
+        .filter(this.isValidRealEmail); 
       
-      if (managerEmails.length > 0) {
-        fetch('/api/emails/send-notification', {
+      if (validManagerEmails.length > 0) {
+        fetch('/api/notify', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            to: managerEmails,
+            to: validManagerEmails,
+            type: 'custom', // 🟢 Informa ao Orquestrador que é uma mensagem dinâmica
             subject: title,
             body: message,
-            actionUrl: actionUrl // Se não passar o host, o frontend já o monta (ou ajuste conforme necessário)
+            link: actionUrl
           })
         }).catch(err => console.log("Aviso silencioso: Falha no disparo de e-mail de notificação de Gestão", err));
+      } else {
+        console.warn("⚠️ NotificationEngine: Disparo de e-mail cancelado. Nenhum gestor possui um e-mail válido/real configurado.");
       }
 
     } catch (error) {
