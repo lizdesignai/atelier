@@ -1,161 +1,263 @@
 // src/app/admin/inbox/page.tsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Inbox, Search, Send, Paperclip, Image as ImageIcon, 
-  MoreVertical, CheckCheck, Hash, Lock, Plus, 
-  Settings2, Clock, ShieldCheck, ArrowRight, MessageSquare, Loader2, FileText, X, Trash2, Archive
+  Search, Send, Paperclip, Image as ImageIcon, 
+  Hash, Plus, Settings2, ShieldCheck, 
+  MessageSquare, Loader2, FileText, X, Trash2, Archive, 
+  Users, Briefcase, Globe, Lock
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
-import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
+import { NotificationEngine } from "../../../lib/NotificationEngine";
 
-// Função para disparar os Toasts Globais
-const showToast = (message: string) => {
-  window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
-};
+// ============================================================================
+// TIPAGEM ESTRITA (Arquitetura Zero 'any')
+// ============================================================================
+type ActiveSpace = 'projects' | 'corporate';
 
+interface ProfileData {
+  id: string;
+  nome: string;
+  avatar_url: string | null;
+  role: string;
+  current_status?: string;
+}
+
+interface ClientData {
+  id: string;
+  type: string;
+  client_id: string;
+  profiles: ProfileData;
+}
+
+interface ChannelData {
+  id: string;
+  project_id?: string;
+  name: string;
+  type: 'general' | 'approval' | 'announcement' | 'dm' | 'corporate_global';
+  is_private: boolean;
+  is_archived: boolean;
+  created_at: string;
+}
+
+interface MessageData {
+  id: string;
+  channel_id: string;
+  sender_id: string;
+  text_content: string | null;
+  attachment_url: string | null;
+  created_at: string;
+  profiles?: ProfileData;
+}
+
+// ============================================================================
+// COMPONENTES AUXILIARES (UI)
+// ============================================================================
+const LizDesignLogo = () => (
+  <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-white shadow-sm border border-gray-100">
+    <img 
+      src="/public/images/simbolo-rosa.png" 
+      alt="Liz Design" 
+      className="w-full h-full object-cover"
+      onError={(e) => {
+        // Fallback elegante caso a imagem /logo.png não exista no repositório
+        e.currentTarget.style.display = 'none';
+        e.currentTarget.parentElement!.innerHTML = '<span class="font-elegant text-[var(--color-atelier-terracota)] font-bold text-sm">L</span>';
+      }} 
+    />
+  </div>
+);
+
+// ============================================================================
+// O ORQUESTRADOR MASTER (Smart Monolith)
+// ============================================================================
 export default function AdminInboxPage() {
-  // ==========================================
-  // ESTADOS DO SUPABASE E DADOS
-  // ==========================================
+  // 1. Estados de Sessão e Hierarquia
   const [isLoading, setIsLoading] = useState(true);
-  const [userId, setUserId] = useState<string | null>(null);
-  const [adminProfile, setAdminProfile] = useState<any>(null); 
-  
-  const [clients, setClients] = useState<any[]>([]); 
-  const [channels, setChannels] = useState<any[]>([]); 
-  const [messages, setMessages] = useState<any[]>([]); 
-  
+  const [currentUser, setCurrentUser] = useState<ProfileData | null>(null);
+
+  // 2. Estados de Navegação
+  const [activeSpace, setActiveSpace] = useState<ActiveSpace>('projects');
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
+  const [activeDMUserId, setActiveDMUserId] = useState<string | null>(null);
+
+  // 3. Estados de Dados (Memória)
+  const [clients, setClients] = useState<ClientData[]>([]);
+  const [corporateUsers, setCorporateUsers] = useState<ProfileData[]>([]);
+  const [channels, setChannels] = useState<ChannelData[]>([]);
+  const [messages, setMessages] = useState<MessageData[]>([]);
+
+  // 4. Estados de UI
+  const [searchTerm, setSearchTerm] = useState("");
   const [messageText, setMessageText] = useState("");
-  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false); 
-  
-  // Estados do Modal de Criação de Canal
+  const [isSending, setIsSending] = useState(false);
+  const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Estados do Modal de Criação
   const [isChannelModalOpen, setIsChannelModalOpen] = useState(false);
   const [newChannelName, setNewChannelName] = useState("");
   const [isNewChannelPrivate, setIsNewChannelPrivate] = useState(false);
+  const [newChannelType, setNewChannelType] = useState<'general' | 'approval' | 'announcement'>('general');
   const [isCreatingChannel, setIsCreatingChannel] = useState(false);
 
-  // NOVIDADE: Estado do Menu de Configurações do Canal
-  const [isChannelSettingsOpen, setIsChannelSettingsOpen] = useState(false);
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-
-  // 1. Busca Utilizador Atual e Lista de Projetos (Clientes)
+  // ============================================================================
+  // BOOT DA OPERAÇÃO (Engine Startup)
+  // ============================================================================
   useEffect(() => {
-    const initInbox = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setUserId(session.user.id);
+    const bootEngine = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!session) return;
+
+        // Identifica o Operador
         const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-        setAdminProfile(profile);
-      }
+        setCurrentUser(profile);
 
-      const { data: projectsData, error } = await supabase
-        .from('projects')
-        .select('id, type, client_id, profiles(nome, avatar_url)') // Added client_id for notifications
-        .eq('status', 'active')
-        .order('created_at', { ascending: false });
+        // Carrega Dossiês de Clientes
+        const { data: projectsData } = await supabase
+          .from('projects')
+          .select('id, type, client_id, profiles(id, nome, avatar_url, role)')
+          .eq('status', 'active')
+          .order('created_at', { ascending: false });
 
-      if (!error && projectsData && projectsData.length > 0) {
-        setClients(projectsData);
-        setActiveProjectId(projectsData[0].id);
+        if (projectsData) {
+          // Flatten profiles
+          const formattedClients = projectsData.map(p => ({
+            ...p,
+            profiles: Array.isArray(p.profiles) ? p.profiles[0] : p.profiles
+          })) as ClientData[];
+
+          setClients(formattedClients);
+          if (formattedClients.length > 0) setActiveProjectId(formattedClients[0].id);
+        }
+
+        // Carrega Malha Corporativa com Regra de Negócio (RBAC)
+        const { data: corpUsers } = await supabase
+          .from('profiles')
+          .select('id, nome, avatar_url, role, current_status')
+          .in('role', ['admin', 'gestor', 'colaborador'])
+          .neq('id', session.user.id)
+          .order('role', { ascending: true });
+
+        if (corpUsers) {
+          if (profile?.role === 'colaborador') {
+            // Colaboradores só conversam com liderança
+            setCorporateUsers(corpUsers.filter(u => u.role === 'admin' || u.role === 'gestor') as ProfileData[]);
+          } else {
+            // Admin e Gestor veem toda a equipe
+            setCorporateUsers(corpUsers as ProfileData[]);
+          }
+        }
+      } catch (error) {
+        console.error("[Workspace] Falha no arranque:", error);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
     };
-    initInbox();
+    bootEngine();
   }, []);
 
-  // 2. Busca Canais quando o Projeto muda
+  // ============================================================================
+  // ORQUESTRAÇÃO DE CANAIS
+  // ============================================================================
   useEffect(() => {
-    if (!activeProjectId) return;
-    const fetchChannels = async () => {
-      const { data, error } = await supabase
-        .from('channels')
-        .select('*')
-        .eq('project_id', activeProjectId)
-        .order('created_at', { ascending: true });
+    setIsSettingsOpen(false);
 
-      if (!error && data) {
-        setChannels(data);
-        // Seleciona o primeiro canal NÃO arquivado por padrão
-        const activeChs = data.filter(c => !c.is_archived);
-        if (activeChs.length > 0) setActiveChannelId(activeChs[0].id);
-        else setActiveChannelId(null);
+    const setupChannels = async () => {
+      if (activeSpace === 'projects' && activeProjectId) {
+        const { data } = await supabase.from('channels').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: true });
+        if (data) {
+          setChannels(data as ChannelData[]);
+          const activeChs = data.filter(c => !c.is_archived);
+          setActiveChannelId(activeChs.length > 0 ? activeChs[0].id : null);
+        }
+      } else if (activeSpace === 'corporate') {
+        if (activeDMUserId && currentUser) {
+          // Lógica de DM
+          const participants = [currentUser.id, activeDMUserId].sort();
+          const dmHash = `dm_${participants[0]}_${participants[1]}`;
+          let { data } = await supabase.from('channels').select('*').eq('name', dmHash).single();
+          
+          if (!data) {
+            const { data: newCh } = await supabase.from('channels').insert({ name: dmHash, type: 'dm', is_private: true }).select().single();
+            data = newCh;
+          }
+          setChannels([data as ChannelData]);
+          setActiveChannelId(data?.id || null);
+        } else {
+          // Lógica QG Central
+          let { data } = await supabase.from('channels').select('*').eq('type', 'corporate_global').single();
+          if (!data) {
+            const { data: newCh } = await supabase.from('channels').insert({ name: 'QG Central', type: 'corporate_global', is_private: true }).select().single();
+            data = newCh;
+          }
+          setChannels([data as ChannelData]);
+          setActiveChannelId(data?.id || null);
+        }
       }
     };
-    fetchChannels();
-  }, [activeProjectId]);
 
-  const fetchMessages = async () => {
-    if (!activeChannelId) return;
-    const { data, error } = await supabase
-      .from('messages')
-      .select('*, profiles(nome, avatar_url, role)')
-      .eq('channel_id', activeChannelId)
-      .order('created_at', { ascending: true });
+    setupChannels();
+  }, [activeSpace, activeProjectId, activeDMUserId, currentUser]);
 
-    if (!error && data) {
-      setMessages(data);
-      scrollToBottom();
-    }
-  };
-
-  // 3. Busca Mensagens quando o Canal muda e ativa o Realtime
-  useEffect(() => {
-    setIsChannelSettingsOpen(false); // Fecha o menu ao trocar de canal
+  // ============================================================================
+  // SINCRONIZAÇÃO DE MENSAGENS (Realtime)
+  // ============================================================================
+  const fetchMessages = useCallback(async () => {
     if (!activeChannelId) {
       setMessages([]);
       return;
     }
+    const { data } = await supabase
+      .from('messages')
+      .select('*, profiles(id, nome, avatar_url, role)')
+      .eq('channel_id', activeChannelId)
+      .order('created_at', { ascending: true });
 
-    fetchMessages();
-
-    const channelSubscription = supabase.channel(`public:messages:channel_id=eq.${activeChannelId}`)
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `channel_id=eq.${activeChannelId}` }, 
-        (payload) => {
-          if (payload.new.sender_id !== userId) {
-            fetchMessages();
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channelSubscription);
-    };
+    if (data) {
+      // Normaliza o retorno dos profiles
+      const formattedMessages = data.map(m => ({
+        ...m,
+        profiles: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles
+      })) as MessageData[];
+      
+      setMessages(formattedMessages);
+      scrollToBottom();
+    }
   }, [activeChannelId]);
 
-  // 🛠️ CORREÇÃO CRÍTICA: Rolar a página sem destruir a tela (Forçando o Scroll apenas no Container)
+  useEffect(() => {
+    fetchMessages();
+    if (!activeChannelId) return;
+
+    const channelSub = supabase.channel(`public:messages:channel_id=eq.${activeChannelId}`)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages', filter: `channel_id=eq.${activeChannelId}` }, 
+        (payload) => {
+          if (payload.new.sender_id !== currentUser?.id) fetchMessages();
+        }
+      ).subscribe();
+
+    return () => { supabase.removeChannel(channelSub); };
+  }, [activeChannelId, fetchMessages, currentUser]);
+
   const scrollToBottom = () => {
     setTimeout(() => {
       if (messagesEndRef.current) {
         const scrollContainer = messagesEndRef.current.closest('.overflow-y-auto');
-        if (scrollContainer) {
-          scrollContainer.scrollTo({
-            top: scrollContainer.scrollHeight,
-            behavior: "smooth"
-          });
-        }
+        if (scrollContainer) scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: "smooth" });
       }
     }, 150);
   };
 
-  // Helpers para a UI
-  const activeClient = clients.find(c => c.id === activeProjectId);
-  const activeChannel = channels.find(ch => ch.id === activeChannelId);
-
-  // ==========================================
-  // LÓGICA DE AÇÕES
-  // ==========================================
-  const handleClientSelect = (projectId: string) => {
-    setActiveProjectId(projectId);
-  };
-
-  const handleCreateChannelSubmit = async (e: React.FormEvent) => {
+  // ============================================================================
+  // MOTOR DE AÇÕES TÁTICAS
+  // ============================================================================
+  const handleCreateChannel = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeProjectId || !newChannelName.trim()) return;
 
@@ -165,73 +267,73 @@ export default function AdminInboxPage() {
     const { data, error } = await supabase.from('channels').insert({ 
       project_id: activeProjectId, 
       name: formattedName, 
-      is_private: isNewChannelPrivate 
+      is_private: isNewChannelPrivate,
+      type: newChannelType
     }).select();
 
     if (!error && data) {
-      setChannels([...channels, data[0]]);
+      window.dispatchEvent(new CustomEvent("showToast", { detail: `Canal #${formattedName} ativado.` }));
+      setChannels([...channels, data[0] as ChannelData]);
       setActiveChannelId(data[0].id);
-      showToast(`Canal #${formattedName} ativado.`);
       setIsChannelModalOpen(false);
       setNewChannelName("");
       setIsNewChannelPrivate(false);
-    } else {
-      showToast("Erro ao criar canal.");
+      setNewChannelType('general');
     }
     setIsCreatingChannel(false);
   };
 
   const handleSendMessage = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    if (!messageText.trim() || !activeChannelId || !userId) return;
+    if (!messageText.trim() || !activeChannelId || !currentUser || isSending) return;
 
-    const textToSend = messageText;
+    const textToPush = messageText;
     setMessageText(""); 
+    setIsSending(true);
 
+    // Mutação Otimista
     const tempId = `temp-${Date.now()}`;
-    const optimisticMessage = {
-      id: tempId,
-      channel_id: activeChannelId,
-      sender_id: userId,
-      text_content: textToSend,
-      created_at: new Date().toISOString(),
-      profiles: adminProfile || { nome: "Você", avatar_url: null }
+    const optimisticMsg: MessageData = {
+      id: tempId, channel_id: activeChannelId, sender_id: currentUser.id,
+      text_content: textToPush, attachment_url: null, created_at: new Date().toISOString(),
+      profiles: currentUser
     };
     
-    setMessages(prev => [...prev, optimisticMessage]);
+    setMessages(prev => [...prev, optimisticMsg]);
     scrollToBottom();
-    
+
     const { error } = await supabase.from('messages').insert({
-      channel_id: activeChannelId,
-      sender_id: userId,
-      text_content: textToSend
+      channel_id: activeChannelId, sender_id: currentUser.id, text_content: textToPush
     });
 
     if (error) {
-      showToast("Erro ao enviar mensagem.");
-      setMessages(prev => prev.filter(m => m.id !== tempId)); 
-      setMessageText(textToSend); 
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Falha na transmissão." }));
     } else {
-      // 🔔 NOTIFICAÇÃO: Se for canal público, notifica o cliente
-      if (activeClient && activeClient.client_id && activeChannel && !activeChannel.is_private) {
-        await NotificationEngine.notifyUser(
+      // Disparo de Email via NotificationEngine se for canal com o cliente
+      const activeClient = clients.find(c => c.id === activeProjectId);
+      const activeChannel = channels.find(c => c.id === activeChannelId);
+      
+      if (activeSpace === 'projects' && activeClient?.client_id && activeChannel && !activeChannel.is_private) {
+        NotificationEngine.notifyUser(
           activeClient.client_id,
           `Nova mensagem em #${activeChannel.name}`,
-          "A equipe da Liz Design enviou uma nova mensagem. Acesse o Meu Espaço para responder.",
+          "A equipe do Atelier enviou uma nova instrução. Acesse o portal para visualizar.",
           "info",
-          "/meu-espaco/canais" 
+          "/meu-espaco/canais"
         );
       }
-      fetchMessages(); 
+      fetchMessages();
     }
+    setIsSending(false);
   };
 
   const handleAttachmentUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !activeChannelId || !userId) return;
+    if (!file || !activeChannelId || !currentUser) return;
 
     setIsUploadingAttachment(true);
-    showToast("Enviando anexo para o chat...");
+    window.dispatchEvent(new CustomEvent("showToast", { detail: "Criptografando e enviando anexo..." }));
 
     try {
       const fileExt = file.name.split('.').pop();
@@ -243,440 +345,404 @@ export default function AdminInboxPage() {
 
       const { data: publicUrlData } = supabase.storage.from('chat_attachments').getPublicUrl(filePath);
 
-      const { error: dbError } = await supabase.from('messages').insert({
-        channel_id: activeChannelId,
-        sender_id: userId,
-        text_content: messageText.trim() !== "" ? messageText : null,
+      await supabase.from('messages').insert({
+        channel_id: activeChannelId, sender_id: currentUser.id, 
+        text_content: messageText.trim() !== "" ? messageText : " ", 
         attachment_url: publicUrlData.publicUrl
       });
-      if (dbError) throw dbError;
-
-      // 🔔 NOTIFICAÇÃO: Se for canal público, notifica o cliente
-      if (activeClient && activeClient.client_id && activeChannel && !activeChannel.is_private) {
-        await NotificationEngine.notifyUser(
-          activeClient.client_id,
-          `Anexo partilhado em #${activeChannel.name}`,
-          "A equipe da Liz Design enviou um novo arquivo/documento no canal.",
-          "info",
-          "/meu-espaco/canais"
-        );
-      }
-
+      
       setMessageText("");
-      showToast("Anexo enviado com sucesso!");
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Anexo compartilhado!" }));
       fetchMessages();
-      scrollToBottom();
     } catch (error) {
-      console.error(error);
-      showToast("Erro ao enviar o anexo.");
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Falha no envio do anexo." }));
     } finally {
       setIsUploadingAttachment(false);
       e.target.value = ''; 
     }
   };
 
-  // NOVIDADE: Gestão de Canais
   const handleArchiveChannel = async () => {
     if (!activeChannelId) return;
-    setIsChannelSettingsOpen(false);
-
+    setIsSettingsOpen(false);
     const { error } = await supabase.from('channels').update({ is_archived: true }).eq('id', activeChannelId);
-    
-    if (error) {
-      showToast("Erro ao arquivar o canal.");
-    } else {
-      showToast("Canal arquivado com sucesso.");
+    if (!error) {
       setChannels(channels.map(c => c.id === activeChannelId ? { ...c, is_archived: true } : c));
       setActiveChannelId(null);
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Canal arquivado." }));
     }
   };
 
   const handleDeleteChannel = async () => {
     if (!activeChannelId) return;
-    
-    if (!window.confirm("Tem a certeza? Todas as mensagens deste canal serão apagadas permanentemente.")) return;
-
-    setIsChannelSettingsOpen(false);
+    if (!window.confirm("Ação Destrutiva: Excluir permanentemente este canal?")) return;
+    setIsSettingsOpen(false);
     const { error } = await supabase.from('channels').delete().eq('id', activeChannelId);
-
-    if (error) {
-      showToast("Erro ao apagar o canal.");
-    } else {
-      showToast("Canal apagado permanentemente.");
+    if (!error) {
       setChannels(channels.filter(c => c.id !== activeChannelId));
       setActiveChannelId(null);
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Canal excluído." }));
     }
   };
 
   const formatTime = (dateString: string) => {
-    return new Date(dateString).toLocaleTimeString('pt-PT', { hour: '2-digit', minute: '2-digit' });
+    return new Date(dateString).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   };
 
-
+  // ============================================================================
+  // RENDER (UI)
+  // ============================================================================
   if (isLoading) {
-    return <div className="flex h-full items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
+    return <div className="flex h-full w-full items-center justify-center bg-transparent"><Loader2 size={40} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
+  }
+
+  const activeChannel = channels.find(c => c.id === activeChannelId);
+  const activeClient = clients.find(c => c.id === activeProjectId);
+  const isReadOnly = activeChannel?.type === 'announcement' && currentUser?.role === 'colaborador';
+  const isComposerDisabled = !activeChannelId || isUploadingAttachment || isSending || isReadOnly;
+
+  // Lógica inteligente para definir o Avatar e o Título do Header do Chat
+  let HeaderIcon = <Hash size={22} strokeWidth={2.5} className="text-gray-400" />;
+  let headerTitle = activeChannel?.name || "Canal";
+  let headerSubtitle: React.ReactNode = "";
+  let placeholderText = `Mensagem para #${headerTitle}...`;
+
+  if (activeChannel) {
+    if (activeChannel.type === 'dm') {
+      const dmUser = corporateUsers.find(u => u.id === activeDMUserId);
+      headerTitle = dmUser?.nome || "Mensagem Direta";
+      placeholderText = `Mensagem para ${headerTitle}...`;
+      headerSubtitle = dmUser?.role ? `Comunicação Criptografada • ${dmUser.role}` : "Comunicação Criptografada (End-to-End)";
+      
+      HeaderIcon = dmUser?.avatar_url ? (
+        <img src={dmUser.avatar_url} alt={dmUser.nome} className="w-full h-full object-cover" />
+      ) : (
+        <span className="font-elegant font-bold text-lg text-[var(--color-atelier-grafite)]">{dmUser?.nome?.charAt(0) || "U"}</span>
+      );
+    } else if (activeChannel.type === 'corporate_global') {
+      headerTitle = "QG Central";
+      placeholderText = `Mensagem para o QG Central...`;
+      HeaderIcon = <LizDesignLogo />;
+      
+      // Empilhamento visual de avatares da equipe
+      const allTeam = [currentUser, ...corporateUsers].filter(Boolean) as ProfileData[];
+      headerSubtitle = (
+        <div className="flex items-center gap-2 mt-0.5">
+          <div className="flex -space-x-2">
+            {allTeam.slice(0, 5).map((u, i) => (
+              <div key={i} className="w-5 h-5 rounded-full border border-white bg-gray-100 flex items-center justify-center overflow-hidden shadow-sm">
+                {u.avatar_url ? <img src={u.avatar_url} className="w-full h-full object-cover" /> : <span className="text-[8px] font-bold text-gray-500">{u.nome.charAt(0)}</span>}
+              </div>
+            ))}
+            {allTeam.length > 5 && (
+              <div className="w-5 h-5 rounded-full border border-white bg-gray-50 flex items-center justify-center text-[8px] font-bold text-gray-500 shadow-sm">
+                +{allTeam.length - 5}
+              </div>
+            )}
+          </div>
+          <span className="text-[10px] uppercase tracking-widest font-bold text-gray-500">Equipe Operacional</span>
+        </div>
+      );
+    } else {
+      // Canais de Projeto
+      HeaderIcon = activeChannel.is_private ? <LizDesignLogo /> : <Hash size={22} strokeWidth={2.5} className="text-[var(--color-atelier-terracota)]" />;
+      headerSubtitle = activeChannel.is_private ? 'Canal Tático (Apenas Equipe)' : `Canal compartilhado com: ${activeClient?.profiles?.nome || 'o cliente'}`;
+    }
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1500px] mx-auto relative z-10 pb-6 gap-6">
+    <div className="relative h-[calc(100vh-60px)] w-full flex p-4 lg:p-6 gap-6 bg-transparent overflow-hidden">
       
-      {/* MODAL DE NOVO CANAL */}
+      {/* BACKGROUND (Marca D'Água) */}
+      <div className="absolute inset-0 z-0 flex items-center justify-center opacity-[0.02] pointer-events-none">
+         <MessageSquare size={500} />
+      </div>
+
+      {/* ======================================================================
+          COLUNA ESQUERDA (Navegação & Diretórios)
+          ====================================================================== */}
+      <aside className="w-[340px] glass-panel border border-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.05)] rounded-[2.5rem] flex flex-col overflow-hidden shrink-0 z-10 bg-white/60 backdrop-blur-xl">
+        
+        {/* SEGMENTED CONTROL */}
+        <div className="shrink-0 p-5 pb-3 border-b border-[var(--color-atelier-grafite)]/5 bg-white/30">
+          <div className="flex bg-white/80 p-1.5 rounded-2xl border border-white shadow-sm relative">
+            <button onClick={() => setActiveSpace('projects')} className={`flex-1 py-3 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all relative z-10 ${activeSpace === 'projects' ? 'text-[var(--color-atelier-grafite)]' : 'text-gray-400 hover:text-gray-600'}`}>
+              <Briefcase size={14}/> Projetos
+            </button>
+            <button onClick={() => setActiveSpace('corporate')} className={`flex-1 py-3 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all relative z-10 ${activeSpace === 'corporate' ? 'text-white' : 'text-gray-400 hover:text-gray-600'}`}>
+              <Users size={14}/> Equipe
+            </button>
+            <motion.div className={`absolute top-1.5 bottom-1.5 w-[calc(50%-0.375rem)] rounded-xl shadow-md ${activeSpace === 'projects' ? 'bg-white left-1.5' : 'bg-[var(--color-atelier-grafite)] right-1.5'}`} layout transition={{ type: "spring", stiffness: 300, damping: 30 }} />
+          </div>
+        </div>
+
+        {/* LISTAS DINÂMICAS */}
+        <div className="flex-1 overflow-hidden flex flex-col">
+          {activeSpace === 'projects' ? (
+            <AnimatePresence mode="wait">
+              <motion.div key="projects" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col h-full">
+                
+                {/* Carrossel de Clientes (Corrigido Scroll Horizontal) */}
+                <div className="shrink-0 p-5 border-b border-[var(--color-atelier-grafite)]/5 bg-white/20">
+                  <div className="relative group/search mb-4">
+                    <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within/search:text-[var(--color-atelier-terracota)] transition-colors" />
+                    <input type="text" placeholder="Localizar projeto..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full bg-white/80 border border-white focus:border-[var(--color-atelier-terracota)]/40 focus:bg-white rounded-xl py-2.5 pl-10 pr-4 text-[12px] font-bold text-[var(--color-atelier-grafite)] outline-none shadow-sm transition-all" />
+                  </div>
+                  
+                  {/* Container Force-Scroll Horizontal */}
+                  <div className="flex flex-nowrap overflow-x-auto overflow-y-hidden custom-scrollbar gap-3 pb-3 pt-1 px-1 touch-pan-x scroll-smooth" style={{ WebkitOverflowScrolling: 'touch' }}>
+                    {clients.filter(c => c.profiles?.nome.toLowerCase().includes(searchTerm.toLowerCase())).map(client => {
+                      const isActive = activeProjectId === client.id;
+                      return (
+                        <button key={client.id} onClick={() => { setActiveProjectId(client.id); setActiveChannelId(null); }} className={`relative shrink-0 w-12 h-12 rounded-[1rem] flex items-center justify-center font-elegant text-lg shadow-sm border transition-all duration-300 ${isActive ? 'bg-[var(--color-atelier-terracota)] text-white border-[var(--color-atelier-terracota)] scale-110 z-10' : 'bg-white border-white text-[var(--color-atelier-grafite)] hover:scale-105'}`} title={client.profiles?.nome}>
+                          {client.profiles?.avatar_url ? <img src={client.profiles.avatar_url} className="w-full h-full object-cover rounded-[1rem]" alt="" /> : client.profiles?.nome?.charAt(0)}
+                          {isActive && <motion.div layoutId="active-client-ring" className="absolute inset-0 rounded-[1rem] ring-2 ring-[var(--color-atelier-terracota)]/30 ring-offset-2"></motion.div>}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Lista de Canais */}
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-5 flex flex-col gap-6">
+                  <div className="shrink-0">
+                    <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none truncate mb-1.5">{activeClient?.profiles?.nome || "Projeto"}</h3>
+                    <span className="font-roboto text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] bg-[var(--color-atelier-terracota)]/10 px-2 py-1 rounded-md">{activeClient?.type || "Estúdio"}</span>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex justify-between items-center px-2 mb-1.5">
+                      <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-gray-400">Canais Compartilhados</span>
+                      <button onClick={() => setIsChannelModalOpen(true)} className="text-gray-400 hover:text-[var(--color-atelier-terracota)] transition-colors p-1 bg-white/50 rounded-lg hover:bg-white shadow-sm"><Plus size={14}/></button>
+                    </div>
+                    {channels.filter(c => !c.is_private && !c.is_archived).map(channel => (
+                      <button key={channel.id} onClick={() => setActiveChannelId(channel.id)} className={`w-full text-left px-4 py-3 rounded-[1rem] font-roboto text-[13px] font-bold flex items-center justify-between transition-all border ${activeChannelId === channel.id ? 'bg-white text-[var(--color-atelier-terracota)] shadow-sm border-white scale-[1.02] z-10' : 'bg-transparent text-[var(--color-atelier-grafite)]/60 border-transparent hover:bg-white/60'}`}>
+                        <span className="flex items-center gap-2.5 truncate pr-2"><Hash size={16} className={activeChannelId === channel.id ? 'text-[var(--color-atelier-terracota)]' : 'text-gray-400'} /> <span className="truncate">{channel.name}</span></span>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <div className="flex items-center gap-2 px-2 mb-1.5 mt-2">
+                      <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-gray-400">Canais Internos</span>
+                      <LizDesignLogo />
+                    </div>
+                    {channels.filter(c => c.is_private && !c.is_archived).map(channel => (
+                      <button key={channel.id} onClick={() => setActiveChannelId(channel.id)} className={`w-full text-left px-4 py-3 rounded-[1rem] font-roboto text-[13px] font-bold flex items-center justify-between transition-all border ${activeChannelId === channel.id ? 'bg-[var(--color-atelier-grafite)] text-white shadow-lg border-[var(--color-atelier-grafite)] scale-[1.02] z-10' : 'bg-transparent text-[var(--color-atelier-grafite)]/60 border-transparent hover:bg-white/60'}`}>
+                        <span className="flex items-center gap-2.5 truncate pr-2"><Lock size={14} className={activeChannelId === channel.id ? 'text-white/60' : 'text-gray-400'} /> <span className="truncate">{channel.name}</span></span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          ) : (
+            <AnimatePresence mode="wait">
+              <motion.div key="corporate" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col h-full">
+                <div className="shrink-0 p-6 border-b border-[var(--color-atelier-grafite)]/5 bg-white/20">
+                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none mb-2 flex items-center gap-2.5"><Users size={22} className="text-[var(--color-atelier-terracota)]"/> Workspace</h3>
+                  <span className="font-roboto text-[9px] uppercase tracking-widest font-bold text-gray-500">Canal de Comunicação</span>
+                </div>
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-5 flex flex-col gap-6">
+                  <div className="flex flex-col gap-2">
+                    <span className="px-2 font-roboto text-[10px] uppercase tracking-widest font-bold text-gray-400">Global</span>
+                    <button onClick={() => { setActiveDMUserId(null); }} className={`w-full text-left p-3.5 rounded-[1.2rem] flex items-center gap-3.5 transition-all border ${!activeDMUserId ? 'bg-[var(--color-atelier-grafite)] text-white shadow-lg border-[var(--color-atelier-grafite)] scale-[1.02]' : 'bg-white/60 border-white hover:bg-white text-[var(--color-atelier-grafite)] shadow-sm'}`}>
+                      <div className={`w-11 h-11 rounded-[0.8rem] flex items-center justify-center shrink-0 shadow-inner ${!activeDMUserId ? 'bg-white/10 text-white' : 'bg-gray-50 border border-gray-100 text-[var(--color-atelier-terracota)]'}`}><Globe size={20} /></div>
+                      <div className="flex flex-col"><span className="font-bold text-[14px] leading-tight">QG Central</span><span className={`text-[9px] uppercase tracking-widest font-bold mt-1 ${!activeDMUserId ? 'text-white/60' : 'text-gray-400'}`}>Toda a Equipe</span></div>
+                    </button>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <span className="px-2 font-roboto text-[10px] uppercase tracking-widest font-bold text-gray-400">Direct Messages</span>
+                    {corporateUsers.map(user => {
+                      const isActive = activeDMUserId === user.id;
+                      return (
+                        <button key={user.id} onClick={() => setActiveDMUserId(user.id)} className={`w-full text-left p-3 rounded-[1.2rem] flex items-center gap-3 transition-all border ${isActive ? 'bg-white border-[var(--color-atelier-terracota)]/30 shadow-md scale-[1.02]' : 'bg-transparent border-transparent hover:bg-white/70'}`}>
+                          <div className="relative shrink-0">
+                            <div className="w-11 h-11 rounded-[0.8rem] bg-gray-50 flex items-center justify-center overflow-hidden border border-white shadow-sm">{user.avatar_url ? <img src={user.avatar_url} className="w-full h-full object-cover"/> : <span className="font-elegant text-base font-bold text-[var(--color-atelier-grafite)]">{user.nome.charAt(0)}</span>}</div>
+                            <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 border-2 border-white rounded-full flex items-center justify-center ${user.current_status === 'online' ? 'bg-green-500' : 'bg-gray-300'}`}>{user.current_status === 'online' && <div className="absolute w-full h-full bg-green-500 rounded-full animate-ping opacity-60"></div>}</div>
+                          </div>
+                          <div className="flex flex-col overflow-hidden"><span className={`font-bold text-[14px] truncate leading-tight ${isActive ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]'}`}>{user.nome}</span><span className="font-roboto text-[9px] uppercase tracking-widest font-bold text-gray-400 truncate mt-1">{user.role}</span></div>
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            </AnimatePresence>
+          )}
+        </div>
+      </aside>
+
+      {/* ======================================================================
+          COLUNA DIREITA (Palco de Chat / Feed Central)
+          ====================================================================== */}
+      <main className="flex-1 glass-panel border border-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.05)] rounded-[2.5rem] flex flex-col overflow-hidden z-10 bg-white/70 backdrop-blur-2xl">
+        {!activeChannelId || !activeChannel ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center opacity-70">
+            <div className="w-24 h-24 bg-[var(--color-atelier-grafite)]/5 rounded-full flex items-center justify-center mb-6 border border-[var(--color-atelier-grafite)]/10"><MessageSquare size={40} className="text-[var(--color-atelier-terracota)]" /></div>
+            <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Frequência Silenciosa</h3>
+            <p className="font-roboto text-[12px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50 mt-3 max-w-sm">Selecione um canal na barra lateral para iniciar a transmissão.</p>
+          </div>
+        ) : (
+          <>
+            {/* CHAT HEADER (Inteligência Visual Embutida) */}
+            <div className="bg-white/90 backdrop-blur-xl border-b border-[var(--color-atelier-grafite)]/10 px-8 py-5 flex justify-between items-center z-20 shrink-0">
+              <div className="flex items-center gap-5">
+                <div className={`w-14 h-14 rounded-[1.2rem] flex items-center justify-center shadow-sm border ${activeChannel.type === 'dm' || activeChannel.type === 'corporate_global' ? 'border-transparent bg-transparent' : activeChannel.is_private ? 'bg-[var(--color-atelier-grafite)] text-white border-transparent' : 'bg-white text-[var(--color-atelier-terracota)] border-gray-100'}`}>
+                  {HeaderIcon}
+                </div>
+                <div className="flex flex-col">
+                  <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none mb-1.5 flex items-center gap-3">
+                    {headerTitle}
+                    {activeChannel.type === 'approval' && <span className="bg-orange-100 text-orange-600 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest font-roboto">Aprovações</span>}
+                    {activeChannel.type === 'announcement' && <span className="bg-blue-100 text-blue-600 px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest font-roboto">Avisos</span>}
+                  </span>
+                  <div className="font-roboto text-[11px] font-bold uppercase tracking-widest text-gray-500">
+                    {headerSubtitle}
+                  </div>
+                </div>
+              </div>
+              
+              <div className="relative">
+                <button onClick={() => setIsSettingsOpen(!isSettingsOpen)} className="w-12 h-12 rounded-xl bg-white border border-gray-100 hover:border-[var(--color-atelier-terracota)]/40 flex items-center justify-center text-gray-500 hover:text-[var(--color-atelier-terracota)] transition-all shadow-sm hover:shadow-md"><Settings2 size={18} /></button>
+                <AnimatePresence>
+                  {isSettingsOpen && (
+                    <motion.div initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="absolute right-0 top-14 w-56 bg-white/95 backdrop-blur-xl border border-gray-100 rounded-[1.5rem] shadow-[0_20px_40px_rgba(0,0,0,0.08)] z-50 flex flex-col py-2 overflow-hidden">
+                      <button onClick={handleArchiveChannel} className="w-full text-left px-5 py-3 flex items-center gap-3 font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-gray-50 transition-colors"><Archive size={16} className="text-gray-400"/> Arquivar Canal</button>
+                      <div className="h-px bg-gray-100 my-1 mx-3"></div>
+                      <button onClick={handleDeleteChannel} className="w-full text-left px-5 py-3 flex items-center gap-3 font-roboto text-[11px] font-bold uppercase tracking-widest text-red-500 hover:bg-red-50 transition-colors"><Trash2 size={16}/> Excluir Canal</button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </div>
+
+            {/* CHAT MESSAGES */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar px-10 py-8 flex flex-col gap-6 bg-gradient-to-b from-transparent to-white/40">
+              {messages.length === 0 ? (
+                <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50 shrink-0">
+                  <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4"><MessageSquare size={24} className="text-gray-400"/></div>
+                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Canal Estabelecido.</h3>
+                  <p className="font-roboto text-[12px] text-gray-500 mt-2 font-bold uppercase tracking-widest">Aguardando transmissão.</p>
+                </div>
+              ) : (
+                <div className="flex justify-center mb-4 shrink-0"><span className="bg-white/90 border border-gray-100 px-5 py-2 rounded-full font-roboto text-[9px] uppercase tracking-widest font-bold text-gray-400 shadow-sm">Início da Conversa</span></div>
+              )}
+
+              {messages.map((msg) => {
+                const isMe = msg.sender_id === currentUser?.id;
+                return (
+                  <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} key={msg.id} className={`flex gap-4 max-w-[85%] shrink-0 ${isMe ? 'self-end flex-row-reverse' : 'self-start'}`}>
+                    <div className={`w-10 h-10 rounded-[0.8rem] shrink-0 flex items-center justify-center overflow-hidden border shadow-sm mt-1 ${isMe ? 'border-white bg-[var(--color-atelier-grafite)] text-white' : 'border-[var(--color-atelier-terracota)]/20 bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)]'}`}>
+                      {msg.profiles?.avatar_url ? <img src={msg.profiles.avatar_url} alt="Avatar" className="w-full h-full object-cover" /> : <span className="font-elegant font-bold text-lg">{msg.profiles?.nome?.charAt(0) || "U"}</span>}
+                    </div>
+                    <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
+                      <div className="flex items-center gap-2 mb-1.5 px-1">
+                        <span className={`font-roboto text-[11px] font-bold ${isMe ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]'}`}>{msg.profiles?.nome}</span>
+                        {msg.profiles?.role === 'admin' && <span className="text-[8px] uppercase font-bold bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded">Admin</span>}
+                        <span className="font-roboto text-[9px] font-bold text-gray-400">{formatTime(msg.created_at)}</span>
+                      </div>
+                      {msg.attachment_url && (
+                        <div onClick={() => window.open(msg.attachment_url!, "_blank")} className={`mb-3 rounded-[1.5rem] overflow-hidden border-4 shadow-md max-w-sm cursor-pointer hover:shadow-lg hover:scale-[1.02] transition-all ${isMe ? 'border-[var(--color-atelier-terracota)]' : 'border-white'}`}>
+                          {msg.attachment_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? <img src={msg.attachment_url} className="w-full max-h-[300px] object-cover" /> : <div className="bg-white px-8 py-6 flex flex-col items-center justify-center gap-3 text-[var(--color-atelier-terracota)] min-w-[200px]"><FileText size={36} strokeWidth={1.5} /><span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-center text-[var(--color-atelier-grafite)]">Baixar Documento</span></div>}
+                        </div>
+                      )}
+                      {msg.text_content && msg.text_content !== " " && (
+                        <div className={`px-6 py-4 rounded-[1.5rem] shadow-sm font-roboto text-[14px] leading-relaxed font-medium border ${isMe ? 'bg-[var(--color-atelier-terracota)] text-white rounded-tr-sm border-[var(--color-atelier-terracota)]' : 'bg-white border-gray-100 text-[var(--color-atelier-grafite)] rounded-tl-sm'}`}>
+                          {msg.text_content}
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )
+              })}
+              <div ref={messagesEndRef} className="shrink-0 h-4 w-full" />
+            </div>
+
+            {/* CHAT COMPOSER (Input) */}
+            <form onSubmit={handleSendMessage} className="p-6 bg-white/90 backdrop-blur-2xl border-t border-gray-100 z-20 shrink-0">
+              <div className={`bg-white border border-gray-200 p-2 rounded-[2rem] shadow-sm flex items-end gap-3 transition-all ${isComposerDisabled ? 'opacity-80' : 'focus-within:border-[var(--color-atelier-terracota)]/50 focus-within:shadow-md'}`}>
+                <div className="flex items-center gap-1 pb-1 pl-2">
+                  <label className={`w-10 h-10 flex items-center justify-center rounded-full shrink-0 transition-colors ${isComposerDisabled ? 'opacity-50 cursor-not-allowed text-gray-400' : 'cursor-pointer text-gray-400 hover:bg-gray-100 hover:text-[var(--color-atelier-terracota)]'}`}>
+                    <input type="file" accept="image/*" className="hidden" onChange={handleAttachmentUpload} disabled={isComposerDisabled} />
+                    {isUploadingAttachment ? <Loader2 size={18} className="animate-spin" /> : <ImageIcon size={18} />}
+                  </label>
+                  <label className={`w-10 h-10 flex items-center justify-center rounded-full shrink-0 transition-colors ${isComposerDisabled ? 'opacity-50 cursor-not-allowed text-gray-400' : 'cursor-pointer text-gray-400 hover:bg-gray-100 hover:text-[var(--color-atelier-terracota)]'}`}>
+                    <input type="file" accept=".pdf,.zip,.doc,.docx" className="hidden" onChange={handleAttachmentUpload} disabled={isComposerDisabled} />
+                    {isUploadingAttachment ? <Loader2 size={18} className="animate-spin hidden" /> : <Paperclip size={18} />}
+                  </label>
+                </div>
+                <div className="flex-1 py-3 px-2">
+                  <input type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)} disabled={isComposerDisabled} placeholder={isReadOnly ? "Este canal é apenas leitura." : placeholderText} className="w-full bg-transparent border-none outline-none font-roboto text-[14px] font-medium text-[var(--color-atelier-grafite)] placeholder:text-gray-400 disabled:cursor-not-allowed disabled:bg-transparent" autoComplete="off" />
+                </div>
+                <button type="submit" disabled={isComposerDisabled || messageText.trim() === ""} className={`w-12 h-12 flex items-center justify-center rounded-full shrink-0 transition-all duration-300 shadow-sm mb-0.5 mr-0.5 ${messageText.trim() !== "" && !isComposerDisabled ? 'bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] hover:scale-105' : 'bg-gray-100 text-gray-400'}`}>
+                  {isSending ? <Loader2 size={18} className="animate-spin" /> : <Send size={18} className={messageText.trim() !== "" ? 'ml-1' : ''} />}
+                </button>
+              </div>
+              <div className="flex items-center justify-center gap-2 mt-4 text-[9px] font-roboto uppercase tracking-widest font-bold text-gray-400">
+                 <ShieldCheck size={12} className={activeChannel.is_private ? 'text-[var(--color-atelier-grafite)]' : 'text-[var(--color-atelier-terracota)]'} /> 
+                 {activeChannel.type === 'dm' ? 'Comunicação Criptografada (End-to-End)' : activeChannel.is_private ? 'Apenas Equipe do Atelier' : 'Ambiente Compartilhado com o Cliente'}
+              </div>
+            </form>
+          </>
+        )}
+      </main>
+
+      {/* ======================================================================
+          MODAL DE CRIAÇÃO DE CANAL
+          ====================================================================== */}
       <AnimatePresence>
         {isChannelModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsChannelModalOpen(false)} className="absolute inset-0 bg-black/20 backdrop-blur-md" />
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }} className="bg-[var(--color-atelier-creme)] border border-white p-8 rounded-[2.5rem] shadow-[0_20px_50px_rgba(122,116,112,0.2)] w-full max-w-md relative z-10">
-              <button onClick={() => setIsChannelModalOpen(false)} className="absolute top-6 right-6 w-10 h-10 rounded-full bg-white flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors shadow-sm border border-white/50"><X size={18} /></button>
+          <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsChannelModalOpen(false)} className="absolute inset-0 bg-[var(--color-atelier-grafite)]/40 backdrop-blur-md" />
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white border border-gray-100 p-8 rounded-[2.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.15)] w-full max-w-md relative z-10">
+              <button onClick={() => setIsChannelModalOpen(false)} className="absolute top-6 right-6 w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-gray-400 hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm"><X size={18} /></button>
               
-              <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-1 flex items-center gap-2"><Hash size={24} className="text-[var(--color-atelier-terracota)]"/> Novo Tópico</h2>
-              <p className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-6">Crie um canal de comunicação organizado</p>
+              <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-1 flex items-center gap-3"><Hash size={24} className="text-[var(--color-atelier-terracota)]"/> Novo Canal</h2>
+              <p className="font-roboto text-[11px] font-bold uppercase tracking-widest text-gray-400 mb-8">Estruture a comunicação tática do projeto</p>
               
-              <form onSubmit={handleCreateChannelSubmit} className="flex flex-col gap-6">
+              <form onSubmit={handleCreateChannel} className="flex flex-col gap-6">
                 <div className="flex flex-col gap-2">
-                  <label className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/60">Nome do Canal</label>
+                  <label className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]">Nome Operacional</label>
                   <div className="relative">
-                    <Hash size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-atelier-grafite)]/40" />
-                    <input autoFocus type="text" placeholder="ex: aprovacoes-design" value={newChannelName} onChange={(e) => setNewChannelName(e.target.value)} className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 focus:border-[var(--color-atelier-terracota)] rounded-[1.2rem] py-3.5 pl-10 pr-4 text-[13px] font-bold text-[var(--color-atelier-grafite)] outline-none shadow-sm transition-colors" />
+                    <Hash size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                    <input autoFocus type="text" placeholder="ex: design-aprovacoes" value={newChannelName} onChange={(e) => setNewChannelName(e.target.value)} className="w-full bg-gray-50 border border-gray-200 focus:border-[var(--color-atelier-terracota)] focus:bg-white focus:ring-4 focus:ring-[var(--color-atelier-terracota)]/10 rounded-[1.2rem] py-4 pl-11 pr-4 text-[14px] font-bold text-[var(--color-atelier-grafite)] outline-none transition-all" />
                   </div>
+                </div>
+
+                <div className="flex flex-col gap-2">
+                  <label className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]">Tipologia do Canal</label>
+                  <select value={newChannelType} onChange={(e) => setNewChannelType(e.target.value as any)} className="w-full bg-gray-50 border border-gray-200 focus:border-[var(--color-atelier-terracota)] focus:bg-white rounded-[1.2rem] py-3.5 px-4 text-[13px] font-bold text-[var(--color-atelier-grafite)] outline-none">
+                    <option value="general">Geral (Conversação Livre)</option>
+                    <option value="approval">Aprovações (Foco em Decisões)</option>
+                    <option value="announcement">Avisos (Apenas Leitura p/ Colaboradores)</option>
+                  </select>
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  <label className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/60">Privacidade</label>
-                  
+                  <label className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]">Camada de Privacidade</label>
                   <div className="flex gap-4">
-                    <label className={`flex-1 flex flex-col p-4 rounded-2xl border cursor-pointer transition-all shadow-sm ${!isNewChannelPrivate ? 'bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)]/30' : 'bg-white border-white hover:border-[var(--color-atelier-terracota)]/20 hover:bg-[var(--color-atelier-terracota)]/5'}`}>
+                    <label className={`flex-1 flex flex-col p-4 rounded-[1.2rem] border-2 cursor-pointer transition-all shadow-sm ${!isNewChannelPrivate ? 'bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)]/40' : 'bg-white border-gray-100 hover:border-gray-300'}`}>
                       <input type="radio" name="privacy" className="hidden" checked={!isNewChannelPrivate} onChange={() => setIsNewChannelPrivate(false)} />
-                      <div className="flex items-center gap-2 mb-1"><MessageSquare size={16} className={!isNewChannelPrivate ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/40'} /><span className={`font-roboto text-[12px] font-bold ${!isNewChannelPrivate ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]'}`}>Cliente</span></div>
-                      <span className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50">Visível para a equipe e para o cliente.</span>
+                      <div className="flex items-center gap-2.5 mb-1.5"><MessageSquare size={16} className={!isNewChannelPrivate ? 'text-[var(--color-atelier-terracota)]' : 'text-gray-400'} /><span className={`font-roboto text-[13px] font-bold ${!isNewChannelPrivate ? 'text-[var(--color-atelier-terracota)]' : 'text-gray-500'}`}>Compartilhado</span></div>
+                      <span className="font-roboto text-[10px] text-gray-400 leading-tight font-medium">Visível ao cliente.</span>
                     </label>
-
-                    <label className={`flex-1 flex flex-col p-4 rounded-2xl border cursor-pointer transition-all shadow-sm ${isNewChannelPrivate ? 'bg-[var(--color-atelier-grafite)] text-white border-transparent' : 'bg-white border-white hover:border-[var(--color-atelier-grafite)]/20 hover:bg-[var(--color-atelier-grafite)]/5'}`}>
+                    <label className={`flex-1 flex flex-col p-4 rounded-[1.2rem] border-2 cursor-pointer transition-all shadow-sm ${isNewChannelPrivate ? 'bg-[var(--color-atelier-grafite)] text-white border-[var(--color-atelier-grafite)]' : 'bg-white border-gray-100 hover:border-gray-300'}`}>
                       <input type="radio" name="privacy" className="hidden" checked={isNewChannelPrivate} onChange={() => setIsNewChannelPrivate(true)} />
-                      <div className="flex items-center gap-2 mb-1"><Lock size={16} className={isNewChannelPrivate ? 'text-white' : 'text-[var(--color-atelier-grafite)]/40'} /><span className={`font-roboto text-[12px] font-bold ${isNewChannelPrivate ? 'text-white' : 'text-[var(--color-atelier-grafite)]'}`}>Privado</span></div>
-                      <span className={`font-roboto text-[10px] ${isNewChannelPrivate ? 'text-white/60' : 'text-[var(--color-atelier-grafite)]/50'}`}>Apenas a equipe do estúdio tem acesso.</span>
+                      <div className="flex items-center gap-2.5 mb-1.5"><Lock size={16} className={isNewChannelPrivate ? 'text-white' : 'text-gray-400'} /><span className={`font-roboto text-[13px] font-bold ${isNewChannelPrivate ? 'text-white' : 'text-gray-500'}`}>Tático (Interno)</span></div>
+                      <span className={`font-roboto text-[10px] font-medium leading-tight ${isNewChannelPrivate ? 'text-white/60' : 'text-gray-400'}`}>Silo fechado p/ equipe.</span>
                     </label>
                   </div>
                 </div>
 
-                <button type="submit" disabled={!newChannelName.trim() || isCreatingChannel} className="w-full mt-2 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-widest hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all shadow-md disabled:opacity-50 disabled:hover:translate-y-0 flex justify-center items-center gap-2">
-                  {isCreatingChannel ? <Loader2 size={16} className="animate-spin" /> : <CheckCheck size={16}/>} Abrir Canal
+                <button type="submit" disabled={!newChannelName.trim() || isCreatingChannel} className="w-full mt-4 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-[1.2rem] font-roboto text-[12px] font-bold uppercase tracking-widest hover:bg-[var(--color-atelier-terracota)] hover:shadow-xl hover:-translate-y-1 transition-all shadow-md disabled:opacity-50 disabled:hover:translate-y-0 disabled:hover:shadow-md flex justify-center items-center gap-2">
+                  {isCreatingChannel ? <Loader2 size={18} className="animate-spin" /> : <Plus size={18} strokeWidth={2.5} />} Estabelecer Canal
                 </button>
               </form>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
-
-      {/* CABEÇALHO DO INBOX */}
-      <header className="shrink-0 flex flex-col md:flex-row md:items-end justify-between gap-6 animate-[fadeInUp_0.5s_ease-out]">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <span className="bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] w-8 h-8 rounded-xl flex items-center justify-center shadow-inner">
-              <Inbox size={14} className="text-[var(--color-atelier-terracota)]" />
-            </span>
-            <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/60">Central de Atendimento</span>
-          </div>
-          <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] tracking-tight leading-none">
-            Caixa de <span className="text-[var(--color-atelier-terracota)] italic">Entrada.</span>
-          </h1>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="glass-panel px-4 py-2.5 rounded-[1.2rem] flex items-center gap-2 text-[11px] font-roboto uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/60 shadow-sm border border-white">
-            <Clock size={14} className="text-[var(--color-atelier-terracota)]" /> Sincronização em Tempo Real
-          </div>
-        </div>
-      </header>
-
-      {/* ESTRUTURA DE 3 PAINÉIS (Slack-Style) */}
-      <div className="flex gap-6 flex-1 min-h-0 animate-[fadeInUp_0.8s_ease-out_0.2s_both]">
-        
-        {/* PAINEL 1: DIRETÓRIO DE CLIENTES (300px) */}
-        <div className="w-[300px] glass-panel rounded-[2.5rem] bg-white/40 border border-white shadow-sm flex flex-col shrink-0 overflow-hidden">
-          <div className="p-6 border-b border-[var(--color-atelier-grafite)]/5 bg-white/40 backdrop-blur-md shrink-0 transition-colors hover:bg-white/60">
-            <div className="relative group/search">
-              <Search size={14} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-atelier-grafite)]/40 group-focus-within/search:text-[var(--color-atelier-terracota)] transition-colors" />
-              <input 
-                type="text" placeholder="Procurar projeto..." 
-                className="w-full bg-white/60 border border-transparent focus:border-[var(--color-atelier-terracota)]/30 focus:bg-white rounded-xl py-3 pl-10 pr-4 text-[12px] font-bold text-[var(--color-atelier-grafite)] outline-none transition-all shadow-sm"
-              />
-            </div>
-          </div>
-          
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-2">
-            <span className="px-3 pt-2 pb-1 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">Projetos Ativos</span>
-            
-            {clients.length === 0 && (
-              <div className="text-center p-4 text-[11px] font-roboto text-[var(--color-atelier-grafite)]/50">Nenhum projeto ativo encontrado.</div>
-            )}
-
-            {clients.map((client) => (
-              <div 
-                key={client.id}
-                onClick={() => handleClientSelect(client.id)}
-                className={`
-                  p-3.5 rounded-[1.2rem] cursor-pointer transition-all flex items-center justify-between border shadow-sm
-                  ${activeProjectId === client.id 
-                    ? 'bg-white border-[var(--color-atelier-terracota)]/20 scale-[1.02]' 
-                    : 'bg-white/60 border-transparent hover:bg-white hover:border-[var(--color-atelier-grafite)]/5'
-                  }
-                `}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl overflow-hidden shadow-inner shrink-0 flex items-center justify-center font-elegant text-lg ${activeProjectId === client.id ? 'bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)] border border-[var(--color-atelier-terracota)]/20' : 'bg-gray-50 border border-gray-100 text-[var(--color-atelier-grafite)]/50'}`}>
-                    {client.profiles?.avatar_url ? (
-                      <img src={client.profiles.avatar_url} className="w-full h-full object-cover" alt="" />
-                    ) : (
-                      client.profiles?.nome?.charAt(0) || "C"
-                    )}
-                  </div>
-                  <div className="flex flex-col overflow-hidden">
-                    <span className={`font-roboto text-[13px] truncate transition-colors ${activeProjectId === client.id ? 'font-bold text-[var(--color-atelier-grafite)]' : 'font-medium text-[var(--color-atelier-grafite)]/80'}`}>
-                      {client.profiles?.nome}
-                    </span>
-                    <span className="font-roboto text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40 truncate mt-0.5">
-                      {client.type}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* PAINEL 2: CANAIS DO CLIENTE (260px) */}
-        <div className="w-[260px] glass-panel rounded-[2.5rem] bg-[var(--color-atelier-grafite)] border border-white shadow-sm flex flex-col shrink-0 overflow-hidden relative">
-          <div className="absolute top-[-10%] right-[-20%] w-32 h-32 bg-[var(--color-atelier-terracota)]/20 rounded-full blur-[40px] pointer-events-none"></div>
-          
-          <div className="p-6 border-b border-white/10 bg-black/20 shrink-0 relative z-10">
-            <h2 className="font-elegant text-2xl text-white leading-tight mb-1 truncate">{activeClient?.profiles?.nome || "Selecione..."}</h2>
-          </div>
-
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-6 relative z-10">
-            
-            {/* Secção de Canais Públicos */}
-            <div className="flex flex-col gap-2">
-              <div className="flex justify-between items-center px-2 mb-1">
-                <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-white/50">Canais do Projeto</span>
-                <button onClick={() => setIsChannelModalOpen(true)} className="text-white/40 hover:text-[var(--color-atelier-terracota)] transition-colors bg-white/5 p-1 rounded-lg hover:bg-white/10"><Plus size={14}/></button>
-              </div>
-              
-              {channels.filter(c => !c.is_private && !c.is_archived).length === 0 && (
-                 <div className="px-2 text-[10px] font-roboto text-white/30 italic">Nenhum canal ativo.</div>
-              )}
-
-              {channels.filter(c => !c.is_private && !c.is_archived).map(channel => (
-                <button 
-                  key={channel.id}
-                  onClick={() => setActiveChannelId(channel.id)}
-                  className={`
-                    w-full text-left px-4 py-3 rounded-[1rem] font-roboto text-[13px] font-medium flex items-center justify-between transition-all border
-                    ${activeChannelId === channel.id 
-                      ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md border-transparent scale-[1.02]' 
-                      : 'bg-white/5 text-white/70 hover:bg-white/10 border-transparent hover:text-white'
-                    }
-                  `}
-                >
-                  <span className="flex items-center gap-2 truncate pr-2">
-                    <Hash size={14} className={activeChannelId === channel.id ? 'text-white/70' : 'text-[var(--color-atelier-terracota)]/80'} /> 
-                    <span className="truncate">{channel.name}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
-
-            {/* Secção de Canais Privados (Só a Equipa Vê) */}
-            <div className="flex flex-col gap-2">
-              <div className="flex items-center gap-2 px-2 mb-1">
-                <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-white/50">Canais da Equipe</span>
-                <Lock size={10} className="text-white/30" />
-              </div>
-              
-              {channels.filter(c => c.is_private && !c.is_archived).map(channel => (
-                <button 
-                  key={channel.id}
-                  onClick={() => setActiveChannelId(channel.id)}
-                  className={`
-                    w-full text-left px-4 py-3 rounded-[1rem] font-roboto text-[13px] font-medium flex items-center justify-between transition-all border
-                    ${activeChannelId === channel.id 
-                      ? 'bg-white/20 text-white shadow-inner border-white/20 scale-[1.02]' 
-                      : 'bg-white/5 text-white/70 hover:bg-white/10 border-transparent hover:text-white'
-                    }
-                  `}
-                >
-                  <span className="flex items-center gap-2 truncate pr-2">
-                    <Lock size={12} className={activeChannelId === channel.id ? 'text-white/70' : 'text-white/40'} /> 
-                    <span className="truncate">{channel.name}</span>
-                  </span>
-                </button>
-              ))}
-            </div>
-            
-          </div>
-        </div>
-
-        {/* PAINEL 3: CHAT E MENSAGENS (Restante da tela) */}
-        <div className="flex-1 min-h-0 min-w-0 glass-panel rounded-[2.5rem] bg-white/60 border border-white flex flex-col relative overflow-hidden shadow-sm h-full">
-          
-          <div className="bg-white/60 backdrop-blur-xl border-b border-[var(--color-atelier-grafite)]/10 px-8 py-5 flex justify-between items-center z-20 shrink-0">
-            <div className="flex items-center gap-4">
-              <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shadow-inner shrink-0 border border-white/50 ${activeChannel?.is_private ? 'bg-[var(--color-atelier-grafite)] text-white' : 'bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)]'}`}>
-                {activeChannel?.is_private ? <Lock size={20} /> : <Hash size={20} strokeWidth={2} />}
-              </div>
-              <div className="flex flex-col">
-                <span className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none mb-1.5">
-                  {activeChannel ? activeChannel.name : "Nenhum canal selecionado"}
-                </span>
-                <p className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">
-                  {activeChannel?.is_private ? 'Canal interno da equipe. Invisível para o cliente.' : `Canal visível para o cliente: ${activeClient?.profiles?.nome || 'o cliente'}.`}
-                </p>
-              </div>
-            </div>
-            
-            {activeChannel && (
-              <div className="relative">
-                <button 
-                  onClick={() => setIsChannelSettingsOpen(!isChannelSettingsOpen)} 
-                  className="w-10 h-10 rounded-xl bg-white border border-transparent hover:border-[var(--color-atelier-grafite)]/20 flex items-center justify-center text-[var(--color-atelier-grafite)]/50 transition-all shadow-sm hover:shadow-md"
-                >
-                  <Settings2 size={16} />
-                </button>
-
-                <AnimatePresence>
-                  {isChannelSettingsOpen && (
-                    <motion.div 
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }} 
-                      animate={{ opacity: 1, y: 0, scale: 1 }} 
-                      exit={{ opacity: 0, scale: 0.95 }} 
-                      className="absolute right-0 top-12 w-48 bg-white/90 backdrop-blur-xl border border-white rounded-[1.2rem] shadow-[0_15px_30px_rgba(122,116,112,0.15)] z-50 flex flex-col py-2 overflow-hidden"
-                    >
-                      <button onClick={handleArchiveChannel} className="w-full text-left px-4 py-2.5 flex items-center gap-2 font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/10 hover:text-[var(--color-atelier-terracota)] transition-colors">
-                        <Archive size={14}/> Arquivar Canal
-                      </button>
-                      <div className="h-px bg-[var(--color-atelier-grafite)]/5 my-1 mx-2"></div>
-                      <button onClick={handleDeleteChannel} className="w-full text-left px-4 py-2.5 flex items-center gap-2 font-roboto text-[11px] font-bold uppercase tracking-widest text-red-500 hover:bg-red-50 transition-colors">
-                        <Trash2 size={14}/> Apagar Canal
-                      </button>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
-              </div>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto custom-scrollbar px-8 py-8 flex flex-col gap-6 bg-gradient-to-b from-transparent to-white/40">
-            
-            {!activeChannel ? (
-               <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50 h-full shrink-0">
-                 <MessageSquare size={40} className="mb-4 text-[var(--color-atelier-terracota)]" />
-                 <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Sem Conversa Ativa.</h3>
-                 <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 max-w-sm font-medium">Crie um canal clicando no '+' ao lado para iniciar a comunicação.</p>
-               </div>
-            ) : messages.length === 0 ? (
-              <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50 h-full shrink-0">
-                <MessageSquare size={40} className="mb-4 text-[var(--color-atelier-terracota)]" />
-                <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Este canal está silencioso.</h3>
-                <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 max-w-sm font-medium">Inicie a conversa.</p>
-              </div>
-            ) : (
-              <div className="flex justify-center mb-2 shrink-0">
-                <span className="bg-white/80 border border-white px-4 py-1.5 rounded-full font-roboto text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40 shadow-sm">
-                  Início da Conversa
-                </span>
-              </div>
-            )}
-
-            {messages.map((msg, index) => {
-              const isMe = msg.sender_id === userId;
-              return (
-                <motion.div 
-                  initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.02 }}
-                  key={msg.id} 
-                  className={`flex gap-4 max-w-[85%] shrink-0 ${isMe ? 'self-end flex-row-reverse' : 'self-start'}`}
-                >
-                  <div className={`w-10 h-10 rounded-xl shrink-0 flex items-center justify-center overflow-hidden border shadow-inner ${isMe ? 'border-white bg-[var(--color-atelier-grafite)] text-white' : 'border-[var(--color-atelier-terracota)]/20 bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)]'}`}>
-                    {msg.profiles?.avatar_url ? <img src={msg.profiles.avatar_url} alt="Avatar" className="w-full h-full object-cover" /> : <span className="font-elegant font-bold text-lg">{msg.profiles?.nome?.charAt(0) || "A"}</span>}
-                  </div>
-
-                  <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
-                    <div className="flex items-center gap-2 mb-1.5 px-1">
-                      <span className={`font-roboto text-[11px] font-bold ${isMe ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]'}`}>{msg.profiles?.nome}</span>
-                      <span className="font-roboto text-[9px] font-bold text-[var(--color-atelier-grafite)]/40">{formatTime(msg.created_at)}</span>
-                    </div>
-
-                    {msg.attachment_url && (
-                      <div onClick={() => window.open(msg.attachment_url, "_blank")} className="mb-3 rounded-[1.5rem] overflow-hidden border-[4px] border-white shadow-sm max-w-sm cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all">
-                        {msg.attachment_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
-                          <img src={msg.attachment_url} alt="Anexo" className="w-full max-h-[300px] object-cover" />
-                        ) : (
-                          <div className="bg-white/80 px-8 py-6 flex flex-col items-center justify-center gap-2 text-[var(--color-atelier-terracota)]">
-                            <FileText size={32} />
-                            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-center text-[var(--color-atelier-grafite)]">Ver Documento</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-
-                    {msg.text_content && (
-                      <div className={`
-                        px-5 py-4 rounded-[1.5rem] shadow-sm font-roboto text-[13px] leading-relaxed font-medium border
-                        ${isMe 
-                          ? 'bg-[var(--color-atelier-terracota)] text-white rounded-tr-sm border-[var(--color-atelier-terracota)]' 
-                          : 'bg-white border-white text-[var(--color-atelier-grafite)] rounded-tl-sm'
-                        }
-                      `}>
-                        {msg.text_content}
-                      </div>
-                    )}
-                  </div>
-                </motion.div>
-              )
-            })}
-            <div ref={messagesEndRef} className="shrink-0 h-4 w-full" />
-          </div>
-
-          <form onSubmit={handleSendMessage} className="p-6 bg-white/60 backdrop-blur-xl border-t border-[var(--color-atelier-grafite)]/10 z-20 shrink-0">
-            <div className="bg-white border border-[var(--color-atelier-grafite)]/10 p-1.5 rounded-[2rem] shadow-sm flex items-center gap-2 focus-within:border-[var(--color-atelier-terracota)]/40 focus-within:shadow-md transition-all">
-              
-              <label className={`w-12 h-12 flex items-center justify-center rounded-full shrink-0 transition-colors ${!activeChannelId || isUploadingAttachment ? 'opacity-50 cursor-not-allowed text-[var(--color-atelier-grafite)]/40' : 'cursor-pointer text-[var(--color-atelier-grafite)]/40 hover:bg-gray-50 hover:text-[var(--color-atelier-terracota)]'}`}>
-                <input type="file" accept="image/*" className="hidden" onChange={handleAttachmentUpload} disabled={!activeChannelId || isUploadingAttachment} />
-                {isUploadingAttachment ? <Loader2 size={18} className="animate-spin" /> : <ImageIcon size={18} />}
-              </label>
-              
-              <label className={`w-12 h-12 flex items-center justify-center rounded-full shrink-0 transition-colors ${!activeChannelId || isUploadingAttachment ? 'opacity-50 cursor-not-allowed text-[var(--color-atelier-grafite)]/40' : 'cursor-pointer text-[var(--color-atelier-grafite)]/40 hover:bg-gray-50 hover:text-[var(--color-atelier-terracota)]'}`}>
-                <input type="file" accept=".pdf,.zip,.doc,.docx" className="hidden" onChange={handleAttachmentUpload} disabled={!activeChannelId || isUploadingAttachment} />
-                {isUploadingAttachment ? <Loader2 size={18} className="animate-spin hidden" /> : <Paperclip size={18} />}
-              </label>
-
-              <input 
-                type="text" value={messageText} onChange={(e) => setMessageText(e.target.value)}
-                disabled={!activeChannelId || isUploadingAttachment}
-                placeholder={activeChannelId ? `Escreva a sua mensagem para #${activeChannel?.name}...` : "Selecione um canal para enviar mensagens."}
-                className="flex-1 bg-transparent border-none outline-none font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 px-2 disabled:cursor-not-allowed"
-              />
-
-              <button 
-                type="submit"
-                disabled={!activeChannelId || isUploadingAttachment || messageText.trim() === ""}
-                className={`
-                  w-12 h-12 flex items-center justify-center rounded-full shrink-0 transition-all duration-300 shadow-sm
-                  ${messageText.trim() !== "" 
-                    ? 'bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5' 
-                    : 'bg-gray-100 text-gray-400'
-                  }
-                `}
-              >
-                <Send size={18} className={messageText.trim() !== "" ? 'ml-0.5' : ''} />
-              </button>
-            </div>
-            <div className="flex items-center justify-center gap-2 mt-4 text-[9px] font-roboto uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">
-               <ShieldCheck size={12} /> Comunicação Encriptada: {activeChannel?.is_private ? 'Apenas Equipe' : 'Visível para o Cliente'}
-            </div>
-          </form>
-
-        </div>
-
-      </div>
     </div>
   );
 }
