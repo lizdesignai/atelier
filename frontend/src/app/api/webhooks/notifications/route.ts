@@ -262,7 +262,7 @@ export async function POST(request: Request) {
           await sendEmailSafely(resend, recipient.email, emailSubject, buildAppLikeEmail(avatar, "Mensagem Direta", emailBody, "Responder agora", `${portalUrl}/admin/inbox`), "Chat DM");
         }
       } else if (channel.type === 'corporate_global' && sender.role !== 'admin') {
-        await sendEmailSafely(resend, ADMIN_EMAIL, emailSubject, buildAppLikeEmail(avatar, "QG Central", emailBody, "Ir para o QG", `${portalUrl}/admin/inbox`), "Chat QG");
+        await sendEmailSafely(resend, ADMIN_EMAIL, emailSubject, buildAppLikeEmail(avatar, "Equipe LizDesign", emailBody, "Ir para o Chat", `${portalUrl}/admin/inbox`), "Chat");
       } else if (!channel.is_private) {
         const client = channel.project_id ? await getClientProfile(channel.project_id) : null;
         const isSenderTeam = ['admin', 'gestor', 'colaborador'].includes(sender.role?.toLowerCase() || '');

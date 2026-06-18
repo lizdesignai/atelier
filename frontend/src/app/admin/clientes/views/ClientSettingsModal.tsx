@@ -7,7 +7,7 @@ import {
   X, User, Mail, Phone, Instagram, Briefcase, 
   Target, Sparkles, Save, Loader2, LineChart, 
   BrainCircuit, CheckCircle2, DollarSign, Activity,
-  Clock, CheckSquare, UploadCloud, FileText, Camera, FolderOpen, FileUp, Link
+  Clock, CheckSquare, UploadCloud, FileText, Camera, FolderOpen, Link, Trello, FileUp
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -34,8 +34,9 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
   const [leadRecordId, setLeadRecordId] = useState<string | null>(null);
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
 
+  // 🟢 INJEÇÃO: Adicionado trello_url ao estado
   const [formData, setFormData] = useState({
-    nome: "", email: "", telefone: "", empresa: "", instagram: "", nicho: "", avatar_url: "", contract_url: ""
+    nome: "", email: "", telefone: "", empresa: "", instagram: "", nicho: "", avatar_url: "", contract_url: "", trello_url: ""
   });
 
   const [clientStats, setClientStats] = useState({
@@ -48,40 +49,49 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
     stories_strategy: "", content_pillars: "", strategic_justification: "", market_positioning: ""
   });
 
+  // 🟢 CORREÇÃO DO LOOP INFINITO: Isolamento do ID primitivo para a dependência
+  const clientId = clientProfile?.id;
+
   useEffect(() => {
-    if (!isOpen || !clientProfile) return;
+    if (!isOpen || !clientId) return;
 
     const fetchAllClientData = async () => {
       setIsLoading(true);
       try {
-        // Popula base inicial
+        // 🟢 LEITURA PROFUNDA DIRETA NO BANCO (Corrige o problema de dados não carregarem)
+        const [ { data: dbProfile }, { data: projects } ] = await Promise.all([
+          supabase.from('profiles').select('*').eq('id', clientId).single(),
+          supabase.from('projects').select('*').eq('client_id', clientId)
+        ]);
+
+        const profileData = dbProfile || clientProfile;
+
+        // Popula base inicial com dados Reais do Banco
         setFormData(prev => ({
           ...prev,
-          nome: clientProfile.nome || "",
-          email: clientProfile.email || "",
-          telefone: clientProfile.telefone || "",
-          empresa: clientProfile.empresa || "",
-          instagram: clientProfile.instagram || "",
-          nicho: clientProfile.nicho || "",
-          avatar_url: clientProfile.avatar_url || ""
+          nome: profileData.nome || "",
+          email: profileData.email || "",
+          telefone: profileData.telefone || "",
+          empresa: profileData.empresa || "",
+          instagram: profileData.instagram || profileData.username || "", // Pega username como fallback
+          nicho: profileData.nicho || "",
+          avatar_url: profileData.avatar_url || ""
         }));
 
-        // 1. Busca Dados Profundos (Leads e Projetos) com Proteção contra Undefined
         let leadPromise: PromiseLike<any> = Promise.resolve({ data: null });
-        if (clientProfile.email || clientProfile.instagram) {
+        if (profileData.email || profileData.instagram) {
           const queryFilters = [];
-          if (clientProfile.email) queryFilters.push(`email.eq.${clientProfile.email}`);
-          if (clientProfile.instagram) queryFilters.push(`instagram.eq.${clientProfile.instagram}`);
+          if (profileData.email) queryFilters.push(`email.eq.${profileData.email}`);
+          if (profileData.instagram) queryFilters.push(`instagram.eq.${profileData.instagram}`);
           
-          leadPromise = supabase.from('leads')
-            .select('*').or(queryFilters.join(','))
-            .order('created_at', { ascending: false }).limit(1).maybeSingle();
+          if (queryFilters.length > 0) {
+            leadPromise = supabase.from('leads')
+              .select('*').or(queryFilters.join(','))
+              .order('created_at', { ascending: false }).limit(1).maybeSingle();
+          }
         }
 
-        const [ { data: lead }, { data: projects } ] = await Promise.all([
-          leadPromise,
-          supabase.from('projects').select('*').eq('client_id', clientProfile.id)
-        ]);
+        const { data: lead } = await leadPromise;
 
         if (lead) {
           setLeadRecordId(lead.id);
@@ -96,7 +106,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
           }
         }
 
-        // 2. Extração de Métricas de Projetos
+        // Extração de Métricas e Dados Operacionais do Projeto
         let ltv = 0; let mrr = 0; let activeProj = 0; let latestProjectId = null;
         
         projects?.forEach(p => {
@@ -108,15 +118,20 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
         if (latestProjectId) setActiveProjectId(latestProjectId);
         
         const activeProjData = projects?.find(p => p.id === latestProjectId);
-        if (activeProjData?.contract_url) {
-          setFormData(prev => ({ ...prev, contract_url: activeProjData.contract_url }));
+        if (activeProjData) {
+          // 🟢 Carrega a URL do Trello e do Contrato diretamente do projeto
+          setFormData(prev => ({ 
+            ...prev, 
+            contract_url: activeProjData.contract_url || "",
+            trello_url: activeProjData.trello_url || "" 
+          }));
         }
 
-        // 3. Busca Tarefas e Cofre
+        // Busca Tarefas e Cofre
         const [ { data: tasks }, { data: briefings }, { data: assets } ] = await Promise.all([
-          supabase.from('tasks').select('status, estimated_time').eq('client_id', clientProfile.id),
-          supabase.from('instagram_briefings').select('status').eq('client_id', clientProfile.id).order('created_at', { ascending: false }).limit(1),
-          supabase.from('project_assets').select('id').eq('project_id', latestProjectId || clientProfile.id) 
+          supabase.from('tasks').select('status, estimated_time').eq('client_id', clientId),
+          supabase.from('instagram_briefings').select('status').eq('client_id', clientId).order('created_at', { ascending: false }).limit(1),
+          supabase.from('project_assets').select('id').eq('project_id', latestProjectId || clientId) 
         ]);
 
         let tTasks = 0; let cTasks = 0; let hWorked = 0;
@@ -140,11 +155,11 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
     };
 
     fetchAllClientData();
-  }, [isOpen, clientProfile]);
+  }, [isOpen, clientId]);
 
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'contract') => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !clientId) return;
 
     const isAvatar = type === 'avatar';
     isAvatar ? setIsUploadingAvatar(true) : setIsUploadingContract(true);
@@ -152,7 +167,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
 
     try {
       const fileExt = file.name.split('.').pop();
-      const fileName = `${type}s/${clientProfile.id}_${Date.now()}.${fileExt}`;
+      const fileName = `${type}s/${clientId}_${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage.from('vault_assets').upload(fileName, file);
       if (uploadError) throw uploadError;
@@ -161,7 +176,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
       
       if (isAvatar) {
         setFormData(prev => ({ ...prev, avatar_url: publicUrl }));
-        await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', clientProfile.id);
+        await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', clientId);
       } else {
         setFormData(prev => ({ ...prev, contract_url: publicUrl }));
         if (activeProjectId) {
@@ -182,11 +197,11 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
 
     try {
       // 🟢 Validação de Segurança Anti-Crash
-      if (!clientProfile?.id) {
+      if (!clientId) {
          throw new Error("ID do Perfil Ausente. Por favor, recarregue a página.");
       }
 
-      // Grava Perfil Básico: Mapeamento Duplo (instagram e username) para garantir que a base de dados não ignora a informação
+      // Grava Perfil Básico
       const { data: updatedProfile, error: profileError } = await supabase
         .from('profiles')
         .update({
@@ -194,19 +209,29 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
           telefone: formData.telefone, 
           empresa: formData.empresa,
           instagram: formData.instagram, 
-          username: formData.instagram, // 👈 SOLUÇÃO: Sincroniza o instagram com a coluna username da tabela
+          username: formData.instagram, 
           nicho: formData.nicho
         })
-        .eq('id', clientProfile.id)
+        .eq('id', clientId)
         .select();
 
       if (profileError) throw new Error(`Erro DB Profiles: ${profileError.message}`);
       
-      // Se a query rodou mas retornou um array vazio, RLS bloqueou!
       if (!updatedProfile || updatedProfile.length === 0) {
         throw new Error("Acesso Negado: RLS Bloqueou a atualização. Execute as Policies de Admin.");
       }
 
+      // Gravação do Trello no Projeto Ativo
+      if (activeProjectId) {
+        const { error: projError } = await supabase
+          .from('projects')
+          .update({ trello_url: formData.trello_url })
+          .eq('id', activeProjectId);
+          
+        if (projError) console.error("Erro ao salvar Trello URL:", projError);
+      }
+
+      // Gravação de Dados Estratégicos nos Leads
       if (consultingData.brand_archetype || formData.instagram || formData.email) {
         const targetEmail = formData.email || clientProfile.email;
 
@@ -234,7 +259,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
             .single();
 
           if (leadErr) {
-            console.warn("Aviso (Leads): Ocorreu um erro ao sincronizar o perfil com a tabela Leads. A tabela Profiles foi atualizada.", leadErr);
+            console.warn("Aviso (Leads): Ocorreu um erro ao sincronizar o perfil com a tabela Leads.", leadErr);
           } else if (data) {
             setLeadRecordId(data.id);
           }
@@ -360,11 +385,22 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
                           <InputGroup label="Nome da Empresa" icon={Briefcase} value={formData.empresa} onChange={(e:any)=>setFormData({...formData, empresa: e.target.value})} />
                         </div>
                       </div>
+
                       <div className="bg-white p-8 rounded-[2rem] border border-gray-50 shadow-sm flex flex-col gap-5 hover:border-[var(--color-atelier-terracota)]/20 transition-colors">
                         <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] border-b border-gray-50 pb-3">Presença Digital</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                           <InputGroup label="Instagram (@)" icon={Instagram} value={formData.instagram} onChange={(e:any)=>setFormData({...formData, instagram: e.target.value})} placeholder="@usuario" />
                           <InputGroup label="Nicho de Atuação" icon={Target} value={formData.nicho} onChange={(e:any)=>setFormData({...formData, nicho: e.target.value})} placeholder="Ex: Estética Avançada" />
+                        </div>
+                      </div>
+
+                      {/* 🟢 NOVO BLOCO OPERACIONAL */}
+                      <div className="bg-white p-8 rounded-[2rem] border border-gray-50 shadow-sm flex flex-col gap-5 hover:border-[#0079BF]/30 transition-colors">
+                        <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[#0079BF] border-b border-gray-50 pb-3 flex items-center gap-2">
+                          <Trello size={14}/> Ambiente Operacional (Trello)
+                        </h4>
+                        <div className="grid grid-cols-1 gap-6">
+                          <InputGroup label="Link do Quadro do Trello" icon={Trello} value={formData.trello_url} onChange={(e:any)=>setFormData({...formData, trello_url: e.target.value})} placeholder="https://trello.com/b/..." />
                         </div>
                       </div>
                     </motion.div>
@@ -415,7 +451,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
                         </div>
                       </div>
 
-                      {/* UPLOAD DE CONTRATO (NOVA SECÇÃO SOLICITADA) */}
+                      {/* UPLOAD DE CONTRATO */}
                       <div className="bg-white p-8 rounded-[2rem] border border-gray-100 shadow-sm mt-4 flex flex-col gap-4">
                         <h4 className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] border-b border-gray-50 pb-3 flex items-center gap-2"><FileText size={14}/> Contrato Jurídico (PDF)</h4>
                         <div className="flex items-center gap-6">
@@ -503,7 +539,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
                 Cancelar
               </button>
               <button onClick={handleSave} disabled={isSaving || isGenerating} className="px-8 bg-[var(--color-atelier-grafite)] text-white py-3 rounded-xl font-roboto font-bold uppercase tracking-widest text-[11px] hover:bg-[var(--color-atelier-terracota)] transition-all shadow-md disabled:opacity-50 flex items-center gap-2">
-                {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Gravar
+                {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />} Gravar Alterações
               </button>
             </div>
             

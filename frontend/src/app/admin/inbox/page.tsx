@@ -193,7 +193,7 @@ export default function AdminInboxPage() {
           // Lógica QG Central
           let { data } = await supabase.from('channels').select('*').eq('type', 'corporate_global').single();
           if (!data) {
-            const { data: newCh } = await supabase.from('channels').insert({ name: 'QG Central', type: 'corporate_global', is_private: true }).select().single();
+            const { data: newCh } = await supabase.from('channels').insert({ name: 'Equipe LizDesign', type: 'corporate_global', is_private: true }).select().single();
             data = newCh;
           }
           setChannels([data as ChannelData]);
@@ -420,8 +420,8 @@ export default function AdminInboxPage() {
         <span className="font-elegant font-bold text-lg text-[var(--color-atelier-grafite)]">{dmUser?.nome?.charAt(0) || "U"}</span>
       );
     } else if (activeChannel.type === 'corporate_global') {
-      headerTitle = "QG Central";
-      placeholderText = `Mensagem para o QG Central...`;
+      headerTitle = "Equipe LizDesign";
+      placeholderText = `Mensagem para a Equipe LizDesign...`;
       HeaderIcon = <LizDesignLogo />;
       
       // Empilhamento visual de avatares da equipe
@@ -548,7 +548,7 @@ export default function AdminInboxPage() {
                     <span className="px-2 font-roboto text-[10px] uppercase tracking-widest font-bold text-gray-400">Global</span>
                     <button onClick={() => { setActiveDMUserId(null); }} className={`w-full text-left p-3.5 rounded-[1.2rem] flex items-center gap-3.5 transition-all border ${!activeDMUserId ? 'bg-[var(--color-atelier-grafite)] text-white shadow-lg border-[var(--color-atelier-grafite)] scale-[1.02]' : 'bg-white/60 border-white hover:bg-white text-[var(--color-atelier-grafite)] shadow-sm'}`}>
                       <div className={`w-11 h-11 rounded-[0.8rem] flex items-center justify-center shrink-0 shadow-inner ${!activeDMUserId ? 'bg-white/10 text-white' : 'bg-gray-50 border border-gray-100 text-[var(--color-atelier-terracota)]'}`}><Globe size={20} /></div>
-                      <div className="flex flex-col"><span className="font-bold text-[14px] leading-tight">QG Central</span><span className={`text-[9px] uppercase tracking-widest font-bold mt-1 ${!activeDMUserId ? 'text-white/60' : 'text-gray-400'}`}>Toda a Equipe</span></div>
+                      <div className="flex flex-col"><span className="font-bold text-[14px] leading-tight">Equipe LizDesign</span><span className={`text-[9px] uppercase tracking-widest font-bold mt-1 ${!activeDMUserId ? 'text-white/60' : 'text-gray-400'}`}>Toda a Equipe</span></div>
                     </button>
                   </div>
                   <div className="flex flex-col gap-2">

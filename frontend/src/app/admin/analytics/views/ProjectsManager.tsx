@@ -5,10 +5,11 @@ import { supabase } from "../../../../lib/supabase";
 import { 
   FolderKanban, Briefcase, UserCircle2, MapPin, 
   Sparkles, Loader2, PlusCircle, Trash2, Save, 
-  Layers, CheckSquare, Square, Flame, Edit3, Check, X, ArrowRight
+  Layers, CheckSquare, Square, Flame, Edit3, Check, X, ArrowRight, Trello, ExternalLink
 } from "lucide-react";
 import { ALL_SKILLS } from "../constants";
 
+// 🟢 TIPAGEM ESTRITA BLINDADA
 interface ProjectsManagerProps {
   unifiedWallet: any[];
   selectedEntityId: string;
@@ -20,7 +21,17 @@ interface ProjectsManagerProps {
   handleAutoDeploy: (project: any, subclient_id?: string) => void;
   isProcessing: boolean;
   tasks: any[];
-  adHocDemand: { title: string; projectId: string; assigneeId: string; taskType: string; urgency: boolean; subclientId?: string; description: string };
+  adHocDemand: { 
+    title: string; 
+    projectId: string; 
+    assigneeId: string; 
+    taskType: string; 
+    urgency: boolean; 
+    subclientId?: string; 
+    description: string;
+    deadline: string; 
+    estTime: number; 
+  };
   setAdHocDemand: (demand: any) => void;
   team: any[];
   handleAddAdHocDemand: () => void;
@@ -36,10 +47,19 @@ interface ProjectsManagerProps {
   isIdvService: (project: any) => boolean;
   showToast: (msg: string) => void;
   handleStartTask: (taskId: string, userId: string) => Promise<void>;
-  
-  // 🟢 INJEÇÃO: Passando o routingRules como prop para poder utilizá-lo no Auto-Fill do Modal
   routingRules?: any[]; 
 }
+
+// 🟢 Helper Inteligente para formatar o link do Trello para modo "Embed" (Iframe Nativo)
+const getTrelloEmbedUrl = (url: string) => {
+  if (!url) return "";
+  if (url.includes('.html')) return url; // Já está formatado
+  const match = url.match(/trello\.com\/b\/([a-zA-Z0-9]+)/);
+  if (match && match[1]) {
+    return `https://trello.com/b/${match[1]}.html`;
+  }
+  return url;
+};
 
 export default function ProjectsManager({
   unifiedWallet,
@@ -68,43 +88,66 @@ export default function ProjectsManager({
   isIdvService,
   showToast,
   handleStartTask,
-  routingRules = [] // fallback vazio
+  routingRules = [] 
 }: ProjectsManagerProps) {
 
   const [isAdHocModalOpen, setIsAdHocModalOpen] = useState(false);
   const [isSubclientModalOpen, setIsSubclientModalOpen] = useState(false);
   const [isCreatingSubclient, setIsCreatingSubclient] = useState(false);
-  const [subclientForm, setSubclientForm] = useState({ name: "", count: 0 });
+  const [subclientForm, setSubclientForm] = useState({ name: "", count: 0, trello_url: "" });
+
+  // 🟢 ESTADOS DO MÓDULO TRELLO
+  const [isTrelloModalOpen, setIsTrelloModalOpen] = useState(false);
+  const [isTrelloInputOpen, setIsTrelloInputOpen] = useState(false);
+  const [trelloUrlInput, setTrelloUrlInput] = useState("");
+  const [isProcessingTrello, setIsProcessingTrello] = useState(false);
 
   const isSubclientView = selectedEntityType === 'subclient';
   const displayData = isSubclientView 
     ? agencySubclients.find(s => s.id === selectedEntityId) 
     : selectedEntityData;
 
+  const hasTrello = Boolean(displayData?.trello_url);
+
   // =======================================================================
   // 🟢 MAGIA DE ROTEAMENTO NO AD-HOC (Auto-Fill baseado nas regras salvas)
   // =======================================================================
   useEffect(() => {
-    // Sempre que o "Escopo (Tag)" muda no formulário de Ad-Hoc, procuramos uma regra que corresponda a esse Projeto + Tag
     if (isAdHocModalOpen && adHocDemand.taskType) {
-      
       const currentProjectAnchorId = isSubclientView && displayData ? displayData.agency_id : selectedEntityId;
-      
-      // Existe uma regra gravada para este Projeto/Agência e para esta Tag?
-      const existingRule = routingRules.find(
-        r => r.project_id === currentProjectAnchorId && r.task_type === adHocDemand.taskType
-      );
+      const existingRule = routingRules.find(r => r.project_id === currentProjectAnchorId && r.task_type === adHocDemand.taskType);
 
-      // Se sim, e o assign atual estiver vazio ou for diferente do roteamento, atualiza automaticamente
       if (existingRule && adHocDemand.assigneeId !== existingRule.assignee_id) {
         setAdHocDemand({ ...adHocDemand, assigneeId: existingRule.assignee_id });
-        console.log(`[Routing Engine] Roteamento Automático aplicado: Executor preenchido.`);
       }
     }
   }, [adHocDemand.taskType, isAdHocModalOpen, selectedEntityId, isSubclientView, displayData]);
 
   // ==========================================
-  // FUNÇÃO BLINDADA: ADICIONAR DEMANDA PONTUAL
+  // VINCULAR TRELLO DINAMICAMENTE
+  // ==========================================
+  const handleSaveTrelloUrl = async () => {
+    if (!trelloUrlInput.trim()) return;
+    setIsProcessingTrello(true);
+    try {
+      const table = isSubclientView ? 'agency_subclients' : 'agencies';
+      const { error } = await supabase.from(table).update({ trello_url: trelloUrlInput }).eq('id', displayData.id);
+      if (error) throw error;
+      
+      // Atualização Otimista
+      displayData.trello_url = trelloUrlInput;
+      showToast("Quadro do Trello vinculado com sucesso!");
+      setIsTrelloInputOpen(false);
+      setTrelloUrlInput("");
+    } catch (e) {
+      showToast("Erro ao vincular Trello.");
+    } finally {
+      setIsProcessingTrello(false);
+    }
+  };
+
+  // ==========================================
+  // ADICIONAR DEMANDA PONTUAL
   // ==========================================
   const executeAdHocSubmit = () => {
     if (!adHocDemand.title.trim() || !adHocDemand.assigneeId.trim()) {
@@ -116,7 +159,7 @@ export default function ProjectsManager({
       setAdHocDemand({
         ...adHocDemand,
         projectId: displayData.agency_id, 
-        subclientId: displayData.id       
+        subclientId: displayData.id        
       });
     } else {
       setAdHocDemand({
@@ -143,21 +186,18 @@ export default function ProjectsManager({
       const { error } = await supabase.from('agency_subclients').insert({
         agency_id: selectedEntityId,
         name: subclientForm.name,
-        deliverables_count: subclientForm.count
+        deliverables_count: subclientForm.count,
+        trello_url: subclientForm.trello_url || null 
       });
 
       if (error) throw error;
       
       showToast("Perfil White-Label criado com sucesso!");
       setIsSubclientModalOpen(false);
-      setSubclientForm({ name: "", count: 0 });
+      setSubclientForm({ name: "", count: 0, trello_url: "" });
       
-      setTimeout(() => {
-        window.location.reload();
-      }, 1000);
-      
+      setTimeout(() => window.location.reload(), 1000);
     } catch(e) {
-      console.error(e);
       showToast("Erro ao criar perfil de cliente delegado.");
     } finally {
       setIsCreatingSubclient(false);
@@ -165,16 +205,14 @@ export default function ProjectsManager({
   };
 
   const getTasksForCurrentView = () => {
-    if (isSubclientView && displayData) {
-      return tasks.filter(t => t.subclient_id === displayData.id);
-    }
+    if (isSubclientView && displayData) return tasks.filter(t => t.subclient_id === displayData.id);
     return tasks.filter(t => t.project_id === selectedEntityId && !t.subclient_id);
   };
 
   const visibleTasks = getTasksForCurrentView();
 
   return (
-    <motion.div key="projects" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col lg:flex-row gap-6 h-full overflow-hidden">
+    <motion.div key="projects" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col lg:flex-row gap-6 h-full overflow-hidden relative">
       
       {/* SIDEBAR UNIFICADA */}
       <div className="w-full lg:w-[320px] glass-panel bg-white/40 p-5 rounded-[2.5rem] border border-white shadow-sm flex flex-col h-[300px] lg:h-full shrink-0 transition-all hover:bg-white/50">
@@ -182,11 +220,10 @@ export default function ProjectsManager({
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-1">
           {unifiedWallet.map(item => {
             const avatarUrl = item.avatar_url || item.profiles?.avatar_url || item.logo_url;
-            
             return (
               <button 
                   key={`${item.type}-${item.id}`} 
-                  onClick={() => { setSelectedEntityId(item.id); setSelectedEntityType(item.type as any); }} 
+                  onClick={() => { setSelectedEntityId(item.id); setSelectedEntityType(item.type as any); setIsTrelloInputOpen(false); }} 
                   className={`p-4 rounded-[1.2rem] text-left transition-all border ${selectedEntityId === item.id ? 'bg-white border-[var(--color-atelier-terracota)]/30 shadow-sm scale-[1.02]' : 'border-transparent hover:bg-white/50'}`}
               >
                 <div className="flex items-center gap-3">
@@ -224,7 +261,7 @@ export default function ProjectsManager({
               <PlusCircle size={24} className="group-hover:rotate-90 transition-transform duration-300" />
             </button>
 
-            <div className="flex flex-col lg:flex-row justify-between lg:items-start gap-4 mb-6 shrink-0">
+            <div className="flex flex-col xl:flex-row justify-between xl:items-start gap-4 mb-6 shrink-0 border-b border-[var(--color-atelier-grafite)]/5 pb-4">
               <div className="flex items-center gap-4">
                 <div className={`w-14 h-14 rounded-[1.2rem] flex items-center justify-center shadow-inner border border-white/50 overflow-hidden shrink-0 
                   ${selectedEntityType === 'agency' ? 'bg-blue-50 text-blue-600' : isSubclientView ? 'bg-indigo-50 text-indigo-500' : 'bg-gray-50 text-[var(--color-atelier-terracota)]'}
@@ -247,7 +284,47 @@ export default function ProjectsManager({
                 </div>
               </div>
               
-              <div className="flex gap-3">
+              {/* 🟢 BARRA DE AÇÕES INTELIGENTE */}
+              <div className="flex gap-3 flex-wrap justify-end items-center">
+                 
+                 {(selectedEntityType === 'agency' || isSubclientView) && (
+                   hasTrello ? (
+                     <button 
+                       onClick={() => setIsTrelloModalOpen(true)} 
+                       className="bg-[#0079BF] text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#026AA7] transition-all flex items-center gap-2 shadow-sm hover:-translate-y-0.5"
+                     >
+                       <Trello size={14} /> Trello Nativo
+                     </button>
+                   ) : (
+                     isTrelloInputOpen ? (
+                       <div className="flex items-center gap-2 bg-white pl-4 pr-2 py-1.5 rounded-xl shadow-sm border border-[var(--color-atelier-terracota)]/40 transition-all">
+                         <Trello size={14} className="text-[#0079BF]" />
+                         <input 
+                           type="url" 
+                           placeholder="Cole o Link Trello..." 
+                           value={trelloUrlInput} 
+                           onChange={(e) => setTrelloUrlInput(e.target.value)}
+                           className="text-[11px] font-roboto font-medium outline-none w-40 text-[var(--color-atelier-grafite)] placeholder-gray-400 bg-transparent"
+                           autoFocus
+                         />
+                         <button onClick={handleSaveTrelloUrl} disabled={isProcessingTrello} className="w-7 h-7 flex items-center justify-center bg-gray-50 rounded-lg text-[var(--color-atelier-terracota)] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-colors">
+                           {isProcessingTrello ? <Loader2 size={12} className="animate-spin"/> : <Save size={12}/>}
+                         </button>
+                         <button onClick={() => setIsTrelloInputOpen(false)} className="w-7 h-7 flex items-center justify-center text-gray-400 hover:text-red-500 transition-colors">
+                           <X size={12}/>
+                         </button>
+                       </div>
+                     ) : (
+                       <button 
+                         onClick={() => setIsTrelloInputOpen(true)}
+                         className="bg-white text-[#0079BF] border border-[#0079BF]/20 px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#0079BF] hover:text-white transition-all flex items-center gap-2 shadow-sm hover:-translate-y-0.5"
+                       >
+                         <Trello size={14} /> Vincular Trello
+                       </button>
+                     )
+                   )
+                 )}
+
                  <button onClick={() => setIsCaptacaoModalOpen(true)} className="bg-[var(--color-atelier-grafite)] text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-sm hover:-translate-y-0.5">
                    <MapPin size={14} className="text-[var(--color-atelier-terracota)]"/> Agendar Captação
                  </button>
@@ -287,7 +364,10 @@ export default function ProjectsManager({
                          agencySubclients.filter(s => s.agency_id === selectedEntityId).map(sub => (
                            <div key={sub.id} className="bg-white/80 p-5 rounded-2xl border border-gray-100 shadow-sm flex flex-col gap-4 group hover:border-[var(--color-atelier-terracota)]/30 transition-all hover:bg-white relative overflow-hidden">
                               <div className="flex justify-between items-start z-10 relative">
-                                 <span className="font-roboto font-bold text-[16px] text-[var(--color-atelier-grafite)]">{sub.name}</span>
+                                 <span className="font-roboto font-bold text-[16px] text-[var(--color-atelier-grafite)] flex items-center gap-2">
+                                   {sub.name}
+                                   {sub.trello_url && <span title="Conectado ao Trello" className="flex items-center"><Trello size={14} className="text-[#0079BF]" /></span>}
+                                 </span>
                                  <button onClick={() => handleDeleteSubclient(sub.id)} className="text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16}/></button>
                               </div>
                               <div className="flex items-center gap-4 bg-gray-50/50 p-4 rounded-xl border border-gray-100 z-10 relative">
@@ -366,95 +446,194 @@ export default function ProjectsManager({
       </div>
 
       {/* ==========================================
-          MODAL DE DEMANDA PONTUAL (Com Descrição e Routing Automático)
+          MODAL TRELLO NATIVO (FULL SCREEN IFRAME)
           ========================================== */}
       <AnimatePresence>
-        {isAdHocModalOpen && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAdHocModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-white/20 flex flex-col gap-6">
-              
-              <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
-                <div>
-                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><Flame size={24} className="text-[var(--color-atelier-terracota)]"/> Demanda Pontual</h3>
-                  <p className="font-roboto text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Adicionar tarefa para: {displayData?.name || displayData?.profiles?.nome}</p>
-                </div>
-                <button onClick={() => setIsAdHocModalOpen(false)} className="text-gray-400 hover:text-black transition-colors"><X size={20}/></button>
+        {isTrelloModalOpen && hasTrello && (
+          <div className="fixed inset-0 z-[500] flex items-center justify-center px-4 md:px-10 py-10">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsTrelloModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 20 }} 
+              animate={{ scale: 1, opacity: 1, y: 0 }} 
+              exit={{ scale: 0.95, opacity: 0, y: 20 }} 
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="w-full h-full max-w-[1400px] bg-gray-50 rounded-[2.5rem] shadow-2xl relative z-10 flex flex-col overflow-hidden border border-white/20"
+            >
+              <div className="bg-[#0079BF] p-5 flex justify-between items-center text-white shrink-0 shadow-sm z-20">
+                 <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center backdrop-blur-sm shadow-inner">
+                     <Trello size={20} /> 
+                   </div>
+                   <div className="flex flex-col">
+                     <span className="font-bold text-[14px] leading-none">{displayData.name}</span>
+                     <span className="text-[10px] uppercase tracking-widest font-bold text-white/70 mt-1">Ambiente Trello Nativo</span>
+                   </div>
+                 </div>
+                 <div className="flex items-center gap-2">
+                   <button onClick={() => window.open(displayData.trello_url, '_blank')} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors flex items-center gap-2 border border-white/10">
+                     <ExternalLink size={14}/> Nova Aba
+                   </button>
+                   <button onClick={() => setIsTrelloModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-red-500 transition-colors border border-white/10">
+                     <X size={18}/>
+                   </button>
+                 </div>
               </div>
-              
-              <div className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Título da Tarefa <span className="text-red-500">*</span></span>
-                  <input 
-                    type="text" 
-                    placeholder="Ex: Criar banner para o site..." 
-                    value={adHocDemand.title} 
-                    onChange={(e) => setAdHocDemand({...adHocDemand, title: e.target.value})} 
-                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium transition-colors" 
-                  />
-                </div>
-
-                {/* CAMPO DE DESCRIÇÃO BLINDADO */}
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Instruções / Descrição</span>
-                  <textarea 
-                    placeholder="Detalhes para o executor, links de referência, etc..." 
-                    value={adHocDemand.description || ""} 
-                    onChange={(e) => setAdHocDemand({...adHocDemand, description: e.target.value})} 
-                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium resize-none h-24 custom-scrollbar transition-colors" 
-                  />
-                </div>
-                
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Escopo (Tag)</span>
-                  <select 
-                    value={adHocDemand.taskType} 
-                    onChange={(e) => setAdHocDemand({...adHocDemand, taskType: e.target.value})} 
-                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium cursor-pointer"
-                  >
-                    <option value="">Definir Escopo...</option>
-                    {ALL_SKILLS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Para o Executor <span className="text-red-500">*</span></span>
-                  <select 
-                    value={adHocDemand.assigneeId} 
-                    onChange={(e) => setAdHocDemand({...adHocDemand, assigneeId: e.target.value})} 
-                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium cursor-pointer"
-                  >
-                    <option value="">Escolher Membro da Equipe...</option>
-                    {team.map(t => {
-                      const isRecommended = adHocDemand.taskType && t.skills?.includes(adHocDemand.taskType);
-                      return <option key={t.id} value={t.id}>{t.nome} {isRecommended ? '⭐' : ''}</option>
-                    })}
-                  </select>
-                </div>
-
-                <label className="flex items-center gap-3 cursor-pointer p-4 rounded-xl bg-orange-50/50 border border-orange-100 hover:bg-orange-50 transition-colors mt-2">
-                  <input type="checkbox" className="hidden" checked={adHocDemand.urgency || false} onChange={(e) => setAdHocDemand({...adHocDemand, urgency: e.target.checked})} />
-                  <div className={`w-5 h-5 rounded flex items-center justify-center border ${adHocDemand.urgency ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-orange-200'}`}>
-                    {adHocDemand.urgency && <Check size={12} strokeWidth={3}/>}
-                  </div>
-                  <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-orange-600 flex items-center gap-1">Classificar como Urgente</span>
-                </label>
+              <div className="flex-1 w-full bg-white relative z-10">
+                 <iframe src={getTrelloEmbedUrl(displayData.trello_url)} className="w-full h-full border-none" title="Trello Board Embedded" />
               </div>
-
-              <button 
-                onClick={executeAdHocSubmit} 
-                disabled={isProcessing || !adHocDemand.title.trim() || !adHocDemand.assigneeId} 
-                className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[11px] shadow-md hover:bg-[var(--color-atelier-terracota)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-2 hover:-translate-y-0.5 disabled:hover:translate-y-0"
-              >
-                {isProcessing ? <Loader2 className="animate-spin" size={16}/> : <PlusCircle size={16}/>} Despachar Tarefa
-              </button>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
 
       {/* ==========================================
-          MODAL: CRIAR PERFIL WHITE-LABEL
+          MODAL DE DEMANDA PONTUAL (SPLIT-SCREEN TRELLO)
+          ========================================== */}
+      <AnimatePresence>
+        {isAdHocModalOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center px-4 md:px-8 py-8">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAdHocModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            
+            {/* 🟢 O MÁGICO SPLIT-SCREEN: Se tem Trello, vira uma tela imensa e imersiva */}
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 20 }} 
+              animate={{ scale: 1, opacity: 1, y: 0 }} 
+              exit={{ scale: 0.95, opacity: 0, y: 20 }} 
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className={`bg-white p-6 md:p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full border border-white/20 flex flex-col md:flex-row gap-8 
+                ${hasTrello ? 'max-w-[95vw] h-[95vh]' : 'max-w-md h-auto max-h-[90vh]'}`
+              }
+            >
+              
+              {/* O Lado Esquerdo: Iframe do Trello */}
+              {hasTrello && (
+                <div className="hidden md:flex flex-col w-[65%] h-full rounded-[1.5rem] overflow-hidden bg-gray-50 border border-gray-200 shadow-inner">
+                  <div className="bg-[#0079BF] px-5 py-3 flex items-center justify-between text-white shrink-0">
+                    <div className="flex items-center gap-2">
+                      <Trello size={18} /> 
+                      <span className="font-roboto font-bold text-[12px] uppercase tracking-widest">
+                        Quadro do Cliente ({displayData?.name})
+                      </span>
+                    </div>
+                    <button onClick={() => window.open(displayData.trello_url, '_blank')} className="text-white/60 hover:text-white transition-colors" title="Abrir em Nova Aba">
+                      <ExternalLink size={16} />
+                    </button>
+                  </div>
+                  <iframe src={getTrelloEmbedUrl(displayData.trello_url)} className="w-full h-full border-none" title="Trello Board Split" />
+                </div>
+              )}
+
+              {/* O Lado Direito (Ou Único): O Formulário do Atelier */}
+              <div className={`flex flex-col h-full ${hasTrello ? 'w-full md:w-[35%] overflow-y-auto custom-scrollbar pr-2 pb-4' : 'w-full overflow-y-auto custom-scrollbar'}`}>
+                
+                <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-6 shrink-0">
+                  <div>
+                    <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
+                      <Flame size={24} className="text-[var(--color-atelier-terracota)]"/> Demanda Pontual
+                    </h3>
+                    <p className="font-roboto text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">
+                      Adicionar tarefa para: {displayData?.name || displayData?.profiles?.nome}
+                    </p>
+                  </div>
+                  <button onClick={() => setIsAdHocModalOpen(false)} className="text-gray-400 hover:text-black transition-colors bg-gray-50 p-2 rounded-full"><X size={16}/></button>
+                </div>
+                
+                <div className="flex flex-col gap-4">
+                  <div className="flex flex-col gap-1.5">
+                    <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Título da Tarefa <span className="text-red-500">*</span></span>
+                    <input 
+                      type="text" 
+                      placeholder="Ex: Criar banner para o site..." 
+                      value={adHocDemand.title} 
+                      onChange={(e) => setAdHocDemand({...adHocDemand, title: e.target.value})} 
+                      className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium transition-colors shadow-sm" 
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Instruções / Descrição</span>
+                    <textarea 
+                      placeholder="Detalhes para o executor, links de referência, etc..." 
+                      value={adHocDemand.description || ""} 
+                      onChange={(e) => setAdHocDemand({...adHocDemand, description: e.target.value})} 
+                      className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium resize-none h-24 custom-scrollbar transition-colors shadow-sm" 
+                    />
+                  </div>
+                  
+                  <div className="flex flex-col gap-1.5">
+                    <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Escopo (Tag)</span>
+                    <select 
+                      value={adHocDemand.taskType} 
+                      onChange={(e) => setAdHocDemand({...adHocDemand, taskType: e.target.value})} 
+                      className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium cursor-pointer shadow-sm"
+                    >
+                      <option value="">Definir Escopo...</option>
+                      {ALL_SKILLS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                    </select>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Para o Executor <span className="text-red-500">*</span></span>
+                    <select 
+                      value={adHocDemand.assigneeId} 
+                      onChange={(e) => setAdHocDemand({...adHocDemand, assigneeId: e.target.value})} 
+                      className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium cursor-pointer shadow-sm"
+                    >
+                      <option value="">Escolher Membro da Equipe...</option>
+                      {team.map(t => {
+                        const isRecommended = adHocDemand.taskType && t.skills?.includes(adHocDemand.taskType);
+                        return <option key={t.id} value={t.id}>{t.nome} {isRecommended ? '⭐' : ''}</option>
+                      })}
+                    </select>
+                  </div>
+
+                  {/* 🟢 BLINDAGEM RESOLVIDA: Inputs devidamente atrelados ao estado tipado */}
+                  <div className="flex gap-4">
+                    <div className="flex flex-col gap-1.5 w-1/2">
+                      <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Deadline</span>
+                      <input 
+                        type="datetime-local" 
+                        value={adHocDemand.deadline} 
+                        onChange={(e) => setAdHocDemand({...adHocDemand, deadline: e.target.value})} 
+                        className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[12px] outline-none focus:border-orange-500 shadow-sm font-medium" 
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1.5 w-1/2">
+                      <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Tempo Est. (Min)</span>
+                      <input 
+                        type="number" 
+                        value={adHocDemand.estTime} 
+                        onChange={(e) => setAdHocDemand({...adHocDemand, estTime: parseInt(e.target.value) || 0})} 
+                        className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-orange-500 shadow-sm font-medium" 
+                      />
+                    </div>
+                  </div>
+
+                  <label className="flex items-center gap-3 cursor-pointer p-4 rounded-xl bg-orange-50/50 border border-orange-100 hover:bg-orange-50 transition-colors mt-2">
+                    <input type="checkbox" className="hidden" checked={adHocDemand.urgency || false} onChange={(e) => setAdHocDemand({...adHocDemand, urgency: e.target.checked})} />
+                    <div className={`w-5 h-5 rounded flex items-center justify-center border ${adHocDemand.urgency ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-orange-200'}`}>
+                      {adHocDemand.urgency && <Check size={12} strokeWidth={3}/>}
+                    </div>
+                    <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-orange-600 flex items-center gap-1">Classificar como Urgente</span>
+                  </label>
+                </div>
+
+                <button 
+                  onClick={executeAdHocSubmit} 
+                  disabled={isProcessing || !adHocDemand.title.trim() || !adHocDemand.assigneeId} 
+                  className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[11px] shadow-md hover:bg-[var(--color-atelier-terracota)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 mt-4 hover:-translate-y-0.5 disabled:hover:translate-y-0 shrink-0"
+                >
+                  {isProcessing ? <Loader2 className="animate-spin" size={16}/> : <PlusCircle size={16}/>} Despachar Tarefa
+                </button>
+
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ==========================================
+          MODAL: CRIAR PERFIL WHITE-LABEL (COM TRELLO)
           ========================================== */}
       <AnimatePresence>
         {isSubclientModalOpen && (
@@ -490,6 +669,19 @@ export default function ProjectsManager({
                     value={subclientForm.count || ""} 
                     onChange={(e) => setSubclientForm({...subclientForm, count: parseInt(e.target.value) || 0})} 
                     className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-blue-500 text-[var(--color-atelier-grafite)] font-medium transition-colors" 
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1.5">
+                    <Trello size={12}/> Link do Quadro Trello (Opcional)
+                  </span>
+                  <input 
+                    type="url" 
+                    placeholder="https://trello.com/b/..." 
+                    value={subclientForm.trello_url} 
+                    onChange={(e) => setSubclientForm({...subclientForm, trello_url: e.target.value})} 
+                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[#0079BF] focus:bg-[#0079BF]/5 text-[#0079BF] font-medium transition-colors placeholder:text-gray-400" 
                   />
                 </div>
               </div>

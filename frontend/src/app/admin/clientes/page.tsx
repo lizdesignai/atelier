@@ -1,19 +1,19 @@
 // src/app/admin/clientes/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Users, Search, Filter, Plus, ArrowRight, 
   Mail, Building, Calendar, MoreVertical, 
-  CheckCircle2, Clock, AlertCircle, X, Edit2, Trash2, Ban, Loader2,
-  DollarSign, Briefcase, CreditCard, RotateCcw, Percent, Sparkles, FileSearch, User, Settings
+  CheckCircle2, Clock, AlertCircle, X, Trash2, Ban, Loader2,
+  DollarSign, Briefcase, RotateCcw, Sparkles, FileSearch, User, 
+  Settings, Trello, ExternalLink, CreditCard
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useGlobalStore } from "../../../contexts/GlobalStore"; 
 import { NotificationEngine } from "../../../lib/NotificationEngine"; 
-import { AtelierPMEngine } from "../../../lib/AtelierPMEngine";
 
 import ConsultoriaModal from "./views/Consultoria";
 import ClientSettingsModal from "./views/ClientSettingsModal";
@@ -22,57 +22,18 @@ const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
 };
 
-// ============================================================================
-// DICIONÁRIOS DO SISTEMA ZERO-TOUCH & PIPELINES
-// ============================================================================
-const IDV_PIPELINE = [
-  { stage: "Setup & Onboarding", type: "setup", title: "Formulário de cadastro & Contrato", daysOffset: 0, estTime: 30 },
-  { stage: "Setup & Onboarding", type: "setup", title: "Pagamento", daysOffset: 1, estTime: 15 },
-  { stage: "Imersão", type: "reuniao", title: "Reunião de briefing", daysOffset: 2, estTime: 60 },
-  { stage: "Imersão", type: "copy", title: "Formulário de briefing detalhado", daysOffset: 3, estTime: 30 },
-  { stage: "Exploração", type: "design", title: "Estudo da marca, Concorrentes & Moodboard", daysOffset: 5, estTime: 180 },
-  { stage: "Exploração", type: "copy", title: "Envio de Direcionamento Criativo", daysOffset: 6, estTime: 30 },
-  { stage: "Design Sprint", type: "design", title: "Testes de Fontes e Modificações", daysOffset: 8, estTime: 120 },
-  { stage: "Design Sprint", type: "design", title: "Testes de Símbolos & Paletas", daysOffset: 10, estTime: 180 },
-  { stage: "Design Sprint", type: "design", title: "Montagem dos Mockups & Extras", daysOffset: 13, estTime: 240 },
-  { stage: "Apresentação", type: "design", title: "Montagem de Apresentação Final", daysOffset: 15, estTime: 120 },
-  { stage: "Apresentação", type: "reuniao", title: "Reunião de Apresentação", daysOffset: 16, estTime: 60 },
-  { stage: "Handover", type: "design", title: "Fechamento de Arquivos e Envio Drive", daysOffset: 18, estTime: 60 }
-];
-
-const IG_SETUP = [
-  { stage: "Setup Inicial", type: "setup", title: "Assinatura do contrato & Pagamento", daysOffset: 0, estTime: 30 },
-  { stage: "Imersão", type: "reuniao", title: "Reunião de briefing", daysOffset: 2, estTime: 60 },
-  { stage: "Estratégia", type: "copy", title: "Estudo de marca, Persona, Tom de voz", daysOffset: 5, estTime: 180 },
-  { stage: "Estratégia", type: "design", title: "Alinhamento Visual (Estilo do Feed)", daysOffset: 7, estTime: 120 },
-];
-
-const IG_PACKAGES: Record<string, any[]> = {
-  "Pacote 1": [
-    { stage: "Copywriting", type: "copy", title: "Roteirização de 6 Vídeos", daysOffset: 10, estTime: 120 },
-    ...Array.from({length: 6}).map((_, i) => ({ stage: "Produção de Vídeo", type: "video", title: `Edição de Vídeo ${i+1} + Capa`, daysOffset: 12 + i, estTime: 60 })),
-    { stage: "Aprovação", type: "setup", title: "Aprovação do Cliente & Agendamento", daysOffset: 18, estTime: 45 }
-  ],
-  "Pacote 2": [
-    { stage: "Copywriting", type: "copy", title: "Revisão de Texto enviado pelo Cliente", daysOffset: 10, estTime: 30 },
-    ...Array.from({length: 4}).map((_, i) => ({ stage: "Design Gráfico", type: "design", title: `Design de Post/Carrossel ${i+1}`, daysOffset: 12 + i, estTime: 60 })),
-    { stage: "Aprovação", type: "setup", title: "Aprovação & Agendamento", daysOffset: 16, estTime: 45 }
-  ],
-  "Pacote 3": [
-    { stage: "Estratégia", type: "copy", title: "Calendário Editorial de Conteúdos", daysOffset: 10, estTime: 90 },
-    ...Array.from({length: 8}).map((_, i) => ({ stage: "Produção de Arte", type: "design", title: `Design & Copy: Post ${i+1}`, daysOffset: 12 + (i * 0.5), estTime: 60 })),
-    { stage: "Aprovação", type: "setup", title: "Agendamento Sistêmico", daysOffset: 18, estTime: 60 },
-    { stage: "Relatório", type: "setup", title: "Geração de Relatório Mensal", daysOffset: 30, estTime: 60 }
-  ],
-  "Pacote 4": [
-    { stage: "Estratégia", type: "copy", title: "Calendário Editorial & Organização de Perfil", daysOffset: 10, estTime: 120 },
-    { stage: "Estratégia", type: "setup", title: "Análise de Perfil", daysOffset: 12, estTime: 60 },
-    ...Array.from({length: 12}).map((_, i) => ({ stage: "Produção de Arte", type: "design", title: `Design & Copy: Post ${i+1}`, daysOffset: 13 + (i * 0.5), estTime: 60 })),
-    { stage: "Produção Contínua", type: "copy", title: "Criação de Roteiros Diários de Stories", daysOffset: 20, estTime: 180 },
-    { stage: "Relatório", type: "setup", title: "Relatório Mensal Profundo", daysOffset: 30, estTime: 90 }
-  ]
+// 🟢 Helper Inteligente para formatar o link do Trello para modo "Embed" (Iframe Nativo)
+const getTrelloEmbedUrl = (url: string) => {
+  if (!url) return "";
+  if (url.includes('.html')) return url; // Já está formatado
+  const match = url.match(/trello\.com\/b\/([a-zA-Z0-9]+)/);
+  if (match && match[1]) {
+    return `https://trello.com/b/${match[1]}.html`;
+  }
+  return url;
 };
 
+// 🟢 CORREÇÃO CRÍTICA: "export default" adicionado para resolver o Crash do Next.js
 export default function BaseClientesPage() {
   const router = useRouter();
   const [searchQuery, setSearchQuery] = useState("");
@@ -105,7 +66,7 @@ export default function BaseClientesPage() {
   const [agencyName, setAgencyName] = useState("");
   const [agencyFinancialValue, setAgencyFinancialValue] = useState("");
   const [agencyBillingDate, setAgencyBillingDate] = useState("");
-  const [agencySubclients, setAgencySubclients] = useState<{ name: string; deliverables_count: number }[]>([{ name: "", deliverables_count: 1 }]);
+  const [agencySubclients, setAgencySubclients] = useState<{ name: string; deliverables_count: number; trello_url: string }[]>([{ name: "", deliverables_count: 1, trello_url: "" }]);
 
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [projectToEdit, setProjectToEdit] = useState<any>(null);
@@ -113,7 +74,12 @@ export default function BaseClientesPage() {
   const [editPaymentMethod, setEditPaymentMethod] = useState("");
   const [editPaymentSplit, setEditPaymentSplit] = useState("");
   const [editBillingDate, setEditBillingDate] = useState("");
+  const [editPackage, setEditPackage] = useState("");
   const [isEditing, setIsEditing] = useState(false);
+
+  // ESTADOS DO MÓDULO TRELLO
+  const [isTrelloModalOpen, setIsTrelloModalOpen] = useState(false);
+  const [activeTrelloEntity, setActiveTrelloEntity] = useState<any>(null);
 
   useEffect(() => {
     if (isGlobalLoading) return;
@@ -168,7 +134,8 @@ export default function BaseClientesPage() {
           financial_value: agency.financial_value,
           billing_date: agency.billing_date,
           calculatedProgress: 0,
-          created_at: agency.created_at
+          created_at: agency.created_at,
+          trello_url: agency.trello_url
         }));
 
         setEnrichedProjects([...enriched, ...leadsMapped, ...agenciesMapped].sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()));
@@ -224,6 +191,54 @@ export default function BaseClientesPage() {
       const { data: newProject, error: projError } = await supabase.from('projects').insert(projectPayload).select().single();
       if (projError) throw projError;
       
+      const IDV_PIPELINE = [
+        { stage: "Setup & Onboarding", type: "setup", title: "Formulário de cadastro & Contrato", daysOffset: 0, estTime: 30 },
+        { stage: "Setup & Onboarding", type: "setup", title: "Pagamento", daysOffset: 1, estTime: 15 },
+        { stage: "Imersão", type: "reuniao", title: "Reunião de briefing", daysOffset: 2, estTime: 60 },
+        { stage: "Imersão", type: "copy", title: "Formulário de briefing detalhado", daysOffset: 3, estTime: 30 },
+        { stage: "Exploração", type: "design", title: "Estudo da marca, Concorrentes & Moodboard", daysOffset: 5, estTime: 180 },
+        { stage: "Exploração", type: "copy", title: "Envio de Direcionamento Criativo", daysOffset: 6, estTime: 30 },
+        { stage: "Design Sprint", type: "design", title: "Testes de Fontes e Modificações", daysOffset: 8, estTime: 120 },
+        { stage: "Design Sprint", type: "design", title: "Testes de Símbolos & Paletas", daysOffset: 10, estTime: 180 },
+        { stage: "Design Sprint", type: "design", title: "Montagem dos Mockups & Extras", daysOffset: 13, estTime: 240 },
+        { stage: "Apresentação", type: "design", title: "Montagem de Apresentação Final", daysOffset: 15, estTime: 120 },
+        { stage: "Apresentação", type: "reuniao", title: "Reunião de Apresentação", daysOffset: 16, estTime: 60 },
+        { stage: "Handover", type: "design", title: "Fechamento de Arquivos e Envio Drive", daysOffset: 18, estTime: 60 }
+      ];
+
+      const IG_SETUP = [
+        { stage: "Setup Inicial", type: "setup", title: "Assinatura do contrato & Pagamento", daysOffset: 0, estTime: 30 },
+        { stage: "Imersão", type: "reuniao", title: "Reunião de briefing", daysOffset: 2, estTime: 60 },
+        { stage: "Estratégia", type: "copy", title: "Estudo de marca, Persona, Tom de voz", daysOffset: 5, estTime: 180 },
+        { stage: "Estratégia", type: "design", title: "Alinhamento Visual (Estilo do Feed)", daysOffset: 7, estTime: 120 },
+      ];
+
+      const IG_PACKAGES: Record<string, any[]> = {
+        "Pacote 1": [
+          { stage: "Copywriting", type: "copy", title: "Roteirização de 6 Vídeos", daysOffset: 10, estTime: 120 },
+          ...Array.from({length: 6}).map((_, i) => ({ stage: "Produção de Vídeo", type: "video", title: `Edição de Vídeo ${i+1} + Capa`, daysOffset: 12 + i, estTime: 60 })),
+          { stage: "Aprovação", type: "setup", title: "Aprovação do Cliente & Agendamento", daysOffset: 18, estTime: 45 }
+        ],
+        "Pacote 2": [
+          { stage: "Copywriting", type: "copy", title: "Revisão de Texto enviado pelo Cliente", daysOffset: 10, estTime: 30 },
+          ...Array.from({length: 4}).map((_, i) => ({ stage: "Design Gráfico", type: "design", title: `Design de Post/Carrossel ${i+1}`, daysOffset: 12 + i, estTime: 60 })),
+          { stage: "Aprovação", type: "setup", title: "Aprovação & Agendamento", daysOffset: 16, estTime: 45 }
+        ],
+        "Pacote 3": [
+          { stage: "Estratégia", type: "copy", title: "Calendário Editorial de Conteúdos", daysOffset: 10, estTime: 90 },
+          ...Array.from({length: 8}).map((_, i) => ({ stage: "Produção de Arte", type: "design", title: `Design & Copy: Post ${i+1}`, daysOffset: 12 + (i * 0.5), estTime: 60 })),
+          { stage: "Aprovação", type: "setup", title: "Agendamento Sistêmico", daysOffset: 18, estTime: 60 },
+          { stage: "Relatório", type: "setup", title: "Geração de Relatório Mensal", daysOffset: 30, estTime: 60 }
+        ],
+        "Pacote 4": [
+          { stage: "Estratégia", type: "copy", title: "Calendário Editorial & Organização de Perfil", daysOffset: 10, estTime: 120 },
+          { stage: "Estratégia", type: "setup", title: "Análise de Perfil", daysOffset: 12, estTime: 60 },
+          ...Array.from({length: 12}).map((_, i) => ({ stage: "Produção de Arte", type: "design", title: `Design & Copy: Post ${i+1}`, daysOffset: 13 + (i * 0.5), estTime: 60 })),
+          { stage: "Produção Contínua", type: "copy", title: "Criação de Roteiros Diários de Stories", daysOffset: 20, estTime: 180 },
+          { stage: "Relatório", type: "setup", title: "Relatório Mensal Profundo", daysOffset: 30, estTime: 90 }
+        ]
+      };
+
       let pipeline: any[] = [];
       if (serviceType === 'Identidade Visual') {
         pipeline = IDV_PIPELINE;
@@ -264,13 +279,6 @@ export default function BaseClientesPage() {
         "/cockpit"
       );
 
-      await NotificationEngine.notifyManagement(
-        "📜 Novo Contrato Firmado",
-        `Um novo projeto de ${serviceType} foi instanciado com sucesso.`,
-        "info",
-        "/admin/projetos"
-      );
-
       showToast("✨ Projeto criado e tarefas enviadas para a Mesa de Trabalho!");
       setIsNewClientModalOpen(false);
       setSelectedClientId("");
@@ -286,7 +294,7 @@ export default function BaseClientesPage() {
   };
 
   const handleAddSubclient = () => {
-    setAgencySubclients([...agencySubclients, { name: "", deliverables_count: 1 }]);
+    setAgencySubclients([...agencySubclients, { name: "", deliverables_count: 1, trello_url: "" }]);
   };
 
   const handleRemoveSubclient = (index: number) => {
@@ -318,7 +326,8 @@ export default function BaseClientesPage() {
         const subclientsToInsert = agencySubclients.map(sub => ({
           agency_id: agency.id,
           name: sub.name,
-          deliverables_count: sub.deliverables_count
+          deliverables_count: sub.deliverables_count,
+          trello_url: sub.trello_url || null
         }));
 
         const { data: insertedSubclients, error: subError } = await supabase
@@ -355,19 +364,12 @@ export default function BaseClientesPage() {
         }
       }
 
-      await NotificationEngine.notifyManagement(
-        "🏢 Nova Operação White-Label",
-        `A agência ${agencyName} foi registada com ${agencySubclients.length} perfis ativos.`,
-        "info",
-        "/admin/analytics"
-      );
-
       showToast("✨ Agência adicionada com sucesso!");
       setIsAgencyModalOpen(false);
       setAgencyName("");
       setAgencyFinancialValue("");
       setAgencyBillingDate("");
-      setAgencySubclients([{ name: "", deliverables_count: 1 }]);
+      setAgencySubclients([{ name: "", deliverables_count: 1, trello_url: "" }]);
       
       refreshGlobalData(); 
     } catch (error) {
@@ -381,7 +383,6 @@ export default function BaseClientesPage() {
     setOpenMenuId(null);
 
     if (action === 'EditarCliente') {
-      // 🟢 CORREÇÃO: Injetamos o ID e o Email que a listagem omitiu por otimização
       setClientToEdit({ 
         ...project.profiles, 
         id: project.client_id,
@@ -461,17 +462,23 @@ export default function BaseClientesPage() {
           billing_date: editBillingDate || null
         }).eq('id', projectToEdit.client_id);
       } else {
-        await supabase.from('projects').update({
+        const updates: any = {
           financial_value: editFinancialValue ? parseFloat(editFinancialValue) : 0,
           payment_method: editPaymentMethod,
           payment_split: editPaymentSplit,
           billing_date: editBillingDate || null
-        }).eq('id', projectToEdit.id);
+        };
+        
+        if (editPackage.includes('Pacote')) {
+           updates.instagram_package = editPackage;
+        }
+        
+        await supabase.from('projects').update(updates).eq('id', projectToEdit.id);
 
         await NotificationEngine.notifyUser(
           projectToEdit.client_id,
           "💳 Atualização Contratual",
-          "Os dados financeiros e/ou datas de cobrança do seu projeto foram atualizados.",
+          "Os dados financeiros e/ou escopo do seu projeto foram atualizados.",
           "info"
         );
       }
@@ -486,9 +493,8 @@ export default function BaseClientesPage() {
     }
   };
 
-  // 🟢 ORDENAÇÃO APLICADA: Leads para o fundo, Projetos ativos no topo, ordenado por data
   const filteredClients = enrichedProjects.filter(project => {
-    const nome = project.profiles?.nome || "";
+    const nome = project.profiles?.nome || project.profiles?.name || "";
     const empresa = project.profiles?.empresa || "";
     
     const matchesSearch = nome.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -502,21 +508,18 @@ export default function BaseClientesPage() {
     
     return matchesSearch && matchesStatus;
   }).sort((a, b) => {
-    // 1. Leads sempre no fundo se a vista for 'all'
     if (a.isLead && !b.isLead) return 1;
     if (!a.isLead && b.isLead) return -1;
     
-    // 2. Projetos ativos primeiro
     if (a.status === 'active' && b.status !== 'active') return -1;
     if (a.status !== 'active' && b.status === 'active') return 1;
 
-    // 3. Mais recentes
     return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
   });
 
   const formatDate = (dateString: string) => {
     if(!dateString) return "Indefinido";
-    return new Date(dateString).toLocaleDateString('pt-PT', { day: '2-digit', month: 'short', year: 'numeric' });
+    return new Date(dateString).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' });
   };
 
   return (
@@ -627,11 +630,15 @@ export default function BaseClientesPage() {
                   onClick={(e) => {
                     if (openMenuId === project.id) return;
                     if (project.isLead || project.isAgency) {
-                      setClientToEdit(project.profiles);
+                      // 🟢 CORREÇÃO: Injetando o ID vital para o Modal de Clientes
+                      setClientToEdit({
+                        ...project.profiles,
+                        id: project.client_id,
+                        email: project.profiles?.email || project.email || ""
+                      });
                       setIsClientSettingsModalOpen(true);
                     } else {
                       showToast(`Acessando a Mesa de Trabalho de ${project.profiles?.nome}...`);
-                      // 🟢 CORREÇÃO: Diz à GlobalStore qual é o projeto ANTES de mudar de rota
                       setActiveProjectId(project.id);
                       router.push('/admin/projetos');
                     }
@@ -650,8 +657,13 @@ export default function BaseClientesPage() {
                       )}
                     </div>
                     <div className="flex flex-col overflow-hidden">
-                      <span className="font-roboto font-bold text-[15px] text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors truncate">
+                      <span className="font-roboto font-bold text-[15px] text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors truncate flex items-center gap-2">
                         {project.profiles?.nome || "Sem Nome"}
+                        {project.trello_url && (
+                          <span title="Conectado ao Trello">
+                            <Trello size={14} className="text-[#0079BF]" />
+                          </span>
+                        )}
                       </span>
                       <div className="flex items-center gap-3 mt-1">
                         <span className="flex items-center gap-1 font-roboto text-[11px] text-[var(--color-atelier-grafite)]/60 truncate">
@@ -735,6 +747,22 @@ export default function BaseClientesPage() {
 
                   {/* 4. Ações (Botões Funcionais) */}
                   <div className="col-span-2 flex justify-end items-center gap-3 relative">
+                    
+                    {/* Botão de Trello Rápido (Se for agência e tiver Trello) */}
+                    {project.isAgency && project.trello_url && (
+                       <button 
+                         onClick={(e) => {
+                           e.stopPropagation();
+                           setActiveTrelloEntity(project);
+                           setIsTrelloModalOpen(true);
+                         }} 
+                         className="w-10 h-10 rounded-xl bg-[#0079BF] text-white flex items-center justify-center hover:bg-[#026AA7] transition-all shadow-sm hover:-translate-y-0.5"
+                         title="Abrir Quadro no Trello"
+                       >
+                         <Trello size={16} />
+                       </button>
+                    )}
+
                     <button 
                       onClick={(e) => {
                         e.stopPropagation(); 
@@ -891,6 +919,23 @@ export default function BaseClientesPage() {
                               <option>30% / 30% / 40%</option>
                               <option>100% Antecipado</option>
                               <option>Faturado ao fim do mês</option>
+                            </select>
+                          </div>
+                          
+                          <div className="flex flex-col gap-2 md:col-span-2">
+                            <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">Alterar Pacote / Escopo</label>
+                            <select value={editPackage} onChange={(e) => setEditPackage(e.target.value)} className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-terracota)] font-bold cursor-pointer">
+                              <option value="" disabled>Manter Atual</option>
+                              <optgroup label="Gestão de Instagram">
+                                <option>Pacote 1</option>
+                                <option>Pacote 2</option>
+                                <option>Pacote 3</option>
+                                <option>Pacote 4</option>
+                              </optgroup>
+                              <optgroup label="Identidade Visual">
+                                <option>Identidade Visual</option>
+                                <option>Rebranding Pleno</option>
+                              </optgroup>
                             </select>
                           </div>
                         </>
@@ -1185,13 +1230,26 @@ export default function BaseClientesPage() {
 
                     <div className="flex flex-col gap-4">
                       {agencySubclients.map((sub, index) => (
-                        <div key={index} className="flex items-center gap-3 bg-white p-3 rounded-xl shadow-sm border border-transparent focus-within:border-[var(--color-atelier-terracota)]/30 transition-colors">
-                          <input type="text" placeholder="Nome do Perfil/Cliente" required value={sub.name} onChange={(e)=>handleSubclientChange(index, 'name', e.target.value)} className="flex-1 bg-transparent outline-none text-[13px] font-medium pl-2" />
-                          <div className="w-px h-6 bg-[var(--color-atelier-grafite)]/10"></div>
-                          <input type="number" placeholder="Posts" required min="1" value={sub.deliverables_count} onChange={(e)=>handleSubclientChange(index, 'deliverables_count', parseInt(e.target.value))} className="w-20 bg-transparent outline-none text-[13px] font-bold text-center" />
-                          <button type="button" onClick={()=>handleRemoveSubclient(index)} disabled={agencySubclients.length === 1} className="text-red-400 hover:text-red-600 disabled:opacity-30 pr-2 transition-colors">
-                            <Trash2 size={16}/>
-                          </button>
+                        <div key={index} className="flex flex-col md:flex-row items-center gap-3 bg-white p-3 rounded-xl shadow-sm border border-transparent focus-within:border-[var(--color-atelier-terracota)]/30 transition-colors">
+                          <div className="flex items-center gap-3 w-full md:w-auto flex-1">
+                            <input type="text" placeholder="Nome do Perfil/Cliente" required value={sub.name} onChange={(e)=>handleSubclientChange(index, 'name', e.target.value)} className="flex-1 bg-transparent outline-none text-[13px] font-medium pl-2" />
+                            <div className="w-px h-6 bg-[var(--color-atelier-grafite)]/10 hidden md:block"></div>
+                            <input type="number" placeholder="Posts" required min="1" value={sub.deliverables_count} onChange={(e)=>handleSubclientChange(index, 'deliverables_count', parseInt(e.target.value))} className="w-20 bg-transparent outline-none text-[13px] font-bold text-center" />
+                          </div>
+                          
+                          <div className="flex items-center gap-3 w-full md:w-auto border-t md:border-t-0 md:border-l border-[var(--color-atelier-grafite)]/10 pt-3 md:pt-0 md:pl-3">
+                            <Trello size={14} className="text-[#0079BF] shrink-0" />
+                            <input 
+                              type="url" 
+                              placeholder="URL do Trello (Opcional)" 
+                              value={sub.trello_url} 
+                              onChange={(e)=>handleSubclientChange(index, 'trello_url', e.target.value)} 
+                              className="flex-1 w-full md:w-48 bg-transparent outline-none text-[11px] font-medium placeholder:text-gray-400" 
+                            />
+                            <button type="button" onClick={()=>handleRemoveSubclient(index)} disabled={agencySubclients.length === 1} className="text-red-400 hover:text-red-600 disabled:opacity-30 pr-2 transition-colors shrink-0">
+                              <Trash2 size={16}/>
+                            </button>
+                          </div>
                         </div>
                       ))}
                     </div>
@@ -1211,6 +1269,47 @@ export default function BaseClientesPage() {
                 </button>
               </div>
 
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ==========================================
+          MODAL TRELLO NATIVO (FULL SCREEN IFRAME)
+          ========================================== */}
+      <AnimatePresence>
+        {isTrelloModalOpen && activeTrelloEntity && (
+          <div className="fixed inset-0 z-[500] flex items-center justify-center px-4 md:px-10 py-10">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsTrelloModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 20 }} 
+              animate={{ scale: 1, opacity: 1, y: 0 }} 
+              exit={{ scale: 0.95, opacity: 0, y: 20 }} 
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="w-full h-full max-w-[1400px] bg-gray-50 rounded-[2.5rem] shadow-2xl relative z-10 flex flex-col overflow-hidden border border-white/20"
+            >
+              <div className="bg-[#0079BF] p-5 flex justify-between items-center text-white shrink-0 shadow-sm z-20">
+                 <div className="flex items-center gap-3">
+                   <div className="w-10 h-10 rounded-xl bg-white/20 border border-white/30 flex items-center justify-center backdrop-blur-sm shadow-inner">
+                     <Trello size={20} /> 
+                   </div>
+                   <div className="flex flex-col">
+                     <span className="font-bold text-[14px] leading-none">{activeTrelloEntity.profiles?.nome || activeTrelloEntity.name}</span>
+                     <span className="text-[10px] uppercase tracking-widest font-bold text-white/70 mt-1">Ambiente Trello Nativo</span>
+                   </div>
+                 </div>
+                 <div className="flex items-center gap-2">
+                   <button onClick={() => window.open(activeTrelloEntity.trello_url, '_blank')} className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors flex items-center gap-2 border border-white/10">
+                     <ExternalLink size={14}/> Nova Aba
+                   </button>
+                   <button onClick={() => setIsTrelloModalOpen(false)} className="w-10 h-10 flex items-center justify-center rounded-xl bg-white/10 hover:bg-red-500 transition-colors border border-white/10">
+                     <X size={18}/>
+                   </button>
+                 </div>
+              </div>
+              <div className="flex-1 w-full bg-white relative z-10">
+                 <iframe src={getTrelloEmbedUrl(activeTrelloEntity.trello_url)} className="w-full h-full border-none" title="Trello Board Embedded" />
+              </div>
             </motion.div>
           </div>
         )}
