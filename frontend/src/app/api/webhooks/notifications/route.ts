@@ -79,11 +79,12 @@ const copyTeamPraise = (title: string) => getRandomCopy([
   `A consistência cria o mestre. 🏆 Obrigado pelo empenho na conclusão de "${title}".`
 ]);
 
-const copyTeamReview = (title: string) => getRandomCopy([
-  `👀 Bora revisar? A tarefa "${title}" está pronta para o olhar crítico da gestão.`,
-  `A bola tá com a revisão! ⚽ Arte de "${title}" aguardando validação interna.`,
-  `Hora do pente fino 🕵️‍♂️ Dá uma olhada na entrega de "${title}" no Kanban.`,
-  `Quase lá! 🏁 Falta só o aval da gestão em "${title}" para liberar a peça para o cliente.`
+// 🟢 FIX APLICADO: Cópia dinâmica com rastreamento de autoria do colaborador
+const copyTeamReview = (title: string, assigneeName: string) => getRandomCopy([
+  `👀 Bora revisar? ${assigneeName} enviou a tarefa "${title}" para o seu olhar crítico.`,
+  `A bola tá com a revisão! ⚽ Arte de "${title}" produzida por ${assigneeName} aguardando validação interna.`,
+  `Hora do pente fino 🕵️‍♂️ Dá uma olhada na entrega de "${title}" movida por ${assigneeName} no Kanban.`,
+  `Quase lá! 🏁 Falta só o seu aval na peça "${title}" (${assigneeName}) para avançar com a produção.`
 ]);
 
 const copyTeamRevision = (title: string) => getRandomCopy([
@@ -93,7 +94,6 @@ const copyTeamRevision = (title: string) => getRandomCopy([
   `Correção solicitada! 🛠️ Confere as observações que a gestão (ou cliente) deixou em "${title}".`
 ]);
 
-// 🟢 FIX APLICADO AQUI: Declaração correta da função copyClientFeedback
 const copyClientFeedback = (projectName: string) => getRandomCopy([
   `Ajuste na rota 🔄 O cliente do projeto ${projectName} pediu uma alteração na peça.`,
   `Opa, temos um feedback! 📝 Novas instruções do cliente de ${projectName} já estão no card.`,
@@ -220,7 +220,6 @@ export async function POST(request: Request) {
 
     // =========================================================================
     // 0. GATILHOS DE TEMPO (Via Cron Payload Customizado)
-    // Se você configurar um cron job, ele pode bater nesta rota com type: 'CRON_REMINDER'
     // =========================================================================
     if (type === 'CRON_REMINDER') {
       const { entityType, entityId, targetUserId, reminderType, title } = payload;
@@ -237,7 +236,7 @@ export async function POST(request: Request) {
     }
 
     // =========================================================================
-    // 1. MENSAGENS DE CHAT (Formato Whatsapp/Slack Direto)
+    // 1. MENSAGENS DE CHAT
     // =========================================================================
     if (table === 'messages' && type === 'INSERT') {
       const sender = await getUserProfile(record.sender_id);
@@ -291,17 +290,48 @@ export async function POST(request: Request) {
       }
 
       if (type === 'UPDATE' && old_record) {
-        // Movida para Revisão Interna
+        // 🟢 FIX: Movida para Revisão Interna (Com Autoria Rastreável)
         if (old_record.status !== 'review' && record.status === 'review') {
-          await sendEmailSafely(resend, ADMIN_EMAIL, `👀 Aprovação Interna: ${taskTitle}`, buildAppLikeEmail(LOGO_URL, "Revisão Necessária", copyTeamReview(taskTitle), "Revisar Peça", `${portalUrl}/admin/jtbd`), "Task Review");
+          let assigneeName = "O Colaborador";
+          if (record.assigned_to) {
+            const assigneeProfile = await getUserProfile(record.assigned_to);
+            if (assigneeProfile) assigneeName = assigneeProfile.nome.split(' ')[0];
+          }
+
+          await sendEmailSafely(
+            resend, 
+            ADMIN_EMAIL, 
+            `👀 Revisão Pendente: ${taskTitle}`, 
+            buildAppLikeEmail(LOGO_URL, "Aprovação Interna", copyTeamReview(taskTitle, assigneeName), "Revisar Peça no Kanban", `${portalUrl}/admin/jtbd`), 
+            "Task Review"
+          );
         }
         
-        // Tarefa Concluída / Aprovada (Celebração)
-        if (old_record.status !== 'completed' && record.status === 'completed' && record.assigned_to) {
-          const assignee = await getUserProfile(record.assigned_to);
-          if (assignee?.email) {
-            await sendEmailSafely(resend, assignee.email, `🏆 Sucesso: ${taskTitle}`, buildAppLikeEmail("🏆", "Entrega Validada", copyTeamPraise(taskTitle), "Ver Minha Fila", `${portalUrl}/admin/jtbd`), "Task Completed Praise");
+        // 🟢 FIX: Tarefa Concluída / Aprovada (Celebração ao Colaborador + Recibo ao Admin)
+        if (old_record.status !== 'completed' && record.status === 'completed') {
+          
+          // 1. Notifica o assignee com elogio (se não for o próprio Admin a executar a tarefa)
+          if (record.assigned_to) {
+            const assignee = await getUserProfile(record.assigned_to);
+            if (assignee?.email && assignee.email !== ADMIN_EMAIL) {
+              await sendEmailSafely(resend, assignee.email, `🏆 Sucesso: ${taskTitle}`, buildAppLikeEmail("🏆", "Entrega Validada", copyTeamPraise(taskTitle), "Ver Minha Fila", `${portalUrl}/admin/jtbd`), "Task Completed Praise");
+            }
           }
+
+          // 2. Confirmação de Segurança para o Admin
+          await sendEmailSafely(
+            resend, 
+            ADMIN_EMAIL, 
+            `✅ Status: Concluída - ${taskTitle}`, 
+            buildAppLikeEmail(
+              "✅", 
+              "Operação Validada", 
+              `Confirmação de sistema: A tarefa <strong>"${taskTitle}"</strong> foi aprovada/revisada com sucesso e arquivada como concluída na base de dados.`, 
+              "Acessar Kanban", 
+              `${portalUrl}/admin/jtbd`
+            ), 
+            "Task Completed Admin Confirmation"
+          );
         }
 
         // Admin/Cliente pediu alteração na Tarefa (Feedback)
