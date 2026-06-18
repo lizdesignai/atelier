@@ -14,7 +14,7 @@ type ProfileData = { nome: string; email: string; role?: string };
 function buildAppLikeEmail(icon: string, title: string, message: string, buttonText: string, link: string) {
   return `
     <!DOCTYPE html>
-    <html lang="pt-PT">
+    <html lang="pt-BR">
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -64,10 +64,28 @@ function buildAppLikeEmail(icon: string, title: string, message: string, buttonT
   `;
 }
 
+// Helper para encapsular e auditar disparos do Resend
+async function sendEmailSafely(resend: Resend, to: string, subject: string, html: string, tag: string) {
+  try {
+    console.log(`[Resend: ${tag}] Tentando enviar e-mail para: ${to}`);
+    const response = await resend.emails.send({ from: FROM_EMAIL, to, subject, html });
+    if (response.error) {
+      console.error(`[Resend: ${tag}] Rejeição da API do Resend:`, response.error);
+    } else {
+      console.log(`[Resend: ${tag}] Sucesso! ID:`, response.data?.id);
+    }
+  } catch (error) {
+    console.error(`[Resend: ${tag}] Falha de Runtime ao executar o disparo:`, error);
+  }
+}
+
 // ============================================================================
 // MAIN WEBHOOK HANDLER
 // ============================================================================
 export async function POST(request: Request) {
+  console.log("=======================================================");
+  console.log("[WEBHOOK AUDIT] Conexão recebida pelo Supabase.");
+  
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
@@ -76,20 +94,25 @@ export async function POST(request: Request) {
     const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY || ''; 
     
     if (!supabaseUrl || !supabaseKey) {
-      console.error("[Webhook] Chaves do Supabase não encontradas.");
+      console.error("[Webhook] Chaves do Supabase não encontradas nas Variáveis de Ambiente.");
       return NextResponse.json({ error: 'Erro de configuração' }, { status: 500 });
     }
 
     const supabase = createClient(supabaseUrl, supabaseKey);
     const payload = await request.json();
     const { table, type, record, old_record } = payload;
+    
+    console.log(`[WEBHOOK AUDIT] Operação Detectada -> Tabela: [${table}] | Evento: [${type}]`);
 
     const portalUrl = 'https://atelier.lizdesign.com.br';
 
     // Função extratora blindada
     const getClientProfile = async (projectId: string): Promise<ProfileData | null> => {
-      const { data } = await supabase.from('projects').select('profiles(nome, email)').eq('id', projectId).single();
+      if (!projectId) return null;
+      const { data, error } = await supabase.from('projects').select('profiles(nome, email)').eq('id', projectId).single();
+      if (error) console.error(`[Webhook Extrator] Erro ao buscar perfil do cliente para o projeto ${projectId}:`, error);
       if (!data?.profiles) return null;
+      
       const profileRaw = data.profiles as unknown as ProfileData | ProfileData[];
       return Array.isArray(profileRaw) ? profileRaw[0] : profileRaw;
     };
@@ -101,18 +124,10 @@ export async function POST(request: Request) {
       const clientName = record.answers?.nome || 'Cliente';
       const clientEmail = record.answers?.email;
       
-      await resend.emails.send({
-        from: FROM_EMAIL, to: ADMIN_EMAIL,
-        subject: `🔥 Novo Briefing: ${clientName}`,
-        html: buildAppLikeEmail("🎯", "Diagnóstico Pronto", `O cliente <strong>${clientName}</strong> concluiu o Dossiê Estratégico. A operação está pronta para ser iniciada.`, "Acessar Mesa de Trabalho", `${portalUrl}/admin`)
-      });
+      await sendEmailSafely(resend, ADMIN_EMAIL, `🔥 Novo Briefing: ${clientName}`, buildAppLikeEmail("🎯", "Diagnóstico Pronto", `O cliente <strong>${clientName}</strong> concluiu o Dossiê Estratégico. A operação está pronta para ser iniciada.`, "Acessar Mesa de Trabalho", `${portalUrl}/admin`), "Briefing Admin");
 
       if (clientEmail) {
-        await resend.emails.send({
-          from: FROM_EMAIL, to: clientEmail,
-          subject: `Dossiê Recebido - Atelier Liz Design`,
-          html: buildAppLikeEmail("📝", "Dossiê Recebido", `As respostas do seu Briefing Estratégico foram processadas. A nossa equipa já foi notificada para iniciar a estruturação do projeto.`, "Acessar Painel", portalUrl)
-        });
+        await sendEmailSafely(resend, clientEmail, `Dossiê Recebido - Atelier Liz Design`, buildAppLikeEmail("📝", "Dossiê Recebido", `As respostas do seu Briefing Estratégico foram processadas. A nossa equipe já foi notificada para iniciar a estruturação do projeto.`, "Acessar Painel", portalUrl), "Briefing Cliente");
       }
     }
 
@@ -124,34 +139,18 @@ export async function POST(request: Request) {
       const clientName = client?.nome || 'Cliente';
 
       if (type === 'INSERT') {
-        await resend.emails.send({
-          from: FROM_EMAIL, to: ADMIN_EMAIL,
-          subject: `[Sistema] Direção Visual Enviada: ${clientName}`,
-          html: buildAppLikeEmail("🎨", "Curadoria Partilhada", `A direção visual "${record.title}" foi enviada com sucesso para o cofre do cliente.`, "Acompanhar Projeto", `${portalUrl}/admin/projetos`)
-        });
+        await sendEmailSafely(resend, ADMIN_EMAIL, `[Sistema] Direção Visual Enviada: ${clientName}`, buildAppLikeEmail("🎨", "Curadoria Compartilhada", `A direção visual "${record.title}" foi enviada com sucesso para o cofre do cliente.`, "Acompanhar Projeto", `${portalUrl}/admin/projetos`), "Direção Admin");
 
         if (client?.email) {
-          await resend.emails.send({
-            from: FROM_EMAIL, to: client.email,
-            subject: `Nova Direção Visual disponível`,
-            html: buildAppLikeEmail("✨", "Curadoria Visual", `Uma nova direção visual foi adicionada ao seu projeto: <strong>${record.title}</strong>.<br><br>Aceda ao portal para avaliar e guiar os próximos passos.`, "Avaliar Direção", portalUrl)
-          });
+          await sendEmailSafely(resend, client.email, `Nova Direção Visual disponível`, buildAppLikeEmail("✨", "Curadoria Visual", `Uma nova direção visual foi adicionada ao seu projeto: <strong>${record.title}</strong>.<br><br>Acesse o portal para avaliar e guiar os próximos passos.`, "Avaliar Direção", portalUrl), "Direção Cliente");
         }
       }
 
       if (type === 'UPDATE' && record.score !== undefined && record.score !== old_record?.score) {
-        await resend.emails.send({
-          from: FROM_EMAIL, to: ADMIN_EMAIL,
-          subject: `⭐ Avaliação Recebida: ${clientName}`,
-          html: buildAppLikeEmail("⭐", "Avaliação Tática", `O cliente <strong>${clientName}</strong> avaliou a direção "${record.title}".<br><br><strong>Nota Atribuída:</strong> ${record.score}/10`, "Ver Feedback Completo", `${portalUrl}/admin/projetos`)
-        });
+        await sendEmailSafely(resend, ADMIN_EMAIL, `⭐ Avaliação Recebida: ${clientName}`, buildAppLikeEmail("⭐", "Avaliação Tática", `O cliente <strong>${clientName}</strong> avaliou a direção "${record.title}".<br><br><strong>Nota Atribuída:</strong> ${record.score}/10`, "Ver Feedback Completo", `${portalUrl}/admin/projetos`), "Avaliação Admin");
 
         if (client?.email) {
-          await resend.emails.send({
-            from: FROM_EMAIL, to: client.email,
-            subject: `Feedback Registado - Atelier Liz Design`,
-            html: buildAppLikeEmail("✅", "Feedback Registado", `A sua avaliação (${record.score}/10) foi sincronizada com a nossa equipa operacional.`, "Acessar Portal", portalUrl)
-          });
+          await sendEmailSafely(resend, client.email, `Feedback Registrado - Atelier Liz Design`, buildAppLikeEmail("✅", "Feedback Registrado", `A sua avaliação (${record.score}/10) foi sincronizada com a nossa equipe operacional.`, "Acessar Portal", portalUrl), "Avaliação Cliente");
         }
       }
     }
@@ -164,18 +163,10 @@ export async function POST(request: Request) {
       const isDiary = table === 'diary_posts';
       const clientName = client?.nome || 'Cliente';
       
-      await resend.emails.send({
-        from: FROM_EMAIL, to: ADMIN_EMAIL,
-        subject: `[Sistema] ${isDiary ? 'Diário' : 'Cofre'} Atualizado: ${clientName}`,
-        html: buildAppLikeEmail("📓", "Registro Atualizado", `O perfil de ${clientName} foi atualizado com novos conteúdos operacionais.`, "Acompanhar", `${portalUrl}/admin`)
-      });
+      await sendEmailSafely(resend, ADMIN_EMAIL, `[Sistema] ${isDiary ? 'Diário' : 'Cofre'} Atualizado: ${clientName}`, buildAppLikeEmail("📓", "Registro Atualizado", `O perfil de ${clientName} foi atualizado com novos conteúdos operacionais.`, "Acompanhar", `${portalUrl}/admin`), "Assets/Diary Admin");
 
       if (client?.email) {
-        await resend.emails.send({
-          from: FROM_EMAIL, to: client.email,
-          subject: isDiary ? `Nova atualização no Diário de Bordo` : `Novo Ativo no Cofre`,
-          html: buildAppLikeEmail("💎", "Nova Atualização", `Existem novas informações ou ativos finalizados disponíveis no seu espaço de trabalho.`, "Acessar Portal", portalUrl)
-        });
+        await sendEmailSafely(resend, client.email, isDiary ? `Nova atualização no Diário de Bordo` : `Novo Ativo no Cofre`, buildAppLikeEmail("💎", "Nova Atualização", `Existem novas informações ou ativos finalizados disponíveis no seu espaço de trabalho.`, "Acessar Portal", portalUrl), "Assets/Diary Cliente");
       }
     }
 
@@ -184,7 +175,9 @@ export async function POST(request: Request) {
     // =========================================================================
     if (table === 'community_posts') {
       const getAuthor = async (authorId: string) => {
+        if (!authorId) return null;
         const { data } = await supabase.from('profiles').select('nome, email').eq('id', authorId).single();
+        if (!data) return null;
         const author = data as unknown as ProfileData | ProfileData[];
         return Array.isArray(author) ? author[0] : author;
       };
@@ -192,36 +185,20 @@ export async function POST(request: Request) {
       if (type === 'INSERT' && record.status === 'pending') {
         const author = await getAuthor(record.author_id);
         
-        await resend.emails.send({
-          from: FROM_EMAIL, to: ADMIN_EMAIL,
-          subject: `🛡️ Moderação: Novo Post na Comunidade`,
-          html: buildAppLikeEmail("🛡️", "Ação de Moderação", `O cliente <strong>${author?.nome}</strong> publicou na comunidade e aguarda aprovação.<br><br>"${record.text_content}"`, "Moderar Publicação", `${portalUrl}/admin/comunidade`)
-        });
+        await sendEmailSafely(resend, ADMIN_EMAIL, `🛡️ Moderação: Novo Post na Comunidade`, buildAppLikeEmail("🛡️", "Ação de Moderação", `O cliente <strong>${author?.nome || 'Desconhecido'}</strong> publicou na comunidade e aguarda aprovação.<br><br>"${record.text_content}"`, "Moderar Publicação", `${portalUrl}/admin/comunidade`), "Comunidade Pending Admin");
 
         if (author?.email) {
-          await resend.emails.send({
-            from: FROM_EMAIL, to: author.email,
-            subject: `A sua publicação está em análise`,
-            html: buildAppLikeEmail("⏳", "Post em Análise", `A sua publicação foi submetida e encontra-se em fase de moderação pela nossa curadoria.`, "Ver Comunidade", `${portalUrl}/comunidade`)
-          });
+          await sendEmailSafely(resend, author.email, `Sua publicação está em análise`, buildAppLikeEmail("⏳", "Post em Análise", `Sua publicação foi submetida e encontra-se em fase de moderação pela nossa curadoria.`, "Ver Comunidade", `${portalUrl}/comunidade`), "Comunidade Pending Cliente");
         }
       }
 
       if (type === 'UPDATE' && record.status === 'approved' && old_record?.status === 'pending') {
         const author = await getAuthor(record.author_id);
         
-        await resend.emails.send({
-          from: FROM_EMAIL, to: ADMIN_EMAIL,
-          subject: `✅ Post Aprovado na Comunidade: ${author?.nome}`,
-          html: buildAppLikeEmail("✅", "Publicação Visível", `A partilha do cliente foi aprovada e encontra-se pública no Mural da Comunidade.`, "Ver Mural", `${portalUrl}/comunidade`)
-        });
+        await sendEmailSafely(resend, ADMIN_EMAIL, `✅ Post Aprovado na Comunidade: ${author?.nome || 'Desconhecido'}`, buildAppLikeEmail("✅", "Publicação Visível", `A publicação do cliente foi aprovada e encontra-se pública no Mural da Comunidade.`, "Ver Mural", `${portalUrl}/comunidade`), "Comunidade Approved Admin");
 
         if (author?.email) {
-          await resend.emails.send({
-            from: FROM_EMAIL, to: author.email,
-            subject: `A sua publicação foi aprovada!`,
-            html: buildAppLikeEmail("🎉", "Partilha Aprovada", `A sua publicação foi aprovada e já se encontra visível na Comunidade. Foram creditados +150 EXP na sua conta.`, "Ver Publicação", `${portalUrl}/comunidade`)
-          });
+          await sendEmailSafely(resend, author.email, `Sua publicação foi aprovada!`, buildAppLikeEmail("🎉", "Compartilhamento Aprovado", `A sua publicação foi aprovada e já se encontra visível na Comunidade. Foram creditados +150 EXP na sua conta.`, "Ver Publicação", `${portalUrl}/comunidade`), "Comunidade Approved Cliente");
         }
       }
     }
@@ -232,11 +209,15 @@ export async function POST(request: Request) {
     if (table === 'messages' && type === 'INSERT') {
       const { data: senderData } = await supabase.from('profiles').select('role, nome').eq('id', record.sender_id).single();
       const senderProfile = (Array.isArray(senderData) ? senderData[0] : senderData) as ProfileData;
-      const isSenderAdmin = senderProfile?.role === 'admin' || senderProfile?.role === 'gestor';
-
-      const { data: channel } = await supabase.from('channels').select('project_id, is_private').eq('id', record.channel_id).single();
       
-      // Permite se for um canal público OU se for o canal global (channel = null)
+      // Ampliei a verificação para considerar qualquer membro do estúdio como remetente interno
+      const isSenderInternal = ['admin', 'gestor', 'colaborador'].includes(senderProfile?.role || '');
+
+      const { data: channel, error: channelError } = await supabase.from('channels').select('project_id, is_private').eq('id', record.channel_id).single();
+      if (channelError) console.log(`[Webhook Chat] Erro ao buscar canal:`, channelError);
+      
+      // Regra Tática: Se o canal for PRIVADO e for do projeto (tático interno), o cliente não recebe. 
+      // A administração recebe se alguém enviou mensagem num canal público ou DMs.
       if (!channel || !channel.is_private) {
         let clientEmail = null;
         let clientName = 'Cliente';
@@ -247,25 +228,24 @@ export async function POST(request: Request) {
             clientName = client?.nome || 'Cliente';
         }
         
-        await resend.emails.send({
-          from: FROM_EMAIL, to: ADMIN_EMAIL,
-          subject: isSenderAdmin ? `[Sistema] Mensagem enviada para ${clientName}` : `💬 Nova Mensagem de ${senderProfile?.nome}`,
-          html: buildAppLikeEmail("📨", "Caixa de Entrada", isSenderAdmin ? `Você enviou uma mensagem através do painel.` : `O cliente <strong>${senderProfile?.nome}</strong> enviou uma nova comunicação.`, "Abrir Inbox", `${portalUrl}/admin/inbox`)
-        });
-
-        if (isSenderAdmin && clientEmail) {
-          await resend.emails.send({
-            from: FROM_EMAIL, to: clientEmail,
-            subject: `Nova mensagem corporativa`,
-            html: buildAppLikeEmail("📨", "Comunicação Recebida", `A equipa do Atelier partilhou uma nova mensagem na sua linha direta.`, "Ler Mensagem", `${portalUrl}/canais`)
-          });
+        // Notifica o Admin (somente se não foi o próprio estúdio quem mandou, para evitar flood na caixa do admin)
+        if (!isSenderInternal) {
+          await sendEmailSafely(resend, ADMIN_EMAIL, `💬 Nova Mensagem de ${senderProfile?.nome}`, buildAppLikeEmail("📨", "Caixa de Entrada", `O cliente <strong>${senderProfile?.nome}</strong> enviou uma nova comunicação.`, "Abrir Inbox", `${portalUrl}/admin/inbox`), "Chat Admin (From Client)");
         }
+
+        // Notifica o Cliente (somente se o estúdio enviou, e se o cliente tem email)
+        if (isSenderInternal && clientEmail) {
+          await sendEmailSafely(resend, clientEmail, `Nova mensagem corporativa`, buildAppLikeEmail("📨", "Comunicação Recebida", `A equipe do Atelier compartilhou uma nova mensagem na sua linha direta.`, "Ler Mensagem", `${portalUrl}/canais`), "Chat Cliente (From Studio)");
+        }
+      } else {
+        console.log(`[Webhook Chat] Ação ignorada. O canal (${record.channel_id}) é privado e silenciado externamente.`);
       }
     }
 
+    console.log("[WEBHOOK AUDIT] Operação concluída com sucesso.");
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error('Erro Crítico no Webhook:', error);
-    return NextResponse.json({ error: 'Erro interno no webhook' }, { status: 500 });
+    console.error('------- ERRO CRÍTICO DE RUNTIME NO WEBHOOK -------', error);
+    return NextResponse.json({ error: 'Erro interno no processamento' }, { status: 500 });
   }
 }
