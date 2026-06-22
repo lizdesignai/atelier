@@ -6,7 +6,7 @@ import {
   FolderKanban, Briefcase, UserCircle2, MapPin, 
   Sparkles, Loader2, PlusCircle, Trash2, Save, 
   Layers, CheckSquare, Square, Flame, Edit3, Check, X, 
-  ArrowRight, Trello, ExternalLink, Lock, PanelRightClose, PanelRightOpen
+  ArrowRight, Trello, ExternalLink, Lock, PanelRightClose, PanelRightOpen, ListTodo
 } from "lucide-react";
 import { ALL_SKILLS } from "../constants";
 
@@ -51,10 +51,10 @@ interface ProjectsManagerProps {
   routingRules?: any[]; 
 }
 
-// 🟢 Helper Inteligente para formatar o link do Trello para modo "Embed" (Iframe Nativo)
+// 🟢 Helper Inteligente para formatar o link do Trello para modo "Embed"
 const getTrelloEmbedUrl = (url: string) => {
   if (!url) return "";
-  if (url.includes('.html')) return url; // Já está formatado
+  if (url.includes('.html')) return url; 
   const match = url.match(/trello\.com\/b\/([a-zA-Z0-9]+)/);
   if (match && match[1]) {
     return `https://trello.com/b/${match[1]}.html`;
@@ -103,7 +103,7 @@ export default function ProjectsManager({
   const [trelloUrlInput, setTrelloUrlInput] = useState("");
   const [isProcessingTrello, setIsProcessingTrello] = useState(false);
   const [activeTrelloEntity, setActiveTrelloEntity] = useState<any>(null);
-  const [isTrelloSidebarOpen, setIsTrelloSidebarOpen] = useState(true); // Controle dos 20% do formulário
+  const [isTrelloSidebarOpen, setIsTrelloSidebarOpen] = useState(true); 
 
   const isSubclientView = selectedEntityType === 'subclient';
   const displayData = isSubclientView 
@@ -113,7 +113,7 @@ export default function ProjectsManager({
   const hasTrello = Boolean(displayData?.trello_url);
 
   // =======================================================================
-  // MAGIA DE ROTEAMENTO NO AD-HOC (Auto-Fill baseado nas regras salvas)
+  // ROTEAMENTO NO AD-HOC (Auto-Fill baseado nas regras salvas)
   // =======================================================================
   useEffect(() => {
     if ((isAdHocModalOpen || isTrelloModalOpen) && adHocDemand.taskType) {
@@ -179,7 +179,6 @@ export default function ProjectsManager({
 
   // ==========================================
   // ADICIONAR DEMANDA PONTUAL (VIA TRELLO SPLIT-SCREEN)
-  // Mantém a janela aberta e limpa o texto para envios múltiplos
   // ==========================================
   const executeTrelloAdHocSubmit = () => {
     if (!adHocDemand.title.trim() || !adHocDemand.assigneeId.trim()) {
@@ -197,7 +196,7 @@ export default function ProjectsManager({
 
     setTimeout(() => {
       handleAddAdHocDemand();
-      // UX Viciante: Limpa apenas os dados de texto para a próxima demanda, não fecha o Trello
+      // UX: Limpa os dados visuais mas mantém o modal aberto para a próxima demanda
       setAdHocDemand((prev: any) => ({ ...prev, title: "", description: "" }));
       showToast("✅ Demanda enviada ao estúdio!");
     }, 50);
@@ -238,6 +237,12 @@ export default function ProjectsManager({
   };
 
   const visibleTasks = getTasksForCurrentView();
+
+  // 🟢 BUSCAR DEMANDAS PENDENTES DA ENTIDADE ATUAL PARA O SELECT
+  const pendingTasksForActiveTrello = tasks.filter(t => 
+    t.status === 'pending' && 
+    (activeTrelloEntity?.id === t.subclient_id || activeTrelloEntity?.id === t.project_id || activeTrelloEntity?.client_id === t.project_id)
+  );
 
   return (
     <motion.div key="projects" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col lg:flex-row gap-6 h-full overflow-hidden relative">
@@ -312,7 +317,7 @@ export default function ProjectsManager({
                 </div>
               </div>
               
-              {/* BARRA DE AÇÕES INTELIGENTE */}
+              {/* 🟢 BARRA DE AÇÕES INTELIGENTE */}
               <div className="flex gap-3 flex-wrap justify-end items-center">
                  
                  {(selectedEntityType === 'agency' || isSubclientView) && (
@@ -474,7 +479,7 @@ export default function ProjectsManager({
       </div>
 
       {/* ==========================================
-          MODAL GERAL: AD HOC DEMAND (Para projetos diretos sem trello)
+          MODAL DE DEMANDA PONTUAL (SEM TRELLO)
           ========================================== */}
       <AnimatePresence>
         {isAdHocModalOpen && !isTrelloModalOpen && (
@@ -593,7 +598,7 @@ export default function ProjectsManager({
               
               {/* LADO ESQUERDO: TRELLO IFRAME */}
               <motion.div 
-                animate={{ width: isTrelloSidebarOpen ? '75%' : '100%' }} 
+                animate={{ width: isTrelloSidebarOpen ? '80%' : '100%' }} 
                 transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                 className="h-full flex flex-col bg-gray-50 border-r border-gray-200 shadow-inner"
               >
@@ -613,8 +618,8 @@ export default function ProjectsManager({
                     {/* Botão para Forçar Cookie/Login no Trello */}
                     <button 
                       onClick={() => window.open('https://trello.com/login', '_blank')} 
-                      className="px-4 py-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-300 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors flex items-center gap-2 border border-yellow-500/50 shadow-sm mr-2"
-                      title="Clique aqui para fazer login no Trello numa nova aba caso o quadro não carregue."
+                      className="hidden lg:flex px-4 py-2 bg-yellow-400 text-yellow-900 hover:bg-yellow-300 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors items-center gap-2 border border-yellow-500/50 shadow-sm mr-2"
+                      title="Clique aqui para fazer login no Trello numa nova aba caso o quadro solicite acesso."
                     >
                       <Lock size={14}/> Autorizar Acesso
                     </button>
@@ -636,22 +641,27 @@ export default function ProjectsManager({
                   </div>
                 </div>
 
+                {/* Banner de Aviso de Segurança para Trello */}
+                <div className="bg-yellow-50 border-b border-yellow-100 px-5 py-2 text-center text-[11px] text-yellow-800 font-medium flex items-center justify-center gap-2 shrink-0">
+                  <Lock size={12}/> O quadro não carregou? Clique em <strong className="cursor-pointer underline" onClick={() => window.open('https://trello.com/login', '_blank')}>Autorizar Acesso</strong>, faça o login e depois recarregue esta aba.
+                </div>
+
                 <div className="flex-1 w-full bg-white relative z-10">
                   <iframe src={getTrelloEmbedUrl(activeTrelloEntity.trello_url)} className="w-full h-full border-none" title="Trello Board Embedded" />
                 </div>
               </motion.div>
 
-              {/* LADO DIREITO: FORMULÁRIO DE DEMANDA RECOLHÍVEL (25%) */}
+              {/* LADO DIREITO: FORMULÁRIO DE DEMANDA RECOLHÍVEL (20%) */}
               <AnimatePresence initial={false}>
                 {isTrelloSidebarOpen && (
                   <motion.div 
                     initial={{ width: 0, opacity: 0 }} 
-                    animate={{ width: '25%', opacity: 1 }} 
+                    animate={{ width: '20%', minWidth: '320px', opacity: 1 }} 
                     exit={{ width: 0, opacity: 0 }} 
                     transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
-                    className="h-full bg-white flex flex-col shrink-0 overflow-hidden"
+                    className="h-full bg-white flex flex-col shrink-0 overflow-hidden shadow-[-10px_0_30px_rgba(0,0,0,0.05)] z-20"
                   >
-                    <div className="flex-1 flex flex-col h-full w-full min-w-[320px] overflow-y-auto custom-scrollbar p-6">
+                    <div className="flex-1 flex flex-col h-full w-full overflow-y-auto custom-scrollbar p-6">
                       
                       <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-6 shrink-0">
                         <div>
@@ -665,6 +675,26 @@ export default function ProjectsManager({
                       </div>
                       
                       <div className="flex flex-col gap-4">
+
+                        {/* 🟢 DROP-DOWN MÁGICO: Autopreencher com Tarefas Pendentes da Entidade */}
+                        {pendingTasksForActiveTrello.length > 0 && (
+                          <div className="flex flex-col gap-1.5 mb-2">
+                            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1"><ListTodo size={12}/> Demandas Planejadas</span>
+                            <select 
+                              onChange={(e) => {
+                                const selectedTask = pendingTasksForActiveTrello.find(t => t.id === e.target.value);
+                                if (selectedTask) {
+                                  setAdHocDemand({ ...adHocDemand, title: selectedTask.title, taskType: selectedTask.task_type || "" });
+                                }
+                              }} 
+                              className="w-full bg-[var(--color-atelier-terracota)]/10 border border-[var(--color-atelier-terracota)]/20 rounded-xl p-3 text-[12px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-terracota)] font-bold cursor-pointer shadow-sm"
+                            >
+                              <option value="">-- Preencher a partir da fila --</option>
+                              {pendingTasksForActiveTrello.map(t => <option key={t.id} value={t.id}>{t.title}</option>)}
+                            </select>
+                          </div>
+                        )}
+
                         <div className="flex flex-col gap-1.5">
                           <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Título da Tarefa <span className="text-red-500">*</span></span>
                           <input 
