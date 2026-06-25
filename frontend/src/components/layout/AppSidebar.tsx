@@ -8,7 +8,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Home, Lock, MessageSquare, ChevronLeft, ChevronRight, 
   Compass, LayoutDashboard, FolderKanban, Users, Inbox, 
-  Globe2, CheckCircle2, DollarSign, Sparkles, Briefcase, Crosshair, LogOut, Activity
+  Globe2, CheckCircle2, DollarSign, Sparkles, Briefcase, 
+  Crosshair, LogOut, Activity, Crown
 } from "lucide-react";
 import { supabase } from "../../lib/supabase"; 
 import { useDynamicTitle } from "../../hooks/useDynamicTitle"; // 🧠 INJEÇÃO DO HOOK DE TÍTULOS
@@ -22,6 +23,7 @@ interface AppSidebarProps {
 
 // Dicionário de Rotas para os Títulos das Abas do Navegador
 const ROUTE_NAMES: Record<string, string> = {
+  '/admin': 'Tela da Dona',
   '/cockpit': 'Cockpit',
   '/brandbook': 'Brandbook',
   '/curadoria': 'Curadoria',
@@ -239,6 +241,9 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
           )}
 
           {/* MENU PARA EQUIPA DO ESTÚDIO */}
+          {isAdminOnly && (
+              <NavItem href="/admin" icon={<Crown size={18} strokeWidth={1.5} className="text-[var(--color-atelier-terracota)]" />} label="Tela da Dona" collapsed={isCollapsed} active={pathname === '/admin'} />
+          )}
           {isTeamMember && (
             <>
               {/* Visto por todos */}
