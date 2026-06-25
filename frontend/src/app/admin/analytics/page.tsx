@@ -66,16 +66,17 @@ export default function AnalyticsPage() {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const [adHocDemand, setAdHocDemand] = useState({
-  title: "",
-  projectId: "",
-  assigneeId: "",
-  taskType: "",
-  urgency: false,
-  description: "",
-  subclientId: "",
-  deadline: "", // 🟢 Adicionado
-  estTime: 0    // 🟢 Adicionado
-});
+    title: "",
+    projectId: "",
+    assigneeId: "",
+    taskType: "",
+    urgency: false,
+    description: "",
+    caption: "", // 🟢 Faltava o campo da Legenda
+    subclientId: "",
+    deadline: "",
+    estTime: 0
+  });
 
   const [isBulkMode, setIsBulkMode] = useState(false);
   const [selectedTaskIds, setSelectedTaskIds] = useState<string[]>([]);
@@ -403,15 +404,19 @@ export default function AnalyticsPage() {
       const { error } = await supabase.from('tasks').insert({
         project_id: targetProject,
         agency_id: selectedEntityType === 'agency' ? selectedEntityId : null,
-        subclient_id: adHocDemand.subclientId || null, // 🟢 FIX: Garantir vínculo do Subcliente
+        subclient_id: adHocDemand.subclientId || null,
         assigned_to: adHocDemand.assigneeId,
         title: adHocDemand.title,
-        description: adHocDemand.description, // 🟢 FIX: O Mapeamento da Descrição faltava aqui!
+        description: adHocDemand.description,
+        caption: adHocDemand.caption, // 🟢 Mapeando a Legenda para o Banco de Dados
         urgency: adHocDemand.urgency,
         status: 'pending',
         stage: 'Demanda Pontual',
         task_type: adHocDemand.taskType || 'setup',
-        deadline: new Date(Date.now() + 86400000).toISOString() // +24h
+        // 🟢 Utilizando o prazo definido no modal ou um prazo padrão de 24h
+        deadline: adHocDemand.deadline ? new Date(adHocDemand.deadline).toISOString() : new Date(Date.now() + 86400000).toISOString(),
+        // 🟢 Utilizando o tempo estimado definido no modal
+        estimated_time: adHocDemand.estTime || 60 
       });
       if (error) throw error;
       
@@ -424,17 +429,21 @@ export default function AnalyticsPage() {
       );
 
       showToast("Demanda adicionada às tarefas do colaborador!");
+      
+      // 🟢 Resetando todos os campos com segurança
       setAdHocDemand({
-  title: "",
-  projectId: "",
-  assigneeId: "",
-  taskType: "",
-  urgency: false,
-  description: "",
-  subclientId: "",
-  deadline: "", // 🟢 Resetar
-  estTime: 0    // 🟢 Resetar
-});
+        title: "",
+        projectId: "",
+        assigneeId: "",
+        taskType: "",
+        urgency: false,
+        description: "",
+        caption: "", 
+        subclientId: "",
+        deadline: "",
+        estTime: 0
+      });
+      
       await fetchOperationalData();
     } catch (e) {
       showToast("Erro ao adicionar demanda.");

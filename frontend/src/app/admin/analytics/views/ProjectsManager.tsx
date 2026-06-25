@@ -7,11 +7,11 @@ import {
   Sparkles, Loader2, PlusCircle, Trash2, Save, 
   Layers, CheckSquare, Square, Flame, Edit3, Check, X, 
   ArrowRight, Trello, ExternalLink, PanelRightClose, PanelRightOpen, ListTodo,
-  AlertCircle
+  AlertCircle, AlignLeft, MessageSquare
 } from "lucide-react";
 import { ALL_SKILLS } from "../constants";
 
-// 🟢 TIPAGEM ESTRITA
+// 🟢 TIPAGEM ESTRITA BLINDADA
 interface ProjectsManagerProps {
   unifiedWallet: any[];
   selectedEntityId: string;
@@ -24,9 +24,16 @@ interface ProjectsManagerProps {
   isProcessing: boolean;
   tasks: any[];
   adHocDemand: { 
-    title: string; projectId: string; assigneeId: string; taskType: string; 
-    urgency: boolean; subclientId?: string; description: string;
-    deadline: string; estTime: number; 
+    title: string; 
+    projectId: string; 
+    assigneeId: string; 
+    taskType: string; 
+    urgency: boolean; 
+    subclientId?: string; 
+    description: string;
+    caption: string; 
+    deadline: string; 
+    estTime: number; 
   };
   setAdHocDemand: (demand: any) => void;
   team: any[];
@@ -46,7 +53,7 @@ interface ProjectsManagerProps {
   routingRules?: any[]; 
 }
 
-// 🟢 EXTRAIR ID DO BOARD PARA A API
+// 🟢 EXTRAIR ID DO BOARD PARA A API REST
 const extractTrelloBoardId = (url: string) => {
   if (!url) return null;
   const match = url.match(/trello\.com\/b\/([a-zA-Z0-9]+)/);
@@ -98,10 +105,10 @@ const NativeTrelloBoard = ({ boardUrl, onCardClick }: { boardUrl: string, onCard
 
   if (isLoading) return <div className="w-full h-full flex flex-col items-center justify-center text-[var(--color-atelier-terracota)]"><Loader2 size={32} className="animate-spin mb-4" /><span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Sincronizando com a API do Trello...</span></div>;
   
-  if (error) return <div className="w-full h-full flex flex-col items-center justify-center text-red-500 p-8 text-center"><AlertCircle size={40} className="mb-4 opacity-50"/> <p className="font-bold text-[13px] uppercase tracking-widest">{error}</p><p className="text-[12px] text-gray-500 mt-2">Certifique-se de que a API Key e o Token estão corretos no arquivo .env.local e que o quadro existe.</p></div>;
+  if (error) return <div className="w-full h-full flex flex-col items-center justify-center text-red-500 p-8 text-center"><AlertCircle size={40} className="mb-4 opacity-50"/> <p className="font-bold text-[13px] uppercase tracking-widest">{error}</p><p className="text-[12px] text-gray-500 mt-2">Certifique-se de que a API Key e o Token estão corretos e que o quadro existe.</p></div>;
 
   return (
-    <div className="w-full h-full flex gap-4 overflow-x-auto custom-scrollbar p-6 bg-gray-50 items-start">
+    <div className="w-full h-full flex gap-4 overflow-x-auto custom-scrollbar p-6 bg-[#f4f5f7] items-start">
       {lists.map(list => (
         <div key={list.id} className="w-[280px] shrink-0 bg-gray-200/50 rounded-2xl flex flex-col max-h-full border border-gray-200">
           <div className="px-4 py-3 shrink-0">
@@ -167,6 +174,7 @@ export default function ProjectsManager({
   const [isCreatingSubclient, setIsCreatingSubclient] = useState(false);
   const [subclientForm, setSubclientForm] = useState({ name: "", count: 0, trello_url: "" });
 
+  // 🟢 ESTADOS DO MÓDULO TRELLO E SPLIT-SCREEN
   const [isTrelloModalOpen, setIsTrelloModalOpen] = useState(false);
   const [isTrelloInputOpen, setIsTrelloInputOpen] = useState(false);
   const [trelloUrlInput, setTrelloUrlInput] = useState("");
@@ -212,6 +220,28 @@ export default function ProjectsManager({
     }
   };
 
+  // 🟢 FECHAR O MODAL NORMAL E LIMPAR ESTADO
+  const closeAdHocModal = () => {
+    setIsAdHocModalOpen(false);
+    setAdHocDemand({
+      title: "", projectId: "", assigneeId: "", taskType: "", urgency: false, subclientId: undefined, description: "", caption: "", deadline: "", estTime: 0
+    });
+  };
+
+  // 🟢 FUNÇÃO MÁGICA DE PREENCHIMENTO DO CARD TRELLO
+  const handleTrelloCardClick = (card: any) => {
+    setAdHocDemand({
+      ...adHocDemand,
+      title: card.name,
+      description: card.desc || ""
+    });
+    setIsTrelloSidebarOpen(true);
+    showToast("Dados do card carregados no formulário!");
+  };
+
+  // ==========================================
+  // ADICIONAR DEMANDA PONTUAL (TELA PRINCIPAL)
+  // ==========================================
   const executeAdHocSubmit = () => {
     if (!adHocDemand.title.trim() || !adHocDemand.assigneeId.trim()) {
       showToast("Preencha o título e selecione um executor obrigatoriamente.");
@@ -219,17 +249,29 @@ export default function ProjectsManager({
     }
 
     if (isSubclientView && displayData) {
-      setAdHocDemand({ ...adHocDemand, projectId: displayData.agency_id, subclientId: displayData.id });
+      setAdHocDemand({
+        ...adHocDemand,
+        projectId: displayData.agency_id, 
+        subclientId: displayData.id        
+      });
     } else {
-      setAdHocDemand({ ...adHocDemand, projectId: selectedEntityType === 'project' || selectedEntityType === 'agency' ? selectedEntityId : "", subclientId: undefined });
+      setAdHocDemand({
+        ...adHocDemand,
+        projectId: selectedEntityType === 'project' || selectedEntityType === 'agency' ? selectedEntityId : "",
+        subclientId: undefined
+      });
     }
 
+    // Usar setTimeout para permitir a atualização do estado React antes do disparo
     setTimeout(() => {
       handleAddAdHocDemand();
-      setIsAdHocModalOpen(false);
-    }, 50);
+      closeAdHocModal();
+    }, 100);
   };
 
+  // ==========================================
+  // ADICIONAR DEMANDA PONTUAL (VIA TRELLO SPLIT-SCREEN)
+  // ==========================================
   const executeTrelloAdHocSubmit = () => {
     if (!adHocDemand.title.trim() || !adHocDemand.assigneeId.trim()) {
       showToast("Preencha o título e o executor.");
@@ -246,20 +288,10 @@ export default function ProjectsManager({
 
     setTimeout(() => {
       handleAddAdHocDemand();
-      setAdHocDemand((prev: any) => ({ ...prev, title: "", description: "" }));
+      // Limpa os campos de texto para poder despachar a próxima demanda em cadeia
+      setAdHocDemand({ ...adHocDemand, title: "", description: "", caption: "" });
       showToast("✅ Demanda enviada ao estúdio!");
-    }, 50);
-  };
-
-  // 🟢 AÇÃO MÁGICA: Quando clica num card no Trello API, preenche o formulário ao lado
-  const handleTrelloCardClick = (card: any) => {
-    setAdHocDemand((prev: any) => ({
-      ...prev,
-      title: card.name,
-      description: card.desc || ""
-    }));
-    setIsTrelloSidebarOpen(true); // Garante que a barra lateral abra se estiver fechada
-    showToast("Dados do card copiados para a Demanda!");
+    }, 100);
   };
 
   const handleCreateSubclient = async () => {
@@ -291,10 +323,12 @@ export default function ProjectsManager({
     }
   };
 
-  const visibleTasks = () => {
+  const getTasksForCurrentView = () => {
     if (isSubclientView && displayData) return tasks.filter(t => t.subclient_id === displayData.id);
     return tasks.filter(t => t.project_id === selectedEntityId && !t.subclient_id);
   };
+
+  const visibleTasks = getTasksForCurrentView();
 
   const pendingTasksForActiveTrello = tasks.filter(t => 
     t.status === 'pending' && 
@@ -374,14 +408,16 @@ export default function ProjectsManager({
                 </div>
               </div>
               
+              {/* 🟢 BARRA DE AÇÕES INTELIGENTE */}
               <div className="flex gap-3 flex-wrap justify-end items-center">
+                 
                  {(selectedEntityType === 'agency' || isSubclientView) && (
                    hasTrello ? (
                      <button 
                        onClick={() => { setActiveTrelloEntity(displayData); setIsTrelloSidebarOpen(true); setIsTrelloModalOpen(true); }} 
                        className="bg-[#0079BF] text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#026AA7] transition-all flex items-center gap-2 shadow-sm hover:-translate-y-0.5"
                      >
-                       <Trello size={14} /> Abrir Integração Trello
+                       <Trello size={14} /> Abrir Trello Board
                      </button>
                    ) : (
                      isTrelloInputOpen ? (
@@ -426,7 +462,7 @@ export default function ProjectsManager({
                      className="bg-[var(--color-atelier-terracota)] text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#8c562e] transition-all flex items-center gap-2 shadow-sm hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
                    >
                      {isProcessing ? <Loader2 size={14} className="animate-spin"/> : <Sparkles size={14}/>} 
-                     {visibleTasks().length > 0 ? "Renovar Ciclo Mensal" : "Iniciar Produção"}
+                     {visibleTasks.length > 0 ? "Renovar Ciclo Mensal" : "Iniciar Produção"}
                    </button>
                  )}
               </div>
@@ -483,11 +519,11 @@ export default function ProjectsManager({
                     </div>
                  </div>
                ) : (
-                 Object.keys(groupTasksByStage(visibleTasks())).map(stage => (
+                 Object.keys(groupTasksByStage(visibleTasks)).map(stage => (
                     <div key={stage} className="mb-6 animate-[fadeIn_0.4s_ease-out]">
                       <h4 className="font-roboto font-bold text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-3 flex items-center gap-2 border-b border-[var(--color-atelier-grafite)]/5 pb-2"><Layers size={12}/> {stage}</h4>
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                        {visibleTasks().filter(t => t.stage === stage).map(task => {
+                        {visibleTasks.filter(t => t.stage === stage).map(task => {
                           const isSelected = selectedTaskIds.includes(task.id);
                           const executorName = task.profiles?.nome ? task.profiles.nome.split(" ")[0] : "Aguardando Responsável";
 
@@ -539,7 +575,7 @@ export default function ProjectsManager({
       <AnimatePresence>
         {isAdHocModalOpen && !isTrelloModalOpen && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center px-4 md:px-8 py-8">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsAdHocModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeAdHocModal} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
             <motion.div 
               initial={{ scale: 0.95, opacity: 0, y: 20 }} 
               animate={{ scale: 1, opacity: 1, y: 0 }} 
@@ -556,7 +592,7 @@ export default function ProjectsManager({
                     Adicionar tarefa para: {displayData?.name || displayData?.profiles?.nome}
                   </p>
                 </div>
-                <button onClick={() => setIsAdHocModalOpen(false)} className="text-gray-400 hover:text-black transition-colors bg-gray-50 p-2 rounded-full"><X size={16}/></button>
+                <button onClick={closeAdHocModal} className="text-gray-400 hover:text-black transition-colors bg-gray-50 p-2 rounded-full"><X size={16}/></button>
               </div>
               
               <div className="flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-2 pb-2">
@@ -570,13 +606,31 @@ export default function ProjectsManager({
                 </div>
 
                 <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Instruções / Descrição</span>
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1">
+                    <AlignLeft size={12}/> Instruções para a Equipe
+                  </span>
                   <textarea 
-                    placeholder="Detalhes para o executor, links de referência, etc..." 
-                    value={adHocDemand.description || ""} onChange={(e) => setAdHocDemand({...adHocDemand, description: e.target.value})} 
-                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium resize-none h-24 custom-scrollbar transition-colors shadow-sm" 
+                    placeholder="Detalhes para o executor, links de referência, etc..."
+                    value={adHocDemand.description || ""} 
+                    onChange={(e) => setAdHocDemand({...adHocDemand, description: e.target.value})} 
+                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium resize-none h-20 custom-scrollbar transition-colors shadow-sm" 
                   />
                 </div>
+
+                {/* 🟢 LEGENDA SÓ APARECE PARA CLIENTES DIRETOS (B2C) */}
+                {selectedEntityType === 'project' && (
+                  <div className="flex flex-col gap-1.5">
+                    <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1">
+                      <MessageSquare size={12}/> Legenda do Post (Aprovação Cliente)
+                    </span>
+                    <textarea 
+                      placeholder="Escreva a legenda que ficará visível no Cockpit..."
+                      value={adHocDemand.caption || ""} 
+                      onChange={(e) => setAdHocDemand({...adHocDemand, caption: e.target.value})} 
+                      className="w-full bg-white border border-[var(--color-atelier-terracota)]/30 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium resize-none h-20 custom-scrollbar transition-colors shadow-sm" 
+                    />
+                  </div>
+                )}
                 
                 <div className="flex flex-col gap-1.5">
                   <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Escopo (Tag)</span>
@@ -689,11 +743,7 @@ export default function ProjectsManager({
                 <div className="flex-1 w-full bg-[#f4f5f7] relative z-10 overflow-hidden">
                   <NativeTrelloBoard 
                     boardUrl={activeTrelloEntity.trello_url} 
-                    onCardClick={(card) => {
-                      setAdHocDemand((prev: any) => ({ ...prev, title: card.name, description: card.desc || "" }));
-                      setIsTrelloSidebarOpen(true);
-                      showToast("Dados do card carregados no formulário!");
-                    }}
+                    onCardClick={handleTrelloCardClick}
                   />
                 </div>
               </motion.div>
@@ -723,6 +773,7 @@ export default function ProjectsManager({
                       
                       <div className="flex flex-col gap-4">
 
+                        {/* DROP-DOWN MÁGICO: Autopreencher com Tarefas Pendentes da Entidade */}
                         {pendingTasksForActiveTrello.length > 0 && (
                           <div className="flex flex-col gap-1.5 mb-2">
                             <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1"><ListTodo size={12}/> Demandas Planejadas</span>
@@ -749,13 +800,31 @@ export default function ProjectsManager({
                         </div>
 
                         <div className="flex flex-col gap-1.5">
-                          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Descrição / Contexto</span>
+                          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1">
+                            <AlignLeft size={12}/> Instruções para a Equipe
+                          </span>
                           <textarea 
-                            placeholder="Instruções para a equipe..." 
-                            value={adHocDemand.description || ""} onChange={(e) => setAdHocDemand({...adHocDemand, description: e.target.value})} 
+                            placeholder="Copie as infos do card do Trello e cole aqui..." 
+                            value={adHocDemand.description || ""} 
+                            onChange={(e) => setAdHocDemand({...adHocDemand, description: e.target.value})} 
                             className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium resize-none h-20 custom-scrollbar transition-colors shadow-sm" 
                           />
                         </div>
+
+                        {/* 🟢 LEGENDA SÓ APARECE PARA CLIENTES DIRETOS (B2C) NO MODO TRELLO TAMBÉM */}
+                        {selectedEntityType === 'project' && (
+                          <div className="flex flex-col gap-1.5">
+                            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1">
+                              <MessageSquare size={12}/> Legenda do Post (Aprovação Cliente)
+                            </span>
+                            <textarea 
+                              placeholder="Escreva a legenda que ficará visível no Cockpit..."
+                              value={adHocDemand.caption || ""} 
+                              onChange={(e) => setAdHocDemand({...adHocDemand, caption: e.target.value})} 
+                              className="w-full bg-white border border-[var(--color-atelier-terracota)]/30 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium resize-none h-20 custom-scrollbar transition-colors shadow-sm" 
+                            />
+                          </div>
+                        )}
                         
                         <div className="flex flex-col gap-1.5">
                           <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Escopo (Tag)</span>
@@ -769,12 +838,12 @@ export default function ProjectsManager({
                         </div>
 
                         <div className="flex flex-col gap-1.5">
-                          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Executor <span className="text-red-500">*</span></span>
+                          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Para o Executor <span className="text-red-500">*</span></span>
                           <select 
                             value={adHocDemand.assigneeId} onChange={(e) => setAdHocDemand({...adHocDemand, assigneeId: e.target.value})} 
                             className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium cursor-pointer shadow-sm"
                           >
-                            <option value="">Atribuir a...</option>
+                            <option value="">Escolher Membro da Equipe...</option>
                             {team.map(t => {
                               const isRecommended = adHocDemand.taskType && t.skills?.includes(adHocDemand.taskType);
                               return <option key={t.id} value={t.id}>{t.nome} {isRecommended ? '⭐' : ''}</option>
@@ -782,9 +851,15 @@ export default function ProjectsManager({
                           </select>
                         </div>
 
-                        <div className="flex flex-col gap-1.5">
-                          <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Prazo de Entrega</span>
-                          <input type="datetime-local" value={adHocDemand.deadline} onChange={(e) => setAdHocDemand({...adHocDemand, deadline: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[12px] outline-none focus:border-orange-500 shadow-sm font-medium" />
+                        <div className="flex gap-4">
+                          <div className="flex flex-col gap-1.5 w-1/2">
+                            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Deadline Trello</span>
+                            <input type="datetime-local" value={adHocDemand.deadline} onChange={(e) => setAdHocDemand({...adHocDemand, deadline: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[12px] outline-none focus:border-orange-500 shadow-sm font-medium" />
+                          </div>
+                          <div className="flex flex-col gap-1.5 w-1/2">
+                            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Est. (Min)</span>
+                            <input type="number" value={adHocDemand.estTime} onChange={(e) => setAdHocDemand({...adHocDemand, estTime: parseInt(e.target.value) || 0})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-orange-500 shadow-sm font-medium" />
+                          </div>
                         </div>
 
                         <label className="flex items-center gap-3 cursor-pointer p-4 rounded-xl bg-orange-50/50 border border-orange-100 hover:bg-orange-50 transition-colors mt-2">
