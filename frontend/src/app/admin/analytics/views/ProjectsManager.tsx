@@ -61,7 +61,7 @@ const extractTrelloBoardId = (url: string) => {
 };
 
 // =======================================================================
-// 🧩 COMPONENTE NATIVO: RENDERIZADOR DE TRELLO VIA API (Bypass de Iframe)
+// 🧩 COMPONENTE NATIVO: RENDERIZADOR DE TRELLO VIA API
 // =======================================================================
 const NativeTrelloBoard = ({ boardUrl, onCardClick }: { boardUrl: string, onCardClick: (card: any) => void }) => {
   const [lists, setLists] = useState<any[]>([]);
@@ -87,7 +87,6 @@ const NativeTrelloBoard = ({ boardUrl, onCardClick }: { boardUrl: string, onCard
       }
 
       try {
-        // Busca as Listas e os Cards Abertos numa única chamada de alta performance
         const response = await fetch(`https://api.trello.com/1/boards/${boardId}/lists?cards=open&key=${apiKey}&token=${apiToken}`);
         if (!response.ok) throw new Error("Acesso negado ou Quadro Privado/Inexistente.");
         
@@ -174,7 +173,6 @@ export default function ProjectsManager({
   const [isCreatingSubclient, setIsCreatingSubclient] = useState(false);
   const [subclientForm, setSubclientForm] = useState({ name: "", count: 0, trello_url: "" });
 
-  // 🟢 ESTADOS DO MÓDULO TRELLO E SPLIT-SCREEN
   const [isTrelloModalOpen, setIsTrelloModalOpen] = useState(false);
   const [isTrelloInputOpen, setIsTrelloInputOpen] = useState(false);
   const [trelloUrlInput, setTrelloUrlInput] = useState("");
@@ -228,7 +226,7 @@ export default function ProjectsManager({
     });
   };
 
-  // 🟢 FUNÇÃO MÁGICA DE PREENCHIMENTO DO CARD TRELLO
+  // 🟢 FUNÇÃO INJETADA PARA PREENCHER FORMULÁRIO A PARTIR DA API DO TRELLO
   const handleTrelloCardClick = (card: any) => {
     setAdHocDemand({
       ...adHocDemand,
@@ -248,25 +246,20 @@ export default function ProjectsManager({
       return;
     }
 
-    if (isSubclientView && displayData) {
-      setAdHocDemand({
-        ...adHocDemand,
-        projectId: displayData.agency_id, 
-        subclientId: displayData.id        
-      });
-    } else {
-      setAdHocDemand({
-        ...adHocDemand,
-        projectId: selectedEntityType === 'project' || selectedEntityType === 'agency' ? selectedEntityId : "",
-        subclientId: undefined
-      });
-    }
+    // 🟢 FORÇAR o envio imediato e garantir que o estado local tenha IDs reais
+    const payloadDemand = {
+      ...adHocDemand,
+      projectId: isSubclientView && displayData ? displayData.agency_id : (selectedEntityType === 'project' || selectedEntityType === 'agency' ? selectedEntityId : ""),
+      subclientId: isSubclientView && displayData ? displayData.id : undefined
+    };
 
-    // Usar setTimeout para permitir a atualização do estado React antes do disparo
+    setAdHocDemand(payloadDemand);
+
+    // Damos um tempo mínimo para a memória assíncrona absorver a mutação antes de bater no Pai
     setTimeout(() => {
       handleAddAdHocDemand();
       closeAdHocModal();
-    }, 100);
+    }, 50);
   };
 
   // ==========================================
@@ -280,18 +273,19 @@ export default function ProjectsManager({
 
     const isSub = Boolean(activeTrelloEntity.agency_id);
 
-    setAdHocDemand({
+    const payloadDemand = {
       ...adHocDemand,
       projectId: isSub ? activeTrelloEntity.agency_id : (activeTrelloEntity.client_id || activeTrelloEntity.id),
       subclientId: isSub ? activeTrelloEntity.id : undefined
-    });
+    };
+
+    setAdHocDemand(payloadDemand);
 
     setTimeout(() => {
       handleAddAdHocDemand();
-      // Limpa os campos de texto para poder despachar a próxima demanda em cadeia
-      setAdHocDemand({ ...adHocDemand, title: "", description: "", caption: "" });
-      showToast("✅ Demanda enviada ao estúdio!");
-    }, 100);
+      // UX: Limpa apenas texto visual
+      setAdHocDemand({ ...payloadDemand, title: "", description: "", caption: "" });
+    }, 50);
   };
 
   const handleCreateSubclient = async () => {
@@ -378,7 +372,12 @@ export default function ProjectsManager({
         ) : (
           <>
             <button 
-              onClick={() => setIsAdHocModalOpen(true)}
+              onClick={() => {
+                const projId = isSubclientView && displayData ? displayData.agency_id : (selectedEntityType === 'project' || selectedEntityType === 'agency' ? selectedEntityId : "");
+                const subId = isSubclientView && displayData ? displayData.id : undefined;
+                setAdHocDemand({ ...adHocDemand, projectId: projId, subclientId: subId, title: "", description: "", caption: "", assigneeId: "", taskType: "", urgency: false, deadline: "", estTime: 0 });
+                setIsAdHocModalOpen(true);
+              }}
               className="absolute bottom-8 right-8 z-40 bg-[var(--color-atelier-grafite)] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-[0_10px_25px_rgba(0,0,0,0.3)] hover:scale-110 hover:bg-[var(--color-atelier-terracota)] transition-all duration-300 group"
               title="Adicionar Demanda Pontual"
             >
@@ -408,13 +407,15 @@ export default function ProjectsManager({
                 </div>
               </div>
               
-              {/* 🟢 BARRA DE AÇÕES INTELIGENTE */}
               <div className="flex gap-3 flex-wrap justify-end items-center">
-                 
                  {(selectedEntityType === 'agency' || isSubclientView) && (
                    hasTrello ? (
                      <button 
-                       onClick={() => { setActiveTrelloEntity(displayData); setIsTrelloSidebarOpen(true); setIsTrelloModalOpen(true); }} 
+                       onClick={() => { 
+                          const isSub = Boolean(displayData.agency_id);
+                          setAdHocDemand({ ...adHocDemand, projectId: isSub ? displayData.agency_id : (displayData.client_id || displayData.id), subclientId: isSub ? displayData.id : undefined, title: "", description: "", caption: "", assigneeId: "", taskType: "", urgency: false, deadline: "", estTime: 0 });
+                          setActiveTrelloEntity(displayData); setIsTrelloSidebarOpen(true); setIsTrelloModalOpen(true); 
+                       }} 
                        className="bg-[#0079BF] text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#026AA7] transition-all flex items-center gap-2 shadow-sm hover:-translate-y-0.5"
                      >
                        <Trello size={14} /> Abrir Trello Board

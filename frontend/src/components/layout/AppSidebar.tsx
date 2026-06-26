@@ -12,7 +12,7 @@ import {
   Crosshair, LogOut, Activity, Crown
 } from "lucide-react";
 import { supabase } from "../../lib/supabase"; 
-import { useDynamicTitle } from "../../hooks/useDynamicTitle"; // 🧠 INJEÇÃO DO HOOK DE TÍTULOS
+import { useDynamicTitle } from "../../hooks/useDynamicTitle"; 
 import { usePresenceTracker } from "../../hooks/usePresenceTracker";
 
 interface AppSidebarProps {
@@ -136,8 +136,9 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
           }
         }
       } else {
-        // 🟢 BLINDAGEM DE ROTAS PARA A EQUIPA (Interceção da Rota Descontinuada)
-        if (pathname === '/admin') {
+        // 🟢 BLINDAGEM DE ROTAS PARA A EQUIPA
+        // Retiramos a intercepção da rota `/admin` para o Admin!
+        if (pathname === '/admin' && !isAdminOnly) {
           router.replace(isManagerOrAdmin ? '/admin/gestao' : '/admin/jtbd');
         }
       }
@@ -146,13 +147,13 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     };
 
     fetchSidebarData();
-  }, [pathname, isTeamMember, isManagerOrAdmin, router, onHideSidebar]);
+  }, [pathname, isTeamMember, isManagerOrAdmin, isAdminOnly, router, onHideSidebar]);
 
   if (!isTeamMember && (isProjectArchived || !isReady)) return null;
 
   // 🟢 Definição inteligente da rota Home (Logo) com base na patente
   const homeRoute = isTeamMember 
-    ? (isManagerOrAdmin ? '/admin/gestao' : '/admin/jtbd') 
+    ? (isAdminOnly ? '/admin' : (isManagerOrAdmin ? '/admin/gestao' : '/admin/jtbd')) 
     : (clientServiceType === "Gestão de Instagram" ? '/cockpit' : '/');
 
   return (
@@ -222,7 +223,8 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               {clientServiceType === "Gestão de Instagram" ? (
                 <>
                   <NavItem href="/cockpit" icon={<LayoutDashboard size={18} strokeWidth={1.5} />} label="Cockpit" collapsed={isCollapsed} active={pathname === '/cockpit'} />
-                  <NavItem href="/brandbook" icon={<Sparkles size={18} strokeWidth={1.5} />} label="Brandbook" collapsed={isCollapsed} active={pathname === '/brandbook'} />               </>
+                  <NavItem href="/brandbook" icon={<Sparkles size={18} strokeWidth={1.5} />} label="Brandbook" collapsed={isCollapsed} active={pathname === '/brandbook'} />
+                </>
               ) : (
                 <>
                   <NavItem href="/" icon={<Home size={18} strokeWidth={1.5} />} label="Cockpit" collapsed={isCollapsed} active={pathname === '/'} />
@@ -241,11 +243,13 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
           )}
 
           {/* MENU PARA EQUIPA DO ESTÚDIO */}
-          {isAdminOnly && (
-              <NavItem href="/admin" icon={<Crown size={18} strokeWidth={1.5} className="text-[var(--color-atelier-terracota)]" />} label="Tela da Dona" collapsed={isCollapsed} active={pathname === '/admin'} />
-          )}
           {isTeamMember && (
             <>
+              {/* Visto apenas por Admin */}
+              {isAdminOnly && (
+                <NavItem href="/admin" icon={<Crown size={18} strokeWidth={1.5} className={pathname === '/admin' ? "text-[var(--color-atelier-terracota)]" : ""} />} label="Tela da Dona" collapsed={isCollapsed} active={pathname === '/admin'} />
+              )}
+
               {/* Visto por todos */}
               <NavItem href="/admin/jtbd" icon={<Crosshair size={18} strokeWidth={1.5} />} label="Focus" collapsed={isCollapsed} active={pathname === '/admin/jtbd'} />
               <NavItem href="/admin/gestao" icon={<Activity size={18} strokeWidth={1.5} />} label="Produtividade" collapsed={isCollapsed} active={pathname === '/admin/gestao'} />
