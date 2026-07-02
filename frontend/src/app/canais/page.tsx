@@ -30,6 +30,10 @@ export default function CanaisClientePage() {
   const [messageText, setMessageText] = useState("");
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false); 
   
+  // 🟢 NOVO: Estados para Notificações de Chat
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [channelPreviews, setChannelPreviews] = useState<Record<string, string>>({});
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // 1. Busca Inicial (Sessão -> Projeto -> Canais)
@@ -73,10 +77,39 @@ export default function CanaisClientePage() {
       }
       
       setIsLoading(false);
+      fetchUnreadCounts();
     };
 
     initClientChat();
   }, []);
+
+  // 🟢 NOVO: Função para buscar não lidas
+  const fetchUnreadCounts = async () => {
+    const { data, error } = await supabase.rpc('get_unread_counts_per_channel');
+    if (!error && data) {
+      const countsMap: Record<string, number> = {};
+      const previewsMap: Record<string, string> = {};
+      data.forEach((item: any) => {
+        countsMap[item.channel_id] = item.unread_count;
+        if (item.last_message_text) {
+          previewsMap[item.channel_id] = item.last_message_text;
+        }
+      });
+      setUnreadCounts(countsMap);
+      setChannelPreviews(previewsMap);
+    }
+  };
+
+  useEffect(() => {
+    if (!userId) return;
+    const unreadSub = supabase.channel('canais_unread')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        if (payload.new.sender_id !== userId) {
+           fetchUnreadCounts();
+        }
+      }).subscribe();
+    return () => { supabase.removeChannel(unreadSub); };
+  }, [userId]);
 
   // 2. Busca Mensagens do Canal Ativo & Ativa o Realtime
   useEffect(() => {
@@ -95,6 +128,16 @@ export default function CanaisClientePage() {
       if (!error && data) {
         setMessages(data);
         scrollToBottom();
+        
+        // 🟢 NOVO: Marcar como lido ao abrir o canal
+        if (userId) {
+          supabase.from('channel_reads').upsert(
+            { channel_id: activeChannelId, user_id: userId, last_read_at: new Date().toISOString() },
+            { onConflict: 'channel_id, user_id' }
+          ).then(() => {
+            setUnreadCounts(prev => ({ ...prev, [activeChannelId]: 0 }));
+          });
+        }
       }
     };
 
@@ -279,24 +322,39 @@ export default function CanaisClientePage() {
                  <div className="px-2 text-[10px] font-roboto text-[var(--color-atelier-grafite)]/40 italic text-center mt-4">Nenhum canal criado ainda.</div>
               )}
               
-              {channels.map(channel => (
+              {channels.map(channel => {
+                const unread = unreadCounts[channel.id] || 0;
+                const preview = channelPreviews[channel.id] || null;
+                return (
                 <button 
                   key={channel.id}
                   onClick={() => setActiveChannelId(channel.id)}
                   className={`
-                    w-full text-left px-4 py-3.5 rounded-[1.2rem] font-roboto text-[13px] font-medium flex items-center justify-between transition-all border
+                    w-full text-left px-4 py-3.5 rounded-[1.2rem] font-roboto flex items-center justify-between transition-all border
                     ${activeChannelId === channel.id 
                       ? 'bg-white border-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-terracota)] shadow-sm scale-[1.02]' 
                       : 'bg-transparent text-[var(--color-atelier-grafite)]/70 hover:bg-white border-transparent hover:border-[var(--color-atelier-grafite)]/10'
                     }
                   `}
                 >
-                  <span className="flex items-center gap-3 truncate pr-2">
-                    <Hash size={14} className={activeChannelId === channel.id ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/40'} /> 
-                    <span className={`truncate ${activeChannelId === channel.id ? 'font-bold' : ''}`}>{channel.name}</span>
-                  </span>
+                  <div className="flex items-center gap-3 truncate pr-2 w-full">
+                    <Hash size={16} className={`shrink-0 ${activeChannelId === channel.id ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/40'}`} /> 
+                    <div className="flex flex-col truncate flex-1">
+                      <span className={`text-[13px] truncate ${activeChannelId === channel.id ? 'font-bold' : 'font-medium'}`}>{channel.name}</span>
+                      {preview && (
+                        <span className={`text-[10px] truncate mt-0.5 ${activeChannelId === channel.id ? 'text-[var(--color-atelier-terracota)]/70' : 'text-gray-400'}`}>
+                          {preview}
+                        </span>
+                      )}
+                    </div>
+                    {unread > 0 && (
+                      <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse-slow shrink-0">
+                        {unread > 99 ? '99+' : unread}
+                      </span>
+                    )}
+                  </div>
                 </button>
-              ))}
+              )})}
             </div>
             
             {/* Box Informativa */}

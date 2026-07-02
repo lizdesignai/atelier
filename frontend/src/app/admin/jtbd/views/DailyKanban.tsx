@@ -16,7 +16,7 @@ interface DailyKanbanProps {
   isRescheduling: string | null;
   handleDragOver: (e: React.DragEvent) => void;
   handleDrop: (e: React.DragEvent, newStatus: string) => void;
-  handleFileUpload?: (taskId: string, file: File) => Promise<void>; 
+  handleFileUpload?: (taskId: string, files: File[]) => Promise<void>; 
 }
 
 export default function DailyKanban({
@@ -82,44 +82,74 @@ export default function DailyKanban({
     }
   };
 
-  const processKanbanUpload = async (taskId: string, file: File) => {
+  const processKanbanUpload = async (taskId: string, files: File[]) => {
     try {
       const allTasks = [...pendingTasks, ...inProgressTasks, ...reviewTasks, ...completedTasks];
       const task = allTasks.find(t => t.id === taskId);
       if (!task) return;
 
-      window.dispatchEvent(new CustomEvent("showToast", { detail: "Processando arquivo gráfico e conectando ao Visual Flow..." }));
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Fazendo upload das mídias..." }));
 
       const { data: projData } = await supabase.from('projects').select('client_id').eq('id', task.project_id).single();
       const clientId = projData?.client_id || 'unassigned';
 
-      const fileExt = file.name.split('.').pop();
-      const fileName = `post_${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
-      const filePath = `${clientId}/${fileName}`;
+      let newMediaAssets = task.media_assets || [];
+      let mainAttachmentUrl = task.attachment_url;
+
+      for (const file of files) {
+        const isVideo = file.type.startsWith('video/');
+        const bucket = isVideo ? 'community_videos' : 'community_images';
+        
+        const fileExt = file.name.split('.').pop();
+        const fileName = `media_${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `${clientId}/${fileName}`;
+        
+        const { error: uploadError } = await supabase.storage.from(bucket).upload(filePath, file, { upsert: true });
+        if (uploadError) throw uploadError;
+
+        const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+        const fileUrl = publicUrlData.publicUrl;
+
+        newMediaAssets.push({ type: isVideo ? 'video' : 'image', url: fileUrl });
+        
+        // Mantém attachment_url para retrocompatibilidade
+        if (!mainAttachmentUrl && !isVideo) {
+          mainAttachmentUrl = fileUrl;
+        }
+      }
+
+      const isFirstUpload = !task.attachment_url && newMediaAssets.length > 0;
       
-      const { error: uploadError } = await supabase.storage.from('community_images').upload(filePath, file, { upsert: true });
-      if (uploadError) throw uploadError;
+      const updatePayload = {
+         attachment_url: mainAttachmentUrl,
+         media_assets: newMediaAssets,
+         status: 'review'
+      };
 
-      const { data: publicUrlData } = supabase.storage.from('community_images').getPublicUrl(filePath);
-      const fileUrl = publicUrlData.publicUrl;
+      await supabase.from('tasks').update(updatePayload).eq('id', task.id);
 
-      await supabase.from('social_posts').insert({
-        project_id: task.project_id,
-        client_id: clientId,
-        task_id: task.id,
-        image_url: fileUrl,
-        title: task.title,
-        caption: task.description || "",
-        status: 'internal_review'
-      });
+      if (isFirstUpload) {
+        await supabase.from('social_posts').insert({
+          project_id: task.project_id,
+          client_id: clientId,
+          task_id: task.id,
+          image_url: mainAttachmentUrl,
+          media_assets: newMediaAssets,
+          title: task.title,
+          caption: task.caption || "",
+          status: 'internal_review'
+        });
+      } else {
+        const { data: existingPost } = await supabase.from('social_posts').select('id').eq('task_id', task.id).single();
+        if (existingPost) {
+          await supabase.from('social_posts')
+             .update({ media_assets: newMediaAssets, image_url: mainAttachmentUrl })
+             .eq('task_id', task.id);
+        }
+      }
 
-      await supabase.from('tasks').update({ 
-        attachment_url: fileUrl,
-        status: 'review'
-      }).eq('id', task.id);
-
-      updateTaskStatus({ ...task, attachment_url: fileUrl }, 'review');
-      window.dispatchEvent(new CustomEvent("showToast", { detail: "Ficheiro enviado para a fila de Revisão Interna! 🎨" }));
+      updateTaskStatus({ ...task, ...updatePayload }, 'review');
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Upload concluído! 🚀" }));
       setActiveTaskModal(null); 
     } catch (error) {
       console.error(error);

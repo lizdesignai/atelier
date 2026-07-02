@@ -11,6 +11,7 @@ import {
 
 interface GlobalCalendarProps {
   activeProjectId: string;
+  activeSubclientId?: string | null;
   currentProject: any;
 }
 
@@ -18,7 +19,7 @@ const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
 };
 
-export default function GlobalCalendar({ activeProjectId, currentProject }: GlobalCalendarProps) {
+export default function GlobalCalendar({ activeProjectId, activeSubclientId, currentProject }: GlobalCalendarProps) {
   const [isLoading, setIsLoading] = useState(true);
   
   // 🟢 ESTADOS UNIFICADOS (Estratégia + Execução)
@@ -46,7 +47,7 @@ export default function GlobalCalendar({ activeProjectId, currentProject }: Glob
 
   useEffect(() => {
     fetchMonthData();
-  }, [activeProjectId, currentDate]);
+  }, [activeProjectId, activeSubclientId, currentDate]);
 
   const fetchMonthData = async () => {
     setIsLoading(true);
@@ -58,9 +59,17 @@ export default function GlobalCalendar({ activeProjectId, currentProject }: Glob
       const firstDay = new Date(year, month, 1).toISOString();
       const lastDay = new Date(year, month + 1, 0, 23, 59, 59).toISOString();
 
+      let planQuery = supabase.from('content_planning').select('*').eq('project_id', activeProjectId).gte('created_at', firstDay).lte('created_at', lastDay);
+      if (activeSubclientId) planQuery = planQuery.eq('subclient_id', activeSubclientId);
+      else planQuery = planQuery.is('subclient_id', null);
+
+      let taskQuery = supabase.from('tasks').select('*').eq('project_id', activeProjectId).gte('deadline', firstDay).lte('deadline', lastDay).order('deadline', { ascending: true });
+      if (activeSubclientId) taskQuery = taskQuery.eq('subclient_id', activeSubclientId);
+      else taskQuery = taskQuery.is('subclient_id', null);
+
       const [ { data: planningsData }, { data: tasksData } ] = await Promise.all([
-        supabase.from('content_planning').select('*').eq('project_id', activeProjectId).gte('created_at', firstDay).lte('created_at', lastDay),
-        supabase.from('tasks').select('*').eq('project_id', activeProjectId).gte('deadline', firstDay).lte('deadline', lastDay).order('deadline', { ascending: true })
+        planQuery,
+        taskQuery
       ]);
 
       setPlannings(planningsData || []);
@@ -93,6 +102,7 @@ export default function GlobalCalendar({ activeProjectId, currentProject }: Glob
 
       const payload = {
         project_id: activeProjectId,
+        subclient_id: activeSubclientId || null,
         client_id: currentProject?.client_id,
         hook: uploadForm.hook,
         planning_file_url: pdfUrl,

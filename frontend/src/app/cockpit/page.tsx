@@ -446,12 +446,35 @@ export default function CockpitPage() {
 
                 {/* Corpo Dividido: Mídia (Esq) + Info (Dir) */}
                 <div className="flex flex-col md:flex-row flex-1 min-h-0">
-                   {/* Mídia */}
-                   <div className="w-full md:w-3/5 bg-gray-100 relative flex items-center justify-center overflow-hidden border-r border-gray-200">
-                      {isVideoUrl(allPosts[activeCarouselIndex]?.image_url) ? (
-                        <video src={allPosts[activeCarouselIndex]?.image_url} controls autoPlay loop className="w-full h-full object-contain p-4 drop-shadow-md" />
+                   <div className="w-full md:w-3/5 bg-gray-100 relative flex flex-col overflow-y-auto custom-scrollbar border-r border-gray-200 p-6 gap-6">
+                      {(allPosts[activeCarouselIndex]?.media_assets && allPosts[activeCarouselIndex].media_assets.length > 0) ? (
+                        allPosts[activeCarouselIndex].media_assets.map((asset: any, idx: number) => (
+                          <div key={idx} className="relative w-full rounded-2xl overflow-hidden shadow-sm border border-gray-200 bg-white group flex-shrink-0">
+                            {asset.type === 'video' ? (
+                               <video src={asset.url} controls className="w-full max-h-[60vh] object-contain" />
+                            ) : (
+                               <img src={asset.url} alt={`Mídia ${idx + 1}`} className="w-full max-h-[60vh] object-contain" />
+                            )}
+                            <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <a href={asset.url} download target="_blank" rel="noreferrer" className="bg-white/90 backdrop-blur-md text-[var(--color-atelier-grafite)] p-2.5 rounded-xl shadow-lg flex items-center justify-center hover:text-[var(--color-atelier-terracota)] transition-colors" title="Baixar Arquivo">
+                                <Download size={16} />
+                              </a>
+                            </div>
+                          </div>
+                        ))
                       ) : (
-                        <img src={allPosts[activeCarouselIndex]?.image_url} alt="Arte" className="w-full h-full object-contain p-4 drop-shadow-md" />
+                        <div className="relative w-full h-full min-h-[50vh] flex items-center justify-center rounded-2xl overflow-hidden shadow-sm border border-gray-200 bg-white group">
+                          {isVideoUrl(allPosts[activeCarouselIndex]?.image_url) ? (
+                            <video src={allPosts[activeCarouselIndex]?.image_url} controls autoPlay loop className="w-full h-full max-h-[70vh] object-contain" />
+                          ) : (
+                            <img src={allPosts[activeCarouselIndex]?.image_url} alt="Arte" className="w-full h-full max-h-[70vh] object-contain" />
+                          )}
+                          <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <a href={allPosts[activeCarouselIndex]?.image_url} download target="_blank" rel="noreferrer" className="bg-white/90 backdrop-blur-md text-[var(--color-atelier-grafite)] p-2.5 rounded-xl shadow-lg flex items-center justify-center hover:text-[var(--color-atelier-terracota)] transition-colors" title="Baixar Arquivo">
+                              <Download size={16} />
+                            </a>
+                          </div>
+                        </div>
                       )}
                       
                       {/* Badge de Status sobre a imagem */}
@@ -479,6 +502,19 @@ export default function CockpitPage() {
                           {allPosts[activeCarouselIndex]?.caption || <span className="italic opacity-50">Sem legenda disponível para esta peça...</span>}
                         </p>
                       </div>
+
+                      {/* Link Externo (se houver) */}
+                      {allPosts[activeCarouselIndex]?.external_link && (
+                        <div className="mt-4 flex items-center gap-3 bg-[var(--color-atelier-creme)] p-4 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/10">
+                          <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-[var(--color-atelier-terracota)] shrink-0 shadow-sm"><Target size={18}/></div>
+                          <div className="flex flex-col flex-1 overflow-hidden">
+                            <span className="font-bold text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]">Link de Apoio</span>
+                            <a href={allPosts[activeCarouselIndex].external_link} target="_blank" rel="noreferrer" className="text-[13px] text-[var(--color-atelier-terracota)] truncate hover:underline">
+                              Acessar Material Externo
+                            </a>
+                          </div>
+                        </div>
+                      )}
 
                       {/* Ações (Só exibe se estiver pendente) */}
                       {allPosts[activeCarouselIndex]?.status === 'pending_approval' && (

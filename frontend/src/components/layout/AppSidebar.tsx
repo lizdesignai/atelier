@@ -9,7 +9,7 @@ import {
   Home, Lock, MessageSquare, ChevronLeft, ChevronRight, 
   Compass, LayoutDashboard, FolderKanban, Users, Inbox, 
   Globe2, CheckCircle2, DollarSign, Sparkles, Briefcase, 
-  Crosshair, LogOut, Activity, Crown
+  Crosshair, LogOut, Activity, Crown, Grid
 } from "lucide-react";
 import { supabase } from "../../lib/supabase"; 
 import { useDynamicTitle } from "../../hooks/useDynamicTitle"; 
@@ -49,6 +49,9 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   
   // Estado para capturar o nome do cliente logado
   const [clientName, setClientName] = useState<string>("");
+  
+  // 🟢 NOVA LÓGICA: Contagem global de mensagens não lidas
+  const [globalUnreadCount, setGlobalUnreadCount] = useState<number>(0);
 
   const pathname = usePathname();
   const router = useRouter();
@@ -146,7 +149,31 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
       setIsReady(true);
     };
 
+    const fetchGlobalUnread = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) return;
+      
+      const { data, error } = await supabase.rpc('get_unread_message_count');
+      if (!error && data !== null) {
+        setGlobalUnreadCount(data);
+      }
+    };
+
     fetchSidebarData();
+    fetchGlobalUnread();
+
+    // 🟢 Escutar novas mensagens para atualizar badge instantaneamente (Opcional mas Premium)
+    const sub = supabase.channel('sidebar_unread_messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        // Quando rolar nova mensagem, re-busca a contagem se a mensagem não for nossa
+        supabase.auth.getSession().then(({ data: { session } }) => {
+           if (session && payload.new.sender_id !== session.user.id) {
+             fetchGlobalUnread();
+           }
+        });
+      }).subscribe();
+
+    return () => { supabase.removeChannel(sub); };
   }, [pathname, isTeamMember, isManagerOrAdmin, isAdminOnly, router, onHideSidebar]);
 
   if (!isTeamMember && (isProjectArchived || !isReady)) return null;
@@ -224,6 +251,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
                 <>
                   <NavItem href="/cockpit" icon={<LayoutDashboard size={18} strokeWidth={1.5} />} label="Cockpit" collapsed={isCollapsed} active={pathname === '/cockpit'} />
                   <NavItem href="/brandbook" icon={<Sparkles size={18} strokeWidth={1.5} />} label="Brandbook" collapsed={isCollapsed} active={pathname === '/brandbook'} />
+                  <NavItem href="/simulador-feed" icon={<Grid size={18} strokeWidth={1.5} />} label="Feed" collapsed={isCollapsed} active={pathname === '/simulador-feed'} />
                 </>
               ) : (
                 <>
@@ -237,7 +265,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
                 <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
               </div>
               
-              <NavItem href="/canais" icon={<MessageSquare size={18} strokeWidth={1.5} />} label="Canais" collapsed={isCollapsed} active={pathname === '/canais'} />
+              <NavItem href="/canais" icon={<MessageSquare size={18} strokeWidth={1.5} />} label="Canais" collapsed={isCollapsed} active={pathname === '/canais'} badge={globalUnreadCount} />
               <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
             </>
           )}
@@ -259,7 +287,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               </div>
 
               <NavItem href="/admin/projetos" icon={<FolderKanban size={18} strokeWidth={1.5} />} label="Estúdio" collapsed={isCollapsed} active={pathname === '/admin/projetos'} />
-              <NavItem href="/admin/inbox" icon={<Inbox size={18} strokeWidth={1.5} />} label="Inbox" collapsed={isCollapsed} active={pathname === '/admin/inbox'} />
+              <NavItem href="/admin/inbox" icon={<Inbox size={18} strokeWidth={1.5} />} label="Inbox" collapsed={isCollapsed} active={pathname === '/admin/inbox'} badge={globalUnreadCount} />
               <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
               
               <div className="flex items-center justify-center my-3 opacity-20">
@@ -318,7 +346,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
 // ==========================================
 // COMPONENTE DE ITEM DE NAVEGAÇÃO COM FÍSICA E UX PREMIUM
 // ==========================================
-function NavItem({ href, icon, label, collapsed, active }: { href: string, icon: React.ReactNode, label: string, collapsed: boolean, active: boolean }) {
+function NavItem({ href, icon, label, collapsed, active, badge }: { href: string, icon: React.ReactNode, label: string, collapsed: boolean, active: boolean, badge?: number }) {
   return (
     <Link 
       href={href} 
@@ -355,12 +383,22 @@ function NavItem({ href, icon, label, collapsed, active }: { href: string, icon:
             initial={{ opacity: 0, x: -5 }} 
             animate={{ opacity: 1, x: 0 }} 
             exit={{ opacity: 0, x: -5, transition: { duration: 0.1 } }}
-            className="relative z-10 tracking-wide whitespace-nowrap pt-0.5"
+            className="relative z-10 tracking-wide whitespace-nowrap pt-0.5 flex-1 flex items-center justify-between pr-2"
           >
-            {label}
+            <span>{label}</span>
+            {badge !== undefined && badge > 0 && (
+              <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse-slow">
+                {badge > 99 ? '99+' : badge}
+              </span>
+            )}
           </motion.span>
         )}
       </AnimatePresence>
+
+      {/* BADGE PARA MODO COLAPSADO (Flutuante no Ícone) */}
+      {collapsed && badge !== undefined && badge > 0 && (
+         <div className="absolute top-2 right-2.5 w-2 h-2 bg-red-500 rounded-full border border-white shadow-sm animate-pulse-slow"></div>
+      )}
     </Link>
   );
 }

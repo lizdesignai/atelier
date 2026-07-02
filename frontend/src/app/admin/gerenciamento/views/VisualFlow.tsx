@@ -12,6 +12,7 @@ import { NotificationEngine } from "../../../../lib/NotificationEngine";
 
 interface VisualFlowProps {
   activeProjectId: string;
+  activeSubclientId?: string | null;
   currentProject: any;
 }
 
@@ -19,7 +20,7 @@ const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
 };
 
-export default function VisualFlow({ activeProjectId, currentProject }: VisualFlowProps) {
+export default function VisualFlow({ activeProjectId, activeSubclientId, currentProject }: VisualFlowProps) {
   // ==========================================
   // ESTADOS GERAIS
   // ==========================================
@@ -51,7 +52,7 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
     if (currentProject) {
       setFigmaUrl(currentProject.figma_url || "");
     }
-  }, [activeProjectId, currentProject]);
+  }, [activeProjectId, activeSubclientId, currentProject]);
 
   useEffect(() => {
     if (selectedTaskId) {
@@ -71,11 +72,11 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
     try {
       if (!activeProjectId) return;
 
-      const { data: postsData, error: postsError } = await supabase
-        .from('social_posts')
-        .select('*')
-        .eq('project_id', activeProjectId)
-        .order('created_at', { ascending: false });
+      let postQuery = supabase.from('social_posts').select('*').order('created_at', { ascending: false });
+      if (activeSubclientId) postQuery = postQuery.eq('subclient_id', activeSubclientId);
+      else postQuery = postQuery.eq('project_id', activeProjectId).is('subclient_id', null);
+      
+      const { data: postsData, error: postsError } = await postQuery;
         
       if (postsError) throw postsError;
       if (postsData) setPosts(postsData);
@@ -89,12 +90,11 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
         if (pinsData) setPins(pinsData);
       }
 
-      const { data: tasksData } = await supabase
-        .from('tasks')
-        .select('*')
-        .eq('project_id', activeProjectId)
-        .in('status', ['pending', 'in_progress'])
-        .order('deadline', { ascending: true });
+      let taskQuery = supabase.from('tasks').select('*').in('status', ['pending', 'in_progress']).order('deadline', { ascending: true });
+      if (activeSubclientId) taskQuery = taskQuery.eq('subclient_id', activeSubclientId);
+      else taskQuery = taskQuery.eq('project_id', activeProjectId).is('subclient_id', null);
+      
+      const { data: tasksData } = await taskQuery;
       
       if (tasksData) {
          const designTasks = tasksData.filter(t => 
@@ -183,6 +183,7 @@ export default function VisualFlow({ activeProjectId, currentProject }: VisualFl
       // 2. Cria o registro em social_posts com status de Revisão Interna
       const { data: insertedPost, error: dbError } = await supabase.from('social_posts').insert({
         project_id: activeProjectId,
+        subclient_id: activeSubclientId || null,
         client_id: currentProject.client_id,
         task_id: selectedTaskId, // 🟢 Liga o post à tarefa do Kanban
         image_url: publicUrlData.publicUrl,

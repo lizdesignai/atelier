@@ -37,7 +37,7 @@ interface ProjectsManagerProps {
   };
   setAdHocDemand: (demand: any) => void;
   team: any[];
-  handleAddAdHocDemand: () => void;
+  handleAddAdHocDemand: (payload?: any) => void;
   agencySubclients: any[];
   handleDeleteSubclient: (id: string) => void;
   handleUpdateSubclientDemand: (id: string, count: number) => void;
@@ -246,20 +246,23 @@ export default function ProjectsManager({
       return;
     }
 
-    // 🟢 FORÇAR o envio imediato e garantir que o estado local tenha IDs reais
+    const isSub = isSubclientView && displayData;
+    const isAgency = selectedEntityType === 'agency';
+    
+    const projId = (!isSub && !isAgency) ? selectedEntityId : "";
+    const agId = isSub ? displayData.agency_id : (isAgency ? selectedEntityId : "");
+    const subId = isSub ? displayData.id : undefined;
+
     const payloadDemand = {
       ...adHocDemand,
-      projectId: isSubclientView && displayData ? displayData.agency_id : (selectedEntityType === 'project' || selectedEntityType === 'agency' ? selectedEntityId : ""),
-      subclientId: isSubclientView && displayData ? displayData.id : undefined
+      projectId: projId,
+      agencyId: agId,
+      subclientId: subId
     };
 
     setAdHocDemand(payloadDemand);
-
-    // Damos um tempo mínimo para a memória assíncrona absorver a mutação antes de bater no Pai
-    setTimeout(() => {
-      handleAddAdHocDemand();
-      closeAdHocModal();
-    }, 50);
+    handleAddAdHocDemand(payloadDemand);
+    closeAdHocModal();
   };
 
   // ==========================================
@@ -272,20 +275,23 @@ export default function ProjectsManager({
     }
 
     const isSub = Boolean(activeTrelloEntity.agency_id);
+    const isAgency = selectedEntityType === 'agency';
+    
+    const projId = (!isSub && !isAgency) ? (activeTrelloEntity.client_id || activeTrelloEntity.id) : "";
+    const agId = isSub ? activeTrelloEntity.agency_id : (isAgency ? selectedEntityId : "");
+    const subId = isSub ? activeTrelloEntity.id : undefined;
 
     const payloadDemand = {
       ...adHocDemand,
-      projectId: isSub ? activeTrelloEntity.agency_id : (activeTrelloEntity.client_id || activeTrelloEntity.id),
-      subclientId: isSub ? activeTrelloEntity.id : undefined
+      projectId: projId,
+      agencyId: agId,
+      subclientId: subId
     };
 
     setAdHocDemand(payloadDemand);
-
-    setTimeout(() => {
-      handleAddAdHocDemand();
-      // UX: Limpa apenas texto visual
-      setAdHocDemand({ ...payloadDemand, title: "", description: "", caption: "" });
-    }, 50);
+    handleAddAdHocDemand(payloadDemand);
+    // UX: Limpa apenas texto visual
+    setAdHocDemand({ ...payloadDemand, title: "", description: "", caption: "" });
   };
 
   const handleCreateSubclient = async () => {
@@ -373,9 +379,27 @@ export default function ProjectsManager({
           <>
             <button 
               onClick={() => {
-                const projId = isSubclientView && displayData ? displayData.agency_id : (selectedEntityType === 'project' || selectedEntityType === 'agency' ? selectedEntityId : "");
-                const subId = isSubclientView && displayData ? displayData.id : undefined;
-                setAdHocDemand({ ...adHocDemand, projectId: projId, subclientId: subId, title: "", description: "", caption: "", assigneeId: "", taskType: "", urgency: false, deadline: "", estTime: 0 });
+                const isSub = isSubclientView && displayData;
+                const isAgency = selectedEntityType === 'agency';
+                
+                const projId = (!isSub && !isAgency) ? selectedEntityId : "";
+                const agId = isSub ? displayData.agency_id : (isAgency ? selectedEntityId : "");
+                const subId = isSub ? displayData.id : undefined;
+                
+                setAdHocDemand({ 
+                  ...adHocDemand, 
+                  projectId: projId, 
+                  agencyId: agId,
+                  subclientId: subId, 
+                  title: "", 
+                  description: "", 
+                  caption: "", 
+                  assigneeId: "", 
+                  taskType: "", 
+                  urgency: false, 
+                  deadline: "", 
+                  estTime: 0 
+                });
                 setIsAdHocModalOpen(true);
               }}
               className="absolute bottom-8 right-8 z-40 bg-[var(--color-atelier-grafite)] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-[0_10px_25px_rgba(0,0,0,0.3)] hover:scale-110 hover:bg-[var(--color-atelier-terracota)] transition-all duration-300 group"
@@ -413,7 +437,26 @@ export default function ProjectsManager({
                      <button 
                        onClick={() => { 
                           const isSub = Boolean(displayData.agency_id);
-                          setAdHocDemand({ ...adHocDemand, projectId: isSub ? displayData.agency_id : (displayData.client_id || displayData.id), subclientId: isSub ? displayData.id : undefined, title: "", description: "", caption: "", assigneeId: "", taskType: "", urgency: false, deadline: "", estTime: 0 });
+                          const isAgency = selectedEntityType === 'agency';
+                          
+                          const projId = (!isSub && !isAgency) ? (displayData.client_id || displayData.id) : "";
+                          const agId = isSub ? displayData.agency_id : (isAgency ? selectedEntityId : "");
+                          const subId = isSub ? displayData.id : undefined;
+
+                          setAdHocDemand({ 
+                            ...adHocDemand, 
+                            projectId: projId, 
+                            agencyId: agId,
+                            subclientId: subId, 
+                            title: "", 
+                            description: "", 
+                            caption: "", 
+                            assigneeId: "", 
+                            taskType: "", 
+                            urgency: false, 
+                            deadline: "", 
+                            estTime: 0 
+                          });
                           setActiveTrelloEntity(displayData); setIsTrelloSidebarOpen(true); setIsTrelloModalOpen(true); 
                        }} 
                        className="bg-[#0079BF] text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#026AA7] transition-all flex items-center gap-2 shadow-sm hover:-translate-y-0.5"
@@ -618,20 +661,17 @@ export default function ProjectsManager({
                   />
                 </div>
 
-                {/* 🟢 LEGENDA SÓ APARECE PARA CLIENTES DIRETOS (B2C) */}
-                {selectedEntityType === 'project' && (
-                  <div className="flex flex-col gap-1.5">
-                    <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1">
-                      <MessageSquare size={12}/> Legenda do Post (Aprovação Cliente)
-                    </span>
-                    <textarea 
-                      placeholder="Escreva a legenda que ficará visível no Cockpit..."
-                      value={adHocDemand.caption || ""} 
-                      onChange={(e) => setAdHocDemand({...adHocDemand, caption: e.target.value})} 
-                      className="w-full bg-white border border-[var(--color-atelier-terracota)]/30 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium resize-none h-20 custom-scrollbar transition-colors shadow-sm" 
-                    />
-                  </div>
-                )}
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1">
+                    <MessageSquare size={12}/> Legenda do Post (Aprovação Cliente)
+                  </span>
+                  <textarea 
+                    placeholder="Escreva a legenda que ficará visível no Cockpit..."
+                    value={adHocDemand.caption || ""} 
+                    onChange={(e) => setAdHocDemand({...adHocDemand, caption: e.target.value})} 
+                    className="w-full bg-white border border-[var(--color-atelier-terracota)]/30 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium resize-none h-20 custom-scrollbar transition-colors shadow-sm" 
+                  />
+                </div>
                 
                 <div className="flex flex-col gap-1.5">
                   <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Escopo (Tag)</span>
@@ -812,20 +852,17 @@ export default function ProjectsManager({
                           />
                         </div>
 
-                        {/* 🟢 LEGENDA SÓ APARECE PARA CLIENTES DIRETOS (B2C) NO MODO TRELLO TAMBÉM */}
-                        {selectedEntityType === 'project' && (
-                          <div className="flex flex-col gap-1.5">
-                            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1">
-                              <MessageSquare size={12}/> Legenda do Post (Aprovação Cliente)
-                            </span>
-                            <textarea 
-                              placeholder="Escreva a legenda que ficará visível no Cockpit..."
-                              value={adHocDemand.caption || ""} 
-                              onChange={(e) => setAdHocDemand({...adHocDemand, caption: e.target.value})} 
-                              className="w-full bg-white border border-[var(--color-atelier-terracota)]/30 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium resize-none h-20 custom-scrollbar transition-colors shadow-sm" 
-                            />
-                          </div>
-                        )}
+                        <div className="flex flex-col gap-1.5">
+                          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1">
+                            <MessageSquare size={12}/> Legenda do Post (Aprovação Cliente)
+                          </span>
+                          <textarea 
+                            placeholder="Escreva a legenda que ficará visível no Cockpit..."
+                            value={adHocDemand.caption || ""} 
+                            onChange={(e) => setAdHocDemand({...adHocDemand, caption: e.target.value})} 
+                            className="w-full bg-white border border-[var(--color-atelier-terracota)]/30 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium resize-none h-20 custom-scrollbar transition-colors shadow-sm" 
+                          />
+                        </div>
                         
                         <div className="flex flex-col gap-1.5">
                           <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Escopo (Tag)</span>

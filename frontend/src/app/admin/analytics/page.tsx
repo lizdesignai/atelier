@@ -68,11 +68,12 @@ export default function AnalyticsPage() {
   const [adHocDemand, setAdHocDemand] = useState({
     title: "",
     projectId: "",
+    agencyId: "",
     assigneeId: "",
     taskType: "",
     urgency: false,
     description: "",
-    caption: "", // 🟢 Faltava o campo da Legenda
+    caption: "", 
     subclientId: "",
     deadline: "",
     estTime: 0
@@ -394,36 +395,42 @@ export default function AnalyticsPage() {
     }
   };
 
-  const handleAddAdHocDemand = async () => {
-    const targetProject = adHocDemand.projectId || (selectedEntityType === 'project' ? selectedEntityId : null);
-    if (!adHocDemand.title || !adHocDemand.assigneeId || (!targetProject && selectedEntityType !== 'agency')) {
+  const handleAddAdHocDemand = async (demandPayload?: any) => {
+    const demand = demandPayload || adHocDemand;
+    
+    // Resolvemos corretamente para onde a task vai (Projeto ou Agência)
+    const targetProject = demand.projectId || (selectedEntityType === 'project' ? selectedEntityId : null);
+    const targetAgency = demand.agencyId || (selectedEntityType === 'agency' ? selectedEntityId : null);
+
+    if (!demand.title || !demand.assigneeId || (!targetProject && !targetAgency)) {
       showToast("Preencha título e colaborador."); return;
     }
+    
     setIsProcessing(true);
     try {
       const { error } = await supabase.from('tasks').insert({
-        project_id: targetProject,
-        agency_id: selectedEntityType === 'agency' ? selectedEntityId : null,
-        subclient_id: adHocDemand.subclientId || null,
-        assigned_to: adHocDemand.assigneeId,
-        title: adHocDemand.title,
-        description: adHocDemand.description,
-        caption: adHocDemand.caption, // 🟢 Mapeando a Legenda para o Banco de Dados
-        urgency: adHocDemand.urgency,
+        project_id: targetProject || null,
+        agency_id: targetAgency || null,
+        subclient_id: demand.subclientId || null,
+        assigned_to: demand.assigneeId,
+        title: demand.title,
+        description: demand.description,
+        caption: demand.caption, // 🟢 Mapeando a Legenda para o Banco de Dados
+        urgency: demand.urgency,
         status: 'pending',
         stage: 'Demanda Pontual',
-        task_type: adHocDemand.taskType || 'setup',
+        task_type: demand.taskType || 'setup',
         // 🟢 Utilizando o prazo definido no modal ou um prazo padrão de 24h
-        deadline: adHocDemand.deadline ? new Date(adHocDemand.deadline).toISOString() : new Date(Date.now() + 86400000).toISOString(),
+        deadline: demand.deadline ? new Date(demand.deadline).toISOString() : new Date(Date.now() + 86400000).toISOString(),
         // 🟢 Utilizando o tempo estimado definido no modal
-        estimated_time: adHocDemand.estTime || 60 
+        estimated_time: demand.estTime || 60 
       });
       if (error) throw error;
       
       await NotificationEngine.notifyUser(
-        adHocDemand.assigneeId,
+        demand.assigneeId,
         "Nova Demanda Pontual",
-        `Foi atribuída uma nova prioridade: ${adHocDemand.title}`,
+        `Foi atribuída uma nova prioridade: ${demand.title}`,
         "warning",
         "/admin/jtbd"
       );
@@ -434,6 +441,7 @@ export default function AnalyticsPage() {
       setAdHocDemand({
         title: "",
         projectId: "",
+        agencyId: "",
         assigneeId: "",
         taskType: "",
         urgency: false,

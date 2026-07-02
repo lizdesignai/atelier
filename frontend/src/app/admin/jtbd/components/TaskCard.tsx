@@ -18,7 +18,7 @@ interface TaskCardProps {
   onAction: (newStatus: string) => void;
   onReschedule: () => void;
   isRescheduling: boolean;
-  onUpload?: (taskId: string, file: File) => Promise<void>; 
+  onUpload?: (taskId: string, files: File[]) => Promise<void>;
   forceStaticMode?: boolean; 
   forceOpenModal?: boolean;
   onCloseModal?: () => void;
@@ -55,6 +55,40 @@ export default function TaskCard({
   const [isAdminReviewing, setIsAdminReviewing] = useState(false);
   const [adminFeedback, setAdminFeedback] = useState("");
   const [isProcessingFeedback, setIsProcessingFeedback] = useState(false);
+
+  // 🟢 LEGENDA E LINK (NOVIDADE)
+  const [localCaption, setLocalCaption] = useState(task.caption || "");
+  const [isSavingCaption, setIsSavingCaption] = useState(false);
+  const [localExternalLink, setLocalExternalLink] = useState(task.external_link || "");
+  const [isSavingLink, setIsSavingLink] = useState(false);
+
+  const handleSaveCaption = async () => {
+    setIsSavingCaption(true);
+    try {
+      await supabase.from('tasks').update({ caption: localCaption }).eq('id', task.id);
+      await supabase.from('social_posts').update({ caption: localCaption }).eq('task_id', task.id);
+      task.caption = localCaption; // atualiza ref
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Legenda atualizada com sucesso!" }));
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao atualizar legenda." }));
+    } finally {
+      setIsSavingCaption(false);
+    }
+  };
+
+  const handleSaveLink = async () => {
+    setIsSavingLink(true);
+    try {
+      await supabase.from('tasks').update({ external_link: localExternalLink }).eq('id', task.id);
+      await supabase.from('social_posts').update({ external_link: localExternalLink }).eq('task_id', task.id);
+      task.external_link = localExternalLink;
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Link salvo com sucesso!" }));
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao atualizar link." }));
+    } finally {
+      setIsSavingLink(false);
+    }
+  };
 
   // 🟢 TELEMETRIA DE TEMPO (LIVE TIMER)
   const [liveSeconds, setLiveSeconds] = useState(0);
@@ -151,12 +185,16 @@ export default function TaskCard({
   };
 
   const handleFileSelection = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !onUpload) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0 || !onUpload) return;
+    if (files.length > 10) {
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Limite de 10 mídias por vez." }));
+      return;
+    }
 
     setIsUploading(true);
     try {
-      await onUpload(task.id, file);
+      await onUpload(task.id, files);
     } catch (error) {
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Falha ao enviar o arquivo." }));
     } finally {
@@ -397,12 +435,33 @@ export default function TaskCard({
                 <button onClick={handleCloseModal} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] shrink-0 bg-gray-50 p-2 rounded-full transition-colors"><X size={20}/></button>
               </div>
 
-              <div className="flex flex-col gap-3 shrink-0">
-                <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-2">
-                  <AlignLeft size={14}/> Briefing / Instruções
-                </h4>
-                <div className="bg-[var(--color-atelier-creme)]/30 p-4 rounded-2xl border border-[var(--color-atelier-grafite)]/5 text-[13px] text-[var(--color-atelier-grafite)]/80 whitespace-pre-wrap max-h-40 overflow-y-auto custom-scrollbar">
-                  {task.description ? task.description : <span className="italic text-gray-400">Nenhuma instrução detalhada fornecida para esta tarefa.</span>}
+              <div className="flex flex-col md:flex-row gap-6 shrink-0 w-full">
+                <div className="flex flex-col gap-3 w-full md:w-1/2">
+                  <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-2">
+                    <AlignLeft size={14}/> Instruções da Equipe (Interno)
+                  </h4>
+                  <div className="bg-[var(--color-atelier-creme)]/30 p-4 rounded-2xl border border-[var(--color-atelier-grafite)]/5 text-[13px] text-[var(--color-atelier-grafite)]/80 whitespace-pre-wrap h-32 overflow-y-auto custom-scrollbar">
+                    {task.description ? task.description : <span className="italic text-gray-400">Nenhuma instrução detalhada fornecida para esta tarefa.</span>}
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-3 w-full md:w-1/2">
+                  <div className="flex items-center justify-between">
+                    <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-2">
+                      <MessageSquare size={14}/> Legenda do Post (Público)
+                    </h4>
+                    {localCaption !== (task.caption || "") && (
+                      <button onClick={handleSaveCaption} disabled={isSavingCaption} className="bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest transition-colors flex items-center gap-1">
+                        {isSavingCaption ? <Loader2 size={10} className="animate-spin"/> : <Save size={10}/>} Salvar
+                      </button>
+                    )}
+                  </div>
+                  <textarea 
+                    value={localCaption}
+                    onChange={(e) => setLocalCaption(e.target.value)}
+                    placeholder="Escreva a legenda visível para o cliente..."
+                    className="w-full bg-white p-4 rounded-2xl border border-[var(--color-atelier-terracota)]/30 text-[13px] text-[var(--color-atelier-grafite)] resize-none h-32 overflow-y-auto custom-scrollbar focus:outline-none focus:border-[var(--color-atelier-terracota)] shadow-sm transition-colors"
+                  />
                 </div>
               </div>
 
@@ -421,31 +480,53 @@ export default function TaskCard({
                   )}
                 </div>
                 
-                {displayImageUrl ? (
+                {((task.media_assets && task.media_assets.length > 0) || displayImageUrl) ? (
                   <div className="flex flex-col gap-3">
-                    {isPdf ? (
-                      <div className={`w-full h-48 sm:h-56 rounded-[1.5rem] overflow-hidden border border-gray-200 shadow-sm relative group bg-gray-100 flex flex-col items-center justify-center ${isRejectedByClient ? 'border-red-300 ring-2 ring-red-500/20' : ''}`}>
-                         <FileText size={48} className="text-gray-300 mb-4" />
-                         <span className="font-bold uppercase tracking-widest text-[11px] text-gray-500">Documento PDF</span>
-                         
-                         <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
-                           <a href={displayImageUrl} target="_blank" rel="noreferrer" className="bg-white text-[var(--color-atelier-grafite)] px-5 py-2.5 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg flex items-center gap-2 hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-colors">
-                             <Eye size={14}/> Ler Documento
-                           </a>
-                           <a href={displayImageUrl} download target="_blank" rel="noreferrer" className="text-white font-bold uppercase tracking-widest text-[9px] underline hover:text-[var(--color-atelier-terracota)] transition-colors">
-                             Fazer Download
-                           </a>
-                         </div>
+                    
+                    {(task.media_assets && task.media_assets.length > 0) ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3">
+                        {task.media_assets.map((asset: any, idx: number) => (
+                          <div key={idx} className={`w-full h-24 sm:h-32 rounded-xl overflow-hidden border border-gray-200 shadow-sm relative group bg-gray-100 ${isRejectedByClient ? 'border-red-300 ring-2 ring-red-500/20' : ''}`}>
+                            {asset.type === 'video' ? (
+                               <video src={asset.url} className="w-full h-full object-cover" />
+                            ) : (
+                               <img src={asset.url} alt="Arte" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                            )}
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                              <a href={asset.url} target="_blank" rel="noreferrer" className="bg-white/95 backdrop-blur-md p-2 rounded-full text-[var(--color-atelier-grafite)] opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl transform translate-y-2 group-hover:translate-y-0">
+                                 <Eye size={14} />
+                              </a>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     ) : (
-                      <div className={`w-full h-48 sm:h-56 rounded-[1.5rem] overflow-hidden border border-gray-200 shadow-sm relative group cursor-pointer bg-gray-100 ${isRejectedByClient ? 'border-red-300 ring-2 ring-red-500/20' : ''}`} onClick={() => setIsLightboxOpen(true)}>
-                        <img src={displayImageUrl} alt="Arte Anexada" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                          <div className="bg-white/95 backdrop-blur-md px-5 py-3 rounded-full text-[var(--color-atelier-grafite)] opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl transform translate-y-4 group-hover:translate-y-0 flex items-center gap-2">
-                             <ZoomIn size={18} /> <span className="text-[10px] font-bold uppercase tracking-widest">Expandir Arte</span>
+                      <>
+                        {isPdf ? (
+                          <div className={`w-full h-48 sm:h-56 rounded-[1.5rem] overflow-hidden border border-gray-200 shadow-sm relative group bg-gray-100 flex flex-col items-center justify-center ${isRejectedByClient ? 'border-red-300 ring-2 ring-red-500/20' : ''}`}>
+                             <FileText size={48} className="text-gray-300 mb-4" />
+                             <span className="font-bold uppercase tracking-widest text-[11px] text-gray-500">Documento PDF</span>
+                             
+                             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
+                               <a href={displayImageUrl!} target="_blank" rel="noreferrer" className="bg-white text-[var(--color-atelier-grafite)] px-5 py-2.5 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg flex items-center gap-2 hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-colors">
+                                 <Eye size={14}/> Ler Documento
+                               </a>
+                               <a href={displayImageUrl!} download target="_blank" rel="noreferrer" className="text-white font-bold uppercase tracking-widest text-[9px] underline hover:text-[var(--color-atelier-terracota)] transition-colors">
+                                 Fazer Download
+                               </a>
+                             </div>
                           </div>
-                        </div>
-                      </div>
+                        ) : (
+                          <div className={`w-full h-48 sm:h-56 rounded-[1.5rem] overflow-hidden border border-gray-200 shadow-sm relative group cursor-pointer bg-gray-100 ${isRejectedByClient ? 'border-red-300 ring-2 ring-red-500/20' : ''}`} onClick={() => setIsLightboxOpen(true)}>
+                            <img src={displayImageUrl!} alt="Arte Anexada" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
+                              <div className="bg-white/95 backdrop-blur-md px-5 py-3 rounded-full text-[var(--color-atelier-grafite)] opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl transform translate-y-4 group-hover:translate-y-0 flex items-center gap-2">
+                                 <ZoomIn size={18} /> <span className="text-[10px] font-bold uppercase tracking-widest">Expandir Arte</span>
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                      </>
                     )}
 
                     <div className="flex items-center justify-between bg-white p-3 rounded-2xl border border-gray-200 shadow-sm transition-colors hover:border-[var(--color-atelier-terracota)]/30">
@@ -461,12 +542,32 @@ export default function TaskCard({
                       <div className="flex items-center gap-2 shrink-0 pl-2">
                         {onUpload && (
                           <label className="flex items-center justify-center gap-2 h-9 px-4 bg-orange-50 hover:bg-orange-100 border border-transparent hover:border-orange-200 rounded-xl text-orange-600 transition-all shadow-sm cursor-pointer" title="Substituir Arquivo">
-                            <input type="file" accept="image/*,video/*,application/pdf" className="hidden" onChange={handleFileSelection} disabled={isUploading} />
+                            <input type="file" multiple accept="image/*,video/*,application/pdf" className="hidden" onChange={handleFileSelection} disabled={isUploading} />
                             {isUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />}
                             <span className="font-bold text-[10px] uppercase tracking-widest hidden sm:block">Substituir</span>
                           </label>
                         )}
                       </div>
+                    </div>
+
+                    <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-gray-100">
+                      <div className="flex items-center justify-between">
+                        <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-2">
+                          <Target size={14}/> Link Externo (Opcional)
+                        </h4>
+                        {localExternalLink !== (task.external_link || "") && (
+                          <button onClick={handleSaveLink} disabled={isSavingLink} className="bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest transition-colors flex items-center gap-1">
+                            {isSavingLink ? <Loader2 size={10} className="animate-spin"/> : <Save size={10}/>} Salvar Link
+                          </button>
+                        )}
+                      </div>
+                      <input 
+                        type="url"
+                        value={localExternalLink}
+                        onChange={(e) => setLocalExternalLink(e.target.value)}
+                        placeholder="https://exemplo.com/material"
+                        className="w-full bg-white p-3 rounded-xl border border-gray-200 text-[12px] text-[var(--color-atelier-grafite)] focus:outline-none focus:border-[var(--color-atelier-terracota)] shadow-sm transition-colors"
+                      />
                     </div>
 
                     {isAdmin && isReview && !isCompleted && task.status !== 'pending_client_approval' && (

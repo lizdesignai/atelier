@@ -8,7 +8,7 @@ import {
   Image as ImageIcon, Send, FileText, CheckCircle2,
   Settings2, Plus, ChevronDown, Calendar,
   Compass, X, Sparkles, Download, Loader2, Trash2, Archive, Eye, RotateCcw, BrainCircuit,
-  LayoutDashboard, Target, CalendarDays, MapPin, Camera
+  LayoutDashboard, Target, CalendarDays, MapPin, Camera, AlertCircle
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
@@ -72,22 +72,22 @@ function InfoBlock({ label, value }: { label: string, value: any }) {
 }
 
 // ============================================================================
-// COMPONENTE INTERNO: O ROTEADOR DAS ABAS DO INSTAGRAM
+// COMPONENTE INTERNO: O ROTEADOR DAS ABAS DO INSTAGRAM E B2B
 // ============================================================================
-export function GerenciamentoWorkspace({ activeProjectId, currentProject, activeTab }: { activeProjectId: string, currentProject: any, activeTab: string }) {
+export function GerenciamentoWorkspace({ activeProjectId, activeSubclientId, currentProject, activeTab }: { activeProjectId: string, activeSubclientId?: string | null, currentProject: any, activeTab: string }) {
   return (
     <div className="flex flex-col w-full animate-[fadeInUp_0.5s_ease-out] flex-1 min-h-0 relative">
       <div className="flex-1 min-h-0 relative pb-6">
         <AnimatePresence mode="wait">
           {activeTab === 'calendario' && (
             <motion.div key="calendar" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
-              <GlobalCalendar activeProjectId={activeProjectId} currentProject={currentProject} />
+              <GlobalCalendar activeProjectId={activeProjectId} activeSubclientId={activeSubclientId} currentProject={currentProject} />
             </motion.div>
           )}
 
           {activeTab === 'posts' && (
             <motion.div key="posts" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
-              <VisualFlow activeProjectId={activeProjectId} currentProject={currentProject} />
+              <VisualFlow activeProjectId={activeProjectId} activeSubclientId={activeSubclientId} currentProject={currentProject} />
             </motion.div>
           )}
 
@@ -99,7 +99,7 @@ export function GerenciamentoWorkspace({ activeProjectId, currentProject, active
 
           {activeTab === 'missoes' && (
             <motion.div key="missoes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="h-full">
-              <MissionsView activeProjectId={activeProjectId} currentProject={currentProject} />
+              <MissionsView activeProjectId={activeProjectId} activeSubclientId={activeSubclientId} currentProject={currentProject} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -119,23 +119,50 @@ function PainelIdentidade() {
   const [isClientMenuOpen, setIsClientMenuOpen] = useState(false);
   const [isBriefingModalOpen, setIsBriefingModalOpen] = useState(false);
 
-  // 🟢 ESTADO DO MENU INSTAGRAM (LIFTED)
+  // 🟢 ESTADO DO MENU INSTAGRAM E AGÊNCIAS
   const [activeTab, setActiveTab] = useState<'calendario' | 'posts' | 'identidade' | 'missoes'>('calendario');
 
+  // Lógica de Subclientes para Agências B2B
+  const [agencySubclients, setAgencySubclients] = useState<any[]>([]);
+  const [activeSubclientId, setActiveSubclientId] = useState<string | null>(null);
+
+  const [agencies, setAgencies] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchAgencies = async () => {
+      const { data } = await supabase.from('agencies').select('*').eq('status', 'active');
+      if (data) {
+        setAgencies(data.map(a => ({
+          ...a,
+          isAgency: true,
+          profiles: { nome: a.name, empresa: a.name, avatar_url: null },
+          status: 'active'
+        })));
+      }
+    };
+    fetchAgencies();
+  }, []);
+
+  const validProjects = [
+    ...activeProjects.filter(p => ['active', 'delivered', 'archived'].includes(p.status)),
+    ...agencies
+  ].sort((a, b) => (a.profiles?.nome || "").localeCompare(b.profiles?.nome || ""));
+
+  const currentProject = validProjects.find(p => p.id === activeProjectId);
+  const isIdv = isIdvService(currentProject); 
+  const isAgency = currentProject?.isAgency === true;
+
+  // Tabs disponíveis (Filtra 'identidade' se for agência)
   const igTabs = [
     { id: 'calendario', label: 'Analytics & Calendário', icon: <CalendarDays size={18} /> },
     { id: 'posts', label: 'Peças Gráficas', icon: <LayoutDashboard size={18} /> },
     { id: 'identidade', label: 'Diretrizes & Briefing', icon: <Target size={18} /> },
     { id: 'missoes', label: 'Solicitações e Arquivos', icon: <Camera size={18} /> },
-  ];
-
-  const validProjects = activeProjects.filter(p => ['active', 'delivered', 'archived'].includes(p.status));
-  const currentProject = validProjects.find(p => p.id === activeProjectId);
-  const isIdv = isIdvService(currentProject); 
+  ].filter(tab => !(isAgency && tab.id === 'identidade'));
 
   useDynamicTitle({
     projectName: currentProject?.profiles?.nome,
-    tabName: isIdv ? "Identidade Visual" : "Gestão de Projeto"
+    tabName: isAgency ? "Agência B2B" : (isIdv ? "Identidade Visual" : "Gestão de Projeto")
   });
 
   useEffect(() => {
@@ -143,6 +170,24 @@ function PainelIdentidade() {
     if (validProjects.length > 0 && !activeProjectId) setActiveProjectId(validProjects[0].id);
     setIsLocalLoading(false);
   }, [isGlobalLoading, activeProjects.length]);
+
+  // Efeito para carregar subclientes se for agência
+  useEffect(() => {
+    if (!activeProjectId || !isAgency) {
+      setAgencySubclients([]);
+      setActiveSubclientId(null);
+      return;
+    }
+    const fetchSubclients = async () => {
+      const { data } = await supabase.from('agency_subclients').select('*').eq('agency_id', activeProjectId).order('name', { ascending: true });
+      if (data) {
+        setAgencySubclients(data);
+        if (data.length > 0 && !activeSubclientId) setActiveSubclientId(data[0].id);
+        else if (data.length === 0) setActiveSubclientId(null);
+      }
+    };
+    fetchSubclients();
+  }, [activeProjectId, isAgency]);
 
   useEffect(() => {
     if (currentProject) {
@@ -915,8 +960,8 @@ function PainelIdentidade() {
           </div>
         </div>
 
-        {/* 🟢 RENDERIZAÇÃO CONDICIONAL: Botões IDV ou Menu Instagram */}
-        {isIdv ? (
+        {/* 🟢 RENDERIZAÇÃO CONDICIONAL: Botões IDV ou Menu Instagram / Agência */}
+        {isIdv && !isAgency ? (
           <div className="flex gap-3 relative z-10 shrink-0">
             <button onClick={() => setShowRefsPanel(true)} className="glass-panel bg-white/60 px-5 py-3 rounded-[1.2rem] font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-white transition-all flex items-center gap-2 shadow-sm border border-white hover:text-[var(--color-atelier-terracota)]">
               <Compass size={14} /> Referências Visuais
@@ -926,48 +971,73 @@ function PainelIdentidade() {
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-1.5 p-1.5 bg-white/70 backdrop-blur-xl border border-white shadow-sm rounded-full relative z-10 shrink-0">
-            {igTabs.map(tab => {
-              const isActive = activeTab === tab.id;
-              return (
-                <button 
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id as any)}
-                  className={`relative flex items-center justify-center rounded-full transition-all duration-500 overflow-hidden
-                    ${isActive 
-                      ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md h-12 px-5' 
-                      : 'bg-transparent text-[var(--color-atelier-grafite)]/50 hover:bg-white hover:text-[var(--color-atelier-grafite)] hover:shadow-sm w-12 h-12'
-                    }
-                  `}
-                  title={!isActive ? tab.label : undefined}
-                >
-                  <div className="shrink-0 relative z-10 flex items-center justify-center">
-                    {tab.icon}
-                  </div>
-                  
-                  <AnimatePresence>
-                    {isActive && (
-                      <motion.div 
-                        initial={{ width: 0, opacity: 0, paddingLeft: 0 }}
-                        animate={{ width: "auto", opacity: 1, paddingLeft: 8 }}
-                        exit={{ width: 0, opacity: 0, paddingLeft: 0 }}
-                        className="font-roboto text-[11px] font-bold uppercase tracking-widest whitespace-nowrap z-10"
-                      >
-                        {tab.label}
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
-                </button>
-              )
-            })}
+          <div className="flex items-center gap-3 relative z-10 shrink-0">
+            
+            {/* Filtro de Subclientes se for Agência */}
+            {isAgency && agencySubclients.length > 0 && (
+              <div className="relative flex items-center h-12 bg-white/70 backdrop-blur-xl border border-white shadow-sm rounded-full px-4">
+                 <span className="font-roboto text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/50 mr-2 border-r border-[var(--color-atelier-grafite)]/10 pr-2">Subcliente</span>
+                 <select
+                   value={activeSubclientId || ""}
+                   onChange={(e) => setActiveSubclientId(e.target.value)}
+                   className="bg-transparent font-roboto text-[12px] font-bold text-[var(--color-atelier-grafite)] outline-none cursor-pointer pr-2 appearance-none min-w-[120px]"
+                 >
+                   {agencySubclients.map(sub => (
+                     <option key={sub.id} value={sub.id}>{sub.name}</option>
+                   ))}
+                 </select>
+                 <ChevronDown size={14} className="text-[var(--color-atelier-terracota)] pointer-events-none absolute right-4" />
+              </div>
+            )}
+            {isAgency && agencySubclients.length === 0 && (
+              <div className="flex items-center h-12 bg-red-50 text-red-500 border border-red-100 shadow-sm rounded-full px-4 font-roboto text-[11px] font-bold uppercase tracking-widest">
+                 <AlertCircle size={14} className="mr-2"/> Sem Subclientes
+              </div>
+            )}
+
+            <div className="flex items-center gap-1.5 p-1.5 bg-white/70 backdrop-blur-xl border border-white shadow-sm rounded-full">
+              {igTabs.map(tab => {
+                const isActive = activeTab === tab.id;
+                return (
+                  <button 
+                    key={tab.id}
+                    onClick={() => setActiveTab(tab.id as any)}
+                    className={`relative flex items-center justify-center rounded-full transition-all duration-500 overflow-hidden
+                      ${isActive 
+                        ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md h-9 px-5' 
+                        : 'bg-transparent text-[var(--color-atelier-grafite)]/50 hover:bg-white hover:text-[var(--color-atelier-grafite)] hover:shadow-sm w-9 h-9'
+                      }
+                    `}
+                    title={!isActive ? tab.label : undefined}
+                  >
+                    <div className="shrink-0 relative z-10 flex items-center justify-center">
+                      {tab.icon}
+                    </div>
+                    
+                    <AnimatePresence>
+                      {isActive && (
+                        <motion.div 
+                          initial={{ width: 0, opacity: 0, paddingLeft: 0 }}
+                          animate={{ width: "auto", opacity: 1, paddingLeft: 8 }}
+                          exit={{ width: 0, opacity: 0, paddingLeft: 0 }}
+                          className="font-roboto text-[11px] font-bold uppercase tracking-widest whitespace-nowrap z-10"
+                        >
+                          {tab.label}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </button>
+                )
+              })}
+            </div>
           </div>
         )}
       </header>
 
       {/* ==========================================
-          MESA DE TRABALHO DINÂMICA (IDV ou INSTAGRAM)
+          MESA DE TRABALHO DINÂMICA (IDV ou INSTAGRAM/B2B)
           ========================================== */}
-      {isIdv ? (
+      {isIdv && !isAgency ? (
         <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0 animate-[fadeInUp_0.8s_ease-out_0.2s_both] relative z-10">
           
           {/* 1. COLUNA ESQUERDA: ENGENHARIA DO PROJETO */}
@@ -1100,7 +1170,7 @@ function PainelIdentidade() {
         </div>
       ) : (
         <div className="flex-1 flex flex-col min-h-0 animate-[fadeInUp_0.8s_ease-out_0.2s_both] relative z-10">
-          <GerenciamentoWorkspace activeProjectId={activeProjectId as string} currentProject={currentProject} activeTab={activeTab} />
+          <GerenciamentoWorkspace activeProjectId={activeProjectId} activeSubclientId={activeSubclientId} currentProject={currentProject} activeTab={activeTab} />
         </div>
       )}
 

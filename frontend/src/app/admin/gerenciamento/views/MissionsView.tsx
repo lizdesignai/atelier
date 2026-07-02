@@ -13,6 +13,7 @@ import { NotificationEngine } from "@/lib/NotificationEngine";
 
 interface MissionsViewProps {
   activeProjectId: string;
+  activeSubclientId?: string | null;
   currentProject: any;
 }
 
@@ -46,7 +47,7 @@ const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
 };
 
-export default function MissionsView({ activeProjectId, currentProject }: MissionsViewProps) {
+export default function MissionsView({ activeProjectId, activeSubclientId, currentProject }: MissionsViewProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [missions, setMissions] = useState<Mission[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
@@ -65,11 +66,24 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      // 🟢 Busca Solicitações, Assets e Links Rápidos em paralelo
+      let missionsQuery = supabase.from('asset_missions').select('*').order('created_at', { ascending: false });
+      let assetsQuery = supabase.from('project_assets').select('*').order('created_at', { ascending: false });
+      let linksQuery = supabase.from('project_quick_links').select('*').order('created_at', { ascending: false });
+
+      if (activeSubclientId) {
+        missionsQuery = missionsQuery.eq('subclient_id', activeSubclientId);
+        assetsQuery = assetsQuery.eq('subclient_id', activeSubclientId);
+        linksQuery = linksQuery.eq('subclient_id', activeSubclientId);
+      } else {
+        missionsQuery = missionsQuery.eq('project_id', activeProjectId).is('subclient_id', null);
+        assetsQuery = assetsQuery.eq('project_id', activeProjectId).is('subclient_id', null);
+        linksQuery = linksQuery.eq('project_id', activeProjectId).is('subclient_id', null);
+      }
+
       const [ { data: missionsData }, { data: assetsData }, { data: linksData } ] = await Promise.all([
-        supabase.from('asset_missions').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false }),
-        supabase.from('project_assets').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false }),
-        supabase.from('project_quick_links').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false })
+        missionsQuery,
+        assetsQuery,
+        linksQuery
       ]);
 
       setMissions(missionsData || []);
@@ -84,7 +98,7 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
 
   useEffect(() => {
     if (activeProjectId) fetchData();
-  }, [activeProjectId]);
+  }, [activeProjectId, activeSubclientId]);
 
   // ============================================================================
   // GESTÃO DE LINKS RÁPIDOS DA EQUIPE (NOVO MÓDULO)
@@ -97,6 +111,7 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
     try {
       const { data, error } = await supabase.from('project_quick_links').insert({
         project_id: activeProjectId,
+        subclient_id: activeSubclientId || null,
         title: linkForm.title,
         url: linkForm.url,
         type: linkForm.type
@@ -149,13 +164,15 @@ export default function MissionsView({ activeProjectId, currentProject }: Missio
     showToast("Enviando nova solicitação para o cliente...");
 
     try {
-      const { data, error } = await supabase.from('asset_missions').insert({
+      const payload = {
         project_id: activeProjectId,
-        client_id: currentProject.client_id,
+        subclient_id: activeSubclientId || null,
         title: newMissionTitle,
         description: newMissionDesc,
-        status: 'pending'
-      }).select();
+        status: 'pending',
+        client_id: currentProject?.client_id
+      };
+      const { data, error } = await supabase.from('asset_missions').insert(payload).select();
 
       if (error) throw error;
 

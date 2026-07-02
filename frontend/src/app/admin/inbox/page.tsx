@@ -96,6 +96,12 @@ export default function AdminInboxPage() {
   const [isSending, setIsSending] = useState(false);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  
+  // 🟢 NOVO: Estados para Notificações de Chat
+  const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
+  const [channelTypeMap, setChannelTypeMap] = useState<Record<string, string>>({});
+  const [channelPreviews, setChannelPreviews] = useState<Record<string, string>>({});
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Estados do Modal de Criação
@@ -136,22 +142,35 @@ export default function AdminInboxPage() {
           if (formattedClients.length > 0) setActiveProjectId(formattedClients[0].id);
         }
 
-        // Carrega Malha Corporativa com Regra de Negócio (RBAC)
-        const { data: corpUsers } = await supabase
-          .from('profiles')
-          .select('id, nome, avatar_url, role, current_status')
-          .in('role', ['admin', 'gestor', 'colaborador'])
-          .neq('id', session.user.id)
-          .order('role', { ascending: true });
+        if (session) {
+          const uData = session.user;
+          const { data: pData } = await supabase.from('profiles').select('*').eq('id', uData.id).single();
+          setCurrentUser(pData as ProfileData);
 
-        if (corpUsers) {
-          if (profile?.role === 'colaborador') {
-            // Colaboradores só conversam com liderança
-            setCorporateUsers(corpUsers.filter(u => u.role === 'admin' || u.role === 'gestor') as ProfileData[]);
-          } else {
-            // Admin e Gestor veem toda a equipe
-            setCorporateUsers(corpUsers as ProfileData[]);
+          // Puxar lista de clientes
+          const { data: clientsData } = await supabase.from('projects').select('*, profiles(*)').in('status', ['active', 'delivered']);
+          if (clientsData) setClients(clientsData as ClientData[]);
+
+          // Puxar Equipa
+          const { data: corpUsers } = await supabase.from('profiles').select('*').in('role', ['admin', 'gestor', 'colaborador']).order('nome');
+          if (corpUsers) {
+            if (pData?.role === 'colaborador') {
+              setCorporateUsers(corpUsers.filter(u => u.role === 'admin' || u.role === 'gestor') as ProfileData[]);
+            } else {
+              setCorporateUsers(corpUsers as ProfileData[]);
+            }
           }
+          
+          // 🟢 NOVO: Puxar mapeamento de canais (para agregar badges nas abas)
+          const { data: allChannels } = await supabase.from('channels').select('id, type');
+          if (allChannels) {
+            const map: Record<string, string> = {};
+            allChannels.forEach(c => map[c.id] = c.type);
+            setChannelTypeMap(map);
+          }
+
+          // 🟢 NOVO: Buscar contagem inicial de não lidas
+          fetchUnreadCounts();
         }
       } catch (error) {
         console.error("[Workspace] Falha no arranque:", error);
@@ -161,6 +180,34 @@ export default function AdminInboxPage() {
     };
     bootEngine();
   }, []);
+
+  // 🟢 NOVO: Função para buscar não lidas e ouvir novos inserts
+  const fetchUnreadCounts = async () => {
+    const { data, error } = await supabase.rpc('get_unread_counts_per_channel');
+    if (!error && data) {
+      const countsMap: Record<string, number> = {};
+      const previewsMap: Record<string, string> = {};
+      data.forEach((item: any) => {
+        countsMap[item.channel_id] = item.unread_count;
+        if (item.last_message_text) {
+          previewsMap[item.channel_id] = item.last_message_text;
+        }
+      });
+      setUnreadCounts(countsMap);
+      setChannelPreviews(previewsMap);
+    }
+  };
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const unreadSub = supabase.channel('inbox_unread')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
+        if (payload.new.sender_id !== currentUser.id) {
+           fetchUnreadCounts();
+        }
+      }).subscribe();
+    return () => { supabase.removeChannel(unreadSub); };
+  }, [currentUser]);
 
   // ============================================================================
   // ORQUESTRAÇÃO DE CANAIS
@@ -228,8 +275,18 @@ export default function AdminInboxPage() {
       
       setMessages(formattedMessages);
       scrollToBottom();
+      
+      // 🟢 NOVO: Marcar como lido ao abrir o canal
+      if (currentUser) {
+        supabase.from('channel_reads').upsert(
+          { channel_id: activeChannelId, user_id: currentUser.id, last_read_at: new Date().toISOString() },
+          { onConflict: 'channel_id, user_id' }
+        ).then(() => {
+          setUnreadCounts(prev => ({ ...prev, [activeChannelId]: 0 }));
+        });
+      }
     }
-  }, [activeChannelId]);
+  }, [activeChannelId, currentUser]);
 
   useEffect(() => {
     fetchMessages();
@@ -468,9 +525,15 @@ export default function AdminInboxPage() {
           <div className="flex bg-white/80 p-1.5 rounded-2xl border border-white shadow-sm relative">
             <button onClick={() => setActiveSpace('projects')} className={`flex-1 py-3 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all relative z-10 ${activeSpace === 'projects' ? 'text-[var(--color-atelier-grafite)]' : 'text-gray-400 hover:text-gray-600'}`}>
               <Briefcase size={14}/> Projetos
+              {Object.entries(unreadCounts).reduce((acc, [cId, count]) => (channelTypeMap[cId] !== 'dm' && channelTypeMap[cId] !== 'corporate_global' ? acc + count : acc), 0) > 0 && (
+                 <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 animate-pulse-slow"></span>
+              )}
             </button>
             <button onClick={() => setActiveSpace('corporate')} className={`flex-1 py-3 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all relative z-10 ${activeSpace === 'corporate' ? 'text-white' : 'text-gray-400 hover:text-gray-600'}`}>
               <Users size={14}/> Equipe
+              {Object.entries(unreadCounts).reduce((acc, [cId, count]) => ((channelTypeMap[cId] === 'dm' || channelTypeMap[cId] === 'corporate_global') ? acc + count : acc), 0) > 0 && (
+                 <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 border border-[var(--color-atelier-grafite)] animate-pulse-slow"></span>
+              )}
             </button>
             <motion.div className={`absolute top-1.5 bottom-1.5 w-[calc(50%-0.375rem)] rounded-xl shadow-md ${activeSpace === 'projects' ? 'bg-white left-1.5' : 'bg-[var(--color-atelier-grafite)] right-1.5'}`} layout transition={{ type: "spring", stiffness: 300, damping: 30 }} />
           </div>
@@ -515,11 +578,24 @@ export default function AdminInboxPage() {
                       <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-gray-400">Canais Compartilhados</span>
                       <button onClick={() => setIsChannelModalOpen(true)} className="text-gray-400 hover:text-[var(--color-atelier-terracota)] transition-colors p-1 bg-white/50 rounded-lg hover:bg-white shadow-sm"><Plus size={14}/></button>
                     </div>
-                    {channels.filter(c => !c.is_private && !c.is_archived).map(channel => (
-                      <button key={channel.id} onClick={() => setActiveChannelId(channel.id)} className={`w-full text-left px-4 py-3 rounded-[1rem] font-roboto text-[13px] font-bold flex items-center justify-between transition-all border ${activeChannelId === channel.id ? 'bg-white text-[var(--color-atelier-terracota)] shadow-sm border-white scale-[1.02] z-10' : 'bg-transparent text-[var(--color-atelier-grafite)]/60 border-transparent hover:bg-white/60'}`}>
-                        <span className="flex items-center gap-2.5 truncate pr-2"><Hash size={16} className={activeChannelId === channel.id ? 'text-[var(--color-atelier-terracota)]' : 'text-gray-400'} /> <span className="truncate">{channel.name}</span></span>
+                    {channels.filter(c => !c.is_private && !c.is_archived).map(channel => {
+                      const unread = unreadCounts[channel.id] || 0;
+                      return (
+                      <button key={channel.id} onClick={() => setActiveChannelId(channel.id)} className={`w-full text-left px-4 py-3 rounded-[1rem] font-roboto flex items-center justify-between transition-all border ${activeChannelId === channel.id ? 'bg-white text-[var(--color-atelier-terracota)] shadow-sm border-white scale-[1.02] z-10' : 'bg-transparent text-[var(--color-atelier-grafite)]/80 border-transparent hover:bg-white/60'}`}>
+                        <div className="flex items-center gap-2.5 truncate pr-2 w-full">
+                           <Hash size={16} className={`shrink-0 ${activeChannelId === channel.id ? 'text-[var(--color-atelier-terracota)]' : 'text-gray-400'}`} /> 
+                           <div className="flex flex-col truncate flex-1">
+                             <span className="font-bold text-[13px] truncate">{channel.name}</span>
+                             {channelPreviews[channel.id] && (
+                               <span className="text-[10px] text-gray-400 truncate mt-0.5">{channelPreviews[channel.id]}</span>
+                             )}
+                           </div>
+                           {unread > 0 && (
+                             <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse-slow shrink-0">{unread > 99 ? '99+' : unread}</span>
+                           )}
+                        </div>
                       </button>
-                    ))}
+                    )})}
                   </div>
 
                   <div className="flex flex-col gap-1.5">
@@ -527,11 +603,24 @@ export default function AdminInboxPage() {
                       <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-gray-400">Canais Internos</span>
                       <LizDesignLogo />
                     </div>
-                    {channels.filter(c => c.is_private && !c.is_archived).map(channel => (
-                      <button key={channel.id} onClick={() => setActiveChannelId(channel.id)} className={`w-full text-left px-4 py-3 rounded-[1rem] font-roboto text-[13px] font-bold flex items-center justify-between transition-all border ${activeChannelId === channel.id ? 'bg-[var(--color-atelier-grafite)] text-white shadow-lg border-[var(--color-atelier-grafite)] scale-[1.02] z-10' : 'bg-transparent text-[var(--color-atelier-grafite)]/60 border-transparent hover:bg-white/60'}`}>
-                        <span className="flex items-center gap-2.5 truncate pr-2"><Lock size={14} className={activeChannelId === channel.id ? 'text-white/60' : 'text-gray-400'} /> <span className="truncate">{channel.name}</span></span>
+                    {channels.filter(c => c.is_private && !c.is_archived).map(channel => {
+                      const unread = unreadCounts[channel.id] || 0;
+                      return (
+                      <button key={channel.id} onClick={() => setActiveChannelId(channel.id)} className={`w-full text-left px-4 py-3 rounded-[1rem] font-roboto flex items-center justify-between transition-all border ${activeChannelId === channel.id ? 'bg-[var(--color-atelier-grafite)] text-white shadow-lg border-[var(--color-atelier-grafite)] scale-[1.02] z-10' : 'bg-transparent text-[var(--color-atelier-grafite)]/80 border-transparent hover:bg-white/60'}`}>
+                        <div className="flex items-center gap-2.5 truncate pr-2 w-full">
+                           <Lock size={14} className={`shrink-0 ${activeChannelId === channel.id ? 'text-white/60' : 'text-gray-400'}`} /> 
+                           <div className="flex flex-col truncate flex-1">
+                             <span className="font-bold text-[13px] truncate">{channel.name}</span>
+                             {channelPreviews[channel.id] && (
+                               <span className={`text-[10px] truncate mt-0.5 ${activeChannelId === channel.id ? 'text-white/60' : 'text-gray-400'}`}>{channelPreviews[channel.id]}</span>
+                             )}
+                           </div>
+                           {unread > 0 && (
+                             <span className="ml-auto bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse-slow shrink-0">{unread > 99 ? '99+' : unread}</span>
+                           )}
+                        </div>
                       </button>
-                    ))}
+                    )})}
                   </div>
                 </div>
               </motion.div>
@@ -548,20 +637,60 @@ export default function AdminInboxPage() {
                     <span className="px-2 font-roboto text-[10px] uppercase tracking-widest font-bold text-gray-400">Global</span>
                     <button onClick={() => { setActiveDMUserId(null); }} className={`w-full text-left p-3.5 rounded-[1.2rem] flex items-center gap-3.5 transition-all border ${!activeDMUserId ? 'bg-[var(--color-atelier-grafite)] text-white shadow-lg border-[var(--color-atelier-grafite)] scale-[1.02]' : 'bg-white/60 border-white hover:bg-white text-[var(--color-atelier-grafite)] shadow-sm'}`}>
                       <div className={`w-11 h-11 rounded-[0.8rem] flex items-center justify-center shrink-0 shadow-inner ${!activeDMUserId ? 'bg-white/10 text-white' : 'bg-gray-50 border border-gray-100 text-[var(--color-atelier-terracota)]'}`}><Globe size={20} /></div>
-                      <div className="flex flex-col"><span className="font-bold text-[14px] leading-tight">Equipe LizDesign</span><span className={`text-[9px] uppercase tracking-widest font-bold mt-1 ${!activeDMUserId ? 'text-white/60' : 'text-gray-400'}`}>Toda a Equipe</span></div>
+                      <div className="flex flex-col flex-1 overflow-hidden">
+                         <div className="flex justify-between items-center w-full">
+                           <span className="font-bold text-[14px] leading-tight">Equipe LizDesign</span>
+                           {/* Como Corporate Global tem um canal fixo, podemos achar o unread dele pegando o channelTypeMap */}
+                           {(() => {
+                             const globalChannelId = Object.keys(channelTypeMap).find(id => channelTypeMap[id] === 'corporate_global');
+                             const unread = globalChannelId ? (unreadCounts[globalChannelId] || 0) : 0;
+                             if (unread > 0) {
+                               return <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse-slow">{unread > 99 ? '99+' : unread}</span>
+                             }
+                             return null;
+                           })()}
+                         </div>
+                         {(() => {
+                             const globalChannelId = Object.keys(channelTypeMap).find(id => channelTypeMap[id] === 'corporate_global');
+                             const preview = globalChannelId ? channelPreviews[globalChannelId] : null;
+                             if (preview) {
+                               return <span className={`text-[10px] truncate mt-1 ${!activeDMUserId ? 'text-white/60' : 'text-gray-400'}`}>{preview}</span>
+                             }
+                             return <span className={`text-[9px] uppercase tracking-widest font-bold mt-1 ${!activeDMUserId ? 'text-white/60' : 'text-gray-400'}`}>Toda a Equipe</span>
+                         })()}
+                      </div>
                     </button>
                   </div>
                   <div className="flex flex-col gap-2">
                     <span className="px-2 font-roboto text-[10px] uppercase tracking-widest font-bold text-gray-400">Direct Messages</span>
                     {corporateUsers.map(user => {
                       const isActive = activeDMUserId === user.id;
+                      // Descobrir o DM channel ID entre mim e esse user
+                      const participants = [currentUser?.id, user.id].sort();
+                      const dmHash = `dm_${participants[0]}_${participants[1]}`;
+                      const channel = channels.find(c => c.name === dmHash);
+                      const unread = channel ? (unreadCounts[channel.id] || 0) : 0;
+                      const preview = channel ? channelPreviews[channel.id] : null;
+
                       return (
                         <button key={user.id} onClick={() => setActiveDMUserId(user.id)} className={`w-full text-left p-3 rounded-[1.2rem] flex items-center gap-3 transition-all border ${isActive ? 'bg-white border-[var(--color-atelier-terracota)]/30 shadow-md scale-[1.02]' : 'bg-transparent border-transparent hover:bg-white/70'}`}>
                           <div className="relative shrink-0">
                             <div className="w-11 h-11 rounded-[0.8rem] bg-gray-50 flex items-center justify-center overflow-hidden border border-white shadow-sm">{user.avatar_url ? <img src={user.avatar_url} className="w-full h-full object-cover"/> : <span className="font-elegant text-base font-bold text-[var(--color-atelier-grafite)]">{user.nome.charAt(0)}</span>}</div>
                             <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 border-2 border-white rounded-full flex items-center justify-center ${user.current_status === 'online' ? 'bg-green-500' : 'bg-gray-300'}`}>{user.current_status === 'online' && <div className="absolute w-full h-full bg-green-500 rounded-full animate-ping opacity-60"></div>}</div>
                           </div>
-                          <div className="flex flex-col overflow-hidden"><span className={`font-bold text-[14px] truncate leading-tight ${isActive ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]'}`}>{user.nome}</span><span className="font-roboto text-[9px] uppercase tracking-widest font-bold text-gray-400 truncate mt-1">{user.role}</span></div>
+                          <div className="flex flex-col overflow-hidden flex-1">
+                            <div className="flex justify-between items-center w-full">
+                               <span className={`font-bold text-[14px] truncate leading-tight ${isActive ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]'}`}>{user.nome}</span>
+                               {unread > 0 && (
+                                 <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse-slow ml-2 shrink-0">{unread > 99 ? '99+' : unread}</span>
+                               )}
+                            </div>
+                            {preview ? (
+                              <span className="text-[10px] text-gray-400 truncate mt-1">{preview}</span>
+                            ) : (
+                              <span className="font-roboto text-[9px] uppercase tracking-widest font-bold text-gray-400 truncate mt-1">{user.role}</span>
+                            )}
+                          </div>
                         </button>
                       )
                     })}
