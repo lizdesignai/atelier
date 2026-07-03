@@ -61,42 +61,16 @@ export default function PulseDashboard({ currentUser }: PulseDashboardProps) {
 
   const fetchPulseData = async () => {
     try {
-      const todayStart = startOfDay(new Date()).toISOString();
-      const todayEnd = endOfDay(new Date()).toISOString();
-
-      // Busca Equipa (Agora com o current_status de Telemetria)
-      const { data: teamData } = await supabase
-        .from('profiles')
-        .select('id, nome, avatar_url, role, current_status')
-        .in('role', ['colaborador', 'gestor', 'admin']);
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
+      const res = await fetch(`${backendUrl}/api/v1/management/pulse`);
+      if (!res.ok) throw new Error("Falha ao carregar pulse data");
       
-      if (teamData) {
-        // Ordena para que os 'online' fiquem primeiro, 'idle' depois, e 'offline' no fim
-        const sortedTeam = teamData.sort((a, b) => {
-          const statusRank: Record<string, number> = { 'online': 1, 'idle': 2, 'offline': 3 };
-          return (statusRank[a.current_status || 'offline'] || 3) - (statusRank[b.current_status || 'offline'] || 3);
-        });
-        setTeam(sortedTeam);
-      }
-
-      // Busca Sessões de Hoje
-      const { data: sessionsData } = await supabase
-        .from('work_sessions')
-        .select('*, tasks(title, projects(profiles(nome)))')
-        .gte('start_time', todayStart)
-        .lte('start_time', todayEnd)
-        .order('start_time', { ascending: false });
-      if (sessionsData) setTodaySessions(sessionsData);
-
-      // Busca Tarefas movimentadas hoje
-      const { data: tasksData } = await supabase
-        .from('tasks')
-        .select('id, status, deadline')
-        .or(`updated_at.gte.${todayStart},deadline.gte.${todayStart},deadline.lte.${todayEnd}`);
-      if (tasksData) setTodayTasks(tasksData);
-
+      const { data } = await res.json();
+      setTeam(data.team || []);
+      setTodaySessions(data.sessions || []);
+      setTodayTasks(data.tasks || []);
     } catch (error) {
-      console.error("Erro ao buscar dados do Pulso:", error);
+      console.error("Erro ao buscar dados do Pulso via API:", error);
     } finally {
       setIsLoading(false);
     }

@@ -24,12 +24,18 @@ import projectRoutes from './routes/projects';
 import taskRoutes from './routes/tasks';
 import analyticsRoutes from './routes/analytics';
 import chatRoutes from './routes/chat';
+import clientRoutes from './routes/clients';
+import studioRoutes from './routes/studio';
+import managementRoutes from './routes/management';
 
 // Rotas Base da API v1
 app.use('/api/v1/projects', projectRoutes);
 app.use('/api/v1/tasks', taskRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
 app.use('/api/v1/chat', chatRoutes);
+app.use('/api/v1/clients', clientRoutes);
+app.use('/api/v1/studio', studioRoutes);
+app.use('/api/v1/management', managementRoutes);
 
 app.listen(port, () => {
   console.log(`[Backend] Atelier API rodando na porta ${port}`);

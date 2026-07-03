@@ -106,7 +106,7 @@ export default function AnalyticsPage() {
   const fetchOperationalData = useCallback(async () => {
     setIsLocalLoading(true);
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
       
       const response = await fetch(`${backendUrl}/api/v1/analytics/dashboard`, {
         method: 'GET',

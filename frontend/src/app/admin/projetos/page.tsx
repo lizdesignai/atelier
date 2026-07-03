@@ -171,22 +171,12 @@ function PainelIdentidade() {
     setIsLocalLoading(false);
   }, [isGlobalLoading, activeProjects.length]);
 
-  // Efeito para carregar subclientes se for agência
+  // Subclients are fetched within the unified studio endpoint now
   useEffect(() => {
     if (!activeProjectId || !isAgency) {
       setAgencySubclients([]);
       setActiveSubclientId(null);
-      return;
     }
-    const fetchSubclients = async () => {
-      const { data } = await supabase.from('agency_subclients').select('*').eq('agency_id', activeProjectId).order('name', { ascending: true });
-      if (data) {
-        setAgencySubclients(data);
-        if (data.length > 0 && !activeSubclientId) setActiveSubclientId(data[0].id);
-        else if (data.length === 0) setActiveSubclientId(null);
-      }
-    };
-    fetchSubclients();
   }, [activeProjectId, isAgency]);
 
   useEffect(() => {
@@ -215,29 +205,35 @@ function PainelIdentidade() {
 
   useEffect(() => {
     if (!activeProjectId) return;
-    const fetchAssetsAndBriefing = async () => {
+    const fetchStudioData = async () => {
       try {
-        const [ { data: assetsData }, { data: briefingData }, { data: { session } } ] = await Promise.all([
-          supabase.from('project_assets').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false }),
-          supabase.from('client_briefings').select('answers, is_completed').eq('project_id', activeProjectId).maybeSingle(),
-          supabase.auth.getSession()
-        ]);
-        
-        if (assetsData) setProjectAssets(assetsData);
-        if (briefingData && briefingData.answers && briefingData.is_completed !== false) setClientBriefing(briefingData.answers);
-        else setClientBriefing(null);
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
+        const response = await fetch(`${backendUrl}/api/v1/studio/project/${activeProjectId}`);
+        if (!response.ok) throw new Error('Falha ao buscar dados do estúdio');
+        const { data } = await response.json();
 
+        setProjectAssets(data.assets || []);
+        setClientBriefing(data.briefing || null);
+
+        if (isAgency && data.subclients) {
+           setAgencySubclients(data.subclients);
+           if (data.subclients.length > 0 && !activeSubclientId) {
+              setActiveSubclientId(data.subclients[0].id);
+           }
+        }
+
+        const { data: { session } } = await supabase.auth.getSession();
         if (session?.user?.id) {
           AtelierPMEngine.runRecurrenceHotCheck(activeProjectId, session.user.id).catch(e => {
             console.error("Erro no Hot-Check Background:", e);
           });
         }
       } catch (error) {
-        console.error("Erro no fetching paralelo:", error);
+        console.error("Erro no fetching unificado do Estúdio:", error);
       }
     };
-    fetchAssetsAndBriefing();
-  }, [activeProjectId]);
+    fetchStudioData();
+  }, [activeProjectId, isAgency]);
 
   const handleReturnBriefing = async () => {
     if (!activeProjectId || !clientBriefing) return;
