@@ -109,6 +109,11 @@ function buildAppLikeEmail(avatarOrIcon: string, title: string, message: string,
     ? `<img src="${avatarOrIcon}" style="width: 100%; height: 100%; object-fit: cover; border-radius: 18px;" alt="Avatar" />`
     : avatarOrIcon;
 
+  // 🟢 PREVENÇÃO: Limpa imagens em Base64 do corpo do e-mail (evita strings de 30kb+ vazando)
+  if (typeof message === 'string') {
+    message = message.replace(/data:image\/[^;]+;base64,[a-zA-Z0-9+/=]+/g, '[Imagem Ocultada no E-mail]');
+  }
+
   return `
     <!DOCTYPE html>
     <html lang="pt-BR">

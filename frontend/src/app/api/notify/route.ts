@@ -183,6 +183,11 @@ function getEmailTemplate(type: string, data: any) {
       break;
   }
 
+  // 🟢 PREVENÇÃO: Limpa imagens em Base64 do corpo do e-mail (evita strings de 30kb+ vazando)
+  if (typeof message === 'string') {
+    message = message.replace(/data:image\/[^;]+;base64,[a-zA-Z0-9+/=]+/g, '[Imagem Ocultada no E-mail]');
+  }
+
   // 🟢 TEMPLATE HTML "APP-LIKE" (Estilo Notificação Push do iOS/macOS)
   const html = `
     <!DOCTYPE html>

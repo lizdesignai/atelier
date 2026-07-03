@@ -503,16 +503,20 @@ export default function CockpitPage() {
                         </p>
                       </div>
 
-                      {/* Link Externo (se houver) */}
-                      {allPosts[activeCarouselIndex]?.external_link && (
-                        <div className="mt-4 flex items-center gap-3 bg-[var(--color-atelier-creme)] p-4 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/10">
-                          <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-[var(--color-atelier-terracota)] shrink-0 shadow-sm"><Target size={18}/></div>
-                          <div className="flex flex-col flex-1 overflow-hidden">
-                            <span className="font-bold text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]">Link de Apoio</span>
-                            <a href={allPosts[activeCarouselIndex].external_link} target="_blank" rel="noreferrer" className="text-[13px] text-[var(--color-atelier-terracota)] truncate hover:underline">
-                              Acessar Material Externo
-                            </a>
-                          </div>
+                      {/* Links Externos (se houverem) */}
+                      {allPosts[activeCarouselIndex]?.external_links && allPosts[activeCarouselIndex]?.external_links.length > 0 && (
+                        <div className="mt-4 flex flex-col gap-2">
+                          <span className="font-bold text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]">Links de Apoio / Referência</span>
+                          {allPosts[activeCarouselIndex].external_links.map((link: string, idx: number) => (
+                            <div key={idx} className="flex items-center gap-3 bg-[var(--color-atelier-creme)] p-3 rounded-[1rem] border border-[var(--color-atelier-grafite)]/10">
+                              <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-[var(--color-atelier-terracota)] shrink-0 shadow-sm"><Target size={14}/></div>
+                              <div className="flex flex-col flex-1 overflow-hidden">
+                                <a href={link} target="_blank" rel="noreferrer" className="text-[12px] text-[var(--color-atelier-terracota)] truncate hover:underline">
+                                  {link}
+                                </a>
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       )}
 

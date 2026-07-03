@@ -6,7 +6,7 @@ import {
   Clock, Target, Activity, Flame, ArrowRight, 
   Loader2, PlayCircle, PauseCircle, ChevronRight, 
   CheckCircle2, X, Save, AlignLeft, Paperclip, UploadCloud, Eye, 
-  Image as ImageIcon, ZoomIn, RotateCcw, MessageSquare, Send, FileText, Timer 
+  Image as ImageIcon, ZoomIn, RotateCcw, MessageSquare, Send, FileText, Timer, PlusCircle
 } from "lucide-react";
 
 interface TaskCardProps {
@@ -59,7 +59,8 @@ export default function TaskCard({
   // 🟢 LEGENDA E LINK (NOVIDADE)
   const [localCaption, setLocalCaption] = useState(task.caption || "");
   const [isSavingCaption, setIsSavingCaption] = useState(false);
-  const [localExternalLink, setLocalExternalLink] = useState(task.external_link || "");
+  const [localExternalLinks, setLocalExternalLinks] = useState<string[]>(task.external_links || []);
+  const [newLinkInput, setNewLinkInput] = useState("");
   const [isSavingLink, setIsSavingLink] = useState(false);
 
   const handleSaveCaption = async () => {
@@ -76,15 +77,15 @@ export default function TaskCard({
     }
   };
 
-  const handleSaveLink = async () => {
+  const handleSaveLinks = async () => {
     setIsSavingLink(true);
     try {
-      await supabase.from('tasks').update({ external_link: localExternalLink }).eq('id', task.id);
-      await supabase.from('social_posts').update({ external_link: localExternalLink }).eq('task_id', task.id);
-      task.external_link = localExternalLink;
-      window.dispatchEvent(new CustomEvent("showToast", { detail: "Link salvo com sucesso!" }));
+      await supabase.from('tasks').update({ external_links: localExternalLinks }).eq('id', task.id);
+      await supabase.from('social_posts').update({ external_links: localExternalLinks }).eq('task_id', task.id);
+      task.external_links = localExternalLinks;
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Links salvos com sucesso!" }));
     } catch (e) {
-      window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao atualizar link." }));
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao atualizar links." }));
     } finally {
       setIsSavingLink(false);
     }
@@ -553,21 +554,54 @@ export default function TaskCard({
                     <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-gray-100">
                       <div className="flex items-center justify-between">
                         <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-2">
-                          <Target size={14}/> Link Externo (Opcional)
+                          <Target size={14}/> Links Externos (Referência)
                         </h4>
-                        {localExternalLink !== (task.external_link || "") && (
-                          <button onClick={handleSaveLink} disabled={isSavingLink} className="bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest transition-colors flex items-center gap-1">
-                            {isSavingLink ? <Loader2 size={10} className="animate-spin"/> : <Save size={10}/>} Salvar Link
+                        {JSON.stringify(localExternalLinks) !== JSON.stringify(task.external_links || []) && (
+                          <button onClick={handleSaveLinks} disabled={isSavingLink} className="bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest transition-colors flex items-center gap-1">
+                            {isSavingLink ? <Loader2 size={10} className="animate-spin"/> : <Save size={10}/>} Salvar Links
                           </button>
                         )}
                       </div>
-                      <input 
-                        type="url"
-                        value={localExternalLink}
-                        onChange={(e) => setLocalExternalLink(e.target.value)}
-                        placeholder="https://exemplo.com/material"
-                        className="w-full bg-white p-3 rounded-xl border border-gray-200 text-[12px] text-[var(--color-atelier-grafite)] focus:outline-none focus:border-[var(--color-atelier-terracota)] shadow-sm transition-colors"
-                      />
+                      <div className="flex gap-2">
+                        <input 
+                          type="url"
+                          value={newLinkInput}
+                          onChange={(e) => setNewLinkInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && newLinkInput.trim()) {
+                              e.preventDefault();
+                              setLocalExternalLinks([...localExternalLinks, newLinkInput.trim()]);
+                              setNewLinkInput("");
+                            }
+                          }}
+                          placeholder="https://exemplo.com/material"
+                          className="flex-1 bg-white p-3 rounded-xl border border-gray-200 text-[12px] text-[var(--color-atelier-grafite)] focus:outline-none focus:border-[var(--color-atelier-terracota)] shadow-sm transition-colors"
+                        />
+                        <button 
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (newLinkInput.trim()) {
+                              setLocalExternalLinks([...localExternalLinks, newLinkInput.trim()]);
+                              setNewLinkInput("");
+                            }
+                          }}
+                          className="bg-[var(--color-atelier-grafite)] text-white px-4 rounded-xl flex items-center justify-center hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-sm"
+                        >
+                          <PlusCircle size={16} />
+                        </button>
+                      </div>
+                      {localExternalLinks.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {localExternalLinks.map((link: string, i: number) => (
+                            <div key={i} className="flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg border border-[var(--color-atelier-terracota)]/20 text-[11px] font-medium">
+                              <span className="max-w-[150px] truncate">{link}</span>
+                              <button onClick={() => setLocalExternalLinks(localExternalLinks.filter((_, idx) => idx !== i))} className="hover:text-red-500">
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
 
                     {isAdmin && isReview && !isCompleted && task.status !== 'pending_client_approval' && (

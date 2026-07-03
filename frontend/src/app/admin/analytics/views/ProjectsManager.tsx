@@ -179,6 +179,7 @@ export default function ProjectsManager({
   const [isProcessingTrello, setIsProcessingTrello] = useState(false);
   const [activeTrelloEntity, setActiveTrelloEntity] = useState<any>(null);
   const [isTrelloSidebarOpen, setIsTrelloSidebarOpen] = useState(true); 
+  const [newLinkInput, setNewLinkInput] = useState("");
 
   const isSubclientView = selectedEntityType === 'subclient';
   const displayData = isSubclientView 
@@ -674,6 +675,52 @@ export default function ProjectsManager({
                 </div>
                 
                 <div className="flex flex-col gap-1.5">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1">
+                    <ExternalLink size={12}/> Links Externos (Download/Referência)
+                  </span>
+                  <div className="flex gap-2">
+                    <input 
+                      type="url"
+                      placeholder="https://..."
+                      value={newLinkInput}
+                      onChange={(e) => setNewLinkInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' && newLinkInput.trim()) {
+                          e.preventDefault();
+                          setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), newLinkInput.trim()]});
+                          setNewLinkInput("");
+                        }
+                      }}
+                      className="flex-1 bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm"
+                    />
+                    <button 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        if (newLinkInput.trim()) {
+                          setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), newLinkInput.trim()]});
+                          setNewLinkInput("");
+                        }
+                      }}
+                      className="bg-[var(--color-atelier-grafite)] text-white px-4 rounded-xl flex items-center justify-center hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-sm"
+                    >
+                      <PlusCircle size={16} />
+                    </button>
+                  </div>
+                  {adHocDemand.external_links && adHocDemand.external_links.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {adHocDemand.external_links.map((link: string, i: number) => (
+                        <div key={i} className="flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg border border-[var(--color-atelier-terracota)]/20 text-[11px] font-medium">
+                          <span className="max-w-[150px] truncate">{link}</span>
+                          <button onClick={() => setAdHocDemand({...adHocDemand, external_links: adHocDemand.external_links.filter((_: string, idx: number) => idx !== i)})} className="hover:text-red-500">
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1.5">
                   <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Escopo (Tag)</span>
                   <select 
                     value={adHocDemand.taskType} onChange={(e) => setAdHocDemand({...adHocDemand, taskType: e.target.value})} 
@@ -864,6 +911,52 @@ export default function ProjectsManager({
                           />
                         </div>
                         
+                        <div className="flex flex-col gap-1.5">
+                          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1">
+                            <ExternalLink size={12}/> Links Externos (Download/Referência)
+                          </span>
+                          <div className="flex gap-2">
+                            <input 
+                              type="url"
+                              placeholder="https://..."
+                              value={newLinkInput}
+                              onChange={(e) => setNewLinkInput(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter' && newLinkInput.trim()) {
+                                  e.preventDefault();
+                                  setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), newLinkInput.trim()]});
+                                  setNewLinkInput("");
+                                }
+                              }}
+                              className="flex-1 bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm"
+                            />
+                            <button 
+                              onClick={(e) => {
+                                e.preventDefault();
+                                if (newLinkInput.trim()) {
+                                  setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), newLinkInput.trim()]});
+                                  setNewLinkInput("");
+                                }
+                              }}
+                              className="bg-[var(--color-atelier-grafite)] text-white px-4 rounded-xl flex items-center justify-center hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-sm"
+                            >
+                              <PlusCircle size={16} />
+                            </button>
+                          </div>
+                          {adHocDemand.external_links && adHocDemand.external_links.length > 0 && (
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {adHocDemand.external_links.map((link: string, i: number) => (
+                                <div key={i} className="flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg border border-[var(--color-atelier-terracota)]/20 text-[11px] font-medium">
+                                  <span className="max-w-[150px] truncate">{link}</span>
+                                  <button onClick={() => setAdHocDemand({...adHocDemand, external_links: adHocDemand.external_links.filter((_: string, idx: number) => idx !== i)})} className="hover:text-red-500">
+                                    <X size={12} />
+                                  </button>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+
                         <div className="flex flex-col gap-1.5">
                           <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Escopo (Tag)</span>
                           <select 

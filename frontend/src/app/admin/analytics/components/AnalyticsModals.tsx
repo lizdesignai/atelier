@@ -1,9 +1,10 @@
 // src/app/admin/analytics/components/AnalyticsModals.tsx
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Edit3, CheckCircle2, Trash2, X, Loader2, Flame, 
   MapPin, Save, UserCircle2, Activity, FolderKanban, 
-  CheckSquare, Square, Check, Target
+  CheckSquare, Square, Check, Target, PlusCircle, ExternalLink, MessageSquare
 } from "lucide-react";
 import { ALL_SKILLS } from "../constants";
 
@@ -60,6 +61,8 @@ export default function AnalyticsModals({
   isCaptacaoModalOpen, setIsCaptacaoModalOpen, captacaoForm, setCaptacaoForm, handleAddCaptacao,
   isProcessing, team
 }: AnalyticsModalsProps) {
+
+  const [newLinkInput, setNewLinkInput] = useState("");
 
   // 🟢 UTILITÁRIO: Formata a data com segurança, evitando o "Invalid time value"
   const getSafeDatetime = (isoDateString: string | null) => {
@@ -180,6 +183,64 @@ export default function AnalyticsModals({
               <div className="flex flex-col gap-1.5">
                 <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Instruções da Tarefa</span>
                 <textarea value={editingTask.description || ""} onChange={(e) => setEditingTask({...editingTask, description: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] resize-none h-24 outline-none focus:border-[var(--color-atelier-terracota)]/50 custom-scrollbar" placeholder="Descreva os detalhes necessários para execução..." />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-1">
+                  <MessageSquare size={12}/> Legenda do Post (Aprovação Cliente)
+                </span>
+                <textarea 
+                  placeholder="Escreva a legenda que ficará visível no Cockpit..."
+                  value={editingTask.caption || ""} 
+                  onChange={(e) => setEditingTask({...editingTask, caption: e.target.value})} 
+                  className="w-full bg-white border border-[var(--color-atelier-terracota)]/30 rounded-xl p-3 text-[13px] resize-none h-20 outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium custom-scrollbar transition-colors shadow-sm" 
+                />
+              </div>
+
+              <div className="flex flex-col gap-1.5">
+                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-1">
+                  <ExternalLink size={12}/> Links Externos (Download/Referência)
+                </span>
+                <div className="flex gap-2">
+                  <input 
+                    type="url"
+                    placeholder="https://..."
+                    value={newLinkInput}
+                    onChange={(e) => setNewLinkInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newLinkInput.trim()) {
+                        e.preventDefault();
+                        setEditingTask({...editingTask, external_links: [...(editingTask.external_links || []), newLinkInput.trim()]});
+                        setNewLinkInput("");
+                      }
+                    }}
+                    className="flex-1 bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm"
+                  />
+                  <button 
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (newLinkInput.trim()) {
+                        setEditingTask({...editingTask, external_links: [...(editingTask.external_links || []), newLinkInput.trim()]});
+                        setNewLinkInput("");
+                      }
+                    }}
+                    className="bg-[var(--color-atelier-grafite)] text-white px-4 rounded-xl flex items-center justify-center hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-sm"
+                  >
+                    <PlusCircle size={16} />
+                  </button>
+                </div>
+                {editingTask.external_links && editingTask.external_links.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {editingTask.external_links.map((link: string, i: number) => (
+                      <div key={i} className="flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg border border-[var(--color-atelier-terracota)]/20 text-[11px] font-medium">
+                        <span className="max-w-[150px] truncate">{link}</span>
+                        <button onClick={() => setEditingTask({...editingTask, external_links: editingTask.external_links.filter((_: string, idx: number) => idx !== i)})} className="hover:text-red-500">
+                          <X size={12} />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
               <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl bg-orange-50/50 border border-orange-100 hover:bg-orange-50 transition-colors">
                 <input type="checkbox" className="hidden" checked={editingTask.urgency || false} onChange={(e) => setEditingTask({...editingTask, urgency: e.target.checked})} />

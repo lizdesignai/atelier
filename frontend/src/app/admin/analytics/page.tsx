@@ -76,7 +76,8 @@ export default function AnalyticsPage() {
     caption: "", 
     subclientId: "",
     deadline: "",
-    estTime: 0
+    estTime: 0,
+    external_links: [] as string[]
   });
 
   const [isBulkMode, setIsBulkMode] = useState(false);
@@ -266,9 +267,11 @@ export default function AnalyticsPage() {
           ...t,
           title: editingTask.title,
           description: editingTask.description,
+          caption: editingTask.caption,
           urgency: editingTask.urgency,
           deadline: editingTask.deadline,
           assigned_to: editingTask.assigned_to || null,
+          external_links: editingTask.external_links || [],
           profiles: editingTask.assigned_to ? team.find(m => m.id === editingTask.assigned_to) : null
         };
       }
@@ -279,9 +282,11 @@ export default function AnalyticsPage() {
       const { error } = await supabase.from('tasks').update({
         title: editingTask.title,
         description: editingTask.description,
+        caption: editingTask.caption,
         urgency: editingTask.urgency,
         deadline: editingTask.deadline,
-        assigned_to: editingTask.assigned_to || null 
+        assigned_to: editingTask.assigned_to || null,
+        external_links: editingTask.external_links || []
       }).eq('id', editingTask.id);
       
       if (error) throw error;
@@ -416,6 +421,7 @@ export default function AnalyticsPage() {
         title: demand.title,
         description: demand.description,
         caption: demand.caption, // 🟢 Mapeando a Legenda para o Banco de Dados
+        external_links: demand.external_links || [], // 🟢 Mapeando links dinâmicos cumulativos
         urgency: demand.urgency,
         status: 'pending',
         stage: 'Demanda Pontual',
@@ -447,6 +453,7 @@ export default function AnalyticsPage() {
         urgency: false,
         description: "",
         caption: "", 
+        external_links: [],
         subclientId: "",
         deadline: "",
         estTime: 0
