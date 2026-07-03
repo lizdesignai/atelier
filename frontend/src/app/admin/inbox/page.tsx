@@ -23,6 +23,7 @@ interface ProfileData {
   avatar_url: string | null;
   role: string;
   current_status?: string;
+  last_seen?: string;
 }
 
 interface ClientData {
@@ -520,22 +521,38 @@ export default function AdminInboxPage() {
           ====================================================================== */}
       <aside className="w-[340px] glass-panel border border-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.05)] rounded-[2.5rem] flex flex-col overflow-hidden shrink-0 z-10 bg-white/60 backdrop-blur-xl">
         
-        {/* SEGMENTED CONTROL */}
+        {/* SEGMENTED CONTROL COMPACTO */}
         <div className="shrink-0 p-5 pb-3 border-b border-[var(--color-atelier-grafite)]/5 bg-white/30">
-          <div className="flex bg-white/80 p-1.5 rounded-2xl border border-white shadow-sm relative">
-            <button onClick={() => setActiveSpace('projects')} className={`flex-1 py-3 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all relative z-10 ${activeSpace === 'projects' ? 'text-[var(--color-atelier-grafite)]' : 'text-gray-400 hover:text-gray-600'}`}>
-              <Briefcase size={14}/> Projetos
-              {Object.entries(unreadCounts).reduce((acc, [cId, count]) => (channelTypeMap[cId] !== 'dm' && channelTypeMap[cId] !== 'corporate_global' ? acc + count : acc), 0) > 0 && (
-                 <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 animate-pulse-slow"></span>
-              )}
-            </button>
-            <button onClick={() => setActiveSpace('corporate')} className={`flex-1 py-3 flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all relative z-10 ${activeSpace === 'corporate' ? 'text-white' : 'text-gray-400 hover:text-gray-600'}`}>
-              <Users size={14}/> Equipe
+          <div className="flex bg-white/80 p-1.5 rounded-2xl border border-white shadow-sm relative gap-1">
+            <button 
+              onClick={() => setActiveSpace('corporate')} 
+              className={`flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all duration-300 relative z-10 py-3 ${activeSpace === 'corporate' ? 'flex-1 text-white' : 'w-12 text-gray-400 hover:text-gray-600'}`}>
+              <Users size={16}/>
+              <AnimatePresence>
+                {activeSpace === 'corporate' && (
+                  <motion.span initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: "auto" }} exit={{ opacity: 0, width: 0 }} className="truncate">Equipe</motion.span>
+                )}
+              </AnimatePresence>
               {Object.entries(unreadCounts).reduce((acc, [cId, count]) => ((channelTypeMap[cId] === 'dm' || channelTypeMap[cId] === 'corporate_global') ? acc + count : acc), 0) > 0 && (
-                 <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500 border border-[var(--color-atelier-grafite)] animate-pulse-slow"></span>
+                 <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse-slow"></span>
               )}
             </button>
-            <motion.div className={`absolute top-1.5 bottom-1.5 w-[calc(50%-0.375rem)] rounded-xl shadow-md ${activeSpace === 'projects' ? 'bg-white left-1.5' : 'bg-[var(--color-atelier-grafite)] right-1.5'}`} layout transition={{ type: "spring", stiffness: 300, damping: 30 }} />
+
+            <button 
+              onClick={() => setActiveSpace('projects')} 
+              className={`flex items-center justify-center gap-2 text-[10px] font-bold uppercase tracking-widest rounded-xl transition-all duration-300 relative z-10 py-3 ${activeSpace === 'projects' ? 'flex-1 text-[var(--color-atelier-grafite)]' : 'w-12 text-gray-400 hover:text-gray-600'}`}>
+              <Briefcase size={16}/>
+              <AnimatePresence>
+                {activeSpace === 'projects' && (
+                  <motion.span initial={{ opacity: 0, width: 0 }} animate={{ opacity: 1, width: "auto" }} exit={{ opacity: 0, width: 0 }} className="truncate">Projetos</motion.span>
+                )}
+              </AnimatePresence>
+              {Object.entries(unreadCounts).reduce((acc, [cId, count]) => (channelTypeMap[cId] !== 'dm' && channelTypeMap[cId] !== 'corporate_global' ? acc + count : acc), 0) > 0 && (
+                 <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-red-500 animate-pulse-slow"></span>
+              )}
+            </button>
+
+            <motion.div className={`absolute top-1.5 bottom-1.5 rounded-xl shadow-md ${activeSpace === 'corporate' ? 'bg-[var(--color-atelier-grafite)] left-1.5 right-[56px]' : 'bg-white left-[56px] right-1.5'}`} layout transition={{ type: "spring", stiffness: 300, damping: 30 }} />
           </div>
         </div>
 
@@ -665,18 +682,21 @@ export default function AdminInboxPage() {
                     <span className="px-2 font-roboto text-[10px] uppercase tracking-widest font-bold text-gray-400">Direct Messages</span>
                     {corporateUsers.map(user => {
                       const isActive = activeDMUserId === user.id;
-                      // Descobrir o DM channel ID entre mim e esse user
                       const participants = [currentUser?.id, user.id].sort();
                       const dmHash = `dm_${participants[0]}_${participants[1]}`;
                       const channel = channels.find(c => c.name === dmHash);
                       const unread = channel ? (unreadCounts[channel.id] || 0) : 0;
                       const preview = channel ? channelPreviews[channel.id] : null;
 
+                      // Lógica de Presença Real
+                      const isOnline = user.last_seen ? (new Date().getTime() - new Date(user.last_seen).getTime() < 3 * 60 * 1000) : false;
+                      const statusText = isOnline ? 'Online' : (user.last_seen ? `Visto às ${new Date(user.last_seen).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : 'Inativo');
+
                       return (
                         <button key={user.id} onClick={() => setActiveDMUserId(user.id)} className={`w-full text-left p-3 rounded-[1.2rem] flex items-center gap-3 transition-all border ${isActive ? 'bg-white border-[var(--color-atelier-terracota)]/30 shadow-md scale-[1.02]' : 'bg-transparent border-transparent hover:bg-white/70'}`}>
                           <div className="relative shrink-0">
                             <div className="w-11 h-11 rounded-[0.8rem] bg-gray-50 flex items-center justify-center overflow-hidden border border-white shadow-sm">{user.avatar_url ? <img src={user.avatar_url} className="w-full h-full object-cover"/> : <span className="font-elegant text-base font-bold text-[var(--color-atelier-grafite)]">{user.nome.charAt(0)}</span>}</div>
-                            <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 border-2 border-white rounded-full flex items-center justify-center ${user.current_status === 'online' ? 'bg-green-500' : 'bg-gray-300'}`}>{user.current_status === 'online' && <div className="absolute w-full h-full bg-green-500 rounded-full animate-ping opacity-60"></div>}</div>
+                            <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 border-2 border-white rounded-full flex items-center justify-center ${isOnline ? 'bg-green-500' : 'bg-gray-300'}`}>{isOnline && <div className="absolute w-full h-full bg-green-500 rounded-full animate-ping opacity-60"></div>}</div>
                           </div>
                           <div className="flex flex-col overflow-hidden flex-1">
                             <div className="flex justify-between items-center w-full">
@@ -685,11 +705,14 @@ export default function AdminInboxPage() {
                                  <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse-slow ml-2 shrink-0">{unread > 99 ? '99+' : unread}</span>
                                )}
                             </div>
-                            {preview ? (
-                              <span className="text-[10px] text-gray-400 truncate mt-1">{preview}</span>
-                            ) : (
-                              <span className="font-roboto text-[9px] uppercase tracking-widest font-bold text-gray-400 truncate mt-1">{user.role}</span>
-                            )}
+                            <div className="flex justify-between items-center mt-1">
+                              {preview ? (
+                                <span className="text-[10px] text-gray-400 truncate flex-1 pr-2">{preview}</span>
+                              ) : (
+                                <span className="font-roboto text-[9px] uppercase tracking-widest font-bold text-gray-400 truncate flex-1 pr-2">{user.role}</span>
+                              )}
+                              <span className={`font-roboto text-[8px] uppercase tracking-widest font-bold shrink-0 ${isOnline ? 'text-green-500' : 'text-gray-400'}`}>{statusText}</span>
+                            </div>
                           </div>
                         </button>
                       )

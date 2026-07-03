@@ -17,7 +17,7 @@ export function useInboxEngine() {
   const [userRole, setUserRole] = useState<string>('colaborador');
 
   // 2. Estados de Navegação e Hierarquia
-  const [activeSpace, setActiveSpace] = useState<ActiveSpace>('projects');
+  const [activeSpace, setActiveSpace] = useState<ActiveSpace>('corporate'); // Equipe por padrão
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const [activeDMUserId, setActiveDMUserId] = useState<string | null>(null);
@@ -38,6 +38,23 @@ export function useInboxEngine() {
   // ============================================================================
   useEffect(() => {
     bootEngine();
+
+    // Ping de Atividade (last_seen)
+    const pingActivity = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+        fetch(`${backendUrl}/api/v1/chat/ping`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: session.user.id })
+        }).catch(() => {});
+      }
+    };
+    
+    pingActivity();
+    const interval = setInterval(pingActivity, 60000); // Ping a cada 1 min
+    return () => clearInterval(interval);
   }, []);
 
   const bootEngine = async () => {
@@ -62,7 +79,7 @@ export function useInboxEngine() {
 
       const { data: corpUsers } = await supabase
         .from('profiles')
-        .select('id, nome, avatar_url, role, current_status')
+        .select('id, nome, avatar_url, role, current_status, last_seen')
         .in('role', ['admin', 'gestor', 'colaborador'])
         .neq('id', session.user.id) 
         .order('role', { ascending: true }); 
@@ -159,15 +176,16 @@ export function useInboxEngine() {
       return;
     }
 
-    const { data } = await supabase
-      .from('messages')
-      .select('*, profiles(nome, avatar_url, role)')
-      .eq('channel_id', activeChannelId)
-      .order('created_at', { ascending: true });
-
-    if (data) {
-      setMessages(data);
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+      const res = await fetch(`${backendUrl}/api/v1/chat/history/${activeChannelId}`);
+      if (!res.ok) throw new Error('Falha ao carregar histórico');
+      const { data } = await res.json();
+      
+      setMessages(data || []);
       scrollToBottom();
+    } catch (e) {
+      console.error("Erro no chat history:", e);
     }
   }, [activeChannelId]);
 

@@ -33,7 +33,8 @@ interface ProjectsManagerProps {
     description: string;
     caption: string; 
     deadline: string; 
-    estTime: number; 
+    estTime: number;
+    external_links?: string[];
   };
   setAdHocDemand: (demand: any) => void;
   team: any[];

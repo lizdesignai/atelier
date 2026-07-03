@@ -10,23 +10,30 @@ export class AnalyticsController {
       const fifteenDaysAgo = new Date();
       fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
 
-      const [teamRes, rulesRes, tasksRes] = await Promise.all([
+      const [teamRes, rulesRes, tasksRes, agenciesRes, subclientsRes] = await Promise.all([
         supabase.from('profiles').select('id, nome, role, avatar_url, skills, team_performance(exp_points, level_name)').in('role', ['admin', 'gestor', 'colaborador']),
         supabase.from('routing_rules').select('*'),
-        supabase.from('tasks').select('*').gte('created_at', fifteenDaysAgo.toISOString()).order('deadline', { ascending: true })
+        supabase.from('tasks')
+          .select('*, projects(profiles(nome, avatar_url), type, service_type)')
+          .or(`status.neq.completed,completed_at.gte.${fifteenDaysAgo.toISOString()}`)
+          .order('deadline', { ascending: true }),
+        supabase.from('agencies').select('*').eq('status', 'active'),
+        supabase.from('agency_subclients').select('*')
       ]);
 
       if (teamRes.error) throw teamRes.error;
       if (rulesRes.error) throw rulesRes.error;
       if (tasksRes.error) throw tasksRes.error;
-
-      // Pode adicionar lógicas de agrupamento de tarefas por 'stage' aqui para aliviar o Frontend
+      if (agenciesRes.error) throw agenciesRes.error;
+      if (subclientsRes.error) throw subclientsRes.error;
 
       return res.status(200).json({
         data: {
           team: teamRes.data,
           routingRules: rulesRes.data,
-          tasks: tasksRes.data
+          tasks: tasksRes.data,
+          agencies: agenciesRes.data,
+          subclients: subclientsRes.data
         }
       });
     } catch (error: any) {

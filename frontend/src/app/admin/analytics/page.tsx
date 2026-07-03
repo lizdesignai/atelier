@@ -101,50 +101,37 @@ export default function AnalyticsPage() {
   }, [activeProjects]);
 
   // ============================================================================
-  // 🛡️ OTIMIZAÇÃO DE INFRAESTRUTURA E CACHE BUSTER SEGURO
+  // 🚀 OTIMIZAÇÃO DE INFRAESTRUTURA E CACHE BUSTER SEGURO (Fase 1 - Backend API)
   // ============================================================================
   const fetchOperationalData = useCallback(async () => {
     setIsLocalLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
       
-      const teamPromise = supabase.from('profiles').select('id, nome, role, avatar_url, skills, team_performance(exp_points, level_name)').in('role', ['admin', 'gestor', 'colaborador']);
+      const response = await fetch(`${backendUrl}/api/v1/analytics/dashboard`, {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha ao buscar dados do backend');
+      }
+
+      const { data } = await response.json();
+
+      if (data.team) setTeam(data.team);
+      if (data.routingRules) setRoutingRules(data.routingRules);
+      if (data.agencies) setAgencies(data.agencies);
+      if (data.subclients) setAgencySubclients(data.subclients);
       
-      const fifteenDaysAgo = new Date();
-      fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
-      const isoDate = fifteenDaysAgo.toISOString();
-
-      // Destrói o cache mantendo a validação SQL íntegra
-      const safeCacheBusterDate = new Date(Math.floor(Math.random() * 1000)).toISOString();
-      
-      const tasksPromise = supabase
-        .from('tasks')
-        .select('*, projects(profiles(nome, avatar_url), type, service_type)')
-        .or(`status.neq.completed,completed_at.gte.${isoDate}`)
-        .gte('created_at', safeCacheBusterDate) 
-        .order('deadline', { ascending: true });
-
-      const rulesPromise = supabase.from('routing_rules').select('*');
-      const agenciesPromise = supabase.from('agencies').select('*').eq('status', 'active');
-      const subclientsPromise = supabase.from('agency_subclients').select('*');
-
-      const [resTeam, resTasks, resRules, resAgencies, resSubs] = await Promise.all([
-        teamPromise, tasksPromise, rulesPromise, agenciesPromise, subclientsPromise
-      ]);
-
-      if (resTeam.data) setTeam(resTeam.data);
-      if (resRules.data) setRoutingRules(resRules.data);
-      if (resAgencies.data) setAgencies(resAgencies.data);
-      if (resSubs.data) setAgencySubclients(resSubs.data);
-      
-      if (resTasks.data && resTeam.data) {
-        const mappedTasks = resTasks.data.map(task => {
-          const executor = resTeam.data.find(t => t.id === task.assigned_to);
+      if (data.tasks && data.team) {
+        const mappedTasks = data.tasks.map((task: any) => {
+          const executor = data.team.find((t: any) => t.id === task.assigned_to);
           let projectVisualData = task.projects;
           
-          if (task.agency_id && resAgencies.data && resSubs.data) {
-            const agency = resAgencies.data.find(a => a.id === task.agency_id);
-            const subclient = resSubs.data.find(s => s.id === task.subclient_id);
+          if (task.agency_id && data.agencies && data.subclients) {
+            const agency = data.agencies.find((a: any) => a.id === task.agency_id);
+            const subclient = data.subclients.find((s: any) => s.id === task.subclient_id);
             projectVisualData = {
               type: 'Agência / White-Label',
               service_type: 'Produção Contínua',
@@ -159,24 +146,24 @@ export default function AnalyticsPage() {
           };
         });
 
-        const standardTasks = mappedTasks.filter(t => t.project_id !== null || t.agency_id !== null);
-        const engineAlerts = mappedTasks.filter(t => t.project_id === null && t.agency_id === null);
+        const standardTasks = mappedTasks.filter((t: any) => t.project_id !== null || t.agency_id !== null);
+        const engineAlerts = mappedTasks.filter((t: any) => t.project_id === null && t.agency_id === null);
 
         setTasks(standardTasks);
         setSystemAlerts(engineAlerts);
 
         setMetrics({
           activeProjects: validProjects.filter(p => p.status === 'active').length || 0,
-          pendingTasks: standardTasks.filter(t => t.status !== 'completed').length || 0,
-          totalTeam: resTeam.data.length || 0
+          pendingTasks: standardTasks.filter((t: any) => t.status !== 'completed').length || 0,
+          totalTeam: data.team.length || 0
         });
 
         if (!selectedEntityId) {
             if (validProjects.length > 0) {
                 setSelectedEntityId(validProjects[0].id);
                 setSelectedEntityType('project');
-            } else if (resAgencies.data && resAgencies.data.length > 0) {
-                setSelectedEntityId(resAgencies.data[0].id);
+            } else if (data.agencies && data.agencies.length > 0) {
+                setSelectedEntityId(data.agencies[0].id);
                 setSelectedEntityType('agency');
             }
         }

@@ -23,11 +23,13 @@ app.get('/health', (req, res) => {
 import projectRoutes from './routes/projects';
 import taskRoutes from './routes/tasks';
 import analyticsRoutes from './routes/analytics';
+import chatRoutes from './routes/chat';
 
 // Rotas Base da API v1
 app.use('/api/v1/projects', projectRoutes);
 app.use('/api/v1/tasks', taskRoutes);
 app.use('/api/v1/analytics', analyticsRoutes);
+app.use('/api/v1/chat', chatRoutes);
 
 app.listen(port, () => {
   console.log(`[Backend] Atelier API rodando na porta ${port}`);

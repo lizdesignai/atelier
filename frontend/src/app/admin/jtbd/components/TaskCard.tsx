@@ -257,9 +257,9 @@ export default function TaskCard({
   return (
     <>
       <motion.div 
-        draggable={!task.is_blocked && !isCompleted && !forceStaticMode}
+        draggable={!isCompleted && !forceStaticMode}
         onDragStart={(e: any) => {
-          if (task.is_blocked || isCompleted || forceStaticMode) {
+          if (isCompleted || forceStaticMode) {
             e.preventDefault();
             return;
           }
@@ -271,7 +271,7 @@ export default function TaskCard({
         animate={isDelayed && !isFocus && !forceStaticMode ? { boxShadow: ["0px 0px 0px rgba(239,68,68,0)", "0px 0px 15px rgba(239,68,68,0.4)", "0px 0px 0px rgba(239,68,68,0)"] } : {}}
         transition={isDelayed && !isFocus && !forceStaticMode ? { repeat: Infinity, duration: 2 } : {}}
         className={`w-full rounded-[1.4rem] flex flex-col group transition-all relative overflow-hidden
-          ${forceStaticMode ? 'cursor-pointer hover:shadow-md' : (task.is_blocked && !isCompleted ? "opacity-60 cursor-not-allowed grayscale" : "cursor-grab active:cursor-grabbing")}
+          ${forceStaticMode ? 'cursor-pointer hover:shadow-md' : "cursor-grab active:cursor-grabbing"}
           ${isCompleted ? 'bg-white/40 border border-[var(--color-atelier-grafite)]/10' : 'bg-white border border-[var(--color-atelier-grafite)]/5 shadow-[0_4px_12px_rgba(122,116,112,0.05)]'}
           ${task.urgency && !isCompleted ? 'border-orange-300 ring-1 ring-orange-500/20' : ''}
           ${isDelayed && !isCompleted ? 'border-red-300' : ''}
@@ -351,46 +351,48 @@ export default function TaskCard({
 
               {/* ZONA DE BOTÕES */}
               <div className="flex items-center gap-2 relative z-10 pointer-events-auto">
-                {task.is_blocked ? (
-                  <span className="text-[9px] uppercase font-bold text-gray-400 bg-gray-100 px-3 py-1.5 rounded-lg border border-gray-200 shadow-sm" title="Aguardando fase anterior">Pendente</span>
-                ) : (
-                  <>
-                    {task.status === 'pending' && (
-                      <button onClick={(e) => { e.stopPropagation(); onAction('in_progress'); }} className="bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm flex items-center gap-2">
-                        <PlayCircle size={14} /> Iniciar
+                <>
+                  {task.status === 'pending' && (
+                    <button onClick={(e) => { e.stopPropagation(); onAction('in_progress'); }} className="bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm flex items-center gap-2">
+                      <PlayCircle size={14} /> Iniciar
+                    </button>
+                  )}
+
+                  {isFocus && (
+                    <>
+                      <button onClick={(e) => { e.stopPropagation(); onAction('pending'); }} className="bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-200 w-9 h-9 rounded-xl flex items-center justify-center transition-colors shadow-sm" title="Pausar">
+                        <PauseCircle size={14} />
                       </button>
-                    )}
+                      <button onClick={(e) => { e.stopPropagation(); onAction('review'); }} className="bg-orange-500 border border-orange-600 text-white hover:bg-orange-600 px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_10px_rgba(249,115,22,0.3)] hover:-translate-y-0.5 flex items-center gap-1">
+                        Revisão <ChevronRight size={14}/>
+                      </button>
+                    </>
+                  )}
 
-                    {isFocus && (
-                      <>
-                        <button onClick={(e) => { e.stopPropagation(); onAction('pending'); }} className="bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-200 w-9 h-9 rounded-xl flex items-center justify-center transition-colors shadow-sm" title="Pausar">
-                          <PauseCircle size={14} />
+                  {isReview && (
+                    <>
+                      {task.status === 'pending_client_approval' ? (
+                        <span className="px-3 h-8 rounded-lg flex items-center justify-center text-[9px] font-bold uppercase tracking-widest cursor-not-allowed bg-blue-50 border border-blue-200 text-blue-600 animate-pulse shadow-sm gap-1.5">
+                          <Timer size={12} /> Cliente Avaliando
+                        </span>
+                      ) : isAdmin ? (
+                        <button onClick={(e) => { e.stopPropagation(); onAction('completed'); }} className="bg-green-500 border border-green-600 text-white hover:bg-green-600 px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_10px_rgba(34,197,94,0.3)] hover:-translate-y-0.5 flex items-center gap-1">
+                          Aprovar <CheckCircle2 size={14}/>
                         </button>
-                        <button onClick={(e) => { e.stopPropagation(); onAction('review'); }} className="bg-orange-500 border border-orange-600 text-white hover:bg-orange-600 px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_10px_rgba(249,115,22,0.3)] hover:-translate-y-0.5 flex items-center gap-1">
-                          Revisão <ChevronRight size={14}/>
-                        </button>
-                      </>
-                    )}
+                      ) : (
+                        <span className={`px-3 h-8 rounded-lg flex items-center justify-center text-[9px] font-bold uppercase tracking-widest cursor-not-allowed ${isRejectedByClient ? 'bg-red-50 border border-red-200 text-red-600 animate-pulse' : 'bg-orange-50 border border-orange-200 text-orange-600 animate-pulse'}`}>
+                          {isRejectedByClient ? 'Ajuste Exigido' : 'Em Análise'}
+                        </span>
+                      )}
+                    </>
+                  )}
 
-                    {isReview && (
-                      <>
-                        {task.status === 'pending_client_approval' ? (
-                          <span className="px-3 h-8 rounded-lg flex items-center justify-center text-[9px] font-bold uppercase tracking-widest cursor-not-allowed bg-blue-50 border border-blue-200 text-blue-600 animate-pulse shadow-sm gap-1.5">
-                            <Timer size={12} /> Cliente Avaliando
-                          </span>
-                        ) : isAdmin ? (
-                          <button onClick={(e) => { e.stopPropagation(); onAction('completed'); }} className="bg-green-500 border border-green-600 text-white hover:bg-green-600 px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_10px_rgba(34,197,94,0.3)] hover:-translate-y-0.5 flex items-center gap-1">
-                            Aprovar <CheckCircle2 size={14}/>
-                          </button>
-                        ) : (
-                          <span className={`px-3 h-8 rounded-lg flex items-center justify-center text-[9px] font-bold uppercase tracking-widest cursor-not-allowed ${isRejectedByClient ? 'bg-red-50 border border-red-200 text-red-600 animate-pulse' : 'bg-orange-50 border border-orange-200 text-orange-600 animate-pulse'}`}>
-                            {isRejectedByClient ? 'Ajuste Exigido' : 'Em Análise'}
-                          </span>
-                        )}
-                      </>
-                    )}
-                  </>
-                )}
+                  {isCompleted && (
+                    <span className="text-[9px] uppercase font-bold tracking-widest flex items-center gap-1 text-green-600 bg-green-50 px-3 py-1.5 rounded-lg border border-green-100 shadow-sm">
+                      <CheckCircle2 size={12} /> Finalizado
+                    </span>
+                  )}
+                </>
               </div>
             </div>
           )}

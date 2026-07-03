@@ -201,9 +201,9 @@ export default function DailyKanban({
           boxShadow: "0px 25px 50px -12px rgba(0,0,0,0.3)"
         }}
         
-        draggable={!task.is_blocked && !isCompleted}
+        draggable={!isCompleted}
         onDragStart={(e: any) => {
-          if (task.is_blocked || isCompleted) {
+          if (isCompleted) {
             e.preventDefault();
             return;
           }
