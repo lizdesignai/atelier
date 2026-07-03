@@ -186,42 +186,36 @@ export default function JTBDPage() {
   const updateTaskStatus = async (task: any, requestedStatus: string) => {
     if (task.status === requestedStatus) return;
     try {
-      const now = new Date();
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+      
+      // 🟢 O Roteador Interceptador Local (Se precisar, podemos passar isso pro backend no futuro)
       let finalStatus = requestedStatus;
-      let updates: any = {};
-
-      // 🟢 O Roteador Interceptador
       if (requestedStatus === 'completed' && task.attachment_url && task.status !== 'pending_client_approval') {
-        // O Gestor clicou em concluir e a tarefa tem anexo. Vamos encaminhar para o cliente.
         finalStatus = await handleClientApprovalRouting(task);
       }
 
-      // 🟢 O Motor de Tempo Live (Fase 3 - Base)
-      if (finalStatus === 'in_progress') {
-         updates.started_at = now.toISOString();
+      // 🟢 Atualização Otimista na UI
+      setAllTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: finalStatus } : t));
+
+      // 🟢 Chamada ao nosso novo Backend Ultrarrápido
+      const response = await fetch(`${backendUrl}/api/v1/tasks/${task.id}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requestedStatus: finalStatus, task })
+      });
+
+      if (!response.ok) {
+        throw new Error('Falha ao atualizar status no backend');
       }
 
-      if (task.status === 'in_progress' && task.started_at && finalStatus !== 'in_progress') {
-        const startTime = new Date(task.started_at).getTime();
-        const diffMinutes = Math.floor((now.getTime() - startTime) / 60000);
-        updates.actual_time = (task.actual_time || 0) + diffMinutes;
-        updates.started_at = null; 
+      const { data } = await response.json();
+
+      // Atualiza com os tempos reais calculados no backend
+      setAllTasks(prev => prev.map(t => t.id === task.id ? { ...t, ...data } : t));
+
+      if (finalStatus === 'completed') {
+         await AtelierPMEngine.unlockDependencies(task.id);
       }
-
-      if (finalStatus === 'review' || finalStatus === 'completed' || finalStatus === 'pending_client_approval') {
-        updates.completed_at = finalStatus === 'completed' ? now.toISOString() : null;
-        if (finalStatus === 'completed') {
-           await AtelierPMEngine.unlockDependencies(task.id);
-        }
-      }
-
-      updates.status = finalStatus;
-
-      // 🟢 Atualização Otimista
-      setAllTasks(prev => prev.map(t => t.id === task.id ? { ...t, ...updates } : t));
-
-      const { error } = await supabase.from('tasks').update(updates).eq('id', task.id);
-      if (error) throw error;
 
     } catch (error) {
       showToast("Erro ao sincronizar tarefa.");
