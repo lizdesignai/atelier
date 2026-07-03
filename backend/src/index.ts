@@ -11,7 +11,13 @@ const port = process.env.PORT || 8080;
 
 // Middlewares
 app.use(helmet());
-app.use(cors({ origin: process.env.FRONTEND_URL || '*' }));
+
+const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, '') : '*';
+app.use(cors({ 
+  origin: [frontendUrl, `${frontendUrl}/`, 'http://localhost:3000', 'https://atelier.lizdesign.com.br'],
+  credentials: true
+}));
+
 app.use(express.json());
 app.use(morgan('dev'));
 
