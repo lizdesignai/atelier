@@ -9,7 +9,7 @@ import {
   Home, Lock, MessageSquare, ChevronLeft, ChevronRight, 
   Compass, LayoutDashboard, FolderKanban, Users, Inbox, 
   Globe2, CheckCircle2, DollarSign, Sparkles, Briefcase, 
-  Crosshair, LogOut, Activity, Crown, Grid
+  Crosshair, LogOut, Activity, Crown, Grid, Menu, X
 } from "lucide-react";
 import { supabase } from "../../lib/supabase"; 
 import { useDynamicTitle } from "../../hooks/useDynamicTitle"; 
@@ -43,6 +43,7 @@ const ROUTE_NAMES: Record<string, string> = {
 
 export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: AppSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   const [clientServiceType, setClientServiceType] = useState<string>("Identidade Visual");
   const [isProjectArchived, setIsProjectArchived] = useState(false);
   const [isReady, setIsReady] = useState(false);
@@ -183,7 +184,37 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     ? (isAdminOnly ? '/admin' : (isManagerOrAdmin ? '/admin/gestao' : '/admin/jtbd')) 
     : (clientServiceType === "Gestão de Instagram" ? '/cockpit' : '/');
 
+  // ==========================================
+  // LÓGICA DO BOTTOM NAV (MOBILE)
+  // ==========================================
+  const allTeamItems = [
+    { href: "/admin/jtbd", icon: <CheckCircle2 size={20} strokeWidth={1.5} />, label: "Focus" },
+    ...(isManagerOrAdmin ? [{ href: "/admin/gestao", icon: <Activity size={20} strokeWidth={1.5} />, label: "Pulse" }] : []),
+    { href: "/admin/projetos", icon: <Grid size={20} strokeWidth={1.5} />, label: "Estúdio" },
+    { href: "/admin/inbox", icon: <MessageSquare size={20} strokeWidth={1.5} />, label: "Inbox", badge: globalUnreadCount },
+    ...(isManagerOrAdmin ? [{ href: "/admin/clientes", icon: <Users size={20} strokeWidth={1.5} />, label: "Clientes" }] : []),
+    ...(isAdminOnly ? [{ href: "/admin/financeiro", icon: <DollarSign size={20} strokeWidth={1.5} />, label: "Cofre" }] : []),
+    ...(isAdminOnly ? [{ href: "/admin/analytics", icon: <LayoutDashboard size={20} strokeWidth={1.5} />, label: "Radar" }] : [])
+  ];
+
+  const allClientItems = clientServiceType === "Gestão de Instagram" 
+    ? [
+        { href: "/cockpit", icon: <Compass size={20} strokeWidth={1.5} />, label: "Cockpit" },
+        { href: "/comunidade", icon: <Globe2 size={20} strokeWidth={1.5} />, label: "Comunidade" }
+      ]
+    : [
+        { href: "/", icon: <Home size={20} strokeWidth={1.5} />, label: "Início" },
+        { href: "/cofre", icon: <Lock size={20} strokeWidth={1.5} />, label: "Cofre" },
+        { href: "/referencias", icon: <Sparkles size={20} strokeWidth={1.5} />, label: "Curadoria" },
+        { href: "/comunidade", icon: <Globe2 size={20} strokeWidth={1.5} />, label: "Comunidade" }
+      ];
+
+  const currentItems = isTeamMember ? allTeamItems : allClientItems;
+  const mobileMainItems = currentItems.slice(0, 4);
+  const mobileDrawerItems = currentItems.slice(4);
+
   return (
+    <>
     <motion.aside 
       initial={false}
       animate={{ width: isCollapsed ? 88 : 280 }}
@@ -193,6 +224,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
         h-[calc(100vh-2rem)] my-4 ml-4 rounded-[2.5rem]
         bg-white/40 backdrop-blur-2xl border border-white/60 
         shadow-[8px_8px_32px_rgba(122,116,112,0.04)]
+        hidden md:flex
       `}
     >
       {/* CABEÇALHO DA SIDEBAR: LOGO E BRANDING */}
@@ -340,6 +372,86 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
         </nav>
       </div>
     </motion.aside>
+
+    {/* ==================================================== */}
+    {/* MOBILE BOTTOM NAVIGATION BAR */}
+    {/* ==================================================== */}
+    <div className="md:hidden fixed bottom-0 left-0 w-full z-[100] px-6 pb-6 pt-3 bg-white/80 backdrop-blur-xl border-t border-[var(--color-atelier-grafite)]/5 flex items-center justify-between shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
+      {mobileMainItems.map((item) => (
+         <Link key={item.href} href={item.href} className="flex flex-col items-center gap-1 group relative">
+            <div className={`relative z-10 flex items-center justify-center transition-all duration-300 ${pathname === item.href ? 'text-[var(--color-atelier-terracota)] scale-110' : 'text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-grafite)]/80'}`}>
+              {item.icon}
+              {(item as any).badge !== undefined && (item as any).badge > 0 && (
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white shadow-sm animate-pulse-slow"></div>
+              )}
+            </div>
+            <span className={`text-[9px] font-bold tracking-wide transition-colors duration-300 ${pathname === item.href ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/40'}`}>
+              {item.label}
+            </span>
+            {pathname === item.href && (
+              <motion.div layoutId="mobile-nav-indicator" className="absolute -bottom-2 w-1 h-1 bg-[var(--color-atelier-terracota)] rounded-full" />
+            )}
+         </Link>
+      ))}
+      
+      {/* BOTÃO MAIS (DRAWER) */}
+      {(mobileDrawerItems.length > 0 || handleLogout) && (
+        <button onClick={() => setIsMobileDrawerOpen(true)} className="flex flex-col items-center gap-1 group relative outline-none">
+          <div className="relative z-10 flex items-center justify-center transition-all duration-300 text-[var(--color-atelier-grafite)]/40 group-hover:text-[var(--color-atelier-grafite)]/80">
+            <Menu size={20} strokeWidth={1.5} />
+          </div>
+          <span className="text-[9px] font-bold tracking-wide text-[var(--color-atelier-grafite)]/40 group-hover:text-[var(--color-atelier-grafite)]/80 transition-colors duration-300">
+            Mais
+          </span>
+        </button>
+      )}
+    </div>
+
+    {/* ==================================================== */}
+    {/* DRAWER MOBILE (OVERLAY) */}
+    {/* ==================================================== */}
+    <AnimatePresence>
+      {isMobileDrawerOpen && (
+        <>
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.3 }}
+            onClick={() => setIsMobileDrawerOpen(false)}
+            className="md:hidden fixed inset-0 bg-[var(--color-atelier-grafite)]/20 backdrop-blur-sm z-[110]"
+          />
+          <motion.div 
+            initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="md:hidden fixed bottom-0 left-0 w-full bg-white rounded-t-[2.5rem] z-[120] shadow-2xl p-8 flex flex-col gap-6 max-h-[80vh] overflow-y-auto"
+          >
+            <div className="flex justify-between items-center mb-2">
+              <span className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Menu Principal</span>
+              <button onClick={() => setIsMobileDrawerOpen(false)} className="w-10 h-10 rounded-full bg-gray-50 flex items-center justify-center text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-grafite)]">
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="flex flex-col gap-2">
+              {mobileDrawerItems.map((item) => (
+                <Link key={item.href} href={item.href} onClick={() => setIsMobileDrawerOpen(false)} className={`flex items-center gap-4 p-4 rounded-2xl transition-colors ${pathname === item.href ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)]' : 'hover:bg-gray-50 text-[var(--color-atelier-grafite)]/70'}`}>
+                  {item.icon}
+                  <span className="font-bold text-[13px] uppercase tracking-widest">{item.label}</span>
+                  {(item as any).badge !== undefined && (item as any).badge > 0 && (
+                    <span className="ml-auto bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full">{(item as any).badge}</span>
+                  )}
+                </Link>
+              ))}
+              
+              {handleLogout && (
+                <button onClick={() => { setIsMobileDrawerOpen(false); handleLogout(); }} className="flex items-center gap-4 p-4 rounded-2xl transition-colors mt-4 text-red-500 hover:bg-red-50">
+                  <LogOut size={20} strokeWidth={1.5} />
+                  <span className="font-bold text-[13px] uppercase tracking-widest">Desconectar</span>
+                </button>
+              )}
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
+    </>
   );
 }
 

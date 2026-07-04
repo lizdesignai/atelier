@@ -14,7 +14,10 @@ app.use(helmet());
 
 const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, '') : '*';
 app.use(cors({ 
-  origin: [frontendUrl, `${frontendUrl}/`, 'http://localhost:3000', 'https://atelier.lizdesign.com.br'],
+  origin: function (origin, callback) {
+    // Reflect the requesting origin if valid, or just allow it.
+    callback(null, origin || '*');
+  },
   credentials: true
 }));
 
