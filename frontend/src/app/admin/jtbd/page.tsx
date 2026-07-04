@@ -257,8 +257,10 @@ export default function JTBDPage() {
     if (!taskId) return;
     
     const task = allTasks.find(t => t.id === taskId);
-    if (task) {
+    if (task && !task.is_blocked) {
       updateTaskStatus(task, newStatus);
+    } else if (task?.is_blocked) {
+      showToast("Operação bloqueada. Conclua as dependências primeiro.");
     }
   };
 

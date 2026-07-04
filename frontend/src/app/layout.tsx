@@ -54,37 +54,26 @@ function GlobalToast() {
 function AtelierPreloader() {
   const text = "";
   const letters = Array.from(text);
-  const [isMobile, setIsMobile] = useState(false);
-
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      setIsMobile(window.innerWidth < 768);
-    }
-  }, []);
-
-  const animDuration = isMobile ? 0.6 : 1.2;
-  const pathDuration = isMobile ? 1.5 : 2.8;
-  const fillDelay = isMobile ? 1.0 : 2.2;
 
   // Variantes ajustadas para um desvendar suave e contemplativo (fade-in longo)
   const containerVariants: Variants = {
     hidden: { opacity: 1 },
     visible: { 
       opacity: 1,
-      transition: { staggerChildren: 0.08, delayChildren: isMobile ? 0.8 : 1.5 } 
+      transition: { staggerChildren: 0.08, delayChildren: 1.5 } 
     }
   };
 
   const letterVariants: Variants = {
     hidden: { opacity: 0, y: 8 },
-    visible: { opacity: 1, y: 0, transition: { duration: animDuration, ease: "easeOut" } }
+    visible: { opacity: 1, y: 0, transition: { duration: 1.2, ease: "easeOut" } }
   };
 
   return (
     <motion.div 
       initial={{ opacity: 1 }}
       exit={{ opacity: 0, scale: 1.05, filter: "blur(10px)" }} // Efeito de Zoom e Blur na saída
-      transition={{ duration: animDuration, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
       className="fixed inset-0 z-[99999] bg-[var(--color-atelier-creme)] flex flex-col items-center justify-center overflow-hidden"
     >
       {/* Luzes de Fundo (Atmosphere) - Mais Lentas */}
@@ -112,8 +101,8 @@ function AtelierPreloader() {
             initial={{ pathLength: 0, fill: "rgba(144, 86, 49, 0)" }}
             animate={{ pathLength: 1, fill: "rgba(144, 86, 49, 1)" }}
             transition={{ 
-              pathLength: { duration: pathDuration, ease: "easeInOut" },
-              fill: { duration: 1.5, ease: "easeIn", delay: fillDelay }
+              pathLength: { duration: 2.8, ease: "easeInOut" },
+              fill: { duration: 1.5, ease: "easeIn", delay: 2.2 }
             }}
           />
           <motion.path 
@@ -122,8 +111,8 @@ function AtelierPreloader() {
             initial={{ pathLength: 0, fill: "rgba(144, 86, 49, 0)" }}
             animate={{ pathLength: 1, fill: "rgba(144, 86, 49, 1)" }}
             transition={{ 
-              pathLength: { duration: pathDuration, ease: "easeInOut", delay: isMobile ? 0.1 : 0.2 },
-              fill: { duration: 1.5, ease: "easeIn", delay: fillDelay + (isMobile ? 0.1 : 0.2) }
+              pathLength: { duration: 2.8, ease: "easeInOut", delay: 0.2 },
+              fill: { duration: 1.5, ease: "easeIn", delay: 2.4 }
             }}
           />
         </motion.svg>
@@ -194,10 +183,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
            router.replace('/admin');
         }
 
-        // Tempo menor em mobile para evitar demora
-        const isMobile = window.innerWidth < 768;
-        const delay = isMobile ? 2200 : 3800;
-        const timer = setTimeout(() => setIsInitializing(false), delay);
+        // Tempo expandido para 3.8s para garantir a contemplação visual 
+        // e dar tempo ao Dashboard para renderizar e carregar os dados em background.
+        const timer = setTimeout(() => setIsInitializing(false), 3800);
         return () => clearTimeout(timer);
       } else {
         setIsInitializing(false);
@@ -205,23 +193,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     };
 
     checkAuth();
-
-    // Ping de Atividade (last_seen) para controle de status Online
-    const pingActivity = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
-        fetch(`${backendUrl}/api/v1/chat/ping`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: session.user.id })
-        }).catch(() => {});
-      }
-    };
-    
-    pingActivity();
-    const interval = setInterval(pingActivity, 60000); // Ping a cada 1 min
-    return () => clearInterval(interval);
   }, [pathname, router, isLoginPage]);
 
   const handleLogout = () => {
@@ -236,7 +207,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="pt-BR" className={roboto.variable}>
-      <body className="bg-[var(--color-atelier-creme)] text-[var(--color-atelier-grafite)] font-roboto min-h-[100dvh] w-full overflow-hidden flex relative selection:bg-[var(--color-atelier-terracota)] selection:text-white">
+      <body className="bg-[var(--color-atelier-creme)] text-[var(--color-atelier-grafite)] font-roboto h-screen w-screen overflow-hidden flex relative selection:bg-[var(--color-atelier-terracota)] selection:text-white">
         
         {/* O Preloader Cinematográfico gere a sua própria saída através do AnimatePresence */}
         <AnimatePresence>
@@ -271,12 +242,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               />
             )}
 
-            <div className="flex-1 flex flex-col h-[100dvh] overflow-hidden relative z-10 w-full">
+            <div className="flex-1 flex flex-col h-screen overflow-hidden relative z-10 w-full">
               {!isLoginPage && userRole && !isSidebarHidden && (
                 <AppHeader handleLogout={handleLogout} />
               )}
 
-              <main className={`flex-1 overflow-hidden flex flex-col ${isLoginPage || isSidebarHidden ? 'p-0' : 'px-4 md:px-12 py-4 md:py-8 pb-24 md:pb-8'}`}>
+              <main className={`flex-1 overflow-hidden flex flex-col ${isLoginPage || isSidebarHidden ? 'p-0' : 'px-6 md:px-12 py-8'}`}>
                 <div className={isLoginPage || isSidebarHidden ? "w-full h-full overflow-y-auto" : "flex-1 overflow-y-auto custom-scrollbar"}>
                   {/* MAGIA DE BACKGROUND FETCH:
                       O children agora é renderizado IMEDIATAMENTE (não espera o isInitializing acabar). 
