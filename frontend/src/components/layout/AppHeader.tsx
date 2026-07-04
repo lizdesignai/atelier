@@ -125,9 +125,9 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
 
   return (
     // Reduzida a altura do header invisível de h-24 para h-14, com menos padding
-    <header className="absolute top-0 left-0 w-full h-14 flex items-start justify-end px-4 md:px-6 z-40 pointer-events-none">
+    <header className="absolute top-0 left-0 w-full h-14 flex items-start justify-end px-6 z-40 pointer-events-none">
       
-      <div className="relative mt-2 md:mt-4" ref={dropdownRef}>
+      <div className="relative mt-4" ref={dropdownRef}>
         
         {/* O "Pill" Minimalista (Mais compacto: py-1.5, botões menores) */}
         <motion.div 

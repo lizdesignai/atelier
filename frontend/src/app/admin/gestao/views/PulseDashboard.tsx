@@ -61,7 +61,7 @@ export default function PulseDashboard({ currentUser }: PulseDashboardProps) {
 
   const fetchPulseData = async () => {
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
       const res = await fetch(`${backendUrl}/api/v1/management/pulse`);
       if (!res.ok) throw new Error("Falha ao carregar pulse data");
       

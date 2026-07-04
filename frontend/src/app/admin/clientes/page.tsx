@@ -87,7 +87,7 @@ export default function BaseClientesPage() {
     const fetchLocalData = async () => {
       setIsLocalLoading(true);
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
         const response = await fetch(`${backendUrl}/api/v1/clients/overview`);
         if (!response.ok) throw new Error('Falha ao buscar dados do CRM');
         
@@ -124,7 +124,7 @@ export default function BaseClientesPage() {
 
     setIsSubmitting(true);
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
       const response = await fetch(`${backendUrl}/api/v1/clients/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -475,7 +475,7 @@ export default function BaseClientesPage() {
 
       <div className="flex-1 glass-panel flex flex-col overflow-hidden shadow-sm animate-[fadeInUp_0.8s_ease-out_0.2s_both]">
         
-        <div className="hidden lg:grid grid-cols-12 gap-4 px-8 py-5 border-b border-[var(--color-atelier-grafite)]/10 bg-white/40 shrink-0">
+        <div className="grid grid-cols-12 gap-4 px-8 py-5 border-b border-[var(--color-atelier-grafite)]/10 bg-white/40 shrink-0">
           <div className="col-span-4 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Identificação</div>
           <div className="col-span-3 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Status de Operação</div>
           <div className="col-span-3 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Progresso / Origem</div>
@@ -497,7 +497,7 @@ export default function BaseClientesPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.4, delay: index * 0.05 }}
-                  className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-4 px-4 py-4 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 hover:border-[var(--color-atelier-terracota)]/30 hover:bg-white hover:shadow-sm transition-all items-start lg:items-center group cursor-pointer"
+                  className="grid grid-cols-12 gap-4 px-4 py-4 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 hover:border-[var(--color-atelier-terracota)]/30 hover:bg-white hover:shadow-sm transition-all items-center group cursor-pointer"
                   onClick={(e) => {
                     if (openMenuId === project.id) return;
                     if (project.isLead || project.isAgency) {
@@ -517,7 +517,7 @@ export default function BaseClientesPage() {
                 >
                   
                   {/* 1. Avatar e Identificação */}
-                  <div className="col-span-1 lg:col-span-4 flex items-center gap-4">
+                  <div className="col-span-4 flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center shrink-0 shadow-inner group-hover:scale-105 transition-transform overflow-hidden font-elegant text-2xl
                       ${project.isLead ? 'bg-purple-50 text-purple-600 border-purple-200' : project.isAgency ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)] border-[var(--color-atelier-terracota)]/20'}
                     `}>
@@ -550,7 +550,7 @@ export default function BaseClientesPage() {
                   </div>
 
                   {/* 2. Status */}
-                  <div className="col-span-1 lg:col-span-3 flex flex-col justify-center items-start gap-2">
+                  <div className="col-span-3 flex flex-col justify-center items-start gap-2">
                     {project.isLead ? (
                       <StatusBadge icon={User} text="Potencial Cliente" color="gray" />
                     ) : project.isAgency ? (
@@ -570,7 +570,7 @@ export default function BaseClientesPage() {
                   </div>
 
                   {/* 3. Escopo e Progresso */}
-                  <div className="col-span-1 lg:col-span-3 flex flex-col justify-center pr-8">
+                  <div className="col-span-3 flex flex-col justify-center pr-8">
                     {project.isLead ? (
                       <div className="flex flex-col gap-1">
                         <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-purple-500/70 truncate mr-2">
@@ -616,8 +616,8 @@ export default function BaseClientesPage() {
                     )}
                   </div>
 
-                  {/* 4. Ações */}
-                  <div className="col-span-1 lg:col-span-2 flex items-center justify-end gap-2 relative">
+                  {/* 4. Ações (Botões Funcionais) */}
+                  <div className="col-span-2 flex justify-end items-center gap-3 relative">
                     
                     {/* Botão de Trello Rápido (Se for agência e tiver Trello) */}
                     {project.isAgency && project.trello_url && (

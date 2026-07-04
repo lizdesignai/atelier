@@ -41,7 +41,8 @@ export default function PersonalDesk({
     <div className="shrink-0 flex flex-col w-full animate-[fadeInUp_0.5s_ease-out]">
       
       <div className="w-full glass-panel bg-[var(--color-atelier-grafite)] p-6 md:p-8 rounded-[2.5rem] relative overflow-hidden flex flex-col justify-center min-h-[300px]">
-        {/* Efeito de Fundo Removido a pedido do utilizador */}
+        {/* Efeito de Fundo */}
+        <div className="absolute right-[-10%] top-[-20%] w-[300px] h-[300px] bg-[var(--color-atelier-terracota)]/20 rounded-full blur-[60px] pointer-events-none"></div>
         
         <div className="flex flex-col items-center text-center relative z-10 w-full">
           

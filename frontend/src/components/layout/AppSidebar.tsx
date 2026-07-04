@@ -1,5 +1,4 @@
 // src/components/layout/AppSidebar.tsx
-// src/components/layout/AppSidebar.tsx
 "use client";
 
 import { useState, useEffect } from "react";
@@ -10,7 +9,7 @@ import {
   Home, Lock, MessageSquare, ChevronLeft, ChevronRight, 
   Compass, LayoutDashboard, FolderKanban, Users, Inbox, 
   Globe2, CheckCircle2, DollarSign, Sparkles, Briefcase, 
-  Crosshair, LogOut, Activity, Crown, Grid, Menu, X
+  Crosshair, LogOut, Activity, Crown, Grid
 } from "lucide-react";
 import { supabase } from "../../lib/supabase"; 
 import { useDynamicTitle } from "../../hooks/useDynamicTitle"; 
@@ -47,7 +46,6 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   const [clientServiceType, setClientServiceType] = useState<string>("Identidade Visual");
   const [isProjectArchived, setIsProjectArchived] = useState(false);
   const [isReady, setIsReady] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   
   // Estado para capturar o nome do cliente logado
   const [clientName, setClientName] = useState<string>("");
@@ -186,19 +184,17 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     : (clientServiceType === "Gestão de Instagram" ? '/cockpit' : '/');
 
   return (
-    <>
-      <motion.aside 
-        initial={false}
-        animate={{ width: isCollapsed ? 88 : 280 }}
-        transition={{ type: "spring", stiffness: 350, damping: 35, mass: 1 }}
-        className={`
-          hidden md:flex
-          relative z-50 flex-col shrink-0 
-          h-[calc(100vh-2rem)] my-4 ml-4 rounded-[2.5rem]
-          bg-white/40 backdrop-blur-2xl border border-white/60 
-          shadow-[8px_8px_32px_rgba(122,116,112,0.04)]
-        `}
-      >
+    <motion.aside 
+      initial={false}
+      animate={{ width: isCollapsed ? 88 : 280 }}
+      transition={{ type: "spring", stiffness: 350, damping: 35, mass: 1 }}
+      className={`
+        relative z-50 flex flex-col shrink-0 
+        h-[calc(100vh-2rem)] my-4 ml-4 rounded-[2.5rem]
+        bg-white/40 backdrop-blur-2xl border border-white/60 
+        shadow-[8px_8px_32px_rgba(122,116,112,0.04)]
+      `}
+    >
       {/* CABEÇALHO DA SIDEBAR: LOGO E BRANDING */}
       <div className={`pt-10 pb-6 px-6 flex items-center h-28 shrink-0 ${isCollapsed ? 'justify-center px-0' : 'justify-start gap-4'}`}>
         
@@ -340,135 +336,109 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               )}
             </AnimatePresence>
           </button>
+
         </nav>
       </div>
+
     </motion.aside>
 
-    {/* ========================================== */}
-    {/* NAVEGAÇÃO MOBILE (BOTTOM BAR + DRAWER)       */}
-    {/* ========================================== */}
-    <div className="md:hidden fixed bottom-0 left-0 w-full z-50">
-      {/* DRAWER MENU */}
-      <AnimatePresence>
-        {isMobileMenuOpen && (
-          <>
-            <motion.div 
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-              onClick={() => setIsMobileMenuOpen(false)}
-              className="fixed inset-0 bg-black/20 backdrop-blur-sm z-[51]"
-            />
-            <motion.div 
-              initial={{ y: "100%" }} animate={{ y: 0 }} exit={{ y: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed bottom-[70px] left-2 right-2 max-h-[70vh] bg-white/90 backdrop-blur-xl border border-white rounded-[2rem] shadow-2xl z-[52] overflow-hidden flex flex-col"
-            >
-              <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--color-atelier-grafite)]/10">
-                <span className="font-elegant text-xl text-[var(--color-atelier-grafite)]">Menu Atelier</span>
-                <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 bg-[var(--color-atelier-grafite)]/5 rounded-full text-[var(--color-atelier-grafite)]/60">
-                  <X size={18} />
-                </button>
-              </div>
-              <div className="overflow-y-auto px-4 py-2 flex flex-col gap-1 pb-6 custom-scrollbar">
-                {/* Repetir Links Secundários aqui */}
-                {!isTeamMember ? (
-                   <>
-                     <MobileNavItem href="/brandbook" icon={<Sparkles size={20} />} label="Brandbook" active={pathname === '/brandbook'} onClick={() => setIsMobileMenuOpen(false)} />
-                     <MobileNavItem href="/simulador-feed" icon={<Grid size={20} />} label="Feed" active={pathname === '/simulador-feed'} onClick={() => setIsMobileMenuOpen(false)} />
-                     <MobileNavItem href="/referencias" icon={<Compass size={20} />} label="Referências" active={pathname === '/referencias'} onClick={() => setIsMobileMenuOpen(false)} />
-                     <MobileNavItem href="/comunidade" icon={<Globe2 size={20} />} label="Comunidade" active={pathname === '/comunidade'} onClick={() => setIsMobileMenuOpen(false)} />
-                   </>
-                ) : (
-                   <>
-                     {isAdminOnly && <MobileNavItem href="/admin" icon={<Crown size={20} />} label="Tela da Dona" active={pathname === '/admin'} onClick={() => setIsMobileMenuOpen(false)} />}
-                     <MobileNavItem href="/admin/gestao" icon={<Activity size={20} />} label="Produtividade" active={pathname === '/admin/gestao'} onClick={() => setIsMobileMenuOpen(false)} />
-                     <MobileNavItem href="/admin/inbox" icon={<Inbox size={20} />} label="Inbox" badge={globalUnreadCount} active={pathname === '/admin/inbox'} onClick={() => setIsMobileMenuOpen(false)} />
-                     <MobileNavItem href="/comunidade" icon={<Globe2 size={20} />} label="Comunidade" active={pathname === '/comunidade'} onClick={() => setIsMobileMenuOpen(false)} />
-                     
-                     {isManagerOrAdmin && (
-                       <>
-                         <div className="my-2 h-px bg-[var(--color-atelier-grafite)]/10" />
-                         <MobileNavItem href="/admin/clientes" icon={<Users size={20} />} label="Clientes" active={pathname === '/admin/clientes'} onClick={() => setIsMobileMenuOpen(false)} />
-                         <MobileNavItem href="/admin/analytics" icon={<Briefcase size={20} />} label="Analytics" active={pathname === '/admin/analytics'} onClick={() => setIsMobileMenuOpen(false)} />
-                       </>
-                     )}
-                     
-                     {isAdminOnly && (
-                       <MobileNavItem href="/admin/financeiro" icon={<DollarSign size={20} />} label="Financeiro" active={pathname === '/admin/financeiro'} onClick={() => setIsMobileMenuOpen(false)} />
-                     )}
-                   </>
-                )}
-                
-                <div className="my-2 h-px bg-[var(--color-atelier-grafite)]/10" />
-                <button 
-                  onClick={() => { setIsMobileMenuOpen(false); handleLogout && handleLogout(); }}
-                  className="flex items-center gap-4 p-3 rounded-2xl text-red-500/80 font-medium font-roboto text-[14px]"
-                >
-                  <LogOut size={20} /> Desconectar
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
-
-      {/* BOTTOM BAR (Os 4 Principais + Botão Mais) */}
-      <div className="bg-white/80 backdrop-blur-2xl border-t border-[var(--color-atelier-grafite)]/5 pb-[env(safe-area-inset-bottom,16px)] pt-2 px-2 flex justify-around items-center shadow-[0_-10px_40px_rgba(0,0,0,0.05)] h-20">
-        
-        {/* HOME (Cockpit / Admin / Focus) */}
-        <BottomBarItem href={homeRoute} icon={<Home size={22} />} label="Início" active={pathname === homeRoute || pathname === '/cockpit'} />
-
-        {!isTeamMember ? (
-          <>
-            {clientServiceType === "Gestão de Instagram" ? (
-               <BottomBarItem href="/brandbook" icon={<Sparkles size={22} />} label="Brandbook" active={pathname === '/brandbook'} />
-            ) : (
-               <BottomBarItem href="/cofre" icon={<Lock size={22} />} label="Cofre" active={pathname === '/cofre'} />
+    {/* ==================================================== */}
+    {/* MOBILE BOTTOM NAVIGATION BAR */}
+    {/* ==================================================== */}
+    <div className="md:hidden fixed bottom-0 left-0 w-full z-[100] px-6 pb-6 pt-3 bg-white/80 backdrop-blur-xl border-t border-[var(--color-atelier-grafite)]/5 flex items-center justify-between shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
+      {mobileMainItems.map((item) => (
+         <Link key={item.href} href={item.href} className="flex flex-col items-center gap-1 group relative">
+            <div className={`relative z-10 flex items-center justify-center transition-all duration-300 ${pathname === item.href ? 'text-[var(--color-atelier-terracota)] scale-110' : 'text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-grafite)]/80'}`}>
+              {item.icon}
+              {item.badge !== undefined && item.badge > 0 && (
+                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white shadow-sm animate-pulse-slow"></div>
+              )}
+            </div>
+            <span className={`text-[9px] font-bold tracking-wide transition-colors duration-300 ${pathname === item.href ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/40'}`}>
+              {item.label}
+            </span>
+            {pathname === item.href && (
+              <motion.div layoutId="mobile-nav-indicator" className="absolute -bottom-2 w-1 h-1 bg-[var(--color-atelier-terracota)] rounded-full" />
             )}
-            <BottomBarItem href="/canais" icon={<MessageSquare size={22} />} label="Canais" active={pathname === '/canais'} badge={globalUnreadCount} />
-          </>
-        ) : (
-          <>
-            <BottomBarItem href="/admin/jtbd" icon={<Crosshair size={22} />} label="Focus" active={pathname === '/admin/jtbd'} />
-            <BottomBarItem href="/admin/projetos" icon={<FolderKanban size={22} />} label="Estúdio" active={pathname === '/admin/projetos'} />
-          </>
-        )}
-
-        <button 
-          onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-          className={`flex flex-col items-center justify-center gap-1 w-16 h-14 rounded-2xl transition-all ${isMobileMenuOpen ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/50'}`}
-        >
-          <Menu size={22} className={isMobileMenuOpen ? 'scale-110' : ''} />
-          <span className="text-[10px] font-roboto font-medium tracking-wide">Menu</span>
+         </Link>
+      ))}
+      
+      {/* BOTÃO MAIS (DRAWER) */}
+      {mobileDrawerItems.length > 0 && (
+        <button onClick={() => setIsMobileDrawerOpen(true)} className="flex flex-col items-center gap-1 group relative outline-none">
+          <div className="relative z-10 flex items-center justify-center transition-all duration-300 text-[var(--color-atelier-grafite)]/40 group-hover:text-[var(--color-atelier-grafite)]/80">
+            <Menu size={20} strokeWidth={1.5} />
+          </div>
+          <span className="text-[9px] font-bold tracking-wide text-[var(--color-atelier-grafite)]/40">Mais</span>
         </button>
-      </div>
+      )}
     </div>
+
+    {/* ==================================================== */}
+    {/* MOBILE DRAWER */}
+    {/* ==================================================== */}
+    <AnimatePresence>
+      {isMobileDrawerOpen && (
+        <>
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="md:hidden fixed inset-0 z-[101] bg-black/20 backdrop-blur-sm"
+            onClick={() => setIsMobileDrawerOpen(false)}
+          />
+          <motion.div 
+            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
+            transition={{ type: "spring", stiffness: 300, damping: 30 }}
+            className="md:hidden fixed bottom-0 left-0 w-full z-[102] bg-[var(--color-atelier-creme)] rounded-t-[2.5rem] shadow-[0_-20px_40px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col max-h-[85vh]"
+          >
+            <div className="flex items-center justify-between p-6 pb-2">
+              <div className="flex items-center gap-3">
+                <img src="/images/simbolo-rosa.png" alt="Atelier" className="w-8 h-8 object-contain" />
+                <span className="font-elegant text-xl text-[var(--color-atelier-grafite)] leading-none tracking-tight">Menu</span>
+              </div>
+              <button onClick={() => setIsMobileDrawerOpen(false)} className="w-8 h-8 flex items-center justify-center bg-white/50 rounded-full text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)]">
+                <X size={18} strokeWidth={2} />
+              </button>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-2 pb-32">
+              {mobileDrawerItems.map((item) => (
+                <Link 
+                  key={item.href} href={item.href} onClick={() => setIsMobileDrawerOpen(false)}
+                  className={`flex items-center gap-4 p-4 rounded-[1.5rem] bg-white/60 shadow-sm border border-white/60 ${pathname === item.href ? 'border-[var(--color-atelier-terracota)]/30 bg-white' : ''}`}
+                >
+                  <div className={`${pathname === item.href ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/60'}`}>
+                    {item.icon}
+                  </div>
+                  <span className={`font-roboto text-sm flex-1 font-bold ${pathname === item.href ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/80'}`}>
+                    {item.label}
+                  </span>
+                  {item.badge !== undefined && item.badge > 0 && (
+                    <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse-slow">
+                      {item.badge > 99 ? '99+' : item.badge}
+                    </span>
+                  )}
+                </Link>
+              ))}
+
+              <div className="w-full h-px bg-[var(--color-atelier-grafite)]/10 my-2"></div>
+
+              <button 
+                onClick={() => { setIsMobileDrawerOpen(false); handleLogout && handleLogout(); }}
+                className="flex items-center gap-4 p-4 rounded-[1.5rem] bg-red-50/50 text-red-500/80 hover:text-red-600 font-bold text-sm"
+              >
+                <LogOut size={18} strokeWidth={1.5} />
+                Desconectar
+              </button>
+            </div>
+          </motion.div>
+        </>
+      )}
+    </AnimatePresence>
   </>
+
   );
 }
 
-// Sub-componentes para o Drawer e Bottom Bar
-function MobileNavItem({ href, icon, label, active, onClick, badge }: any) {
-  return (
-    <Link href={href} onClick={onClick} className={`flex items-center gap-4 p-3 rounded-2xl font-roboto text-[14px] transition-colors ${active ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'text-[var(--color-atelier-grafite)]/70 hover:bg-gray-50'}`}>
-      {icon}
-      <span className="flex-1">{label}</span>
-      {badge > 0 && <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{badge > 99 ? '99+' : badge}</span>}
-    </Link>
-  );
-}
-
-function BottomBarItem({ href, icon, label, active, badge }: any) {
-  return (
-    <Link href={href} className={`relative flex flex-col items-center justify-center gap-1 w-16 h-14 rounded-2xl transition-all ${active ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-gray-50'}`}>
-      {active && <motion.div layoutId="bottom-nav-indicator" className="absolute inset-0 bg-[var(--color-atelier-terracota)]/10 rounded-2xl -z-10" />}
-      <div className="relative">
-        {icon}
-        {badge > 0 && <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white"></div>}
-      </div>
-      <span className={`text-[10px] font-roboto tracking-wide ${active ? 'font-bold' : 'font-medium'}`}>{label}</span>
-    </Link>
-  );
-}
 // ==========================================
 // COMPONENTE DE ITEM DE NAVEGAÇÃO COM FÍSICA E UX PREMIUM
 // ==========================================

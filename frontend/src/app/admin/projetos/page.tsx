@@ -207,7 +207,7 @@ function PainelIdentidade() {
     if (!activeProjectId) return;
     const fetchStudioData = async () => {
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
         const response = await fetch(`${backendUrl}/api/v1/studio/project/${activeProjectId}`);
         if (!response.ok) throw new Error('Falha ao buscar dados do estúdio');
         const { data } = await response.json();
