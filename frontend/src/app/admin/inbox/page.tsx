@@ -80,7 +80,7 @@ export default function AdminInboxPage() {
   const [currentUser, setCurrentUser] = useState<ProfileData | null>(null);
 
   // 2. Estados de Navegação
-  const [activeSpace, setActiveSpace] = useState<ActiveSpace>('projects');
+  const [activeSpace, setActiveSpace] = useState<ActiveSpace>('corporate');
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const [activeDMUserId, setActiveDMUserId] = useState<string | null>(null);
@@ -104,6 +104,7 @@ export default function AdminInboxPage() {
   const [channelPreviews, setChannelPreviews] = useState<Record<string, string>>({});
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const clientsScrollRef = useRef<HTMLDivElement>(null);
 
   // Estados do Modal de Criação
   const [isChannelModalOpen, setIsChannelModalOpen] = useState(false);
@@ -261,31 +262,30 @@ export default function AdminInboxPage() {
       setMessages([]);
       return;
     }
-    const { data } = await supabase
-      .from('messages')
-      .select('*, profiles(id, nome, avatar_url, role)')
-      .eq('channel_id', activeChannelId)
-      .order('created_at', { ascending: true });
-
-    if (data) {
-      // Normaliza o retorno dos profiles
-      const formattedMessages = data.map(m => ({
-        ...m,
-        profiles: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles
-      })) as MessageData[];
+    
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+      const res = await fetch(`${backendUrl}/api/v1/chat/history/${activeChannelId}`);
+      if (!res.ok) throw new Error('Falha ao carregar histórico');
       
-      setMessages(formattedMessages);
-      scrollToBottom();
+      const { data } = await res.json();
       
-      // 🟢 NOVO: Marcar como lido ao abrir o canal
-      if (currentUser) {
-        supabase.from('channel_reads').upsert(
-          { channel_id: activeChannelId, user_id: currentUser.id, last_read_at: new Date().toISOString() },
-          { onConflict: 'channel_id, user_id' }
-        ).then(() => {
-          setUnreadCounts(prev => ({ ...prev, [activeChannelId]: 0 }));
-        });
+      if (data) {
+        setMessages(data as MessageData[]);
+        scrollToBottom();
+        
+        // 🟢 Marcar como lido ao abrir o canal
+        if (currentUser) {
+          supabase.from('channel_reads').upsert(
+            { channel_id: activeChannelId, user_id: currentUser.id, last_read_at: new Date().toISOString() },
+            { onConflict: 'channel_id, user_id' }
+          ).then(() => {
+            setUnreadCounts(prev => ({ ...prev, [activeChannelId]: 0 }));
+          });
+        }
       }
+    } catch (e) {
+      console.error("Erro no fetch history:", e);
     }
   }, [activeChannelId, currentUser]);
 
@@ -570,7 +570,16 @@ export default function AdminInboxPage() {
                   </div>
                   
                   {/* Container Force-Scroll Horizontal */}
-                  <div className="flex flex-nowrap overflow-x-auto overflow-y-hidden custom-scrollbar gap-3 pb-3 pt-1 px-1 touch-pan-x scroll-smooth" style={{ WebkitOverflowScrolling: 'touch' }}>
+                  <div 
+                    ref={clientsScrollRef}
+                    className="flex flex-nowrap overflow-x-auto overflow-y-hidden custom-scrollbar gap-3 pb-3 pt-1 px-1 touch-pan-x scroll-smooth" 
+                    style={{ WebkitOverflowScrolling: 'touch' }}
+                    onWheel={(e) => {
+                      if (clientsScrollRef.current) {
+                        clientsScrollRef.current.scrollLeft += e.deltaY;
+                      }
+                    }}
+                  >
                     {clients.filter(c => c.profiles?.nome.toLowerCase().includes(searchTerm.toLowerCase())).map(client => {
                       const isActive = activeProjectId === client.id;
                       return (

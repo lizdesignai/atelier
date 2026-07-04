@@ -52,28 +52,38 @@ function GlobalToast() {
 // COMPONENTE: PRELOADER CINEMATOGRÁFICO
 // ============================================================================
 function AtelierPreloader() {
+  const [isMobile, setIsMobile] = useState(false);
+
+  useEffect(() => {
+    setIsMobile(window.innerWidth < 768);
+  }, []);
+
   const text = "";
   const letters = Array.from(text);
+
+  const dur = isMobile ? 0.6 : 1.2;
+  const pathDur = isMobile ? 1.5 : 2.8;
+  const fillDelay = isMobile ? 1.0 : 2.2;
 
   // Variantes ajustadas para um desvendar suave e contemplativo (fade-in longo)
   const containerVariants: Variants = {
     hidden: { opacity: 1 },
     visible: { 
       opacity: 1,
-      transition: { staggerChildren: 0.08, delayChildren: 1.5 } 
+      transition: { staggerChildren: 0.08, delayChildren: isMobile ? 0.8 : 1.5 } 
     }
   };
 
   const letterVariants: Variants = {
     hidden: { opacity: 0, y: 8 },
-    visible: { opacity: 1, y: 0, transition: { duration: 1.2, ease: "easeOut" } }
+    visible: { opacity: 1, y: 0, transition: { duration: dur, ease: "easeOut" } }
   };
 
   return (
     <motion.div 
       initial={{ opacity: 1 }}
       exit={{ opacity: 0, scale: 1.05, filter: "blur(10px)" }} // Efeito de Zoom e Blur na saída
-      transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: dur, ease: [0.22, 1, 0.36, 1] }}
       className="fixed inset-0 z-[99999] bg-[var(--color-atelier-creme)] flex flex-col items-center justify-center overflow-hidden"
     >
       {/* Luzes de Fundo (Atmosphere) - Mais Lentas */}
@@ -101,8 +111,8 @@ function AtelierPreloader() {
             initial={{ pathLength: 0, fill: "rgba(144, 86, 49, 0)" }}
             animate={{ pathLength: 1, fill: "rgba(144, 86, 49, 1)" }}
             transition={{ 
-              pathLength: { duration: 2.8, ease: "easeInOut" },
-              fill: { duration: 1.5, ease: "easeIn", delay: 2.2 }
+              pathLength: { duration: pathDur, ease: "easeInOut" },
+              fill: { duration: dur, ease: "easeIn", delay: fillDelay }
             }}
           />
           <motion.path 
@@ -111,8 +121,8 @@ function AtelierPreloader() {
             initial={{ pathLength: 0, fill: "rgba(144, 86, 49, 0)" }}
             animate={{ pathLength: 1, fill: "rgba(144, 86, 49, 1)" }}
             transition={{ 
-              pathLength: { duration: 2.8, ease: "easeInOut", delay: 0.2 },
-              fill: { duration: 1.5, ease: "easeIn", delay: 2.4 }
+              pathLength: { duration: pathDur, ease: "easeInOut", delay: 0.2 },
+              fill: { duration: dur, ease: "easeIn", delay: fillDelay + 0.2 }
             }}
           />
         </motion.svg>
@@ -122,7 +132,7 @@ function AtelierPreloader() {
           <motion.div 
             initial={{ left: "-100%" }}
             animate={{ left: "100%" }}
-            transition={{ duration: 1.5, ease: "easeInOut", repeat: Infinity }}
+            transition={{ duration: dur, ease: "easeInOut", repeat: Infinity }}
             className="absolute top-0 bottom-0 w-1/2 bg-gradient-to-r from-transparent via-[var(--color-atelier-terracota)] to-transparent"
           />
         </div>
@@ -183,9 +193,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
            router.replace('/admin');
         }
 
-        // Tempo expandido para 3.8s para garantir a contemplação visual 
-        // e dar tempo ao Dashboard para renderizar e carregar os dados em background.
-        const timer = setTimeout(() => setIsInitializing(false), 3800);
+        // Tempo expandido para garantir a contemplação visual no desktop,
+        // mas mais rápido no mobile onde a paciência do utilizador é menor.
+        const isMobile = window.innerWidth < 768;
+        const initTimer = isMobile ? 1800 : 3800;
+        const timer = setTimeout(() => setIsInitializing(false), initTimer);
         return () => clearTimeout(timer);
       } else {
         setIsInitializing(false);
@@ -207,7 +219,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
   return (
     <html lang="pt-BR" className={roboto.variable}>
-      <body className="bg-[var(--color-atelier-creme)] text-[var(--color-atelier-grafite)] font-roboto h-screen w-screen overflow-hidden flex relative selection:bg-[var(--color-atelier-terracota)] selection:text-white">
+      <body className="bg-[var(--color-atelier-creme)] text-[var(--color-atelier-grafite)] font-roboto h-[100dvh] w-screen overflow-hidden flex relative selection:bg-[var(--color-atelier-terracota)] selection:text-white">
         
         {/* O Preloader Cinematográfico gere a sua própria saída através do AnimatePresence */}
         <AnimatePresence>
@@ -247,7 +259,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 <AppHeader handleLogout={handleLogout} />
               )}
 
-              <main className={`flex-1 overflow-hidden flex flex-col ${isLoginPage || isSidebarHidden ? 'p-0' : 'px-6 md:px-12 py-8'}`}>
+              <main className={`flex-1 overflow-hidden flex flex-col relative ${isLoginPage || isSidebarHidden ? 'p-0' : 'px-4 py-4 pb-24 md:px-12 md:py-8 md:pb-8'}`}>
                 <div className={isLoginPage || isSidebarHidden ? "w-full h-full overflow-y-auto" : "flex-1 overflow-y-auto custom-scrollbar"}>
                   {/* MAGIA DE BACKGROUND FETCH:
                       O children agora é renderizado IMEDIATAMENTE (não espera o isInitializing acabar). 
