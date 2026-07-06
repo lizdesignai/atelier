@@ -215,6 +215,11 @@ export default function JTBDPage() {
 
       if (finalStatus === 'completed') {
          await AtelierPMEngine.unlockDependencies(task.id);
+         showToast("Tarefa Concluída com sucesso!");
+         NotificationEngine.notifyManagement("✅ Tarefa Concluída", `A tarefa "${task.title}" foi concluída e aprovada.`, "success");
+      } else if (finalStatus === 'review') {
+         showToast("Tarefa enviada para Revisão Interna!");
+         NotificationEngine.notifyManagement("👀 Revisão Solicitada", `A tarefa "${task.title}" foi enviada para revisão interna pelo colaborador.`, "action");
       }
 
     } catch (error) {
@@ -319,9 +324,9 @@ export default function JTBDPage() {
   const inProgressTasks = displayedTasks.filter(t => t.status === 'in_progress');
   
   // 🟢 MÁGICA VISUAL: Tarefas 'pending_client_approval' ficam ancoradas na coluna de revisão, mas o Kanban lidará com a desativação visual dos botões
-  const reviewTasks = displayedTasks.filter(t => t.status === 'review' || t.status === 'pending_client_approval');
+  const reviewTasks = displayedTasks.filter(t => t.status === 'review');
   
-  const completedTasks = displayedTasks.filter(t => t.status === 'completed').slice(0, 20); 
+  const completedTasks = displayedTasks.filter(t => t.status === 'completed' || t.status === 'pending_client_approval').slice(0, 20);
 
   const isAdminOrManager = currentUser?.role === 'admin' || currentUser?.role === 'gestor';
   const isViewingSelf = viewingUserId === currentUser?.id;
