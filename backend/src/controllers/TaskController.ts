@@ -85,8 +85,7 @@ export class TaskController {
         .eq('id', id)
         .select(`
           *,
-          projects:project_id(title, user_id),
-          assigned_to_profile:assigned_to(nome, email)
+          projects(profiles(nome), type, client_id)
         `)
         .single();
         
