@@ -25,7 +25,7 @@ function getEmailTemplate(type: string, data: any) {
       subject = "Ação Necessária: Revisão Estratégica";
       icon = "📝";
       title = "Dossiê em Revisão";
-      message = `A nossa equipa analisou o briefing submetido para <strong>${projectName}</strong>. Necessitamos do seu alinhamento em alguns pontos para calibrar o projeto com precisão.`;
+      message = `A nossa equipe analisou o briefing submetido para <strong>${projectName}</strong>. Necessitamos do seu alinhamento em alguns pontos para calibrar o projeto com precisão.`;
       buttonText = "Rever Briefing";
       break;
 

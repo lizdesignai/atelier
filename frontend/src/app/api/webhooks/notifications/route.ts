@@ -97,8 +97,8 @@ const copyTeamRevision = (title: string) => getRandomCopy([
 const copyClientFeedback = (projectName: string) => getRandomCopy([
   `Ajuste na rota 🔄 O cliente do projeto ${projectName} pediu uma alteração na peça.`,
   `Opa, temos um feedback! 📝 Novas instruções do cliente de ${projectName} já estão no card.`,
-  `Voltou pra prancheta 🎨 O cliente de ${projectName} solicitou ajustes na aprovação.`,
-  `Correção solicitada! 🛠️ Confira as observações que o cliente de ${projectName} deixou.`
+  `Voltou pra prancheta 🎨 ${projectName} solicitou ajustes na aprovação.`,
+  `Correção solicitada! 🛠️ Confira as observações que ${projectName} deixou.`
 ]);
 
 // ============================================================================
@@ -266,7 +266,7 @@ export async function POST(request: Request) {
           await sendEmailSafely(resend, recipient.email, emailSubject, buildAppLikeEmail(avatar, "Mensagem Direta", emailBody, "Responder agora", `${portalUrl}/admin/inbox`), "Chat DM");
         }
       } else if (channel.type === 'corporate_global' && sender.role !== 'admin') {
-        await sendEmailSafely(resend, ADMIN_EMAIL, emailSubject, buildAppLikeEmail(avatar, "Equipe LizDesign", emailBody, "Ir para o Chat", `${portalUrl}/admin/inbox`), "Chat");
+        await sendEmailSafely(resend, ADMIN_EMAIL, emailSubject, buildAppLikeEmail(avatar, "LizDesign", emailBody, "Ir para o Chat", `${portalUrl}/admin/inbox`), "Chat");
       } else if (!channel.is_private) {
         const client = channel.project_id ? await getClientProfile(channel.project_id) : null;
         const isSenderTeam = ['admin', 'gestor', 'colaborador'].includes(sender.role?.toLowerCase() || '');
@@ -330,7 +330,7 @@ export async function POST(request: Request) {
             `✅ Status: Concluída - ${taskTitle}`, 
             buildAppLikeEmail(
               "✅", 
-              "Operação Validada", 
+              "Tarefa Concluída", 
               `Confirmação de sistema: A tarefa <strong>"${taskTitle}"</strong> foi aprovada/revisada com sucesso e arquivada como concluída na base de dados.`, 
               "Acessar Kanban", 
               `${portalUrl}/admin/jtbd`
