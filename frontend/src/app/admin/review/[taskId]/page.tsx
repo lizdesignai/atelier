@@ -28,12 +28,16 @@ export default function ReviewTaskPage() {
     setIsLoading(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        router.push("/login");
-        return;
+      
+      let profile = null;
+      if (session) {
+        const { data } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
+        profile = data;
+      } else {
+        // Mock admin profile for email link access without login
+        profile = { id: 'admin-guest', nome: 'Gestão (Via Email)', role: 'admin' };
       }
-
-      const { data: profile } = await supabase.from("profiles").select("*").eq("id", session.user.id).single();
+      
       setCurrentUser(profile);
 
       // Fetch task with full relations exactly like JTBDPage

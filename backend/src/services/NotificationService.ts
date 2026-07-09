@@ -17,13 +17,14 @@ export class NotificationService {
 
     switch (type) {
       case 'internal_review':
-        subject = `[REVISÃO] Tarefa pronta para análise interna: ${taskName}`;
+        subject = `[REVISÃO] ${projectName} - ${taskName} por ${collaboratorName || 'Colaborador'}`;
         icon = "👀";
         title = "Revisão Interna";
         message = `O colaborador(a) <strong>${collaboratorName || 'Desconhecido'}</strong> finalizou a tarefa <strong>${taskName}</strong> do projeto/cliente <strong>${projectName}</strong> e enviou para revisão interna.`;
         buttonText = "Avaliar Tarefa no Cockpit";
         
         const backendUrl = process.env.BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+        const frontendUrl = process.env.FRONTEND_URL || 'https://atelier.lizdesign.com.br';
         
         extraHtml = `
           ${mediaUrl && !mediaUrl.includes('.pdf') ? `
@@ -32,10 +33,10 @@ export class NotificationService {
           </div>` : ''}
           <div style="margin-top: 24px; display: flex; flex-direction: column; gap: 12px;">
             <a href="${backendUrl}/api/v1/tasks/${taskId}/email-action?action=approve" style="display: block; width: 100%; box-sizing: border-box; background-color: #22c55e; color: #ffffff; text-decoration: none; padding: 16px; border-radius: 12px; font-size: 14px; font-weight: bold; text-align: center;">
-              ✅ APROVAR TAREFA
+              ✅ APROVAR IMEDIATAMENTE
             </a>
-            <a href="${process.env.FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin/review/${taskId}" style="display: block; width: 100%; box-sizing: border-box; background-color: #fef2f2; color: #ef4444; border: 1px solid #fca5a5; text-decoration: none; padding: 16px; border-radius: 12px; font-size: 14px; font-weight: bold; text-align: center;">
-              ❌ SOLICITAR AJUSTE
+            <a href="${frontendUrl}/admin/review/${taskId}" style="display: block; width: 100%; box-sizing: border-box; background-color: #fef2f2; color: #ef4444; border: 1px solid #fca5a5; text-decoration: none; padding: 16px; border-radius: 12px; font-size: 14px; font-weight: bold; text-align: center;">
+              👀 REVISAR / SOLICITAR AJUSTE NA TAREFA
             </a>
           </div>
         `;

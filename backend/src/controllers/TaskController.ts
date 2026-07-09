@@ -108,13 +108,13 @@ export class TaskController {
 
         if (managerEmails.length > 0 && notifyType) {
            NotificationService.sendNotification({
-             to: managerEmails,
-             type: notifyType,
-             taskId: id,
-             collaboratorName: req.body.collaboratorName || 'O Colaborador',
-             taskName: data.title,
-             projectName: data.projects?.profiles?.nome || data.projects?.title || 'Projeto Não Especificado',
-             mediaUrl: data.attachment_url,
+             to: managerEmails as string[],
+             type: notifyType as string,
+             taskId: String(id),
+             collaboratorName: String(req.body.collaboratorName || 'O Colaborador'),
+             taskName: String(data.title || ''),
+             projectName: String(data.projects?.profiles?.nome || data.projects?.title || 'Projeto Não Especificado'),
+             mediaUrl: data.attachment_url ? String(data.attachment_url) : undefined,
              link: `${process.env.FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin`
            }).catch(err => console.error("Falha ao enviar notificação em background:", err));
         }
