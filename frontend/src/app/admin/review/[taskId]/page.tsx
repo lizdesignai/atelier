@@ -2,10 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { supabase } from "../../../../../lib/supabase";
-import TaskCard from "../../../jtbd/components/TaskCard";
+import { supabase } from "../../../../lib/supabase";
+import TaskCard from "../../jtbd/components/TaskCard";
 import { Loader2, ArrowLeft } from "lucide-react";
-import { NotificationEngine } from "../../../../../lib/NotificationEngine";
+import { NotificationEngine } from "../../../../lib/NotificationEngine";
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -142,9 +142,13 @@ export default function ReviewTaskPage() {
           <div className="p-4">
             <TaskCard
               task={task}
+              isAdmin={currentUser?.role === 'admin' || currentUser?.role === 'gestor'}
+              isReview={true}
+              onAction={(newStatus) => handleTaskStatusUpdate(task.id, newStatus, task)}
+              onReschedule={() => {}}
+              isRescheduling={false}
               forceStaticMode={false}
-              currentUser={currentUser}
-              onUpdateStatus={handleTaskStatusUpdate}
+              forceOpenModal={true}
             />
           </div>
         </div>

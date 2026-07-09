@@ -1,7 +1,7 @@
 // src/app/admin/jtbd/views/DailyKanban.tsx
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, AlertTriangle, CheckCircle2, Image as ImageIcon, PlayCircle, FileText } from "lucide-react";
+import { Clock, AlertTriangle, CheckCircle2, Image as ImageIcon, PlayCircle, FileText, User, Briefcase } from "lucide-react";
 import TaskCard from "../components/TaskCard";
 import { supabase } from "../../../../lib/supabase";
 
@@ -17,6 +17,7 @@ interface DailyKanbanProps {
   handleDragOver: (e: React.DragEvent) => void;
   handleDrop: (e: React.DragEvent, newStatus: string) => void;
   handleFileUpload?: (taskId: string, files: File[]) => Promise<void>; 
+  teamData?: any[];
 }
 
 export default function DailyKanban({
@@ -30,7 +31,8 @@ export default function DailyKanban({
   isRescheduling,
   handleDragOver,
   handleDrop,
-  handleFileUpload
+  handleFileUpload,
+  teamData = []
 }: DailyKanbanProps) {
 
   // ==========================================================================
@@ -168,6 +170,94 @@ export default function DailyKanban({
     
     // 🟢 UTILITÁRIO: DETETAR SE É PDF
     const isPdf = task.attachment_url?.toLowerCase().includes('.pdf');
+    
+    // 🟢 ESTILIZAÇÃO ELEGANTE PARA TAREFAS CONCLUÍDAS (MÊS CORRENTE)
+    if (isCompleted) {
+      const assignee = teamData.find(t => t.id === task.assigned_to) || { nome: 'Desconhecido', avatar_url: null };
+      const clientName = task.projects?.profiles?.nome || task.projects?.title || 'Projeto Não Especificado';
+      const clientAvatar = task.projects?.profiles?.avatar_url || null;
+      const completedDate = task.completed_at ? new Date(task.completed_at) : (task.updated_at ? new Date(task.updated_at) : new Date(task.deadline));
+      const formattedDate = completedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+      const formattedTime = completedDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+
+      return (
+        <motion.div
+          key={task.id}
+          layout="position"
+          layoutId={`task-${task.id}`}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.2 } }}
+          transition={{ layout: { type: "spring", stiffness: 350, damping: 28 } }}
+          className="shrink-0 relative w-full mb-4 bg-white/80 backdrop-blur-sm border border-gray-100 shadow-sm rounded-2xl overflow-hidden cursor-pointer hover:shadow-md transition-shadow group/completed"
+          onClick={() => setActiveTaskModal({ task, isFocus: false, isReview: false, isCompleted: true })}
+        >
+          {/* Imagem de Capa (Ocupa a parte superior inteira) */}
+          {task.attachment_url ? (
+            <div className="w-full h-32 relative bg-gray-50 overflow-hidden">
+              {isPdf ? (
+                <div className="flex flex-col items-center justify-center w-full h-full opacity-30">
+                  <FileText size={32} className="text-gray-600 mb-1" />
+                  <span className="font-bold text-[8px] uppercase tracking-widest text-gray-600">Doc. PDF</span>
+                </div>
+              ) : (
+                <img src={task.attachment_url} className="w-full h-full object-cover opacity-90 group-hover/completed:scale-105 transition-transform duration-700" alt="Capa" />
+              )}
+              <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
+              <div className="absolute top-2 right-2 bg-green-500/90 backdrop-blur-md text-white text-[8px] font-bold uppercase tracking-widest px-2 py-1 rounded shadow-sm flex items-center gap-1">
+                <CheckCircle2 size={10} /> Aprovado
+              </div>
+            </div>
+          ) : (
+            <div className="w-full h-8 relative bg-gradient-to-r from-gray-50 to-gray-100">
+               <div className="absolute top-2 right-2 bg-green-500/90 backdrop-blur-md text-white text-[8px] font-bold uppercase tracking-widest px-2 py-1 rounded shadow-sm flex items-center gap-1">
+                <CheckCircle2 size={10} /> Aprovado
+              </div>
+            </div>
+          )}
+          
+          {/* Conteúdo Elegante (Título, Autor, Data, Projeto) */}
+          <div className="p-3">
+            <h3 className="text-xs font-bold text-gray-800 line-clamp-1 mb-3">{task.title}</h3>
+            
+            <div className="flex items-center justify-between mt-auto">
+              <div className="flex items-center gap-2">
+                 {/* Colaborador */}
+                 <div className="flex items-center gap-1.5" title={`Feito por ${assignee.nome}`}>
+                   {assignee.avatar_url ? (
+                     <img src={assignee.avatar_url} className="w-5 h-5 rounded-full object-cover border border-gray-200" alt={assignee.nome} />
+                   ) : (
+                     <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
+                       <User size={10} className="text-gray-400" />
+                     </div>
+                   )}
+                 </div>
+                 
+                 <div className="w-[1px] h-3 bg-gray-200"></div>
+                 
+                 {/* Projeto / Cliente */}
+                 <div className="flex items-center gap-1.5" title={`Projeto: ${clientName}`}>
+                   {clientAvatar ? (
+                     <img src={clientAvatar} className="w-5 h-5 rounded-full object-cover border border-gray-200" alt={clientName} />
+                   ) : (
+                     <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
+                       <Briefcase size={10} className="text-gray-400" />
+                     </div>
+                   )}
+                   <span className="text-[9px] font-medium text-gray-500 truncate max-w-[80px]">{clientName}</span>
+                 </div>
+              </div>
+              
+              {/* Data de Conclusão */}
+              <div className="flex flex-col items-end">
+                 <span className="text-[9px] font-bold text-gray-400">{formattedDate}</span>
+                 <span className="text-[8px] font-medium text-gray-400">{formattedTime}</span>
+              </div>
+            </div>
+          </div>
+        </motion.div>
+      );
+    }
 
     return (
       <motion.div 

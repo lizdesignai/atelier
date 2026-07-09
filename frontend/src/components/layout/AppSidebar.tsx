@@ -9,7 +9,7 @@ import {
   Home, Lock, MessageSquare, ChevronLeft, ChevronRight, 
   Compass, LayoutDashboard, FolderKanban, Users, Inbox, 
   Globe2, CheckCircle2, DollarSign, Sparkles, Briefcase, 
-  Crosshair, LogOut, Activity, Crown, Grid
+  Crosshair, LogOut, Activity, Crown, Grid, Menu, X
 } from "lucide-react";
 import { supabase } from "../../lib/supabase"; 
 import { useDynamicTitle } from "../../hooks/useDynamicTitle"; 
@@ -58,6 +58,8 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   
   // HIERARQUIA DE ACESSO
   const isTeamMember = ['admin', 'gestor', 'colaborador'].includes(userRole);
+  const isContador = userRole === 'contador';
+  const isClient = !isTeamMember && !isContador;
   const isManagerOrAdmin = ['admin', 'gestor'].includes(userRole);
   const isAdminOnly = userRole === 'admin';
 
@@ -65,7 +67,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   // ATIVAÇÃO DO TÍTULO DINÂMICO
   // ==========================================
   useDynamicTitle({
-    projectName: isTeamMember ? "Liz Design" : (clientName || "Atelier"), 
+    projectName: (isTeamMember || isContador) ? "Liz Design" : (clientName || "Atelier"), 
     tabName: ROUTE_NAMES[pathname] || "Portal"
   });
 
@@ -79,7 +81,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     });
   }, []);
 
-  const presenceStatus = usePresenceTracker(isTeamMember ? sessionUserId : null);
+  const presenceStatus = usePresenceTracker((isTeamMember || isContador) ? sessionUserId : null);
 
   // LÓGICA CORE INTACTA
   useEffect(() => {
@@ -87,7 +89,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      if (!isTeamMember) {
+      if (isClient) {
         // Busca o nome do cliente para o Sidebar e o Título
         const { data: profile } = await supabase.from('profiles').select('nome').eq('id', session.user.id).single();
         if (profile) setClientName(profile.nome);
@@ -138,6 +140,12 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
             router.replace('/');
           }
         }
+      } else if (isContador) {
+        // 🟢 BLINDAGEM DE ROTAS PARA O CONTADOR
+        const allowedContadorRoutes = ['/admin/inbox', '/comunidade', '/admin/financeiro'];
+        if (!allowedContadorRoutes.includes(pathname)) {
+          router.replace('/admin/financeiro');
+        }
       } else {
         // 🟢 BLINDAGEM DE ROTAS PARA A EQUIPA
         // Retiramos a intercepção da rota `/admin` para o Admin!
@@ -176,14 +184,46 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     return () => { supabase.removeChannel(sub); };
   }, [pathname, isTeamMember, isManagerOrAdmin, isAdminOnly, router, onHideSidebar]);
 
-  if (!isTeamMember && (isProjectArchived || !isReady)) return null;
+  if (isClient && (isProjectArchived || !isReady)) return null;
+  if (isContador && !isReady) return null;
 
   // 🟢 Definição inteligente da rota Home (Logo) com base na patente
-  const homeRoute = isTeamMember 
-    ? (isAdminOnly ? '/admin' : (isManagerOrAdmin ? '/admin/gestao' : '/admin/jtbd')) 
-    : (clientServiceType === "Gestão de Instagram" ? '/cockpit' : '/');
+  const homeRoute = isContador 
+    ? '/admin/financeiro' 
+    : isTeamMember 
+      ? (isAdminOnly ? '/admin' : (isManagerOrAdmin ? '/admin/gestao' : '/admin/jtbd')) 
+      : (clientServiceType === "Gestão de Instagram" ? '/cockpit' : '/');
+
+  // ====================================================
+  // 🟢 MOBILE BOTTOM NAVIGATION CONFIGURATION
+  // ====================================================
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+
+  // Definir os itens do menu móvel (3 principais)
+  const mobileMainItems: Array<{ href: string; icon: React.ReactNode; label: string; badge?: number }> = isContador ? [
+    { href: '/admin/financeiro', icon: <DollarSign size={20} strokeWidth={1.5} />, label: 'Finanças' },
+    { href: '/admin/inbox', icon: <Inbox size={20} strokeWidth={1.5} />, label: 'Inbox', badge: globalUnreadCount },
+    { href: '/comunidade', icon: <Users size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+  ] : isTeamMember ? [
+    { href: isAdminOnly ? '/admin' : (isManagerOrAdmin ? '/admin/gestao' : '/admin/jtbd'), icon: <Home size={20} strokeWidth={1.5} />, label: 'Início' },
+    { href: '/admin/inbox', icon: <Inbox size={20} strokeWidth={1.5} />, label: 'Inbox', badge: globalUnreadCount },
+    { href: '/admin/projetos', icon: <FolderKanban size={20} strokeWidth={1.5} />, label: 'Projetos' }
+  ] : [
+    { href: clientServiceType === "Gestão de Instagram" ? '/cockpit' : '/', icon: <Home size={20} strokeWidth={1.5} />, label: 'Início' },
+    { href: '/brandbook', icon: <Sparkles size={20} strokeWidth={1.5} />, label: 'Marca' },
+    { href: '/comunidade', icon: <Users size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+  ];
+
+  const mobileDrawerItems: Array<{ href: string; icon: React.ReactNode; label: string; badge?: number }> = isContador ? [] : isTeamMember ? [
+    { href: '/admin/clientes', icon: <Users size={20} strokeWidth={1.5} />, label: 'Clientes' },
+    { href: '/admin/analytics', icon: <Activity size={20} strokeWidth={1.5} />, label: 'Analytics' }
+  ] : [
+    { href: '/cofre', icon: <Lock size={20} strokeWidth={1.5} />, label: 'Cofre' },
+    { href: '/referencias', icon: <Compass size={20} strokeWidth={1.5} />, label: 'Inspiração' }
+  ];
 
   return (
+    <>
     <motion.aside 
       initial={false}
       animate={{ width: isCollapsed ? 88 : 280 }}
@@ -214,7 +254,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
             >
               <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none mb-0.5 tracking-tight">Atelier</span>
               <span className="font-roboto text-[0.55rem] text-[var(--color-atelier-terracota)] tracking-[0.25em] uppercase font-bold truncate max-w-[140px]">
-                {isTeamMember ? 'LizDesign' : (clientName || 'Portal do Cliente')}
+                {isContador ? 'Financeiro' : isTeamMember ? 'LizDesign' : (clientName || 'Portal do Cliente')}
               </span>
             </motion.div>
           )}
@@ -237,7 +277,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
               className="text-[0.6rem] uppercase font-bold text-[var(--color-atelier-grafite)]/30 tracking-[0.2em] mb-4 pl-4 mt-2"
             >
-              {isTeamMember ? 'Operacional' : 'Visão Geral'}
+              {isContador ? 'Auditoria' : isTeamMember ? 'Operacional' : 'Visão Geral'}
             </motion.div>
           )}
         </AnimatePresence>
@@ -245,7 +285,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
         <nav className="flex flex-col gap-1.5 relative pb-8 flex-1">
           
           {/* MENU PARA CLIENTES */}
-          {!isTeamMember && (
+          {isClient && (
             <>
               {clientServiceType === "Gestão de Instagram" ? (
                 <>
@@ -266,6 +306,20 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               </div>
               
               <NavItem href="/canais" icon={<MessageSquare size={18} strokeWidth={1.5} />} label="Canais" collapsed={isCollapsed} active={pathname === '/canais'} badge={globalUnreadCount} />
+              <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
+            </>
+          )}
+
+          {/* MENU PARA CONTADOR */}
+          {isContador && (
+            <>
+              <NavItem href="/admin/financeiro" icon={<DollarSign size={18} strokeWidth={1.5} />} label="Financeiro" collapsed={isCollapsed} active={pathname === '/admin/financeiro'} />
+              <NavItem href="/admin/inbox" icon={<Inbox size={18} strokeWidth={1.5} />} label="Inbox" collapsed={isCollapsed} active={pathname === '/admin/inbox'} badge={globalUnreadCount} />
+              
+              <div className="flex items-center justify-center my-3 opacity-20">
+                <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
+              </div>
+
               <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
             </>
           )}
@@ -434,8 +488,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
         </>
       )}
     </AnimatePresence>
-  </>
-
+    </>
   );
 }
 

@@ -176,11 +176,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         setUserRole(role);
 
         if (isLoginPage) {
-           router.replace(role === 'client' ? '/' : '/admin');
+           router.replace(role === 'client' ? '/' : role === 'contador' ? '/admin/financeiro' : '/admin');
         } else if (role === 'client' && pathname.startsWith('/admin')) {
            router.replace('/');
         } else if ((role === 'admin' || role === 'gestor') && pathname === '/') {
            router.replace('/admin');
+        } else if (role === 'contador' && pathname === '/') {
+           router.replace('/admin/financeiro');
         }
 
         // Tempo expandido para 3.8s para garantir a contemplação visual 

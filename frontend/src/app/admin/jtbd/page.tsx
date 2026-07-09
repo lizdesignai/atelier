@@ -330,7 +330,21 @@ export default function JTBDPage() {
   // 🟢 MÁGICA VISUAL: Tarefas 'pending_client_approval' ficam ancoradas na coluna de revisão, mas o Kanban lidará com a desativação visual dos botões
   const reviewTasks = displayedTasks.filter(t => t.status === 'review');
   
-  const completedTasks = displayedTasks.filter(t => t.status === 'completed' || t.status === 'pending_client_approval').slice(0, 20);
+  const now = new Date();
+  const currentMonth = now.getMonth();
+  const currentYear = now.getFullYear();
+
+  const completedTasks = allUserTasks
+    .filter(t => t.status === 'completed' || t.status === 'pending_client_approval')
+    .filter(t => {
+      const dateToCheck = t.completed_at ? new Date(t.completed_at) : (t.updated_at ? new Date(t.updated_at) : new Date(t.deadline));
+      return dateToCheck.getMonth() === currentMonth && dateToCheck.getFullYear() === currentYear;
+    })
+    .sort((a, b) => {
+      const dateA = a.completed_at ? new Date(a.completed_at).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0);
+      const dateB = b.completed_at ? new Date(b.completed_at).getTime() : (b.updated_at ? new Date(b.updated_at).getTime() : 0);
+      return dateB - dateA; // Mais recentes primeiro
+    });
 
   const isAdminOrManager = currentUser?.role === 'admin' || currentUser?.role === 'gestor';
   const isViewingSelf = viewingUserId === currentUser?.id;
@@ -371,6 +385,7 @@ export default function JTBDPage() {
             isRescheduling={isRescheduling}
             handleDragOver={handleDragOver}
             handleDrop={handleDrop}
+            teamData={team}
           />
         </div>
       </div>

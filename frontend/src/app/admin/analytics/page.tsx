@@ -7,8 +7,7 @@ import { supabase } from "../../../lib/supabase";
 import { AtelierPMEngine } from "../../../lib/AtelierPMEngine"; 
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
 import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
-import { BrainCircuit, Loader2, Bell, X, Cpu, Play, CheckSquare, Check } from "lucide-react";
-
+import { BrainCircuit, Loader2, X, Cpu, Play, CheckSquare, Check, Activity, FolderKanban, GitMerge } from "lucide-react";
 // Importações do Núcleo Estático
 import { 
   TASK_TYPES_IDV, TASK_TYPES_IG, ALL_SKILLS, 
@@ -727,31 +726,69 @@ export default function AnalyticsPage() {
           <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Estratégia & <span className="text-[var(--color-atelier-terracota)] italic">Analytics.</span></h1>
         </div>
         
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-4">
            
-           <button 
-             onClick={() => { setIsBulkMode(!isBulkMode); setSelectedTaskIds([]); setSelectedRuleIds([]); }} 
-             className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all border ${isBulkMode ? 'bg-[var(--color-atelier-terracota)] text-white border-[var(--color-atelier-terracota)] shadow-md' : 'bg-white/60 text-[var(--color-atelier-grafite)]/60 hover:bg-white border-white shadow-sm'}`}
-           >
-             {isBulkMode ? "Sair da Edição em Lote" : "Ações em Lote"}
-           </button>
-           
-           <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0">
-              <button onClick={() => setActiveView('overview')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'overview' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Visão Geral</button>
-              <button onClick={() => setActiveView('projects')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'projects' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Visão de Projetos</button>
-              <button onClick={() => setActiveView('routing')} className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeView === 'routing' ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}>Encaminhamento Estratégico</button>
+           {/* Botão Ações em Lote Elegante */}
+           <div className="flex items-center gap-2 bg-white/60 border border-white py-2 px-3 rounded-2xl shadow-sm">
+             <span className={`font-roboto text-[9px] font-bold uppercase tracking-widest transition-colors ${isBulkMode ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/50'}`}>Ações Lote</span>
+             <button 
+               onClick={() => { setIsBulkMode(!isBulkMode); setSelectedTaskIds([]); setSelectedRuleIds([]); }} 
+               className={`w-9 h-5 rounded-full flex items-center px-0.5 transition-colors ${isBulkMode ? 'bg-[var(--color-atelier-terracota)]' : 'bg-gray-300'}`}
+             >
+               <motion.div 
+                 layout
+                 className="w-4 h-4 bg-white rounded-full shadow-sm"
+                 initial={false}
+                 animate={{ x: isBulkMode ? 16 : 0 }}
+                 transition={{ type: "spring", stiffness: 500, damping: 30 }}
+               />
+             </button>
            </div>
+           
+           {/* Menu Estúdio (Ícone + Nome apenas na Ativa) */}
+           <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0 overflow-hidden">
+              <button 
+                onClick={() => setActiveView('overview')} 
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all overflow-hidden ${activeView === 'overview' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-12 justify-center px-0'}`}
+              >
+                <Activity size={14} className="shrink-0" />
+                <AnimatePresence>
+                  {activeView === 'overview' && (
+                    <motion.span initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="whitespace-nowrap overflow-hidden origin-left">
+                      Visão Geral
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </button>
 
-           <button 
-             onClick={() => setIsOracleOpen(true)} 
-             className="flex items-center justify-center w-10 h-10 ml-2 bg-white/70 border border-white hover:bg-white rounded-xl shadow-sm transition-all text-[var(--color-atelier-grafite)] hover:shadow-md relative"
-             title="Alertas do Sistema"
-           >
-              <Bell size={18} className="text-[var(--color-atelier-terracota)]" />
-              {systemAlerts.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full animate-pulse border border-white"></span>
-              )}
-           </button>
+              <button 
+                onClick={() => setActiveView('projects')} 
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all overflow-hidden ${activeView === 'projects' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-12 justify-center px-0'}`}
+              >
+                <FolderKanban size={14} className="shrink-0" />
+                <AnimatePresence>
+                  {activeView === 'projects' && (
+                    <motion.span initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="whitespace-nowrap overflow-hidden origin-left">
+                      Projetos
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </button>
+
+              <button 
+                onClick={() => setActiveView('routing')} 
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all overflow-hidden ${activeView === 'routing' ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-12 justify-center px-0'}`}
+              >
+                <GitMerge size={14} className="shrink-0" />
+                <AnimatePresence>
+                  {activeView === 'routing' && (
+                    <motion.span initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="whitespace-nowrap overflow-hidden origin-left">
+                      Encaminhamento
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </button>
+           </div>
         </div>
       </header>
 
