@@ -201,7 +201,11 @@ export default function JTBDPage() {
       const response = await fetch(`${backendUrl}/api/v1/tasks/${task.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ requestedStatus: finalStatus, task })
+        body: JSON.stringify({ 
+          requestedStatus: finalStatus, 
+          task,
+          collaboratorName: currentUser?.nome?.split(' ')[0] || 'Desconhecido'
+        })
       });
 
       if (!response.ok) {
@@ -216,10 +220,10 @@ export default function JTBDPage() {
       if (finalStatus === 'completed') {
          await AtelierPMEngine.unlockDependencies(task.id);
          showToast("Tarefa Concluída com sucesso!");
-         NotificationEngine.notifyManagement("✅ Tarefa Concluída", `A tarefa "${task.title}" foi concluída e aprovada.`, "success");
+         NotificationEngine.notifyManagement("✅ Tarefa Concluída", `A tarefa "${task.title}" de "${task.projects?.profiles?.nome || 'Sem Cliente'}" foi concluída e aprovada.`, "success");
       } else if (finalStatus === 'review') {
          showToast("Tarefa enviada para Revisão Interna!");
-         NotificationEngine.notifyManagement("👀 Revisão Solicitada", `A tarefa "${task.title}" foi enviada para revisão interna pelo colaborador.`, "action");
+         NotificationEngine.notifyManagement("👀 Revisão Solicitada", `O colaborador(a) ${currentUser?.nome?.split(' ')[0] || 'Desconhecido'} enviou a tarefa "${task.title}" de "${task.projects?.profiles?.nome || 'Sem Cliente'}" para revisão interna.`, "action");
       }
 
     } catch (error) {

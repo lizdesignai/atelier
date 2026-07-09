@@ -312,6 +312,23 @@ export default function TaskCard({
               <span className={`font-roboto font-bold text-[14px] leading-snug ${isCompleted ? 'text-[var(--color-atelier-grafite)]/40 line-through' : 'text-[var(--color-atelier-grafite)]'}`}>
                 {task.title}
               </span>
+              
+              {task.external_links && task.external_links.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2 pointer-events-auto relative z-20">
+                  {task.external_links.map((link: string, i: number) => (
+                    <a 
+                      key={i} 
+                      href={link} 
+                      target="_blank" 
+                      rel="noreferrer" 
+                      onClick={(e) => e.stopPropagation()} 
+                      className="text-[9px] font-bold text-[var(--color-atelier-terracota)] hover:text-white bg-[var(--color-atelier-terracota)]/10 hover:bg-[var(--color-atelier-terracota)] px-2 py-0.5 rounded flex items-center gap-1 w-fit border border-[var(--color-atelier-terracota)]/20 transition-colors shadow-sm"
+                    >
+                       Link de Referência
+                    </a>
+                  ))}
+                </div>
+              )}
             </div>
             {task.urgency && !isCompleted && <Flame size={16} className="text-orange-500 shrink-0 mt-1 animate-pulse" />}
           </div>

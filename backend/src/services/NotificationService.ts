@@ -5,7 +5,7 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 export class NotificationService {
   
   static getEmailTemplate(type: string, data: any) {
-    const { clientName, projectName, taskName, link, extraInfo, subject: customSubject, body: customBody } = data;
+    const { clientName, projectName, taskName, link, extraInfo, subject: customSubject, body: customBody, taskId, collaboratorName, mediaUrl } = data;
     
     // Variáveis padrão da interface do Card
     let subject = "Notificação do Sistema";
@@ -13,14 +13,32 @@ export class NotificationService {
     let message = "Existem novas informações na sua mesa de trabalho.";
     let buttonText = "Acessar o Sistema";
     let icon = "🔔"; 
+    let extraHtml = "";
 
     switch (type) {
       case 'internal_review':
         subject = `[REVISÃO] Tarefa pronta para análise interna: ${taskName}`;
         icon = "👀";
         title = "Revisão Interna";
-        message = `O colaborador finalizou a tarefa <strong>${taskName}</strong> do projeto <strong>${projectName}</strong> e enviou para revisão interna.`;
-        buttonText = "Avaliar Tarefa";
+        message = `O colaborador(a) <strong>${collaboratorName || 'Desconhecido'}</strong> finalizou a tarefa <strong>${taskName}</strong> do projeto/cliente <strong>${projectName}</strong> e enviou para revisão interna.`;
+        buttonText = "Avaliar Tarefa no Cockpit";
+        
+        const backendUrl = process.env.BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+        
+        extraHtml = `
+          ${mediaUrl && !mediaUrl.includes('.pdf') ? `
+          <div style="margin: 20px 0; border-radius: 12px; overflow: hidden; border: 1px solid #e4e4e7;">
+            <img src="${mediaUrl}" alt="Mídia Anexada" style="width: 100%; height: auto; display: block;" />
+          </div>` : ''}
+          <div style="margin-top: 24px; display: flex; flex-direction: column; gap: 12px;">
+            <a href="${backendUrl}/api/v1/tasks/${taskId}/email-action?action=approve" style="display: block; width: 100%; box-sizing: border-box; background-color: #22c55e; color: #ffffff; text-decoration: none; padding: 16px; border-radius: 12px; font-size: 14px; font-weight: bold; text-align: center;">
+              ✅ APROVAR TAREFA
+            </a>
+            <a href="${process.env.FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin/review/${taskId}" style="display: block; width: 100%; box-sizing: border-box; background-color: #fef2f2; color: #ef4444; border: 1px solid #fca5a5; text-decoration: none; padding: 16px; border-radius: 12px; font-size: 14px; font-weight: bold; text-align: center;">
+              ❌ SOLICITAR AJUSTE
+            </a>
+          </div>
+        `;
         break;
 
       case 'task_in_progress':
@@ -82,8 +100,10 @@ export class NotificationService {
                     <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #52525b;">
                       ${message}
                     </p>
+                    ${extraHtml}
                   </td>
                 </tr>
+                ${type !== 'internal_review' ? `
                 <tr>
                   <td align="center" style="padding: 0 30px 40px;">
                     <a href="${link || 'https://atelier.lizdesign.com.br'}" style="display: inline-block; width: 100%; box-sizing: border-box; background-color: #18181b; color: #ffffff; text-decoration: none; padding: 18px 24px; border-radius: 14px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; text-align: center; transition: background-color 0.2s;">
@@ -91,6 +111,7 @@ export class NotificationService {
                     </a>
                   </td>
                 </tr>
+                ` : ''}
                 <tr>
                   <td align="center" style="padding: 20px; background-color: #fafafa; border-top: 1px solid #f4f4f5;">
                     <p style="margin: 0; font-size: 10px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">
@@ -118,7 +139,10 @@ export class NotificationService {
     link?: string,
     extraInfo?: string,
     subject?: string,
-    body?: string
+    body?: string,
+    taskId?: string,
+    collaboratorName?: string,
+    mediaUrl?: string
   }) {
     try {
       if (!process.env.RESEND_API_KEY) {
