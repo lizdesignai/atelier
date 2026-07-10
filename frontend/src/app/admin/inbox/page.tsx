@@ -11,6 +11,9 @@ import {
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { NotificationEngine } from "../../../lib/NotificationEngine";
+import { useSession } from "../../../hooks/useSession";
+import { useProfile } from "../../../hooks/useProfile";
+import { useProjects } from "../../../hooks/useProjects";
 
 // ============================================================================
 // TIPAGEM ESTRITA (Arquitetura Zero 'any')
@@ -115,72 +118,63 @@ export default function AdminInboxPage() {
   // ============================================================================
   // BOOT DA OPERAÇÃO (Engine Startup)
   // ============================================================================
+  const { data: session } = useSession();
+  const { data: profile } = useProfile();
+  const { data: projects } = useProjects();
+
+  // ============================================================================
+  // BOOT DA OPERAÇÃO (Engine Startup Otimizado com Cache e Paralelismo)
+  // ============================================================================
   useEffect(() => {
-    const bootEngine = async () => {
+    if (!session || !profile || !projects) return;
+
+    setCurrentUser(profile as ProfileData);
+
+    // Mapear clientes a partir da cache de projetos
+    const formattedClients = projects
+      .filter(p => p.status === 'active' || p.status === 'delivered')
+      .map(p => ({
+        ...p,
+        profiles: Array.isArray(p.profiles) ? p.profiles[0] : p.profiles
+      })) as ClientData[];
+
+    setClients(formattedClients);
+    if (formattedClients.length > 0 && !activeProjectId) {
+      setActiveProjectId(formattedClients[0].id);
+    }
+
+    const bootRemainingData = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (!session) return;
+        // Busca paralela de equipe, mapeamento de canais e contagem de não lidas
+        const [corpUsersRes, allChannelsRes] = await Promise.all([
+          supabase.from('profiles').select('id, nome, avatar_url, role, current_status, last_seen').in('role', ['admin', 'gestor', 'colaborador']).order('nome'),
+          supabase.from('channels').select('id, type'),
+          fetchUnreadCounts()
+        ]);
 
-        // Identifica o Operador
-        const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-        setCurrentUser(profile);
-
-        // Carrega Dossiês de Clientes
-        const { data: projectsData } = await supabase
-          .from('projects')
-          .select('id, type, client_id, profiles(id, nome, avatar_url, role)')
-          .eq('status', 'active')
-          .order('created_at', { ascending: false });
-
-        if (projectsData) {
-          // Flatten profiles
-          const formattedClients = projectsData.map(p => ({
-            ...p,
-            profiles: Array.isArray(p.profiles) ? p.profiles[0] : p.profiles
-          })) as ClientData[];
-
-          setClients(formattedClients);
-          if (formattedClients.length > 0) setActiveProjectId(formattedClients[0].id);
+        if (corpUsersRes.data) {
+          const corpUsers = corpUsersRes.data;
+          if (profile.role === 'colaborador') {
+            setCorporateUsers(corpUsers.filter(u => u.role === 'admin' || u.role === 'gestor') as ProfileData[]);
+          } else {
+            setCorporateUsers(corpUsers as ProfileData[]);
+          }
         }
 
-        if (session) {
-          const uData = session.user;
-          const { data: pData } = await supabase.from('profiles').select('*').eq('id', uData.id).single();
-          setCurrentUser(pData as ProfileData);
-
-          // Puxar lista de clientes
-          const { data: clientsData } = await supabase.from('projects').select('*, profiles(*)').in('status', ['active', 'delivered']);
-          if (clientsData) setClients(clientsData as ClientData[]);
-
-          // Puxar Equipa
-          const { data: corpUsers } = await supabase.from('profiles').select('*').in('role', ['admin', 'gestor', 'colaborador']).order('nome');
-          if (corpUsers) {
-            if (pData?.role === 'colaborador') {
-              setCorporateUsers(corpUsers.filter(u => u.role === 'admin' || u.role === 'gestor') as ProfileData[]);
-            } else {
-              setCorporateUsers(corpUsers as ProfileData[]);
-            }
-          }
-          
-          // 🟢 NOVO: Puxar mapeamento de canais (para agregar badges nas abas)
-          const { data: allChannels } = await supabase.from('channels').select('id, type');
-          if (allChannels) {
-            const map: Record<string, string> = {};
-            allChannels.forEach(c => map[c.id] = c.type);
-            setChannelTypeMap(map);
-          }
-
-          // 🟢 NOVO: Buscar contagem inicial de não lidas
-          fetchUnreadCounts();
+        if (allChannelsRes.data) {
+          const map: Record<string, string> = {};
+          allChannelsRes.data.forEach(c => map[c.id] = c.type);
+          setChannelTypeMap(map);
         }
       } catch (error) {
-        console.error("[Workspace] Falha no arranque:", error);
+        console.error("[Workspace] Falha ao inicializar dados adicionais da Inbox:", error);
       } finally {
         setIsLoading(false);
       }
     };
-    bootEngine();
-  }, []);
+
+    bootRemainingData();
+  }, [session, profile, projects]);
 
   // 🟢 NOVO: Função para buscar não lidas e ouvir novos inserts
   const fetchUnreadCounts = async () => {

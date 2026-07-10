@@ -79,14 +79,20 @@ export default function DemandsDashboard({ currentUser }: DemandsDashboardProps)
       const monthStart = startOfMonth(now).toISOString();
       const monthEnd = endOfMonth(now).toISOString();
 
-      const { data: teamData } = await supabase.from('profiles').select('id, nome, avatar_url').in('role', ['colaborador', 'gestor', 'admin']);
-      if (teamData) setTeam(teamData);
-
-      const [resProjects, resAgencies, resSubs] = await Promise.all([
+      // Otimização: Paralelização total de todas as queries no mount e seleção de colunas específicas para tasks
+      const [teamRes, resProjects, resAgencies, resSubs, tasksRes] = await Promise.all([
+        supabase.from('profiles').select('id, nome, avatar_url').in('role', ['colaborador', 'gestor', 'admin']),
         supabase.from('projects').select('id, profiles(nome)').eq('status', 'active'),
         supabase.from('agencies').select('id, name').eq('status', 'active'),
-        supabase.from('agency_subclients').select('id, name, agency_id')
+        supabase.from('agency_subclients').select('id, name, agency_id'),
+        supabase.from('tasks')
+          .select('id, title, status, assigned_to, created_at, actual_time, estimated_time, project_id, agency_id, subclient_id')
+          .gte('created_at', monthStart)
+          .lte('created_at', monthEnd)
+          .order('created_at', { ascending: false })
       ]);
+
+      if (teamRes.data) setTeam(teamRes.data);
 
       const unifiedSources: any[] = [];
       if (resProjects.data) {
@@ -104,14 +110,7 @@ export default function DemandsDashboard({ currentUser }: DemandsDashboardProps)
       
       setSources(unifiedSources.sort((a, b) => a.name.localeCompare(b.name)));
 
-      const { data: tasksData } = await supabase
-        .from('tasks')
-        .select('*')
-        .gte('created_at', monthStart)
-        .lte('created_at', monthEnd)
-        .order('created_at', { ascending: false });
-
-      if (tasksData) setTasks(tasksData);
+      if (tasksRes.data) setTasks(tasksRes.data);
     } catch (error) {
       console.error("Erro ao buscar dados de demanda:", error);
     } finally {
