@@ -68,6 +68,7 @@ const NativeTrelloBoard = ({ boardUrl, onCardClick }: { boardUrl: string, onCard
   const [lists, setLists] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [expandedCard, setExpandedCard] = useState<any | null>(null);
 
   useEffect(() => {
     const fetchBoardData = async () => {
@@ -88,7 +89,7 @@ const NativeTrelloBoard = ({ boardUrl, onCardClick }: { boardUrl: string, onCard
       }
 
       try {
-        const response = await fetch(`https://api.trello.com/1/boards/${boardId}/lists?cards=open&key=${apiKey}&token=${apiToken}`);
+        const response = await fetch(`https://api.trello.com/1/boards/${boardId}/lists?cards=open&card_attachments=true&key=${apiKey}&token=${apiToken}`);
         if (!response.ok) throw new Error("Acesso negado ou Quadro Privado/Inexistente.");
         
         const data = await response.json();
@@ -108,34 +109,124 @@ const NativeTrelloBoard = ({ boardUrl, onCardClick }: { boardUrl: string, onCard
   if (error) return <div className="w-full h-full flex flex-col items-center justify-center text-red-500 p-8 text-center"><AlertCircle size={40} className="mb-4 opacity-50"/> <p className="font-bold text-[13px] uppercase tracking-widest">{error}</p><p className="text-[12px] text-gray-500 mt-2">Certifique-se de que a API Key e o Token estão corretos e que o quadro existe.</p></div>;
 
   return (
-    <div className="w-full h-full flex gap-4 overflow-x-auto custom-scrollbar p-6 bg-[#f4f5f7] items-start">
-      {lists.map(list => (
-        <div key={list.id} className="w-[280px] shrink-0 bg-gray-200/50 rounded-2xl flex flex-col max-h-full border border-gray-200">
-          <div className="px-4 py-3 shrink-0">
-            <h3 className="font-roboto font-bold text-[13px] text-gray-700">{list.name}</h3>
+    <>
+      <div className="w-full h-full flex gap-4 overflow-x-auto overflow-y-hidden custom-scrollbar p-6 bg-[#f4f5f7] items-start pb-8">
+        {lists.map(list => (
+          <div key={list.id} className="w-[280px] shrink-0 bg-gray-200/50 rounded-2xl flex flex-col max-h-full border border-gray-200">
+            <div className="px-4 py-3 shrink-0">
+              <h3 className="font-roboto font-bold text-[13px] text-gray-700">{list.name}</h3>
+            </div>
+            <div className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-3 flex flex-col gap-2">
+              {list.cards.map((card: any) => {
+                const isCompleted = card.closed || card.dueComplete;
+                return (
+                  <div 
+                    key={card.id} 
+                    onClick={() => setExpandedCard(card)}
+                    onDoubleClick={(e) => {
+                      e.stopPropagation();
+                      onCardClick(card);
+                    }}
+                    className="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-[var(--color-atelier-terracota)]/50 hover:shadow-md transition-all group"
+                  >
+                    <p className={`font-roboto text-[13px] font-medium leading-tight group-hover:text-[var(--color-atelier-terracota)] transition-colors ${isCompleted ? 'text-gray-400 line-through' : 'text-[var(--color-atelier-grafite)]'}`}>
+                      {card.name}
+                    </p>
+                    {isCompleted && (
+                       <div className="mt-2 flex">
+                         <span className="inline-block px-2 py-0.5 bg-green-100 text-green-700 text-[9px] font-bold uppercase tracking-widest rounded-md">Concluída</span>
+                       </div>
+                    )}
+                    {card.desc && !isCompleted && (
+                      <p className="text-[11px] text-gray-400 mt-2 line-clamp-2 leading-relaxed">
+                        {card.desc}
+                      </p>
+                    )}
+                    {card.attachments && card.attachments.length > 0 && !isCompleted && (
+                      <div className="mt-2 flex items-center gap-1 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
+                         <ExternalLink size={10} /> {card.attachments.length} Anexos
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+              {list.cards.length === 0 && <span className="text-[11px] text-gray-400 font-medium italic px-2 py-4">Nenhum cartão nesta lista.</span>}
+            </div>
           </div>
-          <div className="flex-1 overflow-y-auto custom-scrollbar px-3 pb-3 flex flex-col gap-2">
-            {list.cards.map((card: any) => (
-              <div 
-                key={card.id} 
-                onClick={() => onCardClick(card)}
-                className="bg-white p-3.5 rounded-xl shadow-sm border border-gray-100 cursor-pointer hover:border-[var(--color-atelier-terracota)]/50 hover:shadow-md transition-all group"
-              >
-                <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)] leading-tight group-hover:text-[var(--color-atelier-terracota)] transition-colors">
-                  {card.name}
-                </p>
-                {card.desc && (
-                  <p className="text-[11px] text-gray-400 mt-2 line-clamp-2 leading-relaxed">
-                    {card.desc}
-                  </p>
+        ))}
+      </div>
+
+      <AnimatePresence>
+        {expandedCard && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer" onClick={() => setExpandedCard(null)} />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 20 }} 
+              animate={{ scale: 1, opacity: 1, y: 0 }} 
+              exit={{ scale: 0.95, opacity: 0, y: 20 }} 
+              className="bg-white rounded-[2.5rem] p-8 relative z-10 w-full max-w-xl max-h-[85vh] flex flex-col shadow-2xl"
+            >
+              <div className="flex justify-between items-start mb-6 border-b border-gray-100 pb-4 shrink-0">
+                <div>
+                  <h2 className="text-2xl font-elegant text-gray-800 pr-4">{expandedCard.name}</h2>
+                  {(expandedCard.closed || expandedCard.dueComplete) && (
+                    <span className="inline-block mt-2 px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold uppercase tracking-widest rounded-md">Concluída</span>
+                  )}
+                </div>
+                <button onClick={() => setExpandedCard(null)} className="text-gray-400 hover:text-black bg-gray-50 p-2 rounded-full transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
+              
+              <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-6">
+                {expandedCard.desc && (
+                  <div>
+                    <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-2 flex items-center gap-1"><AlignLeft size={14}/> Descrição</h3>
+                    <div className="text-[13px] text-gray-600 whitespace-pre-wrap leading-relaxed bg-gray-50 p-4 rounded-2xl border border-gray-100">
+                      {expandedCard.desc}
+                    </div>
+                  </div>
+                )}
+                
+                {expandedCard.attachments && expandedCard.attachments.length > 0 && (
+                  <div>
+                    <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-widest mb-3 flex items-center gap-1"><ExternalLink size={14}/> Mídias Anexadas ({expandedCard.attachments.length})</h3>
+                    <div className="grid grid-cols-2 gap-3">
+                      {expandedCard.attachments.map((att: any) => (
+                        <div key={att.id} className="rounded-2xl overflow-hidden border border-gray-200 bg-gray-50 flex flex-col">
+                           {att.previews && att.previews.length > 0 ? (
+                             <a href={att.url} target="_blank" rel="noreferrer" className="block h-32 overflow-hidden hover:opacity-80 transition-opacity">
+                               <img src={att.url} alt={att.name} className="w-full h-full object-cover" />
+                             </a>
+                           ) : (
+                             <a href={att.url} target="_blank" rel="noreferrer" className="flex-1 flex flex-col items-center justify-center p-6 text-blue-500 hover:text-blue-600 hover:bg-gray-100 transition-colors">
+                               <ExternalLink size={24} className="mb-2 opacity-50" />
+                               <span className="text-[11px] font-bold text-center break-all line-clamp-2">{att.name}</span>
+                             </a>
+                           )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 )}
               </div>
-            ))}
-            {list.cards.length === 0 && <span className="text-[11px] text-gray-400 font-medium italic px-2 py-4">Nenhum cartão nesta lista.</span>}
+              
+              <div className="mt-6 pt-6 border-t border-gray-100 shrink-0">
+                <button 
+                  onClick={() => {
+                    onCardClick(expandedCard);
+                    setExpandedCard(null);
+                  }}
+                  className="w-full bg-[var(--color-atelier-terracota)] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[12px] hover:bg-[#8c562e] transition-colors shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                >
+                  <PlusCircle size={16} /> Copiar para Formulário de Demanda
+                </button>
+              </div>
+            </motion.div>
           </div>
-        </div>
-      ))}
-    </div>
+        )}
+      </AnimatePresence>
+    </>
   );
 };
 
