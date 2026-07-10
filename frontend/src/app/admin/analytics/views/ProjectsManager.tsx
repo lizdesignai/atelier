@@ -69,6 +69,7 @@ const NativeTrelloBoard = ({ boardUrl, onCardClick }: { boardUrl: string, onCard
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [expandedCard, setExpandedCard] = useState<any | null>(null);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchBoardData = async () => {
@@ -107,8 +108,6 @@ const NativeTrelloBoard = ({ boardUrl, onCardClick }: { boardUrl: string, onCard
   if (isLoading) return <div className="w-full h-full flex flex-col items-center justify-center text-[var(--color-atelier-terracota)]"><Loader2 size={32} className="animate-spin mb-4" /><span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Sincronizando com a API do Trello...</span></div>;
   
   if (error) return <div className="w-full h-full flex flex-col items-center justify-center text-red-500 p-8 text-center"><AlertCircle size={40} className="mb-4 opacity-50"/> <p className="font-bold text-[13px] uppercase tracking-widest">{error}</p><p className="text-[12px] text-gray-500 mt-2">Certifique-se de que a API Key e o Token estão corretos e que o quadro existe.</p></div>;
-
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   const scrollLeft = () => {
     if (scrollRef.current) {
