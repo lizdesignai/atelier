@@ -1,5 +1,5 @@
 // src/app/admin/analytics/views/ProjectsManager.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../../lib/supabase";
 import { 
@@ -7,7 +7,7 @@ import {
   Sparkles, Loader2, PlusCircle, Trash2, Save, 
   Layers, CheckSquare, Square, Flame, Edit3, Check, X, 
   ArrowRight, Trello, ExternalLink, PanelRightClose, PanelRightOpen, ListTodo,
-  AlertCircle, AlignLeft, MessageSquare
+  AlertCircle, AlignLeft, MessageSquare, ChevronLeft, ChevronRight
 } from "lucide-react";
 import { ALL_SKILLS } from "../constants";
 
@@ -108,10 +108,46 @@ const NativeTrelloBoard = ({ boardUrl, onCardClick }: { boardUrl: string, onCard
   
   if (error) return <div className="w-full h-full flex flex-col items-center justify-center text-red-500 p-8 text-center"><AlertCircle size={40} className="mb-4 opacity-50"/> <p className="font-bold text-[13px] uppercase tracking-widest">{error}</p><p className="text-[12px] text-gray-500 mt-2">Certifique-se de que a API Key e o Token estão corretos e que o quadro existe.</p></div>;
 
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const scrollLeft = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: -320, behavior: 'smooth' });
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: 320, behavior: 'smooth' });
+    }
+  };
+
   return (
     <>
-      <div className="w-full h-full flex gap-4 overflow-x-auto overflow-y-hidden custom-scrollbar p-6 bg-[#f4f5f7] items-start pb-8">
-        {lists.map(list => (
+      <div className="w-full h-full relative group/board">
+        {lists.length > 0 && (
+          <>
+            <button 
+              onClick={scrollLeft}
+              className="absolute left-4 top-1/2 -translate-y-1/2 z-20 bg-white shadow-[0_5px_15px_rgba(0,0,0,0.1)] border border-gray-100 p-3 rounded-full text-gray-400 hover:text-[var(--color-atelier-terracota)] hover:scale-110 transition-all opacity-0 group-hover/board:opacity-100"
+              title="Rolar para a Esquerda"
+            >
+              <ChevronLeft size={24} />
+            </button>
+            <button 
+              onClick={scrollRight}
+              className="absolute right-4 top-1/2 -translate-y-1/2 z-20 bg-white shadow-[0_5px_15px_rgba(0,0,0,0.1)] border border-gray-100 p-3 rounded-full text-gray-400 hover:text-[var(--color-atelier-terracota)] hover:scale-110 transition-all opacity-0 group-hover/board:opacity-100"
+              title="Rolar para a Direita"
+            >
+              <ChevronRight size={24} />
+            </button>
+          </>
+        )}
+        <div 
+          ref={scrollRef}
+          className="w-full h-full flex gap-4 overflow-x-auto overflow-y-hidden custom-scrollbar p-6 bg-[#f4f5f7] items-start pb-8"
+        >
+          {lists.map(list => (
           <div key={list.id} className="w-[280px] shrink-0 bg-gray-200/50 rounded-2xl flex flex-col max-h-full border border-gray-200">
             <div className="px-4 py-3 shrink-0">
               <h3 className="font-roboto font-bold text-[13px] text-gray-700">{list.name}</h3>
@@ -155,6 +191,7 @@ const NativeTrelloBoard = ({ boardUrl, onCardClick }: { boardUrl: string, onCard
           </div>
         ))}
       </div>
+    </div>
 
       <AnimatePresence>
         {expandedCard && (
