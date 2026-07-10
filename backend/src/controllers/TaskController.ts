@@ -85,7 +85,7 @@ export class TaskController {
         .eq('id', id)
         .select(`
           *,
-          projects(title, type, client_id, profiles(nome))
+          projects(type, service_type, client_id, profiles(nome))
         `)
         .single();
         
@@ -113,7 +113,15 @@ export class TaskController {
              taskId: String(id),
              collaboratorName: String(req.body.collaboratorName || 'O Colaborador'),
              taskName: String(req.body.task?.title || data.title || 'Tarefa'),
-             projectName: String(req.body.task?.projects?.profiles?.nome || req.body.task?.projects?.title || data.projects?.profiles?.nome || data.projects?.title || 'Projeto Não Especificado'),
+             projectName: String(
+                req.body.task?.projects?.profiles?.nome ||
+                req.body.task?.projects?.service_type ||
+                req.body.task?.projects?.type ||
+                data.projects?.profiles?.nome ||
+                data.projects?.service_type ||
+                data.projects?.type ||
+                'Projeto Não Especificado'
+              ),
              mediaUrl: data.attachment_url || req.body.task?.attachment_url ? String(data.attachment_url || req.body.task?.attachment_url) : undefined,
              link: `${process.env.FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin`
            }).catch(err => console.error("Falha ao enviar notificação em background:", err));
