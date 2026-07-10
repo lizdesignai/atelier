@@ -12,9 +12,30 @@ const port = process.env.PORT || 8080;
 // Middlewares
 app.use(helmet());
 
-const frontendUrl = process.env.FRONTEND_URL ? process.env.FRONTEND_URL.replace(/\/$/, '') : '*';
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:3001',
+  'http://localhost:3002',
+  'http://localhost:5173',
+  'https://atelier.lizdesign.com.br'
+];
+if (process.env.FRONTEND_URL) {
+  allowedOrigins.push(process.env.FRONTEND_URL.trim().replace(/\/$/, ''));
+}
+
 app.use(cors({ 
-  origin: [frontendUrl, `${frontendUrl}/`, 'http://localhost:3000', 'https://atelier.lizdesign.com.br'],
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const normalizedOrigin = origin.trim().replace(/\/$/, '');
+    const isAllowed = allowedOrigins.some(allowed => 
+      allowed.trim().replace(/\/$/, '') === normalizedOrigin
+    );
+    if (isAllowed) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true
 }));
 

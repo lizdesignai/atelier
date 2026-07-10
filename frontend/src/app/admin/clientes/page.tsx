@@ -87,7 +87,7 @@ export default function BaseClientesPage() {
     const fetchLocalData = async () => {
       setIsLocalLoading(true);
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
         const response = await fetch(`${backendUrl}/api/v1/clients/overview`);
         if (!response.ok) throw new Error('Falha ao buscar dados do CRM');
         
@@ -124,7 +124,7 @@ export default function BaseClientesPage() {
 
     setIsSubmitting(true);
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8080';
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
       const response = await fetch(`${backendUrl}/api/v1/clients/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

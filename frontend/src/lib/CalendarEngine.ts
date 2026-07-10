@@ -69,7 +69,7 @@ export class CalendarEngine {
 
     // 1. Isolar a matriz por executor (Cada colaborador tem a sua agenda)
     const tasksByUser = optimizedTasks.reduce((acc, task) => {
-      if (!task.assigned_to || task.status === 'completed') return acc;
+      if (!task.assigned_to || task.status === 'completed' || !task.deadline) return acc;
       if (!acc[task.assigned_to]) acc[task.assigned_to] = [];
       acc[task.assigned_to].push(task);
       return acc;
@@ -117,8 +117,9 @@ export class CalendarEngine {
             let nextValidDate = new Date(dateStr);
             let targetDateStr = "";
             let slotFound = false;
-
-            while (!slotFound) {
+            let iterations = 0;
+            while (!slotFound && iterations < 30) {
+              iterations++;
               nextValidDate.setDate(nextValidDate.getDate() + 1);
               const dayOfWeek = nextValidDate.getDay();
               
@@ -145,6 +146,18 @@ export class CalendarEngine {
                 if (isHeavyTask) targetDay.heavyCount += 1;
                 slotFound = true;
               }
+            }
+
+            if (!slotFound) {
+              // Forçar alocação no último dia testado para evitar loop infinito
+              targetDateStr = nextValidDate.toISOString().split('T')[0];
+              if (!scheduleMap[targetDateStr]) {
+                scheduleMap[targetDateStr] = { tasks: [], totalMinutes: 0, heavyCount: 0 };
+              }
+              const targetDay = scheduleMap[targetDateStr];
+              targetDay.tasks.push(taskToMove);
+              targetDay.totalMinutes += (taskToMove.estimated_time || 60);
+              if (this.HEAVY_TYPES.includes(taskToMove.task_type)) targetDay.heavyCount += 1;
             }
 
             // 5. Aplicar a Mutação
