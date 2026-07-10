@@ -223,7 +223,7 @@ export default function JTBDPage() {
          NotificationEngine.notifyManagement("✅ Tarefa Concluída", `A tarefa "${task.title}" de "${task.projects?.profiles?.nome || 'Sem Cliente'}" foi concluída e aprovada.`, "success");
       } else if (finalStatus === 'review') {
          showToast("Tarefa enviada para Revisão Interna!");
-         NotificationEngine.notifyManagement("👀 Revisão Solicitada", `O colaborador(a) ${currentUser?.nome?.split(' ')[0] || 'Desconhecido'} enviou a tarefa "${task.title}" de "${task.projects?.profiles?.nome || 'Sem Cliente'}" para revisão interna.`, "action");
+         NotificationEngine.notifyManagement("👀 Revisão Solicitada", ` ${currentUser?.nome?.split(' ')[0] || 'Desconhecido'} enviou a tarefa "${task.title}" de "${task.projects?.profiles?.nome || 'Sem Cliente'}" para revisão interna.`, "action");
       }
 
     } catch (error) {
