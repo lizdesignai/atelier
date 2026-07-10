@@ -12,9 +12,10 @@ export class TaskController {
 
       const { data, error } = await supabase
         .from('tasks')
-        .select('*')
+        .select('id, project_id, title, status, deadline, created_at, completed_at, actual_time, estimated_time, collaborator_id, stage, type, attachment_url')
         .gte('created_at', fifteenDaysAgo.toISOString())
-        .order('deadline', { ascending: true });
+        .order('deadline', { ascending: true })
+        .limit(300); // Evita unbounded result sets
 
       if (error) throw error;
       
@@ -85,50 +86,60 @@ export class TaskController {
         .eq('id', id)
         .select(`
           *,
-          projects(type, service_type, client_id, profiles(nome))
+          projects(type, service_type, client_id, profiles(nome)),
+          agency_subclients(name)
         `)
         .single();
         
       if (error) throw error;
 
-      // Disparar Notificação para o Gestor de forma assíncrona (não trava a resposta)
+      // Retorna resposta de sucesso imediatamente ao cliente
+      res.status(200).json({ data });
+
+      // Disparar Notificação para o Gestor em background (não trava o event loop principal)
       if (['in_progress', 'paused', 'review'].includes(finalStatus)) {
-        // Encontra os Admins/Gestores para notificar
-        const { data: managers } = await supabase
-          .from('profiles')
-          .select('email')
-          .in('role', ['admin', 'gestor']);
+        (async () => {
+          try {
+            const { data: managers } = await supabase
+              .from('profiles')
+              .select('email')
+              .in('role', ['admin', 'gestor']);
 
-        const managerEmails = managers?.map((m: any) => m.email) || [];
-        
-        let notifyType = '';
-        if (finalStatus === 'in_progress') notifyType = 'task_in_progress';
-        if (finalStatus === 'paused') notifyType = 'task_paused';
-        if (finalStatus === 'review') notifyType = 'internal_review';
+            const managerEmails = managers?.map((m: any) => m.email) || [];
+            
+            let notifyType = '';
+            if (finalStatus === 'in_progress') notifyType = 'task_in_progress';
+            if (finalStatus === 'paused') notifyType = 'task_paused';
+            if (finalStatus === 'review') notifyType = 'internal_review';
 
-        if (managerEmails.length > 0 && notifyType) {
-           NotificationService.sendNotification({
-             to: managerEmails as string[],
-             type: notifyType as string,
-             taskId: String(id),
-             collaboratorName: String(req.body.collaboratorName || 'O Colaborador'),
-             taskName: String(req.body.task?.title || data.title || 'Tarefa'),
-             projectName: String(
-                req.body.task?.projects?.profiles?.nome ||
-                req.body.task?.projects?.service_type ||
-                req.body.task?.projects?.type ||
-                data.projects?.profiles?.nome ||
-                data.projects?.service_type ||
-                data.projects?.type ||
-                'Projeto Não Especificado'
-              ),
-             mediaUrl: data.attachment_url || req.body.task?.attachment_url ? String(data.attachment_url || req.body.task?.attachment_url) : undefined,
-             link: `${process.env.FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin`
-           }).catch(err => console.error("Falha ao enviar notificação em background:", err));
-        }
+            if (managerEmails.length > 0 && notifyType) {
+               await NotificationService.sendNotification({
+                 to: managerEmails as string[],
+                 type: notifyType as string,
+                 taskId: String(id),
+                 collaboratorName: String(req.body.collaboratorName || 'O Colaborador'),
+                 taskName: String(req.body.task?.title || data.title || 'Tarefa'),
+                 projectName: String(
+                    req.body.task?.agency_subclients?.name ||
+                    data.agency_subclients?.name ||
+                    req.body.task?.projects?.profiles?.nome ||
+                    req.body.task?.projects?.service_type ||
+                    req.body.task?.projects?.type ||
+                    data.projects?.profiles?.nome ||
+                    data.projects?.service_type ||
+                    data.projects?.type ||
+                    'Projeto Não Especificado'
+                  ),
+                 mediaUrl: data.attachment_url || req.body.task?.attachment_url ? String(data.attachment_url || req.body.task?.attachment_url) : undefined,
+                 link: `${process.env.FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin`
+               });
+            }
+          } catch (err) {
+            console.error("Falha ao enviar notificação em background:", err);
+          }
+        })();
       }
-      
-      return res.status(200).json({ data });
+      return;
     } catch (error: any) {
       console.error('Error updating task status:', error.message);
       return res.status(500).json({ error: 'Internal Server Error' });

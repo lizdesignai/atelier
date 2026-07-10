@@ -307,7 +307,7 @@ export default function TaskCard({
             <div className="flex flex-col pr-4">
               <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1 flex items-center gap-1">
                 {task.projects?.type === 'Identidade Visual' ? <Target size={10}/> : <Activity size={10}/>}
-                {task.projects?.profiles?.nome?.split(" ")[0]} • {task.stage}
+                {(task.agency_subclients?.name || task.projects?.profiles?.nome)?.split(" ")[0]} • {task.stage}
               </span>
               <span className={`font-roboto font-bold text-[14px] leading-snug ${isCompleted ? 'text-[var(--color-atelier-grafite)]/40 line-through' : 'text-[var(--color-atelier-grafite)]'}`}>
                 {task.title}
@@ -446,7 +446,7 @@ export default function TaskCard({
               <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4 shrink-0">
                 <div className="pr-4">
                   <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)] mb-1 block">
-                    {task.projects?.profiles?.nome} • {task.stage}
+                    {task.agency_subclients?.name || task.projects?.profiles?.nome} • {task.stage}
                   </span>
                   <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-tight">
                     {task.title}

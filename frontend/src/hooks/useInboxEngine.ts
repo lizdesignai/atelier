@@ -1,5 +1,6 @@
 // src/app/admin/inbox/hooks/useInboxEngine.ts
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSession } from './useSession';
 
 // 🛠️ CORREÇÃO DE ROTAS: A depender de onde você salvou o ficheiro, 
 // o caminho é 4 níveis (../../../../) ou 3 níveis (../../../).
@@ -36,33 +37,33 @@ export function useInboxEngine() {
   // ============================================================================
   // STARTUP DO MOTOR (BOOT SEQUENCE)
   // ============================================================================
+  const { data: session } = useSession();
+
+  // ============================================================================
+  // STARTUP DO MOTOR (BOOT SEQUENCE)
+  // ============================================================================
   useEffect(() => {
-    bootEngine();
+    if (!session) return;
+    bootEngine(session);
 
     // Ping de Atividade (last_seen)
     const pingActivity = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
-        fetch(`${backendUrl}/api/v1/chat/ping`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: session.user.id })
-        }).catch(() => {});
-      }
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+      fetch(`${backendUrl}/api/v1/chat/ping`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: session.user.id })
+      }).catch(() => {});
     };
     
     pingActivity();
     const interval = setInterval(pingActivity, 60000); // Ping a cada 1 min
     return () => clearInterval(interval);
-  }, []);
+  }, [session]);
 
-  const bootEngine = async () => {
+  const bootEngine = async (currentSession: any) => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+      const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentSession.user.id).single();
       setCurrentUser(profile);
       setUserRole(profile?.role || 'colaborador');
 
@@ -81,7 +82,7 @@ export function useInboxEngine() {
         .from('profiles')
         .select('id, nome, avatar_url, role, current_status, last_seen')
         .in('role', ['admin', 'gestor', 'colaborador'])
-        .neq('id', session.user.id) 
+        .neq('id', currentSession.user.id) 
         .order('role', { ascending: true }); 
 
       if (corpUsers) {
@@ -99,22 +100,7 @@ export function useInboxEngine() {
     }
   };
 
-  // ============================================================================
-  // REATIVIDADE DE CANAIS (Alternância de Contexto)
-  // ============================================================================
-  useEffect(() => {
-    if (activeSpace === 'projects' && activeProjectId) {
-      fetchProjectChannels(activeProjectId);
-    } else if (activeSpace === 'corporate') {
-      if (activeDMUserId) {
-        setupDMChannel(activeDMUserId);
-      } else {
-        setupGlobalCorporateChannel();
-      }
-    }
-  }, [activeSpace, activeProjectId, activeDMUserId]);
-
-  const fetchProjectChannels = async (projectId: string) => {
+  const fetchProjectChannels = useCallback(async (projectId: string) => {
     const { data } = await supabase
       .from('channels')
       .select('*')
@@ -127,9 +113,9 @@ export function useInboxEngine() {
       if (activeChs.length > 0) setActiveChannelId(activeChs[0].id);
       else setActiveChannelId(null);
     }
-  };
+  }, []);
 
-  const setupGlobalCorporateChannel = async () => {
+  const setupGlobalCorporateChannel = useCallback(async () => {
     const globalName = 'QG Central';
     let { data } = await supabase.from('channels').select('*').eq('type', 'corporate_global').single();
     
@@ -144,9 +130,9 @@ export function useInboxEngine() {
     
     setChannels([data]);
     setActiveChannelId(data?.id || null);
-  };
+  }, []);
 
-  const setupDMChannel = async (targetUserId: string) => {
+  const setupDMChannel = useCallback(async (targetUserId: string) => {
     if (!currentUser) return;
     
     const participants = [currentUser.id, targetUserId].sort();
@@ -165,7 +151,22 @@ export function useInboxEngine() {
 
     setChannels([data]);
     setActiveChannelId(data?.id || null);
-  };
+  }, [currentUser]);
+
+  // ============================================================================
+  // REATIVIDADE DE CANAIS (Alternância de Contexto)
+  // ============================================================================
+  useEffect(() => {
+    if (activeSpace === 'projects' && activeProjectId) {
+      fetchProjectChannels(activeProjectId);
+    } else if (activeSpace === 'corporate') {
+      if (activeDMUserId) {
+        setupDMChannel(activeDMUserId);
+      } else {
+        setupGlobalCorporateChannel();
+      }
+    }
+  }, [activeSpace, activeProjectId, activeDMUserId, fetchProjectChannels, setupDMChannel, setupGlobalCorporateChannel]);
 
   // ============================================================================
   // MOTOR DE MENSAGENS & WEB-SOCKETS

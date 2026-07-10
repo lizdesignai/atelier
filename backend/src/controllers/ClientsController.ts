@@ -52,18 +52,16 @@ const IG_PACKAGES: Record<string, any[]> = {
 export class ClientsController {
   static async getOverview(req: Request, res: Response) {
     try {
-      const [tasksRes, profilesRes, agenciesRes] = await Promise.all([
+      const [tasksRes, profilesRes, agenciesRes, activeProjectsRes] = await Promise.all([
         supabase.from('tasks').select('project_id, status'),
-        supabase.from('profiles').select('*').in('role', ['client', 'lead']),
-        supabase.from('agencies').select('*')
+        supabase.from('profiles').select('id, nome, avatar_url, role, created_at, empresa').in('role', ['client', 'lead']),
+        supabase.from('agencies').select('id, name, status, financial_value, billing_date, created_at, trello_url'),
+        supabase.from('projects').select('id, client_id, service_type, type, status, phase, fase, progress, financial_value, billing_date, created_at, profiles(nome, avatar_url, empresa)').in('status', ['active', 'delivered'])
       ]);
 
       if (tasksRes.error) throw tasksRes.error;
       if (profilesRes.error) throw profilesRes.error;
       if (agenciesRes.error) throw agenciesRes.error;
-
-      // Pegar também active_projects 
-      const activeProjectsRes = await supabase.from('projects').select('*, profiles(nome, avatar_url, empresa)').in('status', ['active', 'delivered']);
       if (activeProjectsRes.error) throw activeProjectsRes.error;
 
       const tasksData = tasksRes.data || [];

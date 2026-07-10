@@ -120,11 +120,11 @@ export function usePresenceTracker(userId: string | null | undefined) {
       syncPresence(statusRef.current);
     }, HEARTBEAT_INTERVAL_MS);
 
-    // Conecta os sensores de movimento
-    window.addEventListener('mousemove', handleUserActivity);
-    window.addEventListener('keydown', handleUserActivity);
-    window.addEventListener('scroll', handleUserActivity);
-    window.addEventListener('click', handleUserActivity);
+    // Conecta os sensores de movimento com passive: true para evitar jank na CPU
+    window.addEventListener('mousemove', handleUserActivity, { passive: true });
+    window.addEventListener('keydown', handleUserActivity, { passive: true });
+    window.addEventListener('scroll', handleUserActivity, { passive: true });
+    window.addEventListener('click', handleUserActivity, { passive: true });
 
     // Graceful Shutdown
     const handleBeforeUnload = () => {

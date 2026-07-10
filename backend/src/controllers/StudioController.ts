@@ -1,3 +1,4 @@
+// src/controllers/StudioController.ts
 import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 
@@ -11,35 +12,38 @@ export class StudioController {
       }
 
       const projectIdStr = projectId as string;
-      // Identify if the projectId belongs to a normal project or an agency
       const isAgency = projectIdStr.startsWith('agency-');
       const actualId = isAgency ? projectIdStr.replace('agency-', '') : projectIdStr;
 
       let projectData = null;
-      let agencySubclients = [];
-      let assets = [];
+      let agencySubclients: any[] = [];
+      let assets: any[] = [];
       let briefing = null;
 
       if (isAgency) {
+        // Otimização: Seleção de colunas explícitas para agências e subclientes
         const [agencyRes, subclientsRes] = await Promise.all([
-          supabase.from('agencies').select('*').eq('id', actualId).single(),
-          supabase.from('agency_subclients').select('*').eq('agency_id', actualId).order('name', { ascending: true })
+          supabase.from('agencies').select('id, name, status, financial_value, billing_date, created_at, trello_url').eq('id', actualId).single(),
+          supabase.from('agency_subclients').select('id, agency_id, profile_id, name, status, created_at').eq('agency_id', actualId).order('name', { ascending: true })
         ]);
+        
         if (agencyRes.error) throw agencyRes.error;
         projectData = {
           ...agencyRes.data,
-          id: projectId, // keep prefixed id for consistency in frontend
+          id: projectId, // Mantém ID prefixado consistente com o frontend
           isAgency: true,
           profiles: { nome: agencyRes.data.name, empresa: agencyRes.data.name, avatar_url: null },
           status: 'active'
         };
         agencySubclients = subclientsRes.data || [];
       } else {
+        // Otimização: Seleção de colunas explícitas para projetos normais, assets e briefings
         const [projRes, assetsRes, briefingRes] = await Promise.all([
-          supabase.from('projects').select('*, profiles(nome, empresa, avatar_url)').eq('id', actualId).single(),
-          supabase.from('project_assets').select('*').eq('project_id', actualId).order('created_at', { ascending: false }),
+          supabase.from('projects').select('id, client_id, service_type, type, status, phase, fase, progress, financial_value, billing_date, created_at, profiles(nome, empresa, avatar_url)').eq('id', actualId).single(),
+          supabase.from('project_assets').select('id, project_id, name, url, created_at').eq('project_id', actualId).order('created_at', { ascending: false }),
           supabase.from('client_briefings').select('answers, is_completed').eq('project_id', actualId).maybeSingle()
         ]);
+        
         if (projRes.error) throw projRes.error;
         
         projectData = { ...projRes.data, isAgency: false };

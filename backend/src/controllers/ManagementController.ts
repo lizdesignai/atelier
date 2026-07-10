@@ -1,9 +1,24 @@
+// src/controllers/ManagementController.ts
 import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
+import { redis } from '../config/redis';
 
 export class ManagementController {
   static async getPulseDashboard(req: Request, res: Response) {
     try {
+      const cacheKey = 'management:pulse';
+      
+      // Tenta recuperar do Cache do Redis (TTL curto de 10 segundos para manter o caráter de live-feed)
+      try {
+        const cachedData = await redis.get(cacheKey);
+        if (cachedData) {
+          const parsed = typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData;
+          return res.status(200).json({ data: parsed });
+        }
+      } catch (cacheErr) {
+        console.warn('[Redis Cache Error] Falha ao ler cache do pulse:', cacheErr);
+      }
+
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
       const todayStartIso = todayStart.toISOString();
@@ -14,7 +29,10 @@ export class ManagementController {
 
       const [teamRes, sessionsRes, tasksRes] = await Promise.all([
         supabase.from('profiles').select('id, nome, avatar_url, role, current_status').in('role', ['colaborador', 'gestor', 'admin']),
-        supabase.from('work_sessions').select('*, tasks(title, projects(profiles(nome)))').gte('start_time', todayStartIso).lte('start_time', todayEndIso),
+        supabase.from('work_sessions')
+          .select('id, user_id, start_time, end_time, duration_minutes, task_id, tasks(title, projects(profiles(nome)))')
+          .gte('start_time', todayStartIso)
+          .lte('start_time', todayEndIso),
         supabase.from('tasks').select('id, status, deadline').or(`updated_at.gte.${todayStartIso},deadline.gte.${todayStartIso},deadline.lte.${todayEndIso}`)
       ]);
 
@@ -49,19 +67,26 @@ export class ManagementController {
       const totalTasksToday = tasksDueOrActive.length;
       const completionRate = totalTasksToday > 0 ? Math.round((tasksCompletedToday / totalTasksToday) * 100) : 0;
 
-      return res.status(200).json({
-        data: {
-          team: sortedTeam,
-          todaySessions: sessions,
-          metrics: {
-            totalMinutesToday,
-            avgFocusMinutes,
-            tasksCompletedToday,
-            totalTasksToday,
-            completionRate
-          }
+      const dashboardData = {
+        team: sortedTeam,
+        todaySessions: sessions,
+        metrics: {
+          totalMinutesToday,
+          avgFocusMinutes,
+          tasksCompletedToday,
+          totalTasksToday,
+          completionRate
         }
-      });
+      };
+
+      // Grava no Redis com TTL de 10 segundos
+      try {
+        await redis.set(cacheKey, JSON.stringify(dashboardData), { ex: 10 });
+      } catch (cacheErr) {
+        console.warn('[Redis Cache Error] Falha ao gravar cache do pulse:', cacheErr);
+      }
+
+      return res.status(200).json({ data: dashboardData });
     } catch (error: any) {
       console.error('Error fetching pulse dashboard:', error.message);
       return res.status(500).json({ error: 'Internal Server Error' });

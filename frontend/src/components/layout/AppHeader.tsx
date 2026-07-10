@@ -9,6 +9,7 @@ import {
   Bell, CheckCircle2, 
   Circle, Info, AlertTriangle, ShieldCheck 
 } from "lucide-react";
+import { useProfile } from "../../hooks/useProfile";
 
 interface AppHeaderProps {
   handleLogout: () => void;
@@ -16,7 +17,8 @@ interface AppHeaderProps {
 
 export default function AppHeader({ handleLogout }: AppHeaderProps) {
   const router = useRouter();
-  const [userProfile, setUserProfile] = useState<any>(null);
+  const { data: profile } = useProfile();
+  const userProfile = profile;
   
   // Estados do Sistema de Notificações
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -37,30 +39,16 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
   }, []);
 
   useEffect(() => {
-    const initHeader = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+    if (!profile?.id) return;
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, nome, avatar_url, role')
-        .eq('id', session.user.id)
-        .single();
-        
-      if (profile) {
-        setUserProfile(profile);
-        fetchNotifications(profile.id);
-        setupRealtimeSubscription(profile.id);
-      }
-    };
-
-    initHeader();
+    fetchNotifications(profile.id);
+    setupRealtimeSubscription(profile.id);
 
     // Cleanup da subscrição ao desmontar
     return () => {
       supabase.channel('custom-notification-channel').unsubscribe();
     };
-  }, []);
+  }, [profile?.id]);
 
   const fetchNotifications = async (userId: string) => {
     const { data } = await supabase

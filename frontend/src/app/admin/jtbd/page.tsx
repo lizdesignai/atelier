@@ -112,7 +112,7 @@ export default function JTBDPage() {
       
       const { data: tasksData } = await supabase
         .from('tasks')
-        .select('*, projects(profiles(nome), type, client_id)')
+        .select('*, projects(profiles(nome), type, client_id), agency_subclients(name)')
         .in('assigned_to', teamIds)
         .order('priority_score', { ascending: false }) 
         .order('deadline', { ascending: true });
@@ -220,10 +220,10 @@ export default function JTBDPage() {
       if (finalStatus === 'completed') {
          await AtelierPMEngine.unlockDependencies(task.id);
          showToast("Tarefa Concluída com sucesso!");
-         NotificationEngine.notifyManagement("✅ Tarefa Concluída", `A tarefa "${task.title}" de "${task.projects?.profiles?.nome || 'Sem Cliente'}" foi concluída e aprovada.`, "success");
+         NotificationEngine.notifyManagement("✅ Tarefa Concluída", `A tarefa "${task.title}" de "${task.agency_subclients?.name || task.projects?.profiles?.nome || 'Sem Cliente'}" foi concluída e aprovada.`, "success");
       } else if (finalStatus === 'review') {
          showToast("Tarefa enviada para Revisão Interna!");
-         NotificationEngine.notifyManagement("👀 Revisão Solicitada", ` ${currentUser?.nome?.split(' ')[0] || 'Desconhecido'} enviou a tarefa "${task.title}" de "${task.projects?.profiles?.nome || 'Sem Cliente'}" para revisão interna.`, "action");
+         NotificationEngine.notifyManagement("👀 Revisão Solicitada", ` ${currentUser?.nome?.split(' ')[0] || 'Desconhecido'} enviou a tarefa "${task.title}" de "${task.agency_subclients?.name || task.projects?.profiles?.nome || 'Sem Cliente'}" para revisão interna.`, "action");
       }
 
     } catch (error) {

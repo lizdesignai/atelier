@@ -13,8 +13,10 @@ import {
   XCircle, Star, Zap, FileText, Download, X, AlignLeft, 
   RotateCcw, Send, PlayCircle, ImageIcon, LayoutDashboard, TrendingUp
 } from "lucide-react";
-import InstagramBriefingModal from "../../components/InstagramBriefingModal";
-import MissionsVaultModal from "../../components/MissionsVaultModal";
+import dynamic from "next/dynamic";
+
+const InstagramBriefingModal = dynamic(() => import("../../components/InstagramBriefingModal"), { ssr: false });
+const MissionsVaultModal = dynamic(() => import("../../components/MissionsVaultModal"), { ssr: false });
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));

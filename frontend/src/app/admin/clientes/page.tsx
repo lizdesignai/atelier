@@ -15,8 +15,10 @@ import { supabase } from "../../../lib/supabase";
 import { useGlobalStore } from "../../../contexts/GlobalStore"; 
 import { NotificationEngine } from "../../../lib/NotificationEngine"; 
 
-import ConsultoriaModal from "./views/Consultoria";
-import ClientSettingsModal from "./views/ClientSettingsModal";
+import dynamic from "next/dynamic";
+
+const ConsultoriaModal = dynamic(() => import("./views/Consultoria"), { ssr: false });
+const ClientSettingsModal = dynamic(() => import("./views/ClientSettingsModal"), { ssr: false });
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));

@@ -1,3 +1,4 @@
+// src/index.ts
 import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -9,7 +10,7 @@ dotenv.config();
 const app = express();
 const port = process.env.PORT || 8080;
 
-// Middlewares
+// Middlewares de Segurança e Otimização
 app.use(helmet());
 
 const allowedOrigins = [
@@ -20,16 +21,17 @@ const allowedOrigins = [
   'https://atelier.lizdesign.com.br'
 ];
 if (process.env.FRONTEND_URL) {
-  allowedOrigins.push(process.env.FRONTEND_URL.trim().replace(/\/$/, ''));
+  allowedOrigins.push(process.env.FRONTEND_URL);
 }
+
+// Otimização: Normaliza as origens permitidas uma única vez na inicialização
+const normalizedAllowedOrigins = allowedOrigins.map(url => url.trim().replace(/\/$/, ''));
 
 app.use(cors({ 
   origin: (origin, callback) => {
     if (!origin) return callback(null, true);
     const normalizedOrigin = origin.trim().replace(/\/$/, '');
-    const isAllowed = allowedOrigins.some(allowed => 
-      allowed.trim().replace(/\/$/, '') === normalizedOrigin
-    );
+    const isAllowed = normalizedAllowedOrigins.includes(normalizedOrigin);
     if (isAllowed) {
       callback(null, true);
     } else {
@@ -39,10 +41,15 @@ app.use(cors({
   credentials: true
 }));
 
-app.use(express.json());
-app.use(morgan('dev'));
+// Otimização: Limite de tamanho de payload configurado para segurança
+app.use(express.json({ limit: '1mb' }));
 
-// Health Check (útil para o Render)
+// Otimização: Log do Morgan ativo apenas em ambiente de desenvolvimento
+if (process.env.NODE_ENV !== 'production') {
+  app.use(morgan('dev'));
+}
+
+// Health Check
 app.get('/health', (req, res) => {
   res.status(200).json({ status: 'ok', timestamp: new Date().toISOString() });
 });

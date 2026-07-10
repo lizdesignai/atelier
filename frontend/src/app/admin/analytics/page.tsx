@@ -15,11 +15,13 @@ import {
 } from "./constants";
 
 // Importações dos Módulos da Interface
-import OverviewDashboard from "./views/OverviewDashboard";
-import ProjectsManager from "./views/ProjectsManager";
-import RoutingEngine from "./views/RoutingEngine";
-import LiveExecutionBar from "./components/LiveExecutionBar";
-import AnalyticsModals from "./components/AnalyticsModals";
+import dynamic from "next/dynamic";
+
+const OverviewDashboard = dynamic(() => import("./views/OverviewDashboard"), { ssr: false });
+const ProjectsManager = dynamic(() => import("./views/ProjectsManager"), { ssr: false });
+const RoutingEngine = dynamic(() => import("./views/RoutingEngine"), { ssr: false });
+const LiveExecutionBar = dynamic(() => import("./components/LiveExecutionBar"), { ssr: false });
+const AnalyticsModals = dynamic(() => import("./components/AnalyticsModals"), { ssr: false });
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));

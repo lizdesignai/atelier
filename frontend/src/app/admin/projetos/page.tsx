@@ -27,10 +27,12 @@ import { useDynamicTitle } from "../../../hooks/useDynamicTitle";
 // ============================================================================
 // COMPONENTES REUTILIZADOS (Views do Workspace)
 // ============================================================================
-import VisualFlow from "../gerenciamento/views/VisualFlow";
-import BrandIdentity from "../gerenciamento/views/BrandIdentity";
-import GlobalCalendar from "../gerenciamento/views/GlobalCalendar";
-import MissionsView from "../gerenciamento/views/MissionsView";
+import dynamic from "next/dynamic";
+
+const VisualFlow = dynamic(() => import("../gerenciamento/views/VisualFlow"), { ssr: false });
+const BrandIdentity = dynamic(() => import("../gerenciamento/views/BrandIdentity"), { ssr: false });
+const GlobalCalendar = dynamic(() => import("../gerenciamento/views/GlobalCalendar"), { ssr: false });
+const MissionsView = dynamic(() => import("../gerenciamento/views/MissionsView"), { ssr: false });
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));

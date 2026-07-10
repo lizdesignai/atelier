@@ -14,6 +14,9 @@ import {
 import { supabase } from "../../lib/supabase"; 
 import { useDynamicTitle } from "../../hooks/useDynamicTitle"; 
 import { usePresenceTracker } from "../../hooks/usePresenceTracker";
+import { useSession } from "../../hooks/useSession";
+import { useProfile } from "../../hooks/useProfile";
+import { useProjects } from "../../hooks/useProjects";
 
 interface AppSidebarProps {
   userRole: string;
@@ -71,38 +74,28 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     tabName: ROUTE_NAMES[pathname] || "Portal"
   });
 
-  // 🟢 INJEÇÃO DO MOTOR DE PRESENÇA
-  // Só ativamos o rastreamento se o utilizador for da Equipa (Admin/Gestor/Colaborador)
-  const [sessionUserId, setSessionUserId] = useState<string | null>(null);
-  
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setSessionUserId(session.user.id);
-    });
-  }, []);
+  // 🟢 INJEÇÃO DO MOTOR DE PRESENÇA USANDO REACT QUERY
+  const { data: session } = useSession();
+  const { data: profile } = useProfile();
+  const { data: projects } = useProjects();
+  const sessionUserId = session?.user?.id;
 
   const presenceStatus = usePresenceTracker((isTeamMember || isContador) ? sessionUserId : null);
 
-  // LÓGICA CORE INTACTA
   useEffect(() => {
+    if (profile) {
+      setClientName(profile.nome || "");
+    }
+  }, [profile]);
+
+  // LÓGICA CORE REATIVA
+  useEffect(() => {
+    if (!session || !projects) return;
+
     const fetchSidebarData = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-
       if (isClient) {
-        // Busca o nome do cliente para o Sidebar e o Título
-        const { data: profile } = await supabase.from('profiles').select('nome').eq('id', session.user.id).single();
-        if (profile) setClientName(profile.nome);
-
-        const { data: project } = await supabase
-          .from('projects')
-          .select('status, delivered_at, service_type')
-          .eq('client_id', session.user.id)
-          .in('status', ['active', 'delivered', 'archived'])
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .single();
-
+        // Obter o projeto mais recente a partir da cache
+        const project = projects?.[0];
         let shouldArchive = false;
         let service = "Identidade Visual";
 
@@ -117,7 +110,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
             const diffDays = Math.ceil(Math.abs(new Date().getTime() - deliveredDate.getTime()) / (1000 * 60 * 60 * 24));
             if (diffDays >= 15) {
               shouldArchive = true;
-              supabase.from('projects').update({ status: 'archived' }).eq('client_id', session.user.id).then();
+              await supabase.from('projects').update({ status: 'archived' }).eq('client_id', session.user.id);
             }
           }
         } else {
@@ -148,7 +141,6 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
         }
       } else {
         // 🟢 BLINDAGEM DE ROTAS PARA A EQUIPA
-        // Retiramos a intercepção da rota `/admin` para o Admin!
         if (pathname === '/admin' && !isAdminOnly) {
           router.replace(isManagerOrAdmin ? '/admin/gestao' : '/admin/jtbd');
         }
@@ -157,32 +149,31 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
       setIsReady(true);
     };
 
+    fetchSidebarData();
+  }, [pathname, isClient, isContador, isTeamMember, isManagerOrAdmin, isAdminOnly, session, projects, router, onHideSidebar]);
+
+  // Contagem de unread messages reativa via sub
+  useEffect(() => {
+    if (!sessionUserId) return;
+
     const fetchGlobalUnread = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      
       const { data, error } = await supabase.rpc('get_unread_message_count');
       if (!error && data !== null) {
         setGlobalUnreadCount(data);
       }
     };
 
-    fetchSidebarData();
     fetchGlobalUnread();
 
-    // 🟢 Escutar novas mensagens para atualizar badge instantaneamente (Opcional mas Premium)
     const sub = supabase.channel('sidebar_unread_messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-        // Quando rolar nova mensagem, re-busca a contagem se a mensagem não for nossa
-        supabase.auth.getSession().then(({ data: { session } }) => {
-           if (session && payload.new.sender_id !== session.user.id) {
-             fetchGlobalUnread();
-           }
-        });
+         if (payload.new.sender_id !== sessionUserId) {
+           fetchGlobalUnread();
+         }
       }).subscribe();
 
     return () => { supabase.removeChannel(sub); };
-  }, [pathname, isTeamMember, isManagerOrAdmin, isAdminOnly, router, onHideSidebar]);
+  }, [sessionUserId]);
 
   if (isClient && (isProjectArchived || !isReady)) return null;
   if (isContador && !isReady) return null;

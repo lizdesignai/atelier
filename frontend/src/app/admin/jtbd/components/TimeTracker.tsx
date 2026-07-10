@@ -74,7 +74,7 @@ export default function TimeTracker({ allUserTasks }: TimeTrackerProps) {
                       {task.title}
                     </span>
                     <span className="text-[9px] uppercase font-bold tracking-widest text-gray-400 truncate">
-                      {task.projects?.profiles?.nome || "Interno"}
+                      {task.agency_subclients?.name || task.projects?.profiles?.nome || "Interno"}
                     </span>
                   </div>
                 </div>

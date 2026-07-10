@@ -1,3 +1,4 @@
+// src/controllers/ChatController.ts
 import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 
@@ -7,29 +8,32 @@ export class ChatController {
   static async getHistory(req: Request, res: Response) {
     try {
       const { channelId } = req.params;
+      const { limit = '150', offset = '0' } = req.query;
 
       if (!channelId) {
         return res.status(400).json({ error: 'Missing channelId' });
       }
 
-      // Fetch the last 150 messages for performance (we can paginate later if needed)
+      // Otimização: Seleção de colunas explícitas e limite seguro com offset para paginação opcional
+      const limitVal = Math.min(parseInt(String(limit)) || 150, 300);
+      const offsetVal = parseInt(String(offset)) || 0;
+
       const { data, error } = await supabase
         .from('messages')
-        .select('*, profiles(id, nome, avatar_url, role)')
+        .select('id, channel_id, sender_id, text_content, attachment_url, created_at, profiles(id, nome, avatar_url, role)')
         .eq('channel_id', channelId)
         .order('created_at', { ascending: false })
-        .limit(150);
+        .range(offsetVal, offsetVal + limitVal - 1);
 
       if (error) throw error;
 
-      // Normaliza o retorno dos profiles (Supabase as vezes retorna array, as vezes objeto dependendo da FK)
+      // Normaliza o retorno dos profiles
       const formattedMessages = data.map((m: any) => ({
         ...m,
         profiles: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles
       }));
 
-      // Inverte o array porque pedimos DESC no supabase para pegar as mais recentes, 
-      // mas o frontend espera ASC (cronológico)
+      // Inverte o array para ordem cronológica (ASC)
       const chronologicalMessages = formattedMessages.reverse();
 
       return res.status(200).json({ data: chronologicalMessages });

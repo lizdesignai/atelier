@@ -1,0 +1,33 @@
+# Ignore common directories to save Gemini token usage/quota
+.git/
+node_modules/
+dist/
+build/
+out/
+.next/
+.nuxt/
+.cache/
+.parcel-cache/
+.output/
+
+# Python Virtual Environments & Cache
+venv/
+.venv/
+env/
+.env/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+
+# System / IDEs
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+
+# Gemini App Data / Logs
+.gemini/
+*.log

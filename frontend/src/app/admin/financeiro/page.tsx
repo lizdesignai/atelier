@@ -16,9 +16,11 @@ import {
 } from "lucide-react";
 
 // IMPORTAÇÃO DOS MÓDULOS (VIEWS)
-import FinancialOverview from "./views/FinancialOverview";
-import CfoDashboard from "./views/CfoDashboard";
-import HealthMetrics from "./views/HealthMetrics";
+import dynamic from "next/dynamic";
+
+const FinancialOverview = dynamic(() => import("./views/FinancialOverview"), { ssr: false });
+const CfoDashboard = dynamic(() => import("./views/CfoDashboard"), { ssr: false });
+const HealthMetrics = dynamic(() => import("./views/HealthMetrics"), { ssr: false });
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));

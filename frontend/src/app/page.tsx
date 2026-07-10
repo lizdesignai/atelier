@@ -8,7 +8,9 @@ import {
   Lock, Clock, Eye, FileText, CheckCircle2, Loader2, ArrowUpRight
 } from "lucide-react";
 import { supabase } from "../lib/supabase"; 
-import BriefingModal from "../components/BriefingModal";
+import dynamic from "next/dynamic";
+
+const BriefingModal = dynamic(() => import("../components/BriefingModal"), { ssr: false });
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));

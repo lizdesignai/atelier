@@ -174,7 +174,7 @@ export default function DailyKanban({
     // 🟢 ESTILIZAÇÃO ELEGANTE PARA TAREFAS CONCLUÍDAS (MÊS CORRENTE)
     if (isCompleted) {
       const assignee = teamData.find(t => t.id === task.assigned_to) || { nome: 'Desconhecido', avatar_url: null };
-      const clientName = task.projects?.profiles?.nome || task.projects?.title || 'Projeto Não Especificado';
+      const clientName = task.agency_subclients?.name || task.projects?.profiles?.nome || task.projects?.title || 'Projeto Não Especificado';
       const clientAvatar = task.projects?.profiles?.avatar_url || null;
       const completedDate = task.completed_at ? new Date(task.completed_at) : (task.updated_at ? new Date(task.updated_at) : new Date(task.deadline));
       const formattedDate = completedDate.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
