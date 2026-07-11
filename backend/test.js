@@ -7,20 +7,13 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function test() {
-  const fifteenDaysAgo = new Date();
-  fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
+  console.log('Testing Routing Rules Query...');
+  const { data: d1, error: err1 } = await supabase.from('routing_rules').select('id, project_id, task_type, assignee_id, created_at');
+  console.log('Routing Rules Error:', err1 ? err1 : 'SUCCESS, length: ' + d1.length);
 
-  const { data, error } = await supabase.from('tasks')
-    .select('id, project_id, assigned_to, title, status, deadline, created_at, completed_at, actual_time, estimated_time, stage, task_type, attachment_url, subclient_id, agency_id, projects(type, service_type, profiles(nome, avatar_url))')
-    .or(`status.neq.completed,completed_at.gte.${fifteenDaysAgo.toISOString()}`)
-    .order('deadline', { ascending: true })
-    .limit(1);
-
-  if (error) {
-    console.error('Database Query Error:', error);
-  } else {
-    console.log('Query success! Sample:', data);
-  }
+  console.log('Testing Subclients Query...');
+  const { data: d2, error: err2 } = await supabase.from('agency_subclients').select('id, agency_id, name, deliverables_count, created_at, trello_url');
+  console.log('Subclients Error:', err2 ? err2 : 'SUCCESS, length: ' + d2.length);
 }
 
 test();

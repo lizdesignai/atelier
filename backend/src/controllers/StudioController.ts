@@ -24,7 +24,7 @@ export class StudioController {
         // Otimização: Seleção de colunas explícitas para agências e subclientes
         const [agencyRes, subclientsRes] = await Promise.all([
           supabase.from('agencies').select('id, name, status, financial_value, billing_date, created_at, trello_url').eq('id', actualId).single(),
-          supabase.from('agency_subclients').select('id, agency_id, profile_id, name, status, created_at').eq('agency_id', actualId).order('name', { ascending: true })
+          supabase.from('agency_subclients').select('id, agency_id, name, deliverables_count, created_at, trello_url').eq('agency_id', actualId).order('name', { ascending: true })
         ]);
         
         if (agencyRes.error) throw agencyRes.error;

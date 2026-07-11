@@ -61,7 +61,7 @@ export class ProjectController {
       
       let query = supabase
         .from('agency_subclients')
-        .select('id, agency_id, profile_id, name, status, created_at');
+        .select('id, agency_id, name, deliverables_count, created_at, trello_url');
         
       if (agencyId) {
         query = query.eq('agency_id', String(agencyId));
