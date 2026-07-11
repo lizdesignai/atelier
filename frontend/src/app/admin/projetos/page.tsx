@@ -217,7 +217,7 @@ function PainelIdentidade() {
         setProjectAssets(data.assets || []);
         setClientBriefing(data.briefing || null);
 
-        if (isAgency && data.subclients) {
+        if ((isAgency || activeProjectId.startsWith('agency-')) && data.subclients) {
            setAgencySubclients(data.subclients);
            if (data.subclients.length > 0 && !activeSubclientId) {
               setActiveSubclientId(data.subclients[0].id);

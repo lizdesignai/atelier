@@ -7,13 +7,24 @@ const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function test() {
-  console.log('Testing Routing Rules Query...');
-  const { data: d1, error: err1 } = await supabase.from('routing_rules').select('id, project_id, task_type, assignee_id, created_at');
-  console.log('Routing Rules Error:', err1 ? err1 : 'SUCCESS, length: ' + d1.length);
+  console.log('Fetching agencies...');
+  const { data: agencies } = await supabase.from('agencies').select('id, name');
+  console.log('Agencies:', agencies);
 
-  console.log('Testing Subclients Query...');
-  const { data: d2, error: err2 } = await supabase.from('agency_subclients').select('id, agency_id, name, deliverables_count, created_at, trello_url');
-  console.log('Subclients Error:', err2 ? err2 : 'SUCCESS, length: ' + d2.length);
+  if (agencies && agencies.length > 0) {
+    const firstAgencyId = agencies[0].id;
+    console.log(`Fetching subclients for agency: ${agencies[0].name} (${firstAgencyId})`);
+    const { data: subs, error } = await supabase
+      .from('agency_subclients')
+      .select('*')
+      .eq('agency_id', firstAgencyId);
+      
+    if (error) {
+      console.error('Error:', error);
+    } else {
+      console.log('Subclients found:', subs);
+    }
+  }
 }
 
 test();
