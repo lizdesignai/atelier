@@ -7,13 +7,13 @@ import { supabase } from "../../../lib/supabase";
 import { Loader2, ShieldAlert, Activity, Users, DollarSign, Layers } from "lucide-react";
 
 // Importação dos Pilares de Gestão (Alta Direção)
-import dynamic from "next/dynamic";
+import PulseDashboard from "./views/PulseDashboard";
+import WorkforceDashboard from "./views/WorkforceDashboard";
+import EconomicsDashboard from "./views/EconomicsDashboard";
+import DemandsDashboard from "./views/DemandsDashboard"; // 🟢 O NOVO PILAR IMPORTADO
 
-const PulseDashboard = dynamic(() => import("./views/PulseDashboard"), { ssr: false });
-const WorkforceDashboard = dynamic(() => import("./views/WorkforceDashboard"), { ssr: false });
-const EconomicsDashboard = dynamic(() => import("./views/EconomicsDashboard"), { ssr: false });
-const DemandsDashboard = dynamic(() => import("./views/DemandsDashboard"), { ssr: false });
-const PersonalProductivity = dynamic(() => import("./views/PersonalProductivity"), { ssr: false });
+// Importação do Espelho do Colaborador (Operação)
+import PersonalProductivity from "./views/PersonalProductivity";
 
 export default function GestaoPage() {
   const [isLoading, setIsLoading] = useState(true);
