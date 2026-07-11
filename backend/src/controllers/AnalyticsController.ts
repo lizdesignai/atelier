@@ -29,7 +29,7 @@ export class AnalyticsController {
         supabase.from('profiles').select('id, nome, role, avatar_url, skills, team_performance(exp_points, level_name)').in('role', ['admin', 'gestor', 'colaborador']),
         supabase.from('routing_rules').select('id, rule_name, conditions, target_collaborator_id, is_active'),
         supabase.from('tasks')
-          .select('id, project_id, title, status, deadline, created_at, completed_at, actual_time, estimated_time, collaborator_id, stage, type, attachment_url, projects(type, service_type, profiles(nome, avatar_url))')
+          .select('id, project_id, assigned_to, title, status, deadline, created_at, completed_at, actual_time, estimated_time, stage, task_type, attachment_url, subclient_id, agency_id, projects(type, service_type, profiles(nome, avatar_url))')
           .or(`status.neq.completed,completed_at.gte.${fifteenDaysAgo.toISOString()}`)
           .order('deadline', { ascending: true }),
         supabase.from('agencies').select('id, name, status, financial_value, billing_date, created_at, trello_url').eq('status', 'active'),
