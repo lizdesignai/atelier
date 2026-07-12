@@ -44,60 +44,76 @@ export default function OverviewDashboard({
   
   // Estados locais
   const [taskSearch, setTaskSearch] = useState("");
-  const [projectSearch, setProjectSearch] = useState("");
+  const [taskFilterCollab, setTaskFilterCollab] = useState<string>('all');
+  const [taskFilterClient, setTaskFilterClient] = useState<string>('all');
+  
+  // Clientes com tarefas ativas (Extraídos diretamente das tarefas para contemplar Agências e Studio)
+  const clientsWithTasks = Array.from(
+    new Map(
+      activeTasksForQueue
+        .filter(t => t.project_id || t.projects?.id)
+        .map(t => [
+          t.project_id || t.projects?.id, 
+          t.projects?.profiles?.nome || "White-Label"
+        ])
+    ).entries()
+  ).map(([id, name]) => ({ id, name }));
   
   return (
     <>
-      <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-6 h-full min-h-0 relative">
-
-        {/* 1. TOP METRICS CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 shrink-0">
-          <div className="bg-white/60 p-4 rounded-[1.5rem] border border-white flex items-center gap-4 shadow-sm transition-all hover:shadow-md">
-            <div className="w-12 h-12 rounded-xl bg-blue-500/10 text-blue-600 flex items-center justify-center shrink-0 border border-blue-500/20"><FolderKanban size={20} /></div>
-            <div className="flex flex-col">
-              <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none">{metrics.activeProjects}</span>
-              <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-1">Projetos Ativos</span>
-            </div>
-          </div>
-          <div className="bg-white/60 p-4 rounded-[1.5rem] border border-white flex items-center gap-4 shadow-sm transition-all hover:shadow-md">
-            <div className="w-12 h-12 rounded-xl bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center shrink-0 border border-[var(--color-atelier-terracota)]/20"><Target size={20} /></div>
-            <div className="flex flex-col">
-              <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none">{metrics.pendingTasks}</span>
-              <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-1">Tarefas Pendentes</span>
-            </div>
-          </div>
-          <div className="bg-white/60 p-4 rounded-[1.5rem] border border-white flex items-center gap-4 shadow-sm transition-all hover:shadow-md">
-            <div className="w-12 h-12 rounded-xl bg-green-500/10 text-green-600 flex items-center justify-center shrink-0 border border-green-500/20"><Users size={20} /></div>
-            <div className="flex flex-col">
-              <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none">{metrics.totalTeam}</span>
-              <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-1">Membros do Atelier</span>
-            </div>
-          </div>
-        </div>
-
-        <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
+      <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-6 h-full min-h-0 relative w-full lg:w-[350px] shrink-0">
           
           {/* COLUNA 1: FILA GERAL COM BUSCA INTELIGENTE */}
-          <div className="w-full lg:w-1/3 glass-panel p-6 flex flex-col h-full min-h-0">
+          <div className="w-full glass-panel p-6 flex flex-col h-full min-h-0">
             <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-4 shrink-0 flex flex-col gap-3">
               <div className="flex justify-between items-center mb-1">
                   <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Próximas Tarefas</h3>
                   <span className="bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest border border-[var(--color-atelier-terracota)]/20">{activeTasksForQueue.length} Pendentes</span>
               </div>
-              <div className="relative group">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-atelier-grafite)]/40 group-focus-within:text-[var(--color-atelier-terracota)] transition-colors" />
-                  <input 
-                     type="text" 
-                     placeholder="Filtrar tarefa ou cliente..." 
-                     value={taskSearch} 
-                     onChange={(e)=>setTaskSearch(e.target.value)} 
-                     className="w-full bg-white/60 border border-white/50 rounded-xl py-2 pl-9 pr-4 text-[11px] outline-none focus:border-[var(--color-atelier-terracota)]/30 focus:bg-white shadow-sm transition-all text-[var(--color-atelier-grafite)] font-bold" 
-                  />
+              <div className="flex items-center gap-2">
+                <div className="relative group flex-1">
+                    <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-atelier-grafite)]/40 group-focus-within:text-[var(--color-atelier-terracota)] transition-colors" />
+                    <input 
+                       type="text" 
+                       placeholder="Filtrar tarefa..." 
+                       value={taskSearch} 
+                       onChange={(e)=>setTaskSearch(e.target.value)} 
+                       className="w-full bg-white/60 border border-white/50 rounded-xl py-2 pl-9 pr-4 text-[11px] outline-none focus:border-[var(--color-atelier-terracota)]/30 focus:bg-white shadow-sm transition-all text-[var(--color-atelier-grafite)] font-bold" 
+                    />
+                </div>
+                
+                {/* Filtro Colaborador */}
+                <div className="relative group/collab">
+                   <button className="w-8 h-8 rounded-xl bg-white/60 border border-white/50 flex items-center justify-center text-gray-500 hover:text-[var(--color-atelier-terracota)] transition-colors shadow-sm">
+                     <UserCircle2 size={16} />
+                   </button>
+                   <div className="absolute top-full right-0 mt-1 bg-white border border-gray-100 shadow-xl rounded-xl p-1.5 flex flex-col gap-1 w-56 opacity-0 pointer-events-none group-hover/collab:opacity-100 group-hover/collab:pointer-events-auto transition-all z-50 max-h-48 overflow-y-auto custom-scrollbar">
+                      <button onClick={() => setTaskFilterCollab('all')} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors ${taskFilterCollab === 'all' ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-gray-600'}`}>Todos Colaboradores</button>
+                      {team.map(member => (
+                        <button key={member.id} onClick={() => setTaskFilterCollab(member.id)} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors truncate ${taskFilterCollab === member.id ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-gray-600'}`}>{member.name || member.nome}</button>
+                      ))}
+                   </div>
+                </div>
+
+                {/* Filtro Cliente */}
+                <div className="relative group/client">
+                   <button className="w-8 h-8 rounded-xl bg-white/60 border border-white/50 flex items-center justify-center text-gray-500 hover:text-[var(--color-atelier-terracota)] transition-colors shadow-sm">
+                     <FolderKanban size={16} />
+                   </button>
+                   <div className="absolute top-full right-0 mt-1 bg-white border border-gray-100 shadow-xl rounded-xl p-1.5 flex flex-col gap-1 w-56 opacity-0 pointer-events-none group-hover/client:opacity-100 group-hover/client:pointer-events-auto transition-all z-50 max-h-48 overflow-y-auto custom-scrollbar">
+                      <button onClick={() => setTaskFilterClient('all')} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors ${taskFilterClient === 'all' ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-gray-600'}`}>Todos Clientes</button>
+                      {clientsWithTasks.map(client => (
+                        <button key={client.id as string} onClick={() => setTaskFilterClient(client.id as string)} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors truncate ${taskFilterClient === client.id ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-gray-600'}`}>{client.name}</button>
+                      ))}
+                   </div>
+                </div>
               </div>
             </div>
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3">
               {activeTasksForQueue
                 .filter(t => t.title.toLowerCase().includes(taskSearch.toLowerCase()) || t.projects?.profiles?.nome?.toLowerCase().includes(taskSearch.toLowerCase()))
+                .filter(t => taskFilterCollab === 'all' || t.assigned_to === taskFilterCollab)
+                .filter(t => taskFilterClient === 'all' || t.project_id === taskFilterClient || t.projects?.id === taskFilterClient)
                 .map(task => {
                   const isDelayed = task.status !== 'completed' && new Date(task.deadline) < new Date();
                   const isSelected = selectedTaskIds.includes(task.id);
@@ -154,97 +170,7 @@ export default function OverviewDashboard({
                 })}
             </div>
           </div>
-
-          {/* COLUNA 2: ANDAMENTO REAL DOS PROJETOS COM BUSCA INTELIGENTE */}
-          <div className="w-full lg:w-1/3 glass-panel p-6 flex flex-col h-full min-h-0">
-            <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-4 shrink-0 flex flex-col gap-3">
-              <div className="flex justify-between items-center mb-1">
-                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Andamento dos Projetos</h3>
-                  <Activity size={18} className="text-[var(--color-atelier-terracota)]"/>
-              </div>
-              <div className="relative group">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-atelier-grafite)]/40 group-focus-within:text-[var(--color-atelier-terracota)] transition-colors" />
-                  <input 
-                     type="text" 
-                     placeholder="Localizar cliente ou operação..." 
-                     value={projectSearch} 
-                     onChange={(e)=>setProjectSearch(e.target.value)} 
-                     className="w-full bg-white/60 border border-white/50 rounded-xl py-2 pl-9 pr-4 text-[11px] outline-none focus:border-[var(--color-atelier-terracota)]/30 focus:bg-white shadow-sm transition-all text-[var(--color-atelier-grafite)] font-bold" 
-                  />
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-4">
-              {validProjects
-                .filter(p => p.profiles?.nome?.toLowerCase().includes(projectSearch.toLowerCase()) || p.service_type?.toLowerCase().includes(projectSearch.toLowerCase()))
-                .map(proj => {
-                  const projTasks = tasks.filter(t => t.project_id === proj.id);
-                  const total = projTasks.length;
-                  const done = projTasks.filter(t => t.status === 'completed').length;
-                  const progress = total === 0 ? 0 : Math.round((done / total) * 100);
-                  const isDelayed = projTasks.some(t => t.status !== 'completed' && new Date(t.deadline) < new Date());
-
-                  return (
-                    <div key={proj.id} onClick={() => { setSelectedProjectId(proj.id); setActiveView('projects'); }} className="bg-white/80 hover:bg-white p-4 rounded-xl border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col gap-3 cursor-pointer hover:shadow-md transition-all group">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl overflow-hidden border border-gray-100 bg-gray-50 flex items-center justify-center shrink-0 shadow-inner">
-                            {proj.profiles?.avatar_url ? <img src={proj.profiles.avatar_url} className="w-full h-full object-cover"/> : <span className="font-elegant text-sm text-[var(--color-atelier-terracota)]">{proj.profiles?.nome?.charAt(0) || "W"}</span>}
-                          </div>
-                          <div className="flex flex-col">
-                            <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors truncate max-w-[150px]">{proj.profiles?.nome || "White-Label"}</span>
-                            <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-0.5">{isIdvService(proj) ? 'IDV' : 'Instagram'}</span>
-                          </div>
-                        </div>
-                        {total === 0 ? <AlertTriangle size={14} className="text-orange-500" /> : isDelayed && <AlertTriangle size={14} className="text-red-500" />}
-                      </div>
-                      <div className="flex flex-col gap-1.5 mt-1">
-                        <div className="flex justify-between text-[10px] font-bold uppercase tracking-widest">
-                          <span className="text-[var(--color-atelier-grafite)]/50">{total === 0 ? 'Sem Tarefas' : 'Progresso das Tarefas'}</span>
-                          <span className="text-[var(--color-atelier-terracota)]">{total > 0 && `${done}/${total}`}</span>
-                        </div>
-                        <div className="h-1.5 w-full bg-[var(--color-atelier-grafite)]/5 rounded-full overflow-hidden shadow-inner">
-                          <motion.div initial={{ width: 0 }} animate={{ width: `${progress}%` }} className={`h-full rounded-full ${isDelayed ? 'bg-red-500' : 'bg-[var(--color-atelier-terracota)]'}`}></motion.div>
-                        </div>
-                      </div>
-                    </div>
-                  )
-              })}
-            </div>
-          </div>
-
-          {/* COLUNA 3: CARGA DA EQUIPA E XP */}
-          <div className="w-full lg:w-1/3 glass-panel p-6 flex flex-col h-full min-h-0 relative">
-            <div className="absolute top-[-20%] right-[-10%] w-64 h-64 bg-[var(--color-atelier-terracota)]/10 blur-[60px] rounded-full pointer-events-none"></div>
-            <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-4 shrink-0 flex justify-between items-center relative z-10">
-              <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Artesões</h3>
-              <Users size={18} className="text-[var(--color-atelier-terracota)]"/>
-            </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3 relative z-10">
-              {team.map(member => {
-                const memberTasks = activeTasksForQueue.filter(t => t.assigned_to === member.id);
-                const estHours = (memberTasks.reduce((acc, t) => acc + (t.estimated_time || 0), 0) / 60).toFixed(1);
-                return (
-                  <div key={member.id} onClick={() => setSelectedCollab(member)} className="bg-white/80 hover:bg-white p-4 rounded-xl border border-white shadow-sm flex items-center justify-between cursor-pointer hover:border-[var(--color-atelier-terracota)]/40 hover:shadow-md transition-all group">
-                    <div className="flex items-center gap-3 w-3/4">
-                      <div className="w-10 h-10 rounded-xl overflow-hidden border border-[var(--color-atelier-grafite)]/5 shadow-inner shrink-0 bg-white flex items-center justify-center">
-                        {member.avatar_url ? <img src={member.avatar_url} className="w-full h-full object-cover"/> : <UserCircle2 className="text-gray-200" />}
-                      </div>
-                      <div className="flex flex-col overflow-hidden">
-                        <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors truncate">{member.nome}</span>
-                        <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-0.5">{memberTasks.length} Ativas</span>
-                      </div>
-                    </div>
-                    <div className="text-right pl-2 border-l border-[var(--color-atelier-grafite)]/10 shrink-0">
-                      <span className="text-[11px] font-bold text-orange-500 bg-orange-50 px-2 py-1 rounded-lg border border-orange-100">~{estHours}h</span>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </div>
-        </div>
       </motion.div>
-
     </>
   );
 }

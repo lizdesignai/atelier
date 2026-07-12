@@ -7,7 +7,9 @@ import { supabase } from "../../../lib/supabase";
 import { AtelierPMEngine } from "../../../lib/AtelierPMEngine"; 
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
 import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
-import { BrainCircuit, Loader2, X, Cpu, Play, CheckSquare, Check, Activity, FolderKanban, GitMerge } from "lucide-react";
+import { BrainCircuit, Loader2, X, Cpu, Play, CheckSquare, Check, Activity, FolderKanban, GitMerge, Crown, DollarSign, Users } from "lucide-react";
+import Link from "next/link";
+import { useProfile } from "../../../hooks/useProfile";
 // Importações do Núcleo Estático
 import { 
   TASK_TYPES_IDV, TASK_TYPES_IG, ALL_SKILLS, 
@@ -22,6 +24,11 @@ const ProjectsManager = dynamic(() => import("./views/ProjectsManager"), { ssr: 
 const RoutingEngine = dynamic(() => import("./views/RoutingEngine"), { ssr: false });
 const LiveExecutionBar = dynamic(() => import("./components/LiveExecutionBar"), { ssr: false });
 const AnalyticsModals = dynamic(() => import("./components/AnalyticsModals"), { ssr: false });
+
+const AdminDashboard = dynamic(() => import("../page"), { ssr: false });
+const ProdutividadePage = dynamic(() => import("../gestao/page"), { ssr: false });
+const ClientesPage = dynamic(() => import("../clientes/page"), { ssr: false });
+const FinanceiroPage = dynamic(() => import("../financeiro/page"), { ssr: false });
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -43,7 +50,11 @@ const isIdvService = (project: any) => {
 };
 
 export default function AnalyticsPage() {
-  const [activeView, setActiveView] = useState<'overview' | 'projects' | 'routing'>('overview');
+  const { data: profile } = useProfile();
+  const userRole = profile?.role || 'admin';
+  const [activeView, setActiveView] = useState<'analytics' | 'dona' | 'produtividade' | 'clientes' | 'financeiro'>('analytics');
+  const [isRoutingModalOpen, setIsRoutingModalOpen] = useState(false);
+  const [isCollabModalOpen, setIsCollabModalOpen] = useState(false);
   
   const { activeProjects, isGlobalLoading, refreshGlobalData } = useGlobalStore();
   
@@ -183,10 +194,7 @@ export default function AnalyticsPage() {
     fetchOperationalData();
   }, [isGlobalLoading, fetchOperationalData]);
 
-  useEffect(() => {
-    setSelectedTaskIds([]);
-    setSelectedRuleIds([]);
-  }, [activeView]);
+
 
   useEffect(() => {
     if (engineMode === 'auto' && !isLocalLoading && !isProcessing) {
@@ -747,129 +755,239 @@ export default function AnalyticsPage() {
              </button>
            </div>
            
-           {/* Menu Estúdio (Ícone + Nome apenas na Ativa) */}
+           {/* Novo Top Menu de Navegação Global */}
            <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0 overflow-hidden">
               <button 
-                onClick={() => setActiveView('overview')} 
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all overflow-hidden ${activeView === 'overview' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-12 justify-center px-0'}`}
+                onClick={() => setActiveView('analytics')} 
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all overflow-hidden ${activeView === 'analytics' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-12 justify-center px-0'}`}
+              >
+                <BrainCircuit size={14} className="shrink-0" />
+                <AnimatePresence>
+                  {activeView === 'analytics' && (
+                    <motion.span initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="whitespace-nowrap overflow-hidden origin-left">
+                      Analytics
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </button>
+
+              {userRole === 'admin' && (
+                <button 
+                  onClick={() => setActiveView('dona')} 
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all overflow-hidden ${activeView === 'dona' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-12 justify-center px-0'}`}
+                >
+                  <Crown size={14} className="shrink-0" />
+                  <AnimatePresence>
+                    {activeView === 'dona' && (
+                      <motion.span initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="whitespace-nowrap overflow-hidden origin-left">
+                        Tela da Dona
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </button>
+              )}
+
+              <button 
+                onClick={() => setActiveView('produtividade')} 
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all overflow-hidden ${activeView === 'produtividade' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-12 justify-center px-0'}`}
               >
                 <Activity size={14} className="shrink-0" />
                 <AnimatePresence>
-                  {activeView === 'overview' && (
+                  {activeView === 'produtividade' && (
                     <motion.span initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="whitespace-nowrap overflow-hidden origin-left">
-                      Visão Geral
+                      Produtividade
                     </motion.span>
                   )}
                 </AnimatePresence>
               </button>
 
               <button 
-                onClick={() => setActiveView('projects')} 
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all overflow-hidden ${activeView === 'projects' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-12 justify-center px-0'}`}
+                onClick={() => setActiveView('clientes')} 
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all overflow-hidden ${activeView === 'clientes' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-12 justify-center px-0'}`}
               >
-                <FolderKanban size={14} className="shrink-0" />
+                <Users size={14} className="shrink-0" />
                 <AnimatePresence>
-                  {activeView === 'projects' && (
+                  {activeView === 'clientes' && (
                     <motion.span initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="whitespace-nowrap overflow-hidden origin-left">
-                      Projetos
+                      Clientes
                     </motion.span>
                   )}
                 </AnimatePresence>
               </button>
 
-              <button 
-                onClick={() => setActiveView('routing')} 
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all overflow-hidden ${activeView === 'routing' ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-12 justify-center px-0'}`}
-              >
-                <GitMerge size={14} className="shrink-0" />
-                <AnimatePresence>
-                  {activeView === 'routing' && (
-                    <motion.span initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="whitespace-nowrap overflow-hidden origin-left">
-                      Encaminhamento
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </button>
+              {userRole === 'admin' && (
+                <button 
+                  onClick={() => setActiveView('financeiro')} 
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all overflow-hidden ${activeView === 'financeiro' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-12 justify-center px-0'}`}
+                >
+                  <DollarSign size={14} className="shrink-0" />
+                  <AnimatePresence>
+                    {activeView === 'financeiro' && (
+                      <motion.span initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="whitespace-nowrap overflow-hidden origin-left">
+                        Financeiro
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </button>
+              )}
            </div>
         </div>
       </header>
 
       <LiveExecutionBar liveTasks={liveTasks} />
 
-      <div className="flex-1 min-h-0 relative">
+      <div className="flex-1 min-h-0 relative flex flex-col lg:flex-row gap-6">
         <AnimatePresence mode="wait">
-          
-          {activeView === 'overview' && (
-            <OverviewDashboard 
-              metrics={metrics}
-              activeTasksForQueue={activeTasksForQueue}
-              validProjects={validProjects}
-              tasks={tasks}
-              team={team}
-              isBulkMode={isBulkMode}
-              selectedTaskIds={selectedTaskIds}
-              toggleTaskSelection={toggleTaskSelection}
-              setEditingTask={setEditingTask}
-              handleCompleteTask={handleCompleteTask}
-              setSelectedProjectId={setSelectedProjectId}
-              setActiveView={setActiveView}
-              setSelectedCollab={setSelectedCollab}
-              isIdvService={isIdvService}
-            />
+          {activeView === 'analytics' && (
+            <motion.div key="analytics" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-full flex flex-col lg:flex-row gap-6 absolute inset-0">
+              <OverviewDashboard 
+                metrics={metrics}
+                activeTasksForQueue={activeTasksForQueue}
+                validProjects={validProjects}
+                tasks={tasks}
+                team={team}
+                isBulkMode={isBulkMode}
+                selectedTaskIds={selectedTaskIds}
+                toggleTaskSelection={toggleTaskSelection}
+                setEditingTask={setEditingTask}
+                handleCompleteTask={handleCompleteTask}
+                setSelectedProjectId={setSelectedProjectId}
+                setActiveView={() => {}}
+                setSelectedCollab={(member) => {
+                   setSelectedCollab(member);
+                   setIsCollabModalOpen(true);
+                }}
+                isIdvService={isIdvService}
+              />
+
+              <div className="flex-1 min-w-0 h-full">
+                <ProjectsManager 
+                  unifiedWallet={unifiedWallet}
+                  selectedEntityId={selectedEntityId}
+                  setSelectedEntityId={setSelectedEntityId}
+                  selectedEntityType={selectedEntityType}
+                  setSelectedEntityType={setSelectedEntityType}
+                  selectedEntityData={selectedEntityData}
+                  setIsCaptacaoModalOpen={setIsCaptacaoModalOpen}
+                  handleAutoDeploy={handleAutoDeploy}
+                  isProcessing={isProcessing}
+                  tasks={tasks}
+                  adHocDemand={adHocDemand}
+                  setAdHocDemand={setAdHocDemand}
+                  team={team}
+                  handleAddAdHocDemand={handleAddAdHocDemand}
+                  agencySubclients={agencySubclients}
+                  handleDeleteSubclient={handleDeleteSubclient}
+                  handleUpdateSubclientDemand={handleUpdateSubclientDemand}
+                  groupTasksByStage={groupTasksByStage}
+                  isBulkMode={isBulkMode}
+                  toggleTaskSelection={toggleTaskSelection}
+                  selectedTaskIds={selectedTaskIds}
+                  setEditingTask={setEditingTask}
+                  handleCompleteTask={handleCompleteTask}
+                  isIdvService={isIdvService}
+                  showToast={showToast}
+                  handleStartTask={async () => {}} 
+                />
+              </div>
+            </motion.div>
           )}
 
-          {activeView === 'projects' && (
-            <ProjectsManager 
-              unifiedWallet={unifiedWallet}
-              selectedEntityId={selectedEntityId}
-              setSelectedEntityId={setSelectedEntityId}
-              selectedEntityType={selectedEntityType}
-              setSelectedEntityType={setSelectedEntityType}
-              selectedEntityData={selectedEntityData}
-              setIsCaptacaoModalOpen={setIsCaptacaoModalOpen}
-              handleAutoDeploy={handleAutoDeploy}
-              isProcessing={isProcessing}
-              tasks={tasks}
-              adHocDemand={adHocDemand}
-              setAdHocDemand={setAdHocDemand}
-              team={team}
-              handleAddAdHocDemand={handleAddAdHocDemand}
-              agencySubclients={agencySubclients}
-              handleDeleteSubclient={handleDeleteSubclient}
-              handleUpdateSubclientDemand={handleUpdateSubclientDemand}
-              groupTasksByStage={groupTasksByStage}
-              isBulkMode={isBulkMode}
-              toggleTaskSelection={toggleTaskSelection}
-              selectedTaskIds={selectedTaskIds}
-              setEditingTask={setEditingTask}
-              handleCompleteTask={handleCompleteTask}
-              isIdvService={isIdvService}
-              showToast={showToast}
-              handleStartTask={async () => {}} 
-            />
+          {activeView === 'dona' && (
+            <motion.div key="dona" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-full absolute inset-0 overflow-y-auto">
+              <AdminDashboard />
+            </motion.div>
           )}
 
-          {activeView === 'routing' && (
-            <RoutingEngine 
-              routeConfig={routeConfig}
-              setRouteConfig={setRouteConfig}
-              isProcessing={isProcessing}
-              activeProjectsList={activeProjectsList}
-              currentTaskTypes={currentTaskTypes}
-              team={team}
-              handleSaveRule={handleSaveRule}
-              routingRules={routingRules}
-              validProjects={validProjects}
-              isIdvService={isIdvService}
-              isBulkMode={isBulkMode}
-              selectedRuleIds={selectedRuleIds}
-              toggleRuleSelection={toggleRuleSelection}
-              handleDeleteRule={handleDeleteRule}
-            />
+          {activeView === 'produtividade' && (
+            <motion.div key="produtividade" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-full absolute inset-0 overflow-y-auto">
+              <ProdutividadePage />
+            </motion.div>
           )}
 
+          {activeView === 'clientes' && (
+            <motion.div key="clientes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-full absolute inset-0 overflow-y-auto">
+              <ClientesPage />
+            </motion.div>
+          )}
+
+          {activeView === 'financeiro' && (
+            <motion.div key="financeiro" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-full absolute inset-0 overflow-y-auto">
+              <FinanceiroPage />
+            </motion.div>
+          )}
         </AnimatePresence>
       </div>
+
+      {/* Botão Flutuante de Equipe (Artesãos) */}
+      <div className="fixed bottom-8 right-8 z-40 flex flex-col-reverse items-end gap-3 group">
+        {/* Botão principal */}
+        <button 
+          onClick={() => { setSelectedCollab(null); setIsCollabModalOpen(true); }}
+          className="bg-[var(--color-atelier-grafite)] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-[0_10px_25px_rgba(0,0,0,0.3)] hover:scale-105 transition-all duration-300"
+          title="Visualizar Equipe"
+        >
+          <Users size={24} className="group-hover:scale-110 transition-transform duration-300" />
+        </button>
+
+        {/* Menu Oculto */}
+        <div className="flex flex-col-reverse items-end gap-3 opacity-0 translate-y-4 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 origin-bottom">
+            {team.map(member => (
+              <button 
+                key={member.id} 
+                onClick={() => { setSelectedCollab(member); setIsCollabModalOpen(true); }}
+                className="flex items-center gap-3 px-4 py-2 rounded-full shadow-md transition-all border bg-white text-[var(--color-atelier-grafite)] border-white/50 hover:bg-gray-50 hover:scale-105"
+              >
+                <span className="text-sm font-bold">{member.name?.split(" ")[0] || member.nome?.split(" ")[0]}</span>
+                {member.avatar_url ? (
+                  <img src={member.avatar_url} className="w-7 h-7 rounded-full object-cover border border-white/20 shadow-inner" alt={member.name || member.nome} />
+                ) : (
+                  <div className="w-7 h-7 rounded-full bg-[var(--color-atelier-terracota)]/10 flex items-center justify-center text-[var(--color-atelier-terracota)] shadow-inner text-[10px] font-bold">{(member.name || member.nome)?.substring(0, 2).toUpperCase() || 'U'}</div>
+                )}
+              </button>
+            ))}
+        </div>
+      </div>
+
+      {/* Modal Flutuante de Equipe */}
+      <AnimatePresence>
+        {isCollabModalOpen && !selectedCollab && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsCollabModalOpen(false)}></div>
+             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="w-full max-w-md bg-[var(--color-atelier-bg)] rounded-[2.5rem] shadow-2xl relative flex flex-col border border-white/50 max-h-[80vh]">
+                <div className="p-6 border-b border-[var(--color-atelier-grafite)]/10 shrink-0 flex justify-between items-center bg-white/40">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-2xl bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center"><Users size={20} /></div>
+                    <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Artesãos</h3>
+                  </div>
+                  <button onClick={() => setIsCollabModalOpen(false)} className="w-8 h-8 rounded-full bg-white flex items-center justify-center text-gray-500 hover:text-red-500 shadow-sm"><X size={16} /></button>
+                </div>
+                <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-3 bg-white/20">
+                  {team.map(member => {
+                    const memberTasks = activeTasksForQueue.filter(t => t.assigned_to === member.id);
+                    const estHours = (memberTasks.reduce((acc, t) => acc + (t.estimated_time || 0), 0) / 60).toFixed(1);
+                    return (
+                      <div key={member.id} onClick={() => setSelectedCollab(member)} className="bg-white/80 hover:bg-white p-4 rounded-xl border border-white shadow-sm flex items-center justify-between cursor-pointer hover:border-[var(--color-atelier-terracota)]/40 hover:shadow-md transition-all group">
+                        <div className="flex items-center gap-3 w-3/4">
+                          <div className="w-10 h-10 rounded-xl overflow-hidden shadow-inner shrink-0 bg-white flex items-center justify-center">
+                            {member.avatar_url ? <img src={member.avatar_url} className="w-full h-full object-cover"/> : <span className="font-elegant text-sm text-[var(--color-atelier-terracota)]">{member.nome?.charAt(0) || "U"}</span>}
+                          </div>
+                          <div className="flex flex-col overflow-hidden">
+                            <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors truncate">{member.nome}</span>
+                            <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mt-0.5">{memberTasks.length} Ativas</span>
+                          </div>
+                        </div>
+                        <div className="text-right pl-2 border-l border-[var(--color-atelier-grafite)]/10 shrink-0">
+                          <span className="text-[11px] font-bold text-orange-500 bg-orange-50 px-2 py-1 rounded-lg border border-orange-100">~{estHours}h</span>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+             </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       <AnalyticsModals 
         selectedTaskIds={selectedTaskIds}

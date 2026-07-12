@@ -142,7 +142,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
       } else {
         // 🟢 BLINDAGEM DE ROTAS PARA A EQUIPA
         if (pathname === '/admin' && !isAdminOnly) {
-          router.replace(isManagerOrAdmin ? '/admin/gestao' : '/admin/jtbd');
+          router.replace('/admin/jtbd');
         }
       }
       
@@ -182,7 +182,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   const homeRoute = isContador 
     ? '/admin/financeiro' 
     : isTeamMember 
-      ? (isAdminOnly ? '/admin' : (isManagerOrAdmin ? '/admin/gestao' : '/admin/jtbd')) 
+      ? (isAdminOnly ? '/admin' : '/admin/jtbd') 
       : (clientServiceType === "Gestão de Instagram" ? '/cockpit' : '/');
 
   // ====================================================
@@ -196,7 +196,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     { href: '/admin/inbox', icon: <Inbox size={20} strokeWidth={1.5} />, label: 'Inbox', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Users size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : isTeamMember ? [
-    { href: isAdminOnly ? '/admin' : (isManagerOrAdmin ? '/admin/gestao' : '/admin/jtbd'), icon: <Home size={20} strokeWidth={1.5} />, label: 'Início' },
+    { href: isAdminOnly ? '/admin' : '/admin/jtbd', icon: <Home size={20} strokeWidth={1.5} />, label: 'Início' },
     { href: '/admin/inbox', icon: <Inbox size={20} strokeWidth={1.5} />, label: 'Inbox', badge: globalUnreadCount },
     { href: '/admin/projetos', icon: <FolderKanban size={20} strokeWidth={1.5} />, label: 'Projetos' }
   ] : [
@@ -318,14 +318,10 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
           {/* MENU PARA EQUIPA DO ESTÚDIO */}
           {isTeamMember && (
             <>
-              {/* Visto apenas por Admin */}
-              {isAdminOnly && (
-                <NavItem href="/admin" icon={<Crown size={18} strokeWidth={1.5} className={pathname === '/admin' ? "text-[var(--color-atelier-terracota)]" : ""} />} label="Tela da Dona" collapsed={isCollapsed} active={pathname === '/admin'} />
-              )}
+
 
               {/* Visto por todos */}
               <NavItem href="/admin/jtbd" icon={<Crosshair size={18} strokeWidth={1.5} />} label="Focus" collapsed={isCollapsed} active={pathname === '/admin/jtbd'} />
-              <NavItem href="/admin/gestao" icon={<Activity size={18} strokeWidth={1.5} />} label="Produtividade" collapsed={isCollapsed} active={pathname === '/admin/gestao'} />
               
               <div className="flex items-center justify-center my-3 opacity-20">
                 <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
@@ -341,16 +337,10 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               
               {/* Visto apenas por Gestor e Admin */}
               {isManagerOrAdmin && (
-                <>
-                  <NavItem href="/admin/clientes" icon={<Users size={18} strokeWidth={1.5} />} label="Clientes" collapsed={isCollapsed} active={pathname === '/admin/clientes'} />
-                  <NavItem href="/admin/analytics" icon={<Briefcase size={18} strokeWidth={1.5} />} label="Analytics" collapsed={isCollapsed} active={pathname === '/admin/analytics'} />
-                </>
+                <NavItem href="/admin/analytics" icon={<Briefcase size={18} strokeWidth={1.5} />} label="Analytics" collapsed={isCollapsed} active={pathname === '/admin/analytics'} />
               )}
 
-              {/* Visto apenas por Admin */}
-              {isAdminOnly && (
-                <NavItem href="/admin/financeiro" icon={<DollarSign size={18} strokeWidth={1.5} />} label="Financeiro" collapsed={isCollapsed} active={pathname === '/admin/financeiro'} />
-              )}
+
             </>
           )}
 

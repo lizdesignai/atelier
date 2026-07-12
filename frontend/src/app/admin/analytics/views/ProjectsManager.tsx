@@ -105,7 +105,16 @@ const NativeTrelloBoard = ({ boardUrl, onCardClick }: { boardUrl: string, onCard
     fetchBoardData();
   }, [boardUrl]);
 
-  if (isLoading) return <div className="w-full h-full flex flex-col items-center justify-center text-[var(--color-atelier-terracota)]"><Loader2 size={32} className="animate-spin mb-4" /><span className="text-[11px] font-bold uppercase tracking-widest text-gray-500">Sincronizando com a API do Trello...</span></div>;
+  if (isLoading) {
+    return (
+      <div className="w-full h-full relative group/board overflow-hidden bg-[#f4f5f7]">
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/50 backdrop-blur-[2px]">
+          <Loader2 size={32} className="animate-spin mb-4 text-[var(--color-atelier-terracota)]" />
+          <span className="text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)]">Sincronizando Trello...</span>
+        </div>
+      </div>
+    );
+  }
   
   if (error) return <div className="w-full h-full flex flex-col items-center justify-center text-red-500 p-8 text-center"><AlertCircle size={40} className="mb-4 opacity-50"/> <p className="font-bold text-[13px] uppercase tracking-widest">{error}</p><p className="text-[12px] text-gray-500 mt-2">Certifique-se de que a API Key e o Token estão corretos e que o quadro existe.</p></div>;
 
@@ -309,6 +318,9 @@ export default function ProjectsManager({
   const [isTrelloSidebarOpen, setIsTrelloSidebarOpen] = useState(true); 
   const [newLinkInput, setNewLinkInput] = useState("");
 
+  const [walletSearch, setWalletSearch] = useState("");
+  const [walletFilter, setWalletFilter] = useState<'all' | 'agency' | 'studio'>('all');
+
   const isSubclientView = selectedEntityType === 'subclient';
   const displayData = isSubclientView 
     ? agencySubclients.find(s => s.id === selectedEntityId) 
@@ -469,9 +481,44 @@ export default function ProjectsManager({
       
       {/* SIDEBAR UNIFICADA */}
       <div className="w-full lg:w-[320px] glass-panel bg-white/40 p-5 rounded-[2.5rem] border border-white shadow-sm flex flex-col h-[300px] lg:h-full shrink-0 transition-all hover:bg-white/50">
-        <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-4 px-2 block border-b border-[var(--color-atelier-grafite)]/10 pb-4">Carteira Unificada</span>
+        <div className="mb-4 pb-4 border-b border-[var(--color-atelier-grafite)]/10">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 block mb-3">Carteira Unificada</span>
+          
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
+                <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+              </div>
+              <input 
+                type="text" 
+                placeholder="Pesquisar..." 
+                value={walletSearch}
+                onChange={(e) => setWalletSearch(e.target.value)}
+                className="w-full bg-white/70 border border-white focus:outline-none focus:ring-2 focus:ring-[var(--color-atelier-terracota)]/30 rounded-xl py-1.5 pl-8 pr-3 text-xs text-[var(--color-atelier-grafite)] placeholder-gray-400"
+              />
+            </div>
+            
+            <div className="relative group/filter">
+               <button className="w-8 h-8 rounded-xl bg-white/70 border border-white flex items-center justify-center text-gray-500 hover:text-[var(--color-atelier-terracota)] transition-colors shadow-sm">
+                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
+               </button>
+               <div className="absolute top-full right-0 mt-1 bg-white border border-gray-100 shadow-xl rounded-xl p-1.5 flex flex-col gap-1 w-32 opacity-0 pointer-events-none group-hover/filter:opacity-100 group-hover/filter:pointer-events-auto transition-all z-50">
+                  <button onClick={() => setWalletFilter('all')} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors ${walletFilter === 'all' ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-gray-600'}`}>Todos</button>
+                  <button onClick={() => setWalletFilter('agency')} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors ${walletFilter === 'agency' ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-gray-600'}`}>Agências</button>
+                  <button onClick={() => setWalletFilter('studio')} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors ${walletFilter === 'studio' ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-gray-600'}`}>Studio</button>
+               </div>
+            </div>
+          </div>
+        </div>
+        
         <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-1">
-          {unifiedWallet.map(item => {
+          {unifiedWallet.filter(item => {
+             const matchesSearch = item.name?.toLowerCase().includes(walletSearch.toLowerCase());
+             const matchesFilter = walletFilter === 'all' || 
+                                   (walletFilter === 'agency' && item.type === 'agency') || 
+                                   (walletFilter === 'studio' && item.type === 'project');
+             return matchesSearch && matchesFilter;
+          }).map(item => {
             const avatarUrl = item.avatar_url || item.profiles?.avatar_url || item.logo_url;
             return (
               <button 
