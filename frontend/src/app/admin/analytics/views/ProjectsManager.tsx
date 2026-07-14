@@ -7,9 +7,10 @@ import {
   Sparkles, Loader2, PlusCircle, Trash2, Save, 
   Layers, CheckSquare, Square, Flame, Edit3, Check, X, 
   ArrowRight, Trello, ExternalLink, PanelRightClose, PanelRightOpen, ListTodo,
-  AlertCircle, AlignLeft, MessageSquare, ChevronLeft, ChevronRight
+  AlertCircle, AlignLeft, MessageSquare, ChevronLeft, ChevronRight, FolderUp
 } from "lucide-react";
 import { ALL_SKILLS } from "../constants";
+import ClientAssetsModal from "../../../../components/ClientAssetsModal";
 
 // 🟢 TIPAGEM ESTRITA BLINDADA
 interface ProjectsManagerProps {
@@ -176,6 +177,15 @@ const NativeTrelloBoard = ({ boardUrl, onCardClick }: { boardUrl: string, onCard
                     <p className={`font-roboto text-[13px] font-medium leading-tight group-hover:text-[var(--color-atelier-terracota)] transition-colors ${isCompleted ? 'text-gray-400 line-through' : 'text-[var(--color-atelier-grafite)]'}`}>
                       {card.name}
                     </p>
+                    {card.labels && card.labels.length > 0 && (
+                       <div className="mt-2 flex flex-wrap gap-1">
+                         {card.labels.map((lbl: any) => (
+                           <span key={lbl.id} className="px-1.5 py-0.5 rounded-[4px] text-[8px] font-bold uppercase tracking-widest text-white shadow-sm" style={{ backgroundColor: lbl.color || '#9ca3af' }}>
+                             {lbl.name || lbl.color || 'Tag'}
+                           </span>
+                         ))}
+                       </div>
+                    )}
                     {isCompleted && (
                        <div className="mt-2 flex">
                          <span className="inline-block px-2 py-0.5 bg-green-100 text-green-700 text-[9px] font-bold uppercase tracking-widest rounded-md">Concluída</span>
@@ -216,6 +226,15 @@ const NativeTrelloBoard = ({ boardUrl, onCardClick }: { boardUrl: string, onCard
                   <h2 className="text-2xl font-elegant text-gray-800 pr-4">{expandedCard.name}</h2>
                   {(expandedCard.closed || expandedCard.dueComplete) && (
                     <span className="inline-block mt-2 px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold uppercase tracking-widest rounded-md">Concluída</span>
+                  )}
+                  {expandedCard.labels && expandedCard.labels.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-1.5">
+                      {expandedCard.labels.map((lbl: any) => (
+                        <span key={lbl.id} className="px-2 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest text-white shadow-sm" style={{ backgroundColor: lbl.color || '#9ca3af' }}>
+                          {lbl.name || lbl.color || 'Tag'}
+                        </span>
+                      ))}
+                    </div>
                   )}
                 </div>
                 <button onClick={() => setExpandedCard(null)} className="text-gray-400 hover:text-black bg-gray-50 p-2 rounded-full transition-colors">
@@ -320,6 +339,8 @@ export default function ProjectsManager({
 
   const [walletSearch, setWalletSearch] = useState("");
   const [walletFilter, setWalletFilter] = useState<'all' | 'agency' | 'studio'>('all');
+
+  const [isAssetsModalOpen, setIsAssetsModalOpen] = useState(false);
 
   const isSubclientView = selectedEntityType === 'subclient';
   const displayData = isSubclientView 
@@ -597,9 +618,25 @@ export default function ProjectsManager({
                     displayData?.profiles?.avatar_url ? <img src={displayData.profiles.avatar_url} className="w-full h-full object-cover" /> : <span className="font-elegant text-2xl uppercase">{displayData?.profiles?.nome?.charAt(0) || "W"}</span>
                   )}
                 </div>
-                <div>
-                  <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] tracking-tight">
+                <div className="flex flex-col items-start">
+                  {isSubclientView && (
+                    <button
+                      onClick={() => {
+                        setSelectedEntityType('agency');
+                        setSelectedEntityId(displayData?.agency_id);
+                      }}
+                      className="text-[10px] font-bold uppercase tracking-widest text-blue-500 hover:text-blue-700 transition-colors flex items-center gap-1 mb-1"
+                    >
+                      <ChevronLeft size={12} /> Voltar para Agência
+                    </button>
+                  )}
+                  <h2 
+                    className="font-elegant text-4xl text-[var(--color-atelier-grafite)] tracking-tight cursor-pointer hover:text-[var(--color-atelier-terracota)] transition-colors flex items-center gap-3 group"
+                    onClick={() => setIsAssetsModalOpen(true)}
+                    title="Ver Cofre de Ativos"
+                  >
                     {selectedEntityType === 'agency' || isSubclientView ? displayData?.name : displayData?.profiles?.nome}
+                    <FolderUp size={24} className="text-gray-300 group-hover:text-[var(--color-atelier-terracota)] transition-colors" />
                   </h2>
                   <p className="text-[11px] font-bold text-[var(--color-atelier-grafite)]/40 uppercase tracking-widest mt-1">
                     {selectedEntityType === 'agency' ? 'Operação White-Label (Agência)' : isSubclientView ? 'Subcliente Delegado (White-Label)' : displayData?.service_type}
@@ -788,6 +825,14 @@ export default function ProjectsManager({
           </>
         )}
       </div>
+
+      <ClientAssetsModal 
+        isOpen={isAssetsModalOpen}
+        onClose={() => setIsAssetsModalOpen(false)}
+        projectId={isSubclientView ? displayData?.agency_id : (selectedEntityType === 'project' ? displayData?.id : null)}
+        subclientId={isSubclientView ? displayData?.id : null}
+        clientName={selectedEntityType === 'agency' || isSubclientView ? displayData?.name : displayData?.profiles?.nome}
+      />
 
       {/* ==========================================
           MODAL GERAL: AD HOC DEMAND (Para projetos diretos sem trello)

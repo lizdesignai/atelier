@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../../lib/supabase";
+import ClientAssetsModal from "../../../../components/ClientAssetsModal";
 import { 
   Clock, Target, Activity, Flame, ArrowRight, 
   Loader2, PlayCircle, PauseCircle, ChevronRight, 
@@ -55,6 +56,12 @@ export default function TaskCard({
   const [isAdminReviewing, setIsAdminReviewing] = useState(false);
   const [adminFeedback, setAdminFeedback] = useState("");
   const [isProcessingFeedback, setIsProcessingFeedback] = useState(false);
+
+  const [isAssetsModalOpen, setIsAssetsModalOpen] = useState(false);
+
+  // ACCORDION STATES
+  const [isInstructionsOpen, setIsInstructionsOpen] = useState(false);
+  const [isCaptionOpen, setIsCaptionOpen] = useState(false);
 
   // 🟢 LEGENDA E LINK (NOVIDADE)
   const [localCaption, setLocalCaption] = useState(task.caption || "");
@@ -305,10 +312,14 @@ export default function TaskCard({
         <div className="p-5 flex flex-col gap-3">
           <div className="flex justify-between items-start pointer-events-none relative z-10">
             <div className="flex flex-col pr-4">
-              <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1 flex items-center gap-1">
+              <div 
+                className="pointer-events-auto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] transition-colors mb-1 flex items-center gap-1 cursor-pointer"
+                onClick={(e) => { e.stopPropagation(); setIsAssetsModalOpen(true); }}
+                title="Ver Cofre de Ativos"
+              >
                 {task.projects?.type === 'Identidade Visual' ? <Target size={10}/> : <Activity size={10}/>}
                 {(task.agency_subclients?.name || task.projects?.profiles?.nome)?.split(" ")[0]} • {task.stage}
-              </span>
+              </div>
               <span className={`font-roboto font-bold text-[14px] leading-snug ${isCompleted ? 'text-[var(--color-atelier-grafite)]/40 line-through' : 'text-[var(--color-atelier-grafite)]'}`}>
                 {task.title}
               </span>
@@ -424,6 +435,14 @@ export default function TaskCard({
         </div>
       </motion.div>
 
+      <ClientAssetsModal 
+        isOpen={isAssetsModalOpen}
+        onClose={() => setIsAssetsModalOpen(false)}
+        projectId={task.project_id}
+        subclientId={task.subclient_id}
+        clientName={task.agency_subclients?.name || task.projects?.profiles?.nome || 'Cliente'}
+      />
+
       {/* =====================================================================
           MODAL DE DETALHES RÁPIDOS DA TAREFA E VISUALIZADOR DE ARTE/PDF
           ===================================================================== */}
@@ -441,9 +460,10 @@ export default function TaskCard({
               initial={{ scale: 0.95, opacity: 0, y: 20 }} 
               animate={{ scale: 1, opacity: 1, y: 0 }} 
               exit={{ scale: 0.95, opacity: 0, y: 20 }} 
-              className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-lg border border-white/20 flex flex-col gap-6 max-h-[90vh] overflow-y-auto custom-scrollbar"
+              className="bg-white rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-lg border border-white/20 flex flex-col max-h-[90vh] overflow-hidden"
             >
-              <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4 shrink-0">
+              {/* FIXED HEADER */}
+              <div className="p-8 pb-5 flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 shrink-0 bg-white z-20">
                 <div className="pr-4">
                   <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)] mb-1 block">
                     {task.agency_subclients?.name || task.projects?.profiles?.nome} • {task.stage}
@@ -455,35 +475,72 @@ export default function TaskCard({
                 <button onClick={handleCloseModal} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] shrink-0 bg-gray-50 p-2 rounded-full transition-colors"><X size={20}/></button>
               </div>
 
-              <div className="flex flex-col md:flex-row gap-6 shrink-0 w-full">
-                <div className="flex flex-col gap-3 w-full md:w-1/2">
-                  <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-2">
-                    <AlignLeft size={14}/> Instruções da Equipe (Interno)
-                  </h4>
-                  <div className="bg-[var(--color-atelier-creme)]/30 p-4 rounded-2xl border border-[var(--color-atelier-grafite)]/5 text-[13px] text-[var(--color-atelier-grafite)]/80 whitespace-pre-wrap h-32 overflow-y-auto custom-scrollbar">
-                    {task.description ? task.description : <span className="italic text-gray-400">Nenhuma instrução detalhada fornecida para esta tarefa.</span>}
-                  </div>
+              {/* SCROLLABLE BODY */}
+              <div className="p-8 pt-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
+
+                {/* INSTRUÇÕES (ACCORDION) */}
+                <div className="flex flex-col gap-2 shrink-0">
+                  <button 
+                    onClick={() => setIsInstructionsOpen(!isInstructionsOpen)}
+                    className="flex justify-between items-center w-full focus:outline-none"
+                  >
+                    <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-2">
+                      <AlignLeft size={14}/> Instruções da Equipe (Interno)
+                    </h4>
+                    <ChevronRight size={14} className={`text-gray-400 transition-transform ${isInstructionsOpen ? 'rotate-90' : ''}`} />
+                  </button>
+                  <AnimatePresence>
+                    {isInstructionsOpen && (
+                      <motion.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <div className="bg-[var(--color-atelier-creme)]/30 p-4 mt-2 rounded-2xl border border-[var(--color-atelier-grafite)]/5 text-[13px] text-[var(--color-atelier-grafite)]/80 whitespace-pre-wrap max-h-60 overflow-y-auto custom-scrollbar">
+                          {task.description ? task.description : <span className="italic text-gray-400">Nenhuma instrução detalhada fornecida para esta tarefa.</span>}
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
 
-                <div className="flex flex-col gap-3 w-full md:w-1/2">
+                {/* LEGENDA (ACCORDION) */}
+                <div className="flex flex-col gap-2 shrink-0">
                   <div className="flex items-center justify-between">
-                    <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-2">
-                      <MessageSquare size={14}/> Legenda do Post (Público)
-                    </h4>
+                    <button 
+                      onClick={() => setIsCaptionOpen(!isCaptionOpen)}
+                      className="flex items-center gap-2 focus:outline-none flex-1"
+                    >
+                      <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-2">
+                        <MessageSquare size={14}/> Legenda do Post (Público)
+                      </h4>
+                      <ChevronRight size={14} className={`text-gray-400 transition-transform ${isCaptionOpen ? 'rotate-90' : ''}`} />
+                    </button>
                     {localCaption !== (task.caption || "") && (
-                      <button onClick={handleSaveCaption} disabled={isSavingCaption} className="bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest transition-colors flex items-center gap-1">
+                      <button onClick={handleSaveCaption} disabled={isSavingCaption} className="bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest transition-colors flex items-center gap-1 z-10">
                         {isSavingCaption ? <Loader2 size={10} className="animate-spin"/> : <Save size={10}/>} Salvar
                       </button>
                     )}
                   </div>
-                  <textarea 
-                    value={localCaption}
-                    onChange={(e) => setLocalCaption(e.target.value)}
-                    placeholder="Escreva a legenda visível para o cliente..."
-                    className="w-full bg-white p-4 rounded-2xl border border-[var(--color-atelier-terracota)]/30 text-[13px] text-[var(--color-atelier-grafite)] resize-none h-32 overflow-y-auto custom-scrollbar focus:outline-none focus:border-[var(--color-atelier-terracota)] shadow-sm transition-colors"
-                  />
+                  <AnimatePresence>
+                    {isCaptionOpen && (
+                      <motion.div 
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        className="overflow-hidden"
+                      >
+                        <textarea 
+                          value={localCaption}
+                          onChange={(e) => setLocalCaption(e.target.value)}
+                          placeholder="Escreva a legenda visível para o cliente..."
+                          className="w-full bg-white p-4 mt-2 rounded-2xl border border-[var(--color-atelier-terracota)]/30 text-[13px] text-[var(--color-atelier-grafite)] resize-none h-40 overflow-y-auto custom-scrollbar focus:outline-none focus:border-[var(--color-atelier-terracota)] shadow-sm transition-colors"
+                        />
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
-              </div>
 
               <div className="flex flex-col gap-3 shrink-0">
                 <div className="flex items-center justify-between">
@@ -713,10 +770,10 @@ export default function TaskCard({
                          <span className="text-[13px] font-bold text-blue-500 animate-pulse bg-blue-100 px-3 py-1 rounded-lg shadow-sm">{formatTime(liveSeconds)}</span>
                        </div>
                      )}
-                  </div>
-                </div>
-              )}
-
+                   </div>
+                 </div>
+               )}
+              </div>
             </motion.div>
           </div>
         )}

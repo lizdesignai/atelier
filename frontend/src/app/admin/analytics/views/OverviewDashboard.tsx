@@ -5,7 +5,7 @@ import {
   FolderKanban, Target, Users, Search, 
   CheckSquare, Square, Flame, UserCircle2, 
   Edit3, Check, Activity, AlertTriangle,
-  Bell, X, Cpu, Play // Novos Ícones Injetados
+  Bell, X, Cpu, Play, PanelRightClose, PanelRightOpen
 } from "lucide-react";
 
 interface OverviewDashboardProps {
@@ -23,6 +23,8 @@ interface OverviewDashboardProps {
   setActiveView: (view: 'overview' | 'projects' | 'routing') => void;
   setSelectedCollab: (member: any) => void;
   isIdvService: (project: any) => boolean;
+  isQueueMinimized?: boolean;
+  setIsQueueMinimized?: (val: boolean) => void;
 }
 
 export default function OverviewDashboard({
@@ -40,6 +42,8 @@ export default function OverviewDashboard({
   setActiveView,
   setSelectedCollab,
   isIdvService,
+  isQueueMinimized,
+  setIsQueueMinimized,
 }: OverviewDashboardProps) {
   
   // Estados locais
@@ -61,11 +65,31 @@ export default function OverviewDashboard({
   
   return (
     <>
-      <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col gap-6 h-full min-h-0 relative w-full lg:w-[350px] shrink-0">
+      <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={`flex flex-col gap-6 h-full min-h-0 relative shrink-0 transition-all ${isQueueMinimized ? 'w-16' : 'w-full lg:w-[350px]'}`}>
           
-          {/* COLUNA 1: FILA GERAL COM BUSCA INTELIGENTE */}
-          <div className="w-full glass-panel p-6 flex flex-col h-full min-h-0">
-            <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-4 shrink-0 flex flex-col gap-3">
+          {isQueueMinimized ? (
+             <div 
+               className="w-full glass-panel flex flex-col items-center justify-start py-6 gap-6 h-full min-h-0 cursor-pointer hover:bg-white/50 transition-colors" 
+               onClick={() => setIsQueueMinimized?.(false)} 
+               title="Expandir Fila"
+             >
+                <button className="text-gray-400 hover:text-[var(--color-atelier-terracota)] transition-colors"><PanelRightOpen size={20} /></button>
+                <div className="flex flex-col items-center gap-1 opacity-50 font-bold uppercase text-[10px] tracking-widest mt-4" style={{ writingMode: 'vertical-rl', transform: 'rotate(180deg)' }}>
+                   Fila de Produção
+                </div>
+                <div className="w-8 h-8 rounded-full bg-[var(--color-atelier-terracota)] text-white flex items-center justify-center text-[10px] font-bold shadow-sm mt-auto mb-4">{activeTasksForQueue.length}</div>
+             </div>
+          ) : (
+          <div className="w-full glass-panel p-6 flex flex-col h-full min-h-0 relative">
+            {/* COLUNA 1: FILA GERAL COM BUSCA INTELIGENTE */}
+            <button 
+              onClick={() => setIsQueueMinimized?.(true)} 
+              className="absolute top-6 right-6 text-gray-400 hover:text-[var(--color-atelier-terracota)] transition-colors z-10 bg-white p-1.5 rounded-md shadow-sm border border-gray-100"
+              title="Recolher Fila"
+            >
+              <PanelRightClose size={14} />
+            </button>
+            <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-4 shrink-0 flex flex-col gap-3 pr-8">
               <div className="flex justify-between items-center mb-1">
                   <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Próximas Tarefas</h3>
                   <span className="bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest border border-[var(--color-atelier-terracota)]/20">{activeTasksForQueue.length} Pendentes</span>
@@ -170,6 +194,7 @@ export default function OverviewDashboard({
                 })}
             </div>
           </div>
+          )}
       </motion.div>
     </>
   );

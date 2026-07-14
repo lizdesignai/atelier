@@ -12,6 +12,9 @@ import { Loader2, Plus, Flame, User } from "lucide-react";
 import PersonalDesk from "./views/PersonalDesk";
 import CalendarWidget from "./views/CalendarWidget";
 import DailyKanban from "./views/DailyKanban";
+import { format, addBusinessDays, isWeekend } from "date-fns";
+import { ptBR } from "date-fns/locale";
+import { syncTaskCompletionToTrello } from "../../../lib/trelloSync";
 import JTBDModals from "./components/JTBDModals";
 
 const showToast = (message: string) => {
@@ -219,6 +222,14 @@ export default function JTBDPage() {
 
       if (finalStatus === 'completed') {
          await AtelierPMEngine.unlockDependencies(task.id);
+         
+         // 🟢 SINCRONIZAÇÃO TRELLO NATIVA
+         try {
+           await syncTaskCompletionToTrello(task.id);
+         } catch(e) {
+           console.error("Trello Sync Erro:", e);
+         }
+
          showToast("Tarefa Concluída com sucesso!");
          NotificationEngine.notifyManagement("✅ Tarefa Concluída", `A tarefa "${task.title}" de "${task.agency_subclients?.name || task.projects?.profiles?.nome || 'Sem Cliente'}" foi concluída e aprovada.`, "success");
       } else if (finalStatus === 'review') {

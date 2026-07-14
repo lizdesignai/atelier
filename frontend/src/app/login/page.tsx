@@ -182,7 +182,14 @@ export default function LoginPage() {
         localStorage.setItem("atelier_role", role);
         
         setIsSuccessState(true);
-        setTimeout(() => router.push(role === 'client' ? "/" : "/admin"), 1800);
+        setTimeout(() => {
+          const hasSeenOnboarding = localStorage.getItem("has_seen_onboarding");
+          if (!hasSeenOnboarding) {
+            router.push("/onboarding");
+          } else {
+            router.push(role === 'client' ? "/" : "/admin");
+          }
+        }, 1800);
 
       } else if (authMode === 'register') {
         if (!nome || !empresa || !servico || !password) {

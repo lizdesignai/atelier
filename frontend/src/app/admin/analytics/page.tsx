@@ -53,6 +53,7 @@ export default function AnalyticsPage() {
   const { data: profile } = useProfile();
   const userRole = profile?.role || 'admin';
   const [activeView, setActiveView] = useState<'analytics' | 'dona' | 'produtividade' | 'clientes' | 'financeiro'>('analytics');
+  const [isQueueMinimized, setIsQueueMinimized] = useState(false);
   const [isRoutingModalOpen, setIsRoutingModalOpen] = useState(false);
   const [isCollabModalOpen, setIsCollabModalOpen] = useState(false);
   
@@ -115,8 +116,8 @@ export default function AnalyticsPage() {
   // ============================================================================
   // 🚀 OTIMIZAÇÃO DE INFRAESTRUTURA E CACHE BUSTER SEGURO (Fase 1 - Backend API)
   // ============================================================================
-  const fetchOperationalData = useCallback(async () => {
-    setIsLocalLoading(true);
+  const fetchOperationalData = useCallback(async (showLoadingOverlay = false) => {
+    if (showLoadingOverlay) setIsLocalLoading(true);
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
       
@@ -191,7 +192,7 @@ export default function AnalyticsPage() {
 
   useEffect(() => {
     if (isGlobalLoading) return;
-    fetchOperationalData();
+    fetchOperationalData(true);
   }, [isGlobalLoading, fetchOperationalData]);
 
 
@@ -858,6 +859,8 @@ export default function AnalyticsPage() {
                    setIsCollabModalOpen(true);
                 }}
                 isIdvService={isIdvService}
+                isQueueMinimized={isQueueMinimized}
+                setIsQueueMinimized={setIsQueueMinimized}
               />
 
               <div className="flex-1 min-w-0 h-full">

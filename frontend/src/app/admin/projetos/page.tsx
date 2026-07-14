@@ -209,18 +209,38 @@ function PainelIdentidade() {
     if (!activeProjectId) return;
     const fetchStudioData = async () => {
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
-        const response = await fetch(`${backendUrl}/api/v1/studio/project/${activeProjectId}`);
-        if (!response.ok) throw new Error('Falha ao buscar dados do estúdio');
-        const { data } = await response.json();
+        // Busca direta no Supabase em vez de endpoint de backend inexistente
+        const { data: assetsData, error: assetsError } = await supabase
+          .from('project_assets')
+          .select('*')
+          .eq('project_id', activeProjectId)
+          .order('created_at', { ascending: false });
 
-        setProjectAssets(data.assets || []);
-        setClientBriefing(data.briefing || null);
+        const { data: briefingData, error: briefingError } = await supabase
+          .from('briefings')
+          .select('*')
+          .eq('project_id', activeProjectId)
+          .single();
 
-        if ((isAgency || activeProjectId.startsWith('agency-')) && data.subclients) {
-           setAgencySubclients(data.subclients);
-           if (data.subclients.length > 0 && !activeSubclientId) {
-              setActiveSubclientId(data.subclients[0].id);
+        if (assetsError) {
+          console.error("Erro ao buscar assets:", assetsError);
+        }
+        
+        setProjectAssets(assetsData || []);
+        // Ignore single() error for no rows
+        setClientBriefing(briefingData || null);
+        if (isAgency || activeProjectId.startsWith('agency-')) {
+           const { data: subclientsData, error: subError } = await supabase
+             .from('agency_subclients')
+             .select('*')
+             .eq('agency_id', activeProjectId)
+             .order('name');
+             
+           if (!subError && subclientsData) {
+             setAgencySubclients(subclientsData);
+             if (subclientsData.length > 0 && !activeSubclientId) {
+                setActiveSubclientId(subclientsData[0].id);
+             }
            }
         }
 

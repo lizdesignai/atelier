@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Clock, AlertTriangle, CheckCircle2, Image as ImageIcon, PlayCircle, FileText, User, Briefcase } from "lucide-react";
 import TaskCard from "../components/TaskCard";
 import { supabase } from "../../../../lib/supabase";
+import ClientAssetsModal from "../../../../components/ClientAssetsModal";
 
 interface DailyKanbanProps {
   pendingTasks: any[];
@@ -38,7 +39,8 @@ export default function DailyKanban({
   // ==========================================================================
   // ESTADO GLOBAL DO MODAL DO KANBAN (O MESTRE DE EXIBIÇÃO)
   // ==========================================================================
-  const [activeTaskModal, setActiveTaskModal] = useState<any | null>(null);
+  const [activeTaskModal, setActiveTaskModal] = useState<{task: any, isFocus: boolean, isReview: boolean, isCompleted: boolean} | null>(null);
+  const [activeAssetsTask, setActiveAssetsTask] = useState<any | null>(null);
 
   // 🟢 UNIFICAÇÃO DA FILA: Junta as tarefas pendentes com as em andamento
   const activeQueueTasks = [...inProgressTasks, ...pendingTasks];
@@ -236,15 +238,19 @@ export default function DailyKanban({
                  <div className="w-[1px] h-3 bg-gray-200"></div>
                  
                  {/* Projeto / Cliente */}
-                 <div className="flex items-center gap-1.5" title={`Projeto: ${clientName}`}>
+                 <div 
+                   className="flex items-center gap-1.5 cursor-pointer hover:bg-gray-100 p-1 -ml-1 rounded transition-colors group/client" 
+                   title={`Projeto: ${clientName}. Clique para ver cofre.`}
+                   onClick={(e) => { e.stopPropagation(); setActiveAssetsTask(task); }}
+                 >
                    {clientAvatar ? (
                      <img src={clientAvatar} className="w-5 h-5 rounded-full object-cover border border-gray-200" alt={clientName} />
                    ) : (
                      <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
-                       <Briefcase size={10} className="text-gray-400" />
+                       <Briefcase size={10} className="text-gray-400 group-hover/client:text-[var(--color-atelier-terracota)]" />
                      </div>
                    )}
-                   <span className="text-[9px] font-medium text-gray-500 truncate max-w-[80px]">{clientName}</span>
+                   <span className="text-[9px] font-medium text-gray-500 truncate max-w-[80px] group-hover/client:text-[var(--color-atelier-terracota)] transition-colors">{clientName}</span>
                  </div>
               </div>
               
@@ -531,6 +537,14 @@ export default function DailyKanban({
           </div>
         )}
       </AnimatePresence>
+      <ClientAssetsModal 
+        isOpen={activeAssetsTask !== null}
+        onClose={() => setActiveAssetsTask(null)}
+        projectId={activeAssetsTask?.project_id}
+        subclientId={activeAssetsTask?.subclient_id}
+        clientName={activeAssetsTask?.agency_subclients?.name || activeAssetsTask?.projects?.profiles?.nome || 'Cliente'}
+      />
+
     </>
   );
 }
