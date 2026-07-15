@@ -734,14 +734,62 @@ export default function AnalyticsPage() {
     <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6 px-4 md:px-0">
       
       <header className="shrink-0 flex flex-col md:flex-row md:items-end justify-between gap-4 mt-6 animate-[fadeInUp_0.5s_ease-out]">
-        <div className={`transition-opacity duration-300 ${activeView === 'analytics' ? 'opacity-100' : 'opacity-0 hidden md:block md:invisible'}`}>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] w-8 h-8 rounded-xl flex items-center justify-center">
-              <BrainCircuit size={16} className="text-[var(--color-atelier-terracota)]" />
-            </span>
-            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Gestão do Estúdio</span>
-          </div>
-          <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Estratégia & <span className="text-[var(--color-atelier-terracota)] italic">Analytics.</span></h1>
+        <div className="transition-opacity duration-300 opacity-100">
+          {activeView === 'dona' && (
+            <>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] w-8 h-8 rounded-xl flex items-center justify-center">
+                  <Crown size={16} className="text-[var(--color-atelier-terracota)]" />
+                </span>
+                <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Visão Geral</span>
+              </div>
+              <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Tela da <span className="text-[var(--color-atelier-terracota)] italic">Dona.</span></h1>
+            </>
+          )}
+          {activeView === 'produtividade' && (
+            <>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] w-8 h-8 rounded-xl flex items-center justify-center">
+                  <Activity size={16} className="text-[var(--color-atelier-terracota)]" />
+                </span>
+                <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Base de</span>
+              </div>
+              <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Produtividade <span className="text-[var(--color-atelier-terracota)] italic">da Equipe.</span></h1>
+            </>
+          )}
+          {activeView === 'clientes' && (
+            <>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] w-8 h-8 rounded-xl flex items-center justify-center">
+                  <Users size={16} className="text-[var(--color-atelier-terracota)]" />
+                </span>
+                <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Gestão de Relacionamento</span>
+              </div>
+              <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Base de <span className="text-[var(--color-atelier-terracota)] italic">Clientes.</span></h1>
+            </>
+          )}
+          {activeView === 'financeiro' && (
+            <>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] w-8 h-8 rounded-xl flex items-center justify-center">
+                  <DollarSign size={16} className="text-[var(--color-atelier-terracota)]" />
+                </span>
+                <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Controle de Fluxo</span>
+              </div>
+              <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Visão <span className="text-[var(--color-atelier-terracota)] italic">Financeira.</span></h1>
+            </>
+          )}
+          {activeView === 'analytics' && (
+            <>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] w-8 h-8 rounded-xl flex items-center justify-center">
+                  <BrainCircuit size={16} className="text-[var(--color-atelier-terracota)]" />
+                </span>
+                <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Gestão do Estúdio</span>
+              </div>
+              <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Estratégia & <span className="text-[var(--color-atelier-terracota)] italic">Analytics.</span></h1>
+            </>
+          )}
         </div>
         
         <div className="flex items-center gap-4">

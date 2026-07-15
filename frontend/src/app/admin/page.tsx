@@ -115,14 +115,7 @@ export default function AdminDashboard() {
       <div className="flex-1 flex flex-col glass-panel bg-white/60 rounded-[2.5rem] border border-white shadow-sm p-6 lg:p-8 overflow-hidden h-full">
         
         {/* HEADER EXECUTIVO */}
-        <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 shrink-0 mb-6 border-b border-gray-100 pb-4">
-          <div>
-            <div className="flex items-center gap-2 mb-1">
-              <span className="bg-[var(--color-atelier-terracota)]/10 p-1.5 rounded-lg text-[var(--color-atelier-terracota)]"><BrainCircuit size={14}/></span>
-              <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-gray-400">Liz Design Hub</span>
-            </div>
-            <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] leading-none">Tela da <span className="text-[var(--color-atelier-terracota)] italic">Dona.</span></h1>
-          </div>
+        <header className="flex flex-col md:flex-row justify-end items-start md:items-center gap-4 shrink-0 mb-6 border-b border-gray-100 pb-4">
 
           <div className="flex bg-gray-100/80 p-1.5 rounded-2xl shadow-inner w-full md:w-auto">
             <button onClick={() => { setActiveTab('consultoria'); setSelectedItem(null); }} className={`flex-1 md:flex-none px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'consultoria' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-gray-400'}`}>Consultorias ({consultorias.length})</button>

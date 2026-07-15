@@ -471,20 +471,7 @@ export default function FinanceiroPage() {
     <div className="flex flex-col min-h-screen max-w-[1400px] mx-auto relative z-10 pb-20 gap-6 px-4 md:px-0">
       
       {/* HEADER DE COMANDO TRIPLO */}
-      <header className="shrink-0 flex flex-col md:flex-row md:items-end justify-between gap-4 mt-6 animate-[fadeInUp_0.5s_ease-out]">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] w-8 h-8 rounded-xl flex items-center justify-center">
-              {activeView === 'overview' ? <LayoutDashboard size={16} className="text-[var(--color-atelier-terracota)]" /> : activeView === 'finance' ? <DollarSign size={16} className="text-[var(--color-atelier-terracota)]" /> : <HeartPulse size={16} className="text-[var(--color-atelier-terracota)]" />}
-            </span>
-            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">
-              Inteligência de Negócio
-            </span>
-          </div>
-          <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] tracking-tight leading-none">
-            {activeView === 'overview' ? 'Visão' : activeView === 'finance' ? 'Gestão' : 'Métricas de'} <span className="text-[var(--color-atelier-terracota)] italic">{activeView === 'overview' ? 'Geral.' : activeView === 'finance' ? 'Financeira.' : 'Desempenho.'}</span>
-          </h1>
-        </div>
+      <header className="shrink-0 flex flex-col md:flex-row md:items-end justify-end gap-4 mt-6 animate-[fadeInUp_0.5s_ease-out]">
         
         <div className="bg-white/60 border border-white p-1.5 rounded-[1.2rem] shadow-sm flex items-center shrink-0">
            <button onClick={() => setActiveView('overview')} className={`px-4 py-3 rounded-[1rem] font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeView === 'overview' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)] hover:bg-white'}`}>

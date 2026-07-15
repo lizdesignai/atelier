@@ -399,20 +399,7 @@ export default function BaseClientesPage() {
     <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6 overflow-hidden">
       
       <header className="shrink-0 flex flex-col gap-6 animate-[fadeInUp_0.5s_ease-out]">
-        <div className="flex justify-between items-end mt-6">
-          <div>
-            <div className="flex items-center gap-2 mb-2">
-              <span className="bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] w-8 h-8 rounded-xl flex items-center justify-center">
-                <Users size={16} className="text-[var(--color-atelier-terracota)]" />
-              </span>
-              <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/60">
-                Gestão de Relacionamento
-              </span>
-            </div>
-            <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] tracking-tight leading-none">
-              Base de <span className="text-[var(--color-atelier-terracota)] italic">Clientes.</span>
-            </h1>
-          </div>
+        <div className="flex justify-end items-end mt-6">
 
           <div className="flex items-center gap-3">
             <button 
