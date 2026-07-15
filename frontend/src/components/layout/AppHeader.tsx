@@ -170,7 +170,7 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
               className="absolute right-0 top-full w-[320px] bg-white/90 backdrop-blur-2xl border border-white/40 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col z-50 pointer-events-auto"
             >
               <div className="px-5 py-4 border-b border-[var(--color-atelier-grafite)]/5 flex justify-between items-center bg-gray-50/50">
-                <h3 className="font-elegant text-lg text-[var(--color-atelier-grafite)] leading-none">Radar</h3>
+                <h3 className="font-elegant text-lg text-[var(--color-atelier-grafite)] leading-none">Notificações</h3>
                 {unreadCount > 0 && (
                   <button onClick={markAllAsRead} className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)] hover:text-orange-700 transition-colors">
                     Limpar

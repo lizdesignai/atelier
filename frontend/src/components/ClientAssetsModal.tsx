@@ -16,6 +16,10 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
   const [assets, setAssets] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [isAddingLink, setIsAddingLink] = useState(false);
+  const [newLinkName, setNewLinkName] = useState("");
+  const [newLinkUrl, setNewLinkUrl] = useState("");
+  const [isSavingLink, setIsSavingLink] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -48,10 +52,42 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
     }
   };
 
-  const getFileIcon = (fileName: string) => {
+  const getFileIcon = (fileName: string, type?: string) => {
+    if (type === 'link') return <ExternalLink size={20} className="text-orange-500" />;
     const ext = fileName.split('.').pop()?.toLowerCase();
     if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext || '')) return <ImageIcon size={20} className="text-blue-500" />;
     return <File size={20} className="text-gray-500" />;
+  };
+
+  const handleAddLink = async () => {
+    if (!newLinkName || !newLinkUrl) return;
+    setIsSavingLink(true);
+    try {
+      let finalUrl = newLinkUrl.trim();
+      if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+        finalUrl = `https://${finalUrl}`;
+      }
+
+      const { error } = await supabase.from('project_assets').insert({
+        project_id: projectId || null,
+        subclient_id: subclientId || null,
+        file_name: newLinkName,
+        file_url: finalUrl,
+        file_size: 'Link Externo',
+        type: 'link'
+      });
+
+      if (error) throw error;
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Link adicionado ao cofre!" }));
+      setNewLinkName("");
+      setNewLinkUrl("");
+      setIsAddingLink(false);
+      fetchAssets();
+    } catch (error) {
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao adicionar link." }));
+    } finally {
+      setIsSavingLink(false);
+    }
   };
 
   if (!mounted) return null;
@@ -86,10 +122,36 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
                   </p>
                 </div>
               </div>
-              <button onClick={onClose} className="text-gray-400 hover:text-red-500 bg-gray-50 p-2.5 rounded-full transition-colors">
-                <X size={18} />
-              </button>
+              <div className="flex items-center gap-3">
+                <button onClick={() => setIsAddingLink(!isAddingLink)} className="bg-[var(--color-atelier-grafite)] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-2.5 rounded-full hover:bg-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2">
+                  <ExternalLink size={14} /> Adicionar Link
+                </button>
+                <button onClick={onClose} className="text-gray-400 hover:text-red-500 bg-gray-50 p-2.5 rounded-full transition-colors">
+                  <X size={18} />
+                </button>
+              </div>
             </div>
+
+            {/* Link Form */}
+            <AnimatePresence>
+              {isAddingLink && (
+                <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden mb-6 shrink-0">
+                  <div className="bg-gray-50 border border-gray-200 rounded-2xl p-5 flex flex-col sm:flex-row items-end gap-4 shadow-sm">
+                    <div className="flex-1 w-full">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 block mb-1">Título do Link</label>
+                      <input type="text" placeholder="Ex: Pasta Drive, Figma, Docs" value={newLinkName} onChange={(e) => setNewLinkName(e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50" />
+                    </div>
+                    <div className="flex-1 w-full">
+                      <label className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 block mb-1">URL (Endereço)</label>
+                      <input type="text" placeholder="https://..." value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50" />
+                    </div>
+                    <button onClick={handleAddLink} disabled={isSavingLink || !newLinkName || !newLinkUrl} className="w-full sm:w-auto h-11 px-6 bg-[var(--color-atelier-terracota)] text-white font-bold text-[11px] uppercase tracking-widest rounded-xl hover:bg-[#9b836b] transition-colors disabled:opacity-50 shrink-0 flex items-center justify-center">
+                      {isSavingLink ? <Loader2 size={16} className="animate-spin"/> : "Salvar Link"}
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col relative">
@@ -109,13 +171,13 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
                     <div key={asset.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex flex-col gap-3 group hover:border-[var(--color-atelier-terracota)]/30 transition-all hover:bg-white shadow-sm">
                       <div className="flex items-start gap-3">
                         <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm">
-                          {getFileIcon(asset.file_name)}
+                          {getFileIcon(asset.file_name, asset.type)}
                         </div>
                         <div className="flex flex-col flex-1 min-w-0">
                           <span className="font-roboto font-bold text-[13px] text-gray-800 truncate" title={asset.file_name}>
                             {asset.file_name}
                           </span>
-                          <span className="text-[10px] text-gray-400 mt-0.5">{asset.file_size || 'Tamanho desconhecido'}</span>
+                          <span className="text-[10px] text-gray-400 mt-0.5">{asset.type === 'link' ? 'Link Externo' : (asset.file_size || 'Tamanho desconhecido')}</span>
                         </div>
                       </div>
                       <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-100">
@@ -127,9 +189,9 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
                           target="_blank" 
                           rel="noreferrer"
                           className="w-8 h-8 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors"
-                          title="Fazer Download / Ver"
+                          title={asset.type === 'link' ? "Acessar Link" : "Fazer Download / Ver"}
                         >
-                          <Download size={14} />
+                          {asset.type === 'link' ? <ExternalLink size={14} /> : <Download size={14} />}
                         </a>
                       </div>
                     </div>

@@ -258,6 +258,8 @@ export default function AnalyticsPage() {
     if (!editingTask) return;
     setIsProcessing(true);
 
+    const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+
     setTasks(prev => prev.map(t => {
       if (t.id === editingTask.id) {
         return {
@@ -276,17 +278,22 @@ export default function AnalyticsPage() {
     }));
 
     try {
-      const { error } = await supabase.from('tasks').update({
-        title: editingTask.title,
-        description: editingTask.description,
-        caption: editingTask.caption,
-        urgency: editingTask.urgency,
-        deadline: editingTask.deadline,
-        assigned_to: editingTask.assigned_to || null,
-        external_links: editingTask.external_links || []
-      }).eq('id', editingTask.id);
+      const response = await fetch(`${backendUrl}/api/v1/tasks/${editingTask.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: editingTask.title,
+          description: editingTask.description,
+          caption: editingTask.caption,
+          urgency: editingTask.urgency,
+          deadline: editingTask.deadline,
+          assigned_to: editingTask.assigned_to || null,
+          external_links: editingTask.external_links || []
+        })
+      });
       
-      if (error) throw error;
+      if (!response.ok) throw new Error("Falha na requisição ao backend");
+      
       showToast("Tarefa sincronizada com a Mesa de Trabalho!");
       setEditingTask(null);
       await fetchOperationalData(); 
@@ -727,7 +734,7 @@ export default function AnalyticsPage() {
     <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6 px-4 md:px-0">
       
       <header className="shrink-0 flex flex-col md:flex-row md:items-end justify-between gap-4 mt-6 animate-[fadeInUp_0.5s_ease-out]">
-        <div>
+        <div className={`transition-opacity duration-300 ${activeView === 'analytics' ? 'opacity-100' : 'opacity-0 hidden md:block md:invisible'}`}>
           <div className="flex items-center gap-2 mb-1">
             <span className="bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] w-8 h-8 rounded-xl flex items-center justify-center">
               <BrainCircuit size={16} className="text-[var(--color-atelier-terracota)]" />

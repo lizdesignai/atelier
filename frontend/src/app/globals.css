@@ -161,6 +161,24 @@
   }
 }
 
+@keyframes gemini-gradient {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.gemini-gradient-bg {
+  background: linear-gradient(270deg, rgba(59,130,246,0.08), rgba(168,85,247,0.08), rgba(236,72,153,0.08));
+  background-size: 200% 200%;
+  animation: gemini-gradient 3s ease infinite;
+}
+
+.gemini-gradient-border {
+  background: linear-gradient(270deg, #3b82f6, #a855f7, #ec4899);
+  background-size: 200% 200%;
+  animation: gemini-gradient 3s ease infinite;
+}
+
 /* 4. ENGENHARIA DE ROLAGEM SUAVE E FLUIDEZ DO FRAMEWORK */
 .custom-scrollbar {
   scrollbar-width: none; /* Firefox: oculta a barra */

@@ -156,6 +156,26 @@ export default function TaskCard({
   const badgeColor = isCompleted ? 'bg-green-500/90' : isReview ? 'bg-purple-500/90' : 'bg-[var(--color-atelier-terracota)]/90';
   const badgeText = isCompleted ? 'Aprovado' : isReview ? 'Em Revisão' : 'Anexado';
 
+  const feedbackThread = (() => {
+    try {
+      if (!task.admin_feedback) return [];
+      const parsed = JSON.parse(task.admin_feedback);
+      if (Array.isArray(parsed)) return parsed;
+      return [];
+    } catch {
+      if (task.admin_feedback) {
+        return [{
+          id: 'legacy',
+          authorName: 'Sistema (Legado)',
+          role: 'admin',
+          content: task.admin_feedback,
+          createdAt: task.updated_at || new Date().toISOString()
+        }];
+      }
+      return [];
+    }
+  })();
+
   // Formatador de Segundos para HH:MM:SS
   const formatTime = (totalSecs: number) => {
     const h = Math.floor(totalSecs / 3600);
@@ -232,30 +252,46 @@ export default function TaskCard({
 
   const handleAdminFeedbackSubmit = async () => {
     if (!adminFeedback.trim()) {
-      window.dispatchEvent(new CustomEvent("showToast", { detail: "Por favor, insira um comentário para orientar o colaborador." }));
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Por favor, insira uma mensagem." }));
       return;
     }
     setIsProcessingFeedback(true);
     try {
-      const newDesc = task.description 
-        ? `${task.description}\n\n🚨 AJUSTE SOLICITADO PELA GESTÃO:\n${adminFeedback}` 
-        : `🚨 AJUSTE SOLICITADO PELA GESTÃO:\n${adminFeedback}`;
+      const newMessage = {
+        id: `msg-${Date.now()}`,
+        authorName: isAdmin ? 'Gestão' : 'Colaborador',
+        role: isAdmin ? 'admin' : 'collab',
+        content: adminFeedback,
+        createdAt: new Date().toISOString()
+      };
+
+      const updatedThread = [...feedbackThread, newMessage];
+      const stringifiedFeedback = JSON.stringify(updatedThread);
+      
+      const statusUpdate = (isAdmin && task.status === 'review') ? 'in_progress' : task.status;
 
       await supabase.from('tasks').update({ 
-        description: newDesc, 
-        admin_feedback: adminFeedback,
-        status: 'in_progress' 
+        admin_feedback: stringifiedFeedback,
+        status: statusUpdate 
       }).eq('id', task.id);
 
-      if (displayImageUrl) {
+      task.admin_feedback = stringifiedFeedback;
+
+      if (displayImageUrl && isAdmin && task.status === 'review') {
         await supabase.from('social_posts').update({ status: 'internal_review' }).eq('task_id', task.id);
       }
 
-      window.dispatchEvent(new CustomEvent("showToast", { detail: "Feedback enviado! Tarefa retornou para 'Em Andamento'." }));
-      onAction('in_progress'); 
-      handleCloseModal();
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Mensagem enviada com sucesso!" }));
+      
+      if (isAdmin && task.status === 'review') {
+        onAction('in_progress'); 
+        handleCloseModal();
+      }
+      
+      setAdminFeedback("");
+      setIsAdminReviewing(false);
     } catch (error) {
-      window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao enviar feedback interno." }));
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao enviar mensagem." }));
     } finally {
       setIsProcessingFeedback(false);
     }
@@ -282,9 +318,10 @@ export default function TaskCard({
           ${isCompleted ? 'bg-white/40 border border-[var(--color-atelier-grafite)]/10' : 'bg-white border border-[var(--color-atelier-grafite)]/5 shadow-[0_4px_12px_rgba(122,116,112,0.05)]'}
           ${task.urgency && !isCompleted ? 'border-orange-300 ring-1 ring-orange-500/20' : ''}
           ${isDelayed && !isCompleted ? 'border-red-300' : ''}
+          ${isFocus ? 'gemini-gradient-bg border-transparent' : ''}
         `}
       >
-        {isFocus && <div className="absolute top-0 left-0 w-1.5 h-full bg-blue-500 shadow-[0_0_15px_rgba(59,130,246,0.8)] z-20"></div>}
+        {isFocus && <div className="absolute top-0 left-0 w-1.5 h-full gemini-gradient-border z-20"></div>}
         {task.urgency && !isCompleted && !isFocus && <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500 z-20"></div>}
 
         {/* COVER VISUAL (Oculta se forceStaticMode para evitar duplicação no Kanban) */}
@@ -542,6 +579,55 @@ export default function TaskCard({
                   </AnimatePresence>
                 </div>
 
+                {/* HISTÓRICO DE FEEDBACK E THREADS */}
+                {(!isCompleted || feedbackThread.length > 0) && (
+                  <div className="flex flex-col gap-2 shrink-0 border-t border-gray-100 pt-5 mt-2">
+                    <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-2 mb-2">
+                      <MessageSquare size={14}/> Histórico de Feedback (Thread)
+                    </h4>
+                    
+                    {feedbackThread.length > 0 ? (
+                      <div className="flex flex-col gap-3 mb-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
+                        {feedbackThread.map((msg: any) => (
+                          <div key={msg.id} className={`flex flex-col gap-1 w-full max-w-[85%] ${msg.role === 'admin' ? 'mr-auto' : 'ml-auto items-end'}`}>
+                            <div className="flex items-center gap-2">
+                              <span className={`text-[10px] font-bold uppercase tracking-widest ${msg.role === 'admin' ? 'text-[var(--color-atelier-terracota)]' : 'text-blue-500'}`}>{msg.authorName}</span>
+                              <span className="text-[9px] text-gray-400">{new Date(msg.createdAt).toLocaleDateString('pt-BR')} {new Date(msg.createdAt).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span>
+                            </div>
+                            <div className={`p-3 rounded-2xl text-[13px] font-medium shadow-sm whitespace-pre-wrap ${msg.role === 'admin' ? 'bg-orange-50 border border-orange-100/50 text-orange-900 rounded-tl-sm' : 'bg-blue-50 border border-blue-100/50 text-blue-900 rounded-tr-sm'}`}>
+                              {msg.content}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-[12px] italic text-gray-400 mb-2">Nenhuma mensagem registrada nesta tarefa.</div>
+                    )}
+
+                    {/* Área de Resposta */}
+                    {!isCompleted && task.status !== 'pending_client_approval' && (
+                      <div className="mt-2 flex flex-col gap-2">
+                        <textarea 
+                          placeholder={isAdmin ? "Detalhe o que precisa ser alterado..." : "Responda à gestão ou tire uma dúvida..."}
+                          value={adminFeedback}
+                          onChange={(e) => setAdminFeedback(e.target.value)}
+                          className={`w-full bg-white border ${isAdmin ? 'border-orange-200 focus:border-orange-400' : 'border-blue-200 focus:border-blue-400'} rounded-xl p-3 text-[13px] font-medium outline-none resize-none h-20 shadow-sm custom-scrollbar transition-colors`}
+                        />
+                        <div className="flex justify-end gap-2">
+                          {isAdmin && task.status === 'review' && (
+                            <button onClick={() => { onAction('completed'); handleCloseModal(); }} className="px-5 py-2 bg-green-500 text-white hover:bg-green-600 rounded-lg text-[10px] font-bold uppercase tracking-[0.1em] transition-all shadow-sm flex items-center justify-center gap-2">
+                              <CheckCircle2 size={14} /> Aprovar p/ Cliente
+                            </button>
+                          )}
+                          <button onClick={handleAdminFeedbackSubmit} disabled={isProcessingFeedback || !adminFeedback.trim()} className={`px-5 py-2 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 transition-colors shadow-sm ${isAdmin ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-600'}`}>
+                            {isProcessingFeedback ? <Loader2 size={14} className="animate-spin"/> : <Send size={14}/>} {isAdmin && task.status === 'review' ? 'Solicitar Ajuste' : 'Enviar Mensagem'}
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
               <div className="flex flex-col gap-3 shrink-0">
                 <div className="flex items-center justify-between">
                   <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-2">
@@ -680,36 +766,9 @@ export default function TaskCard({
                       )}
                     </div>
 
-                    {isAdmin && isReview && !isCompleted && task.status !== 'pending_client_approval' && (
-                      <div className="border-t border-gray-100 pt-4 mt-2">
-                         {!isAdminReviewing ? (
-                           <div className="flex gap-3">
-                             <button onClick={() => setIsAdminReviewing(true)} className="flex-1 bg-red-50 text-red-600 hover:bg-red-500 hover:text-white py-3.5 rounded-xl font-bold uppercase tracking-widest text-[10px] transition-colors flex items-center justify-center gap-2">
-                               <MessageSquare size={14} /> Solicitar Ajuste
-                             </button>
-                             <button onClick={() => { onAction('completed'); handleCloseModal(); }} className="flex-1 bg-green-500 text-white hover:bg-green-600 py-3.5 rounded-xl font-bold uppercase tracking-[0.1em] transition-all shadow-md flex items-center justify-center gap-2 hover:-translate-y-0.5">
-                               <CheckCircle2 size={14} /> Aprovar p/ Cliente
-                             </button>
-                           </div>
-                         ) : (
-                           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="flex flex-col gap-3 bg-red-50/50 p-4 rounded-2xl border border-red-100">
-                             <span className="text-[10px] font-bold uppercase tracking-widest text-red-500 flex items-center gap-1.5"><RotateCcw size={12}/> Feedback</span>
-                             <textarea 
-                               placeholder="Detalhe o que precisa ser alterado neste arquivo..." 
-                               value={adminFeedback}
-                               onChange={(e) => setAdminFeedback(e.target.value)}
-                               className="w-full bg-white border border-red-100 focus:border-red-300 rounded-xl p-3 text-[13px] font-medium outline-none resize-none h-24 shadow-sm custom-scrollbar"
-                             />
-                             <div className="flex gap-2 justify-end mt-1">
-                               <button onClick={() => setIsAdminReviewing(false)} className="px-4 py-2 text-[9px] font-bold uppercase tracking-widest text-gray-500 hover:bg-gray-100 rounded-lg transition-colors">Cancelar</button>
-                               <button onClick={handleAdminFeedbackSubmit} disabled={isProcessingFeedback || !adminFeedback.trim()} className="px-5 py-2 bg-red-500 text-white hover:bg-red-600 rounded-lg text-[9px] font-bold uppercase tracking-widest flex items-center gap-2 disabled:opacity-50 transition-colors shadow-sm">
-                                 {isProcessingFeedback ? <Loader2 size={12} className="animate-spin"/> : <Send size={12}/>} Enviar Revisão
-                               </button>
-                             </div>
-                           </motion.div>
-                         )}
-                      </div>
-                    )}
+                        </div>
+                      )}
+                    </div>
                   </div>
                 ) : (
                   <div className={`p-6 rounded-2xl border-2 border-dashed flex flex-col items-center gap-3 transition-colors text-center ${(!isCompleted && onUpload) ? 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-[var(--color-atelier-terracota)]/50 cursor-pointer' : 'bg-gray-50 border-gray-100 opacity-60'}`}>
