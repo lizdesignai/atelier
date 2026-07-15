@@ -168,9 +168,9 @@
 }
 
 .gemini-gradient-bg {
-  background: linear-gradient(270deg, rgba(59,130,246,0.08), rgba(168,85,247,0.08), rgba(236,72,153,0.08));
-  background-size: 200% 200%;
-  animation: gemini-gradient 3s ease infinite;
+  background: linear-gradient(270deg, rgba(59,130,246,0.15), rgba(168,85,247,0.15), rgba(236,72,153,0.15)) !important;
+  background-size: 200% 200% !important;
+  animation: gemini-gradient 3s ease infinite !important;
 }
 
 .gemini-gradient-border {

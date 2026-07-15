@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
@@ -20,6 +20,8 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
   const [newLinkName, setNewLinkName] = useState("");
   const [newLinkUrl, setNewLinkUrl] = useState("");
   const [isSavingLink, setIsSavingLink] = useState(false);
+  const [isUploadingFile, setIsUploadingFile] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -90,6 +92,40 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
     }
   };
 
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingFile(true);
+    try {
+      const fileName = `${Date.now()}_${file.name}`;
+      const { error: uploadError } = await supabase.storage.from('vault_assets').upload(fileName, file);
+      
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage.from('vault_assets').getPublicUrl(fileName);
+
+      const { error: dbError } = await supabase.from('project_assets').insert({
+        project_id: projectId || null,
+        subclient_id: subclientId || null,
+        file_name: file.name,
+        file_url: data.publicUrl,
+        file_size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
+        type: 'file'
+      });
+
+      if (dbError) throw dbError;
+      
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Arquivo enviado com sucesso!" }));
+      fetchAssets();
+    } catch (error) {
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao enviar arquivo." }));
+    } finally {
+      setIsUploadingFile(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   if (!mounted) return null;
 
   return createPortal(
@@ -123,7 +159,16 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <button onClick={() => setIsAddingLink(!isAddingLink)} className="bg-[var(--color-atelier-grafite)] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-2.5 rounded-full hover:bg-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2">
+                <input 
+                  type="file" 
+                  ref={fileInputRef} 
+                  onChange={handleFileUpload} 
+                  className="hidden" 
+                />
+                <button onClick={() => fileInputRef.current?.click()} disabled={isUploadingFile} className="bg-[var(--color-atelier-terracota)] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-2.5 rounded-full hover:bg-[#9b836b] transition-colors flex items-center gap-2 disabled:opacity-50">
+                  {isUploadingFile ? <Loader2 size={14} className="animate-spin" /> : <FolderUp size={14} />} Adicionar Material
+                </button>
+                <button onClick={() => setIsAddingLink(!isAddingLink)} className="bg-[var(--color-atelier-grafite)] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-2.5 rounded-full hover:bg-gray-700 transition-colors flex items-center gap-2">
                   <ExternalLink size={14} /> Adicionar Link
                 </button>
                 <button onClick={onClose} className="text-gray-400 hover:text-red-500 bg-gray-50 p-2.5 rounded-full transition-colors">

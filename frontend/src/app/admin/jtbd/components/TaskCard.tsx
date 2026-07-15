@@ -268,7 +268,7 @@ export default function TaskCard({
       const updatedThread = [...feedbackThread, newMessage];
       const stringifiedFeedback = JSON.stringify(updatedThread);
       
-      const statusUpdate = (isAdmin && task.status === 'review') ? 'in_progress' : task.status;
+      const statusUpdate = (isAdmin && isReview) ? 'in_progress' : task.status;
 
       await supabase.from('tasks').update({ 
         admin_feedback: stringifiedFeedback,
@@ -277,13 +277,13 @@ export default function TaskCard({
 
       task.admin_feedback = stringifiedFeedback;
 
-      if (displayImageUrl && isAdmin && task.status === 'review') {
+      if (displayImageUrl && isAdmin && isReview) {
         await supabase.from('social_posts').update({ status: 'internal_review' }).eq('task_id', task.id);
       }
 
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Mensagem enviada com sucesso!" }));
       
-      if (isAdmin && task.status === 'review') {
+      if (isAdmin && isReview) {
         onAction('in_progress'); 
         handleCloseModal();
       }
@@ -614,13 +614,13 @@ export default function TaskCard({
                           className={`w-full bg-white border ${isAdmin ? 'border-orange-200 focus:border-orange-400' : 'border-blue-200 focus:border-blue-400'} rounded-xl p-3 text-[13px] font-medium outline-none resize-none h-20 shadow-sm custom-scrollbar transition-colors`}
                         />
                         <div className="flex justify-end gap-2">
-                          {isAdmin && task.status === 'review' && (
+                          {isAdmin && isReview && (
                             <button onClick={() => { onAction('completed'); handleCloseModal(); }} className="px-5 py-2 bg-green-500 text-white hover:bg-green-600 rounded-lg text-[10px] font-bold uppercase tracking-[0.1em] transition-all shadow-sm flex items-center justify-center gap-2">
                               <CheckCircle2 size={14} /> Aprovar p/ Cliente
                             </button>
                           )}
                           <button onClick={handleAdminFeedbackSubmit} disabled={isProcessingFeedback || !adminFeedback.trim()} className={`px-5 py-2 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 transition-colors shadow-sm ${isAdmin ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-600'}`}>
-                            {isProcessingFeedback ? <Loader2 size={14} className="animate-spin"/> : <Send size={14}/>} {isAdmin && task.status === 'review' ? 'Solicitar Ajuste' : 'Enviar Mensagem'}
+                            {isProcessingFeedback ? <Loader2 size={14} className="animate-spin"/> : <Send size={14}/>} {isAdmin && isReview ? 'Solicitar Ajuste' : 'Enviar Mensagem'}
                           </button>
                         </div>
                       </div>
@@ -766,9 +766,6 @@ export default function TaskCard({
                       )}
                     </div>
 
-                        </div>
-                      )}
-                    </div>
                   </div>
                 ) : (
                   <div className={`p-6 rounded-2xl border-2 border-dashed flex flex-col items-center gap-3 transition-colors text-center ${(!isCompleted && onUpload) ? 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-[var(--color-atelier-terracota)]/50 cursor-pointer' : 'bg-gray-50 border-gray-100 opacity-60'}`}>
