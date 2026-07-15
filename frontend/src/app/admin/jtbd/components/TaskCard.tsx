@@ -3,11 +3,12 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../../lib/supabase";
 import ClientAssetsModal from "../../../../components/ClientAssetsModal";
+import { NotificationEngine } from "../../../../lib/NotificationEngine";
 import { 
   Clock, Target, Activity, Flame, ArrowRight, 
   Loader2, PlayCircle, PauseCircle, ChevronRight, 
   CheckCircle2, X, Save, AlignLeft, Paperclip, UploadCloud, Eye, 
-  Image as ImageIcon, ZoomIn, RotateCcw, MessageSquare, Send, FileText, Timer, PlusCircle
+  Image as ImageIcon, ZoomIn, RotateCcw, MessageSquare, Send, FileText, Timer, PlusCircle, UserCircle2
 } from "lucide-react";
 
 interface TaskCardProps {
@@ -24,6 +25,7 @@ interface TaskCardProps {
   forceOpenModal?: boolean;
   onCloseModal?: () => void;
   onRevert?: (taskId: string) => void; 
+  currentUser?: any;
 }
 
 export default function TaskCard({ 
@@ -39,7 +41,8 @@ export default function TaskCard({
   forceStaticMode, 
   forceOpenModal,  
   onCloseModal,
-  onRevert 
+  onRevert,
+  currentUser
 }: TaskCardProps) {
   
   // ==========================================
@@ -259,7 +262,8 @@ export default function TaskCard({
     try {
       const newMessage = {
         id: `msg-${Date.now()}`,
-        authorName: isAdmin ? 'Gestão' : 'Colaborador',
+        authorName: currentUser?.nome?.split(' ')[0] || (isAdmin ? 'Gestão' : 'Colaborador'),
+        authorAvatar: currentUser?.avatar_url || null,
         role: isAdmin ? 'admin' : 'collab',
         content: adminFeedback,
         createdAt: new Date().toISOString()
@@ -279,9 +283,29 @@ export default function TaskCard({
 
       if (displayImageUrl && isAdmin && isReview) {
         await supabase.from('social_posts').update({ status: 'internal_review' }).eq('task_id', task.id);
+        if (relatedPost) setRelatedPost({ ...relatedPost, status: 'internal_review' });
       }
 
-      window.dispatchEvent(new CustomEvent("showToast", { detail: "Mensagem enviada com sucesso!" }));
+      // Notifications
+      if (isAdmin && task.assigned_to) {
+        await NotificationEngine.notifyUser(
+          task.assigned_to,
+          "💬 Novo Feedback Recebido",
+          `A gestão enviou um novo feedback na tarefa "${task.title}".`,
+          "action",
+          "/admin/jtbd"
+        );
+      } else if (!isAdmin) {
+        await NotificationEngine.notifyManagement(
+          "💬 Resposta do Colaborador", 
+          `O colaborador ${newMessage.authorName} respondeu ao feedback na tarefa "${task.title}".`, 
+          "info",
+          "/admin/analytics"
+        );
+      }
+
+      setAdminFeedback("");
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Feedback adicionado à thread com sucesso!" }));
       
       if (isAdmin && isReview) {
         onAction('in_progress'); 
@@ -591,6 +615,11 @@ export default function TaskCard({
                         {feedbackThread.map((msg: any) => (
                           <div key={msg.id} className={`flex flex-col gap-1 w-full max-w-[85%] ${msg.role === 'admin' ? 'mr-auto' : 'ml-auto items-end'}`}>
                             <div className="flex items-center gap-2">
+                              {msg.authorAvatar ? (
+                                <img src={msg.authorAvatar} alt={msg.authorName} className="w-5 h-5 rounded-full object-cover" />
+                              ) : (
+                                <UserCircle2 size={14} className="text-gray-400" />
+                              )}
                               <span className={`text-[10px] font-bold uppercase tracking-widest ${msg.role === 'admin' ? 'text-[var(--color-atelier-terracota)]' : 'text-blue-500'}`}>{msg.authorName}</span>
                               <span className="text-[9px] text-gray-400">{new Date(msg.createdAt).toLocaleDateString('pt-BR')} {new Date(msg.createdAt).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span>
                             </div>

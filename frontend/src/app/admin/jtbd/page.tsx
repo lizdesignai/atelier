@@ -397,6 +397,7 @@ export default function JTBDPage() {
             handleDragOver={handleDragOver}
             handleDrop={handleDrop}
             teamData={team}
+            currentUser={currentUser}
           />
         </div>
       </div>

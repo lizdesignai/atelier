@@ -19,6 +19,7 @@ interface DailyKanbanProps {
   handleDrop: (e: React.DragEvent, newStatus: string) => void;
   handleFileUpload?: (taskId: string, files: File[]) => Promise<void>; 
   teamData?: any[];
+  currentUser?: any;
 }
 
 export default function DailyKanban({
@@ -33,7 +34,8 @@ export default function DailyKanban({
   handleDragOver,
   handleDrop,
   handleFileUpload,
-  teamData = []
+  teamData = [],
+  currentUser
 }: DailyKanbanProps) {
 
   // ==========================================================================
@@ -355,6 +357,7 @@ export default function DailyKanban({
               onReschedule={() => handleReschedule(task)} 
               isRescheduling={isRescheduling === task.id}
               forceStaticMode={true} 
+              currentUser={currentUser}
               onRevert={() => updateTaskStatus(task, 'review')} 
             />
           </div>
@@ -528,6 +531,7 @@ export default function DailyKanban({
                 isRescheduling={isRescheduling === activeTaskModal.task.id}
                 onUpload={processKanbanUpload} 
                 forceOpenModal={true} 
+                currentUser={currentUser}
                 onCloseModal={() => setActiveTaskModal(null)}
                 onRevert={(taskId) => {
                   updateTaskStatus(activeTaskModal.task, 'review');
