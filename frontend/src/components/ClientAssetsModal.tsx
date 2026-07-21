@@ -85,8 +85,9 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
       setNewLinkUrl("");
       setIsAddingLink(false);
       fetchAssets();
-    } catch (error) {
-      window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao adicionar link." }));
+    } catch (error: any) {
+      console.error("❌ ERRO AO INSERIR LINK NO COFRE:", error);
+      window.dispatchEvent(new CustomEvent("showToast", { detail: `Erro ao adicionar link: ${error.message || 'Falha no banco de dados'}` }));
     } finally {
       setIsSavingLink(false);
     }

@@ -197,8 +197,21 @@ const NativeTrelloBoard = ({ boardUrl, onCardClick }: { boardUrl: string, onCard
                       </p>
                     )}
                     {card.attachments && card.attachments.length > 0 && !isCompleted && (
-                      <div className="mt-2 flex items-center gap-1 text-[10px] text-gray-400 font-bold uppercase tracking-widest">
-                         <ExternalLink size={10} /> {card.attachments.length} Anexos
+                      <div className="mt-3 flex flex-wrap gap-1 items-center">
+                        {card.attachments.map((att: any, idx: number) => {
+                          const preview = att.previews && att.previews.length > 0 ? att.previews[0].url : null;
+                          return preview ? (
+                            <img key={idx} src={preview} alt="anexo" className="w-6 h-6 object-cover rounded shadow-sm border border-gray-200" />
+                          ) : null;
+                        })}
+                        <div className="flex items-center gap-1 text-[9px] text-gray-400 font-bold uppercase tracking-widest ml-1">
+                           <ExternalLink size={10} /> {card.attachments.length} Anexos
+                        </div>
+                      </div>
+                    )}
+                    {card.due && (
+                      <div className={`mt-3 flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest ${card.dueComplete ? 'text-green-500' : 'text-[var(--color-atelier-terracota)]'}`}>
+                        <Calendar size={10} /> {new Date(card.due).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}
                       </div>
                     )}
                   </div>
@@ -226,6 +239,11 @@ const NativeTrelloBoard = ({ boardUrl, onCardClick }: { boardUrl: string, onCard
                   <h2 className="text-2xl font-elegant text-gray-800 pr-4">{expandedCard.name}</h2>
                   {(expandedCard.closed || expandedCard.dueComplete) && (
                     <span className="inline-block mt-2 px-2 py-0.5 bg-green-100 text-green-700 text-[10px] font-bold uppercase tracking-widest rounded-md">Concluída</span>
+                  )}
+                  {expandedCard.due && (
+                    <div className={`mt-2 flex items-center gap-1 text-[11px] font-bold uppercase tracking-widest ${expandedCard.dueComplete ? 'text-green-500' : 'text-[var(--color-atelier-terracota)]'}`}>
+                      <Calendar size={12} /> Prazo: {new Date(expandedCard.due).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
+                    </div>
                   )}
                   {expandedCard.labels && expandedCard.labels.length > 0 && (
                     <div className="mt-3 flex flex-wrap gap-1.5">
@@ -335,6 +353,9 @@ export default function ProjectsManager({
   const [isProcessingTrello, setIsProcessingTrello] = useState(false);
   const [activeTrelloEntity, setActiveTrelloEntity] = useState<any>(null);
   const [isTrelloSidebarOpen, setIsTrelloSidebarOpen] = useState(true); 
+  const [trelloImportUrl, setTrelloImportUrl] = useState("");
+  const [isImportingTrelloUrl, setIsImportingTrelloUrl] = useState(false);
+  const [newLinkTitle, setNewLinkTitle] = useState("");
   const [newLinkInput, setNewLinkInput] = useState("");
 
   const [walletSearch, setWalletSearch] = useState("");
@@ -383,9 +404,45 @@ export default function ProjectsManager({
   // 🟢 FECHAR O MODAL NORMAL E LIMPAR ESTADO
   const closeAdHocModal = () => {
     setIsAdHocModalOpen(false);
+    setNewLinkTitle("");
+    setNewLinkInput("");
     setAdHocDemand({
-      title: "", projectId: "", assigneeId: "", taskType: "", urgency: false, subclientId: undefined, description: "", caption: "", deadline: "", estTime: 0
+      title: "", projectId: "", assigneeId: "", taskType: "", urgency: false, subclientId: undefined, description: "", caption: "", deadline: "", estTime: 0, external_links: []
     });
+  };
+
+  const handleImportTrelloCardUrl = async () => {
+    if (!trelloImportUrl.trim()) return;
+    const match = trelloImportUrl.match(/trello\.com\/c\/([a-zA-Z0-9]+)/);
+    const cardId = match ? match[1] : trelloImportUrl.trim();
+    
+    if (!cardId) {
+      showToast("URL do Trello inválida. Use o formato https://trello.com/c/...");
+      return;
+    }
+
+    setIsImportingTrelloUrl(true);
+    try {
+      const apiKey = process.env.NEXT_PUBLIC_TRELLO_API_KEY;
+      const apiToken = process.env.NEXT_PUBLIC_TRELLO_TOKEN;
+      const response = await fetch(`https://api.trello.com/1/cards/${cardId}?key=${apiKey}&token=${apiToken}`);
+      if (!response.ok) throw new Error("Card não encontrado ou sem acesso.");
+      
+      const card = await response.json();
+      
+      setAdHocDemand(prev => ({
+        ...prev,
+        title: card.name,
+        description: card.desc || "",
+        external_links: [...(prev.external_links || []), { title: "Card Trello", url: card.shortUrl || trelloImportUrl }]
+      }));
+      setTrelloImportUrl("");
+      showToast("Card importado com sucesso!");
+    } catch (e) {
+      showToast("Falha ao importar o Card do Trello.");
+    } finally {
+      setIsImportingTrelloUrl(false);
+    }
   };
 
   // 🟢 FUNÇÃO INJETADA PARA PREENCHER FORMULÁRIO A PARTIR DA API DO TRELLO
@@ -453,7 +510,9 @@ export default function ProjectsManager({
     setAdHocDemand(payloadDemand);
     handleAddAdHocDemand(payloadDemand);
     // UX: Limpa apenas texto visual
-    setAdHocDemand({ ...payloadDemand, title: "", description: "", caption: "" });
+    setNewLinkTitle("");
+    setNewLinkInput("");
+    setAdHocDemand({ ...payloadDemand, title: "", description: "", caption: "", external_links: [] });
   };
 
   const handleCreateSubclient = async () => {
@@ -861,6 +920,27 @@ export default function ProjectsManager({
               </div>
               
               <div className="flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-2 pb-2">
+                <div className="bg-[#f0f9ff] border border-blue-100 p-4 rounded-xl flex flex-col gap-2 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-2 opacity-10"><Trello size={48} /></div>
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-blue-600 ml-1">Automação: Puxar do Trello</span>
+                  <div className="flex gap-2 relative z-10">
+                    <input 
+                      type="url" 
+                      placeholder="Cole o link do card (https://trello.com/c/...)"
+                      value={trelloImportUrl}
+                      onChange={(e) => setTrelloImportUrl(e.target.value)}
+                      className="flex-1 bg-white border border-blue-200 rounded-xl p-3 text-[13px] outline-none focus:border-blue-400 shadow-sm"
+                    />
+                    <button 
+                      onClick={(e) => { e.preventDefault(); handleImportTrelloCardUrl(); }}
+                      disabled={isImportingTrelloUrl}
+                      className="bg-blue-600 text-white px-4 rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
+                    >
+                      {isImportingTrelloUrl ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Importar
+                    </button>
+                  </div>
+                </div>
+
                 <div className="flex flex-col gap-1.5">
                   <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Título da Tarefa <span className="text-red-500">*</span></span>
                   <input 
@@ -898,16 +978,24 @@ export default function ProjectsManager({
                   <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1">
                     <ExternalLink size={12}/> Links Externos (Download/Referência)
                   </span>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2 flex-wrap">
+                    <input 
+                      type="text"
+                      placeholder="Nome do Link (Ex: Figma)"
+                      value={newLinkTitle}
+                      onChange={(e) => setNewLinkTitle(e.target.value)}
+                      className="w-1/3 bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm"
+                    />
                     <input 
                       type="url"
                       placeholder="https://..."
                       value={newLinkInput}
                       onChange={(e) => setNewLinkInput(e.target.value)}
                       onKeyDown={(e) => {
-                        if (e.key === 'Enter' && newLinkInput.trim()) {
+                        if (e.key === 'Enter' && newLinkInput.trim() && newLinkTitle.trim()) {
                           e.preventDefault();
-                          setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), newLinkInput.trim()]});
+                          setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), { title: newLinkTitle.trim(), url: newLinkInput.trim() }]});
+                          setNewLinkTitle("");
                           setNewLinkInput("");
                         }
                       }}
@@ -916,8 +1004,9 @@ export default function ProjectsManager({
                     <button 
                       onClick={(e) => {
                         e.preventDefault();
-                        if (newLinkInput.trim()) {
-                          setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), newLinkInput.trim()]});
+                        if (newLinkInput.trim() && newLinkTitle.trim()) {
+                          setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), { title: newLinkTitle.trim(), url: newLinkInput.trim() }]});
+                          setNewLinkTitle("");
                           setNewLinkInput("");
                         }
                       }}
@@ -928,10 +1017,10 @@ export default function ProjectsManager({
                   </div>
                   {adHocDemand.external_links && adHocDemand.external_links.length > 0 && (
                     <div className="flex flex-wrap gap-2 mt-2">
-                      {adHocDemand.external_links.map((link: string, i: number) => (
+                      {adHocDemand.external_links.map((link: any, i: number) => (
                         <div key={i} className="flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg border border-[var(--color-atelier-terracota)]/20 text-[11px] font-medium">
-                          <span className="max-w-[150px] truncate">{link}</span>
-                          <button onClick={() => setAdHocDemand({...adHocDemand, external_links: adHocDemand.external_links.filter((_: string, idx: number) => idx !== i)})} className="hover:text-red-500">
+                          <span className="max-w-[150px] truncate">{typeof link === 'string' ? link : link.title}</span>
+                          <button onClick={(e) => { e.preventDefault(); setAdHocDemand({...adHocDemand, external_links: adHocDemand.external_links.filter((_: any, idx: number) => idx !== i)}); }} className="hover:text-red-500">
                             <X size={12} />
                           </button>
                         </div>
@@ -1135,16 +1224,24 @@ export default function ProjectsManager({
                           <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1">
                             <ExternalLink size={12}/> Links Externos (Download/Referência)
                           </span>
-                          <div className="flex gap-2">
+                          <div className="flex gap-2 flex-wrap">
+                            <input 
+                              type="text"
+                              placeholder="Nome do Link (Ex: Figma)"
+                              value={newLinkTitle}
+                              onChange={(e) => setNewLinkTitle(e.target.value)}
+                              className="w-1/3 bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm"
+                            />
                             <input 
                               type="url"
                               placeholder="https://..."
                               value={newLinkInput}
                               onChange={(e) => setNewLinkInput(e.target.value)}
                               onKeyDown={(e) => {
-                                if (e.key === 'Enter' && newLinkInput.trim()) {
+                                if (e.key === 'Enter' && newLinkInput.trim() && newLinkTitle.trim()) {
                                   e.preventDefault();
-                                  setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), newLinkInput.trim()]});
+                                  setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), { title: newLinkTitle.trim(), url: newLinkInput.trim() }]});
+                                  setNewLinkTitle("");
                                   setNewLinkInput("");
                                 }
                               }}
@@ -1153,8 +1250,9 @@ export default function ProjectsManager({
                             <button 
                               onClick={(e) => {
                                 e.preventDefault();
-                                if (newLinkInput.trim()) {
-                                  setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), newLinkInput.trim()]});
+                                if (newLinkInput.trim() && newLinkTitle.trim()) {
+                                  setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), { title: newLinkTitle.trim(), url: newLinkInput.trim() }]});
+                                  setNewLinkTitle("");
                                   setNewLinkInput("");
                                 }
                               }}
@@ -1165,10 +1263,10 @@ export default function ProjectsManager({
                           </div>
                           {adHocDemand.external_links && adHocDemand.external_links.length > 0 && (
                             <div className="flex flex-wrap gap-2 mt-2">
-                              {adHocDemand.external_links.map((link: string, i: number) => (
+                              {adHocDemand.external_links.map((link: any, i: number) => (
                                 <div key={i} className="flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg border border-[var(--color-atelier-terracota)]/20 text-[11px] font-medium">
-                                  <span className="max-w-[150px] truncate">{link}</span>
-                                  <button onClick={() => setAdHocDemand({...adHocDemand, external_links: adHocDemand.external_links.filter((_: string, idx: number) => idx !== i)})} className="hover:text-red-500">
+                                  <span className="max-w-[150px] truncate">{typeof link === 'string' ? link : link.title}</span>
+                                  <button onClick={(e) => { e.preventDefault(); setAdHocDemand({...adHocDemand, external_links: adHocDemand.external_links.filter((_: any, idx: number) => idx !== i)}); }} className="hover:text-red-500">
                                     <X size={12} />
                                   </button>
                                 </div>

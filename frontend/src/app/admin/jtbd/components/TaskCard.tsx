@@ -69,7 +69,8 @@ export default function TaskCard({
   // 🟢 LEGENDA E LINK (NOVIDADE)
   const [localCaption, setLocalCaption] = useState(task.caption || "");
   const [isSavingCaption, setIsSavingCaption] = useState(false);
-  const [localExternalLinks, setLocalExternalLinks] = useState<string[]>(task.external_links || []);
+  const [localExternalLinks, setLocalExternalLinks] = useState<any[]>(task.external_links || []);
+  const [newLinkTitle, setNewLinkTitle] = useState("");
   const [newLinkInput, setNewLinkInput] = useState("");
   const [isSavingLink, setIsSavingLink] = useState(false);
 
@@ -387,16 +388,16 @@ export default function TaskCard({
               
               {task.external_links && task.external_links.length > 0 && (
                 <div className="flex flex-wrap gap-2 mt-2 pointer-events-auto relative z-20">
-                  {task.external_links.map((link: string, i: number) => (
+                  {task.external_links.map((link: any, i: number) => (
                     <a 
                       key={i} 
-                      href={link} 
+                      href={typeof link === 'string' ? link : link.url} 
                       target="_blank" 
                       rel="noreferrer" 
                       onClick={(e) => e.stopPropagation()} 
                       className="text-[9px] font-bold text-[var(--color-atelier-terracota)] hover:text-white bg-[var(--color-atelier-terracota)]/10 hover:bg-[var(--color-atelier-terracota)] px-2 py-0.5 rounded flex items-center gap-1 w-fit border border-[var(--color-atelier-terracota)]/20 transition-colors shadow-sm"
                     >
-                       Link de Referência
+                       {typeof link === 'string' ? "Link de Referência" : link.title}
                     </a>
                   ))}
                 </div>
@@ -753,15 +754,23 @@ export default function TaskCard({
                           </button>
                         )}
                       </div>
-                      <div className="flex gap-2">
+                      <div className="flex gap-2 flex-wrap">
+                        <input 
+                          type="text"
+                          value={newLinkTitle}
+                          onChange={(e) => setNewLinkTitle(e.target.value)}
+                          placeholder="Nome do Link (Ex: Figma)"
+                          className="w-1/3 bg-white p-3 rounded-xl border border-gray-200 text-[12px] text-[var(--color-atelier-grafite)] focus:outline-none focus:border-[var(--color-atelier-terracota)] shadow-sm transition-colors"
+                        />
                         <input 
                           type="url"
                           value={newLinkInput}
                           onChange={(e) => setNewLinkInput(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter' && newLinkInput.trim()) {
+                            if (e.key === 'Enter' && newLinkInput.trim() && newLinkTitle.trim()) {
                               e.preventDefault();
-                              setLocalExternalLinks([...localExternalLinks, newLinkInput.trim()]);
+                              setLocalExternalLinks([...localExternalLinks, { title: newLinkTitle.trim(), url: newLinkInput.trim() }]);
+                              setNewLinkTitle("");
                               setNewLinkInput("");
                             }
                           }}
@@ -771,8 +780,9 @@ export default function TaskCard({
                         <button 
                           onClick={(e) => {
                             e.preventDefault();
-                            if (newLinkInput.trim()) {
-                              setLocalExternalLinks([...localExternalLinks, newLinkInput.trim()]);
+                            if (newLinkInput.trim() && newLinkTitle.trim()) {
+                              setLocalExternalLinks([...localExternalLinks, { title: newLinkTitle.trim(), url: newLinkInput.trim() }]);
+                              setNewLinkTitle("");
                               setNewLinkInput("");
                             }
                           }}
@@ -783,9 +793,9 @@ export default function TaskCard({
                       </div>
                       {localExternalLinks.length > 0 && (
                         <div className="flex flex-wrap gap-2 mt-2">
-                          {localExternalLinks.map((link: string, i: number) => (
+                          {localExternalLinks.map((link: any, i: number) => (
                             <div key={i} className="flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg border border-[var(--color-atelier-terracota)]/20 text-[11px] font-medium">
-                              <span className="max-w-[150px] truncate">{link}</span>
+                              <span className="max-w-[150px] truncate">{typeof link === 'string' ? link : link.title}</span>
                               <button onClick={() => setLocalExternalLinks(localExternalLinks.filter((_, idx) => idx !== i))} className="hover:text-red-500">
                                 <X size={12} />
                               </button>

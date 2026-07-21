@@ -294,6 +294,17 @@ export default function AnalyticsPage() {
       
       if (!response.ok) throw new Error("Falha na requisição ao backend");
       
+      if (editingTask.assigned_to) {
+        // Send notification if assignee is explicitly set/updated
+        await NotificationEngine.notifyUser(
+          editingTask.assigned_to,
+          "Tarefa Atualizada",
+          `A tarefa "${editingTask.title}" foi atribuída a você ou modificada pela gestão.`,
+          "info",
+          "/admin/jtbd"
+        );
+      }
+
       showToast("Tarefa sincronizada com a Mesa de Trabalho!");
       setEditingTask(null);
       await fetchOperationalData(); 
@@ -338,6 +349,16 @@ export default function AnalyticsPage() {
 
       if (Object.keys(updates).length > 0) {
          await supabase.from('tasks').update(updates).in('id', selectedTaskIds);
+         
+         if (updates.assigned_to) {
+           await NotificationEngine.notifyUser(
+             updates.assigned_to,
+             "Demandas em Lote",
+             `${selectedTaskIds.length} tarefas foram atribuídas a você.`,
+             "info",
+             "/admin/jtbd"
+           );
+         }
       }
       showToast(`Lote de ${selectedTaskIds.length} tarefas atualizado!`);
       setSelectedTaskIds([]);
