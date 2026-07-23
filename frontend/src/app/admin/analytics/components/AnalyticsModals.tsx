@@ -1,12 +1,14 @@
-// src/app/admin/analytics/components/AnalyticsModals.tsx
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { supabase } from "../../../../lib/supabase";
 import { 
   Edit3, CheckCircle2, Trash2, X, Loader2, Flame, 
   MapPin, Save, UserCircle2, Activity, FolderKanban, 
-  CheckSquare, Square, Check, Target, PlusCircle, ExternalLink, MessageSquare
+  CheckSquare, Square, Check, Target, PlusCircle, ExternalLink, MessageSquare,
+  ChevronDown, ChevronRight, Paperclip, UploadCloud, FileText, Image as ImageIcon, Eye, AlignLeft
 } from "lucide-react";
 import { ALL_SKILLS } from "../constants";
+import { formatForDateTimeLocal, parseFromDateTimeLocal } from "../../../../lib/dateUtils";
 
 interface AnalyticsModalsProps {
   // Bulk Mode
@@ -63,13 +65,71 @@ export default function AnalyticsModals({
 }: AnalyticsModalsProps) {
 
   const [newLinkInput, setNewLinkInput] = useState("");
+  const [isUploadingEditMedia, setIsUploadingEditMedia] = useState(false);
+  const [openAccordion, setOpenAccordion] = useState<{ [key: string]: boolean }>({
+    instructions: true,
+    caption: false,
+    media: true,
+    links: false
+  });
 
-  // 🟢 UTILITÁRIO: Formata a data com segurança, evitando o "Invalid time value"
+  const toggleAccordion = (key: string) => {
+    setOpenAccordion(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleEditMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length || !editingTask) return;
+
+    setIsUploadingEditMedia(true);
+    try {
+      let currentAssets = [...(editingTask.media_assets || [])];
+      let mainUrl = editingTask.attachment_url;
+
+      for (const file of files) {
+        const isVideo = file.type.startsWith('video/');
+        const bucket = isVideo ? 'community_videos' : 'community_images';
+        const fileExt = file.name.split('.').pop();
+        const fileName = `edit_${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `tasks/${fileName}`;
+
+        const { error } = await supabase.storage.from(bucket).upload(filePath, file, { upsert: true });
+        if (error) throw error;
+
+        const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
+        currentAssets.push({ type: isVideo ? 'video' : 'image', url: data.publicUrl, name: file.name });
+        if (!mainUrl) mainUrl = data.publicUrl;
+      }
+
+      setEditingTask({
+        ...editingTask,
+        media_assets: currentAssets,
+        attachment_url: mainUrl
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsUploadingEditMedia(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleDeleteEditAsset = (index: number) => {
+    if (!editingTask) return;
+    const currentAssets = editingTask.media_assets || [];
+    const updated = currentAssets.filter((_: any, idx: number) => idx !== index);
+    const mainUrl = updated.length > 0 ? updated[0].url : null;
+    setEditingTask({
+      ...editingTask,
+      media_assets: updated,
+      attachment_url: mainUrl
+    });
+  };
+
+  // 🟢 UTILITÁRIO: Formata a data com segurança e compensação de fuso horário local
   const getSafeDatetime = (isoDateString: string | null) => {
     if (!isoDateString) return "";
-    const date = new Date(isoDateString);
-    if (isNaN(date.getTime())) return "";
-    return date.toISOString().slice(0, 16);
+    return formatForDateTimeLocal(isoDateString);
   };
 
   return (
@@ -146,109 +206,208 @@ export default function AnalyticsModals({
         {editingTask && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditingTask(null)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-white/20 flex flex-col gap-5">
-              <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-lg border border-white/20 flex flex-col gap-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
+              <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4 shrink-0">
                 <div className="w-full pr-4">
-                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Editar Tarefa</h3>
-                  <input type="text" value={editingTask.title} onChange={(e) => setEditingTask({...editingTask, title: e.target.value})} className="w-full bg-transparent font-roboto text-[13px] font-bold text-[var(--color-atelier-grafite)]/80 outline-none mt-1 border-b border-transparent focus:border-[var(--color-atelier-terracota)]/40" />
+                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Editar Demanda</h3>
+                  <input type="text" value={editingTask.title} onChange={(e) => setEditingTask({...editingTask, title: e.target.value})} className="w-full bg-transparent font-roboto text-[14px] font-bold text-[var(--color-atelier-grafite)] outline-none mt-1 border-b border-gray-200 focus:border-[var(--color-atelier-terracota)]" />
                 </div>
                 <button onClick={() => setEditingTask(null)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] shrink-0"><X size={20}/></button>
               </div>
-              <div className="flex flex-col gap-1.5">
-                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Responsável pela Tarefa</span>
-                <select value={editingTask.assigned_to || ""} onChange={(e) => setEditingTask({...editingTask, assigned_to: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50">
-                  <option value="">Aguardando Responsável</option>
-                  <option disabled>──────</option>
-                  {team.map(t => {
-                    const isRecommended = editingTask.task_type && t.skills?.includes(editingTask.task_type);
-                    return <option key={t.id} value={t.id}>{t.nome} ({t.role}) {isRecommended ? '⭐' : ''}</option>
-                  })}
-                </select>
-              </div>
-              
-              {/* 🟢 CORREÇÃO: Input de data blindado contra valores nulos/inválidos */}
-              <div className="flex flex-col gap-1.5">
-                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Data de Entrega</span>
-                <input 
-                  type="datetime-local" 
-                  value={getSafeDatetime(editingTask.deadline)} 
-                  onChange={(e) => {
-                    const newDateValue = e.target.value ? new Date(e.target.value).toISOString() : editingTask.deadline;
-                    setEditingTask({...editingTask, deadline: newDateValue});
-                  }} 
-                  className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50" 
-                />
-              </div>
 
-              <div className="flex flex-col gap-1.5">
-                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Instruções da Tarefa</span>
-                <textarea value={editingTask.description || ""} onChange={(e) => setEditingTask({...editingTask, description: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] resize-none h-24 outline-none focus:border-[var(--color-atelier-terracota)]/50 custom-scrollbar" placeholder="Descreva os detalhes necessários para execução..." />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-1">
-                  <MessageSquare size={12}/> Legenda do Post (Aprovação Cliente)
-                </span>
-                <textarea 
-                  placeholder="Escreva a legenda que ficará visível no Cockpit..."
-                  value={editingTask.caption || ""} 
-                  onChange={(e) => setEditingTask({...editingTask, caption: e.target.value})} 
-                  className="w-full bg-white border border-[var(--color-atelier-terracota)]/30 rounded-xl p-3 text-[13px] resize-none h-20 outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium custom-scrollbar transition-colors shadow-sm" 
-                />
-              </div>
-
-              <div className="flex flex-col gap-1.5">
-                <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-1">
-                  <ExternalLink size={12}/> Links Externos (Download/Referência)
-                </span>
-                <div className="flex gap-2">
-                  <input 
-                    type="url"
-                    placeholder="https://..."
-                    value={newLinkInput}
-                    onChange={(e) => setNewLinkInput(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' && newLinkInput.trim()) {
-                        e.preventDefault();
-                        setEditingTask({...editingTask, external_links: [...(editingTask.external_links || []), newLinkInput.trim()]});
-                        setNewLinkInput("");
-                      }
-                    }}
-                    className="flex-1 bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm"
-                  />
-                  <button 
-                    onClick={(e) => {
-                      e.preventDefault();
-                      if (newLinkInput.trim()) {
-                        setEditingTask({...editingTask, external_links: [...(editingTask.external_links || []), newLinkInput.trim()]});
-                        setNewLinkInput("");
-                      }
-                    }}
-                    className="bg-[var(--color-atelier-grafite)] text-white px-4 rounded-xl flex items-center justify-center hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-sm"
-                  >
-                    <PlusCircle size={16} />
-                  </button>
+              {/* Informações de Execução (Responsável e Data) */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0">
+                <div className="flex flex-col gap-1">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Responsável</span>
+                  <select value={editingTask.assigned_to || ""} onChange={(e) => setEditingTask({...editingTask, assigned_to: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[12px] outline-none focus:border-[var(--color-atelier-terracota)]">
+                    <option value="">Aguardando Responsável</option>
+                    <option disabled>──────</option>
+                    {team.map(t => {
+                      const isRecommended = editingTask.task_type && t.skills?.includes(editingTask.task_type);
+                      return <option key={t.id} value={t.id}>{t.nome} ({t.role}) {isRecommended ? '⭐' : ''}</option>
+                    })}
+                  </select>
                 </div>
-                {editingTask.external_links && editingTask.external_links.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {editingTask.external_links.map((link: string, i: number) => (
-                      <div key={i} className="flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg border border-[var(--color-atelier-terracota)]/20 text-[11px] font-medium">
-                        <span className="max-w-[150px] truncate">{link}</span>
-                        <button onClick={() => setEditingTask({...editingTask, external_links: editingTask.external_links.filter((_: string, idx: number) => idx !== i)})} className="hover:text-red-500">
-                          <X size={12} />
+                
+                <div className="flex flex-col gap-1">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Data de Entrega</span>
+                  <input 
+                    type="datetime-local" 
+                    value={getSafeDatetime(editingTask.deadline)} 
+                    onChange={(e) => {
+                      const newDateValue = e.target.value ? parseFromDateTimeLocal(e.target.value) : editingTask.deadline;
+                      setEditingTask({...editingTask, deadline: newDateValue});
+                    }} 
+                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[12px] outline-none focus:border-[var(--color-atelier-terracota)]" 
+                  />
+                </div>
+              </div>
+
+              {/* ACORDEÃO 1: INSTRUÇÕES DA EQUIPE */}
+              <div className="border border-gray-200 rounded-2xl overflow-hidden shrink-0">
+                <button 
+                  type="button"
+                  onClick={() => toggleAccordion('instructions')}
+                  className="w-full p-4 bg-gray-50 flex items-center justify-between hover:bg-gray-100 transition-colors"
+                >
+                  <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2">
+                    <AlignLeft size={14}/> Instruções da Equipe
+                  </span>
+                  {openAccordion.instructions ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </button>
+                <AnimatePresence>
+                  {openAccordion.instructions && (
+                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden p-4 bg-white border-t border-gray-100">
+                      <textarea value={editingTask.description || ""} onChange={(e) => setEditingTask({...editingTask, description: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] resize-none h-24 outline-none focus:border-[var(--color-atelier-terracota)] custom-scrollbar" placeholder="Descreva os detalhes necessários para execução..." />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* ACORDEÃO 2: LEGENDA DO POST */}
+              <div className="border border-gray-200 rounded-2xl overflow-hidden shrink-0">
+                <button 
+                  type="button"
+                  onClick={() => toggleAccordion('caption')}
+                  className="w-full p-4 bg-gray-50 flex items-center justify-between hover:bg-gray-100 transition-colors"
+                >
+                  <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2">
+                    <MessageSquare size={14}/> Legenda do Post (Aprovação Cliente)
+                  </span>
+                  {openAccordion.caption ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </button>
+                <AnimatePresence>
+                  {openAccordion.caption && (
+                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden p-4 bg-white border-t border-gray-100">
+                      <textarea 
+                        placeholder="Escreva a legenda que ficará visível no Cockpit..."
+                        value={editingTask.caption || ""} 
+                        onChange={(e) => setEditingTask({...editingTask, caption: e.target.value})} 
+                        className="w-full bg-white border border-[var(--color-atelier-terracota)]/30 rounded-xl p-3 text-[13px] resize-none h-24 outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium custom-scrollbar transition-colors shadow-sm" 
+                      />
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* ACORDEÃO 3: MÍDIAS & ANEXOS */}
+              <div className="border border-gray-200 rounded-2xl overflow-hidden shrink-0">
+                <button 
+                  type="button"
+                  onClick={() => toggleAccordion('media')}
+                  className="w-full p-4 bg-gray-50 flex items-center justify-between hover:bg-gray-100 transition-colors"
+                >
+                  <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2">
+                    <Paperclip size={14}/> Mídias & Anexos ({(editingTask.media_assets?.length) || (editingTask.attachment_url ? 1 : 0)})
+                  </span>
+                  {openAccordion.media ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </button>
+                <AnimatePresence>
+                  {openAccordion.media && (
+                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden p-4 bg-white border-t border-gray-100 flex flex-col gap-3">
+                      {((editingTask.media_assets && editingTask.media_assets.length > 0) || editingTask.attachment_url) ? (
+                        <div className="grid grid-cols-3 gap-2">
+                          {(editingTask.media_assets || [{ type: 'image', url: editingTask.attachment_url }]).map((asset: any, idx: number) => (
+                            <div key={idx} className="h-20 rounded-xl border border-gray-200 overflow-hidden relative group bg-gray-100">
+                              {asset.type === 'video' ? (
+                                <video src={asset.url} className="w-full h-full object-cover" />
+                              ) : (
+                                <img src={asset.url} alt="Mídia" className="w-full h-full object-cover" />
+                              )}
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                                <a href={asset.url} target="_blank" rel="noreferrer" className="p-1.5 bg-white text-gray-800 rounded-full hover:bg-gray-200" title="Ver">
+                                  <Eye size={12} />
+                                </a>
+                                <button type="button" onClick={() => handleDeleteEditAsset(idx)} className="p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600" title="Apagar">
+                                  <Trash2 size={12} />
+                                </button>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <span className="text-[11px] text-gray-400 italic">Nenhum anexo inserido ainda.</span>
+                      )}
+
+                      <label className="flex items-center justify-center gap-2 py-2.5 px-4 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-xl text-orange-600 transition-colors text-[10px] font-bold uppercase tracking-widest cursor-pointer mt-1">
+                        <input type="file" multiple accept="image/*,video/*,application/pdf" className="hidden" onChange={handleEditMediaUpload} disabled={isUploadingEditMedia} />
+                        {isUploadingEditMedia ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />}
+                        <span>Adicionar Anexos</span>
+                      </label>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              {/* ACORDEÃO 4: LINKS EXTERNOS */}
+              <div className="border border-gray-200 rounded-2xl overflow-hidden shrink-0">
+                <button 
+                  type="button"
+                  onClick={() => toggleAccordion('links')}
+                  className="w-full p-4 bg-gray-50 flex items-center justify-between hover:bg-gray-100 transition-colors"
+                >
+                  <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2">
+                    <ExternalLink size={14}/> Links Externos (Download/Referência)
+                  </span>
+                  {openAccordion.links ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                </button>
+                <AnimatePresence>
+                  {openAccordion.links && (
+                    <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden p-4 bg-white border-t border-gray-100 flex flex-col gap-3">
+                      <div className="flex gap-2">
+                        <input 
+                          type="url"
+                          placeholder="https://..."
+                          value={newLinkInput}
+                          onChange={(e) => setNewLinkInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter' && newLinkInput.trim()) {
+                              e.preventDefault();
+                              setEditingTask({...editingTask, external_links: [...(editingTask.external_links || []), newLinkInput.trim()]});
+                              setNewLinkInput("");
+                            }
+                          }}
+                          className="flex-1 bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[12px] outline-none focus:border-[var(--color-atelier-terracota)]"
+                        />
+                        <button 
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            if (newLinkInput.trim()) {
+                              setEditingTask({...editingTask, external_links: [...(editingTask.external_links || []), newLinkInput.trim()]});
+                              setNewLinkInput("");
+                            }
+                          }}
+                          className="bg-[var(--color-atelier-grafite)] text-white px-4 rounded-xl flex items-center justify-center hover:bg-[var(--color-atelier-terracota)] transition-colors"
+                        >
+                          <PlusCircle size={16} />
                         </button>
                       </div>
-                    ))}
-                  </div>
-                )}
+                      {editingTask.external_links && editingTask.external_links.length > 0 && (
+                        <div className="flex flex-wrap gap-2">
+                          {editingTask.external_links.map((link: string, i: number) => (
+                            <div key={i} className="flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg border border-[var(--color-atelier-terracota)]/20 text-[11px] font-medium">
+                              <span className="max-w-[150px] truncate">{link}</span>
+                              <button type="button" onClick={() => setEditingTask({...editingTask, external_links: editingTask.external_links.filter((_: string, idx: number) => idx !== i)})} className="hover:text-red-500">
+                                <X size={12} />
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
-              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl bg-orange-50/50 border border-orange-100 hover:bg-orange-50 transition-colors">
+
+              <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl bg-orange-50/50 border border-orange-100 hover:bg-orange-50 transition-colors shrink-0">
                 <input type="checkbox" className="hidden" checked={editingTask.urgency || false} onChange={(e) => setEditingTask({...editingTask, urgency: e.target.checked})} />
                 <div className={`w-5 h-5 rounded flex items-center justify-center border ${editingTask.urgency ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-orange-200'}`}>{editingTask.urgency && <CheckCircle2 size={12} strokeWidth={3}/>}</div>
                 <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-orange-600 flex items-center gap-1"><Flame size={12}/> Classificar como Urgente</span>
               </label>
-              <button onClick={handleUpdateTask} disabled={isProcessing} className="w-full mt-2 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-[var(--color-atelier-terracota)] transition-colors flex justify-center items-center gap-2">
-                {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>} Atualizar Tarefa
+
+              <button onClick={handleUpdateTask} disabled={isProcessing} className="w-full mt-2 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-[var(--color-atelier-terracota)] transition-colors flex justify-center items-center gap-2 shrink-0">
+                {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>} Salvar Alterações
               </button>
             </motion.div>
           </div>
@@ -404,7 +563,7 @@ export default function AnalyticsModals({
                 <div className="grid grid-cols-2 gap-4">
                    <div className="flex flex-col gap-1">
                       <span className="text-[9px] font-bold uppercase text-gray-400 ml-1">Data e Hora</span>
-                      <input type="datetime-local" value={captacaoForm.date} onChange={(e)=>setCaptacaoForm({...captacaoForm, date: e.target.value})} className="bg-gray-50 border border-gray-100 rounded-xl p-3 text-[12px] outline-none" />
+                      <input type="datetime-local" value={formatForDateTimeLocal(captacaoForm.date)} onChange={(e)=>setCaptacaoForm({...captacaoForm, date: e.target.value ? parseFromDateTimeLocal(e.target.value) : ""})} className="bg-gray-50 border border-gray-100 rounded-xl p-3 text-[12px] outline-none" />
                    </div>
                    <div className="flex flex-col gap-1">
                       <span className="text-[9px] font-bold uppercase text-gray-400 ml-1">Localização</span>

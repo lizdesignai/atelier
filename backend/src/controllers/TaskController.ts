@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { supabase } from '../config/supabase';
 import { NotificationService } from '../services/NotificationService';
+import { redis } from '../config/redis';
 
 export class TaskController {
   
@@ -30,10 +31,36 @@ export class TaskController {
   static async createTask(req: Request, res: Response) {
     try {
       const taskData = req.body;
-      const { data, error } = await supabase.from('tasks').insert(taskData).select().single();
+      const { data, error } = await supabase
+        .from('tasks')
+        .insert(taskData)
+        .select('*, projects(profiles(nome), type, service_type), agency_subclients(name)')
+        .single();
       
       if (error) throw error;
       
+      if (data.assigned_to) {
+        (async () => {
+          try {
+            const { data: collab } = await supabase.from('profiles').select('email, nome').eq('id', data.assigned_to).single();
+            if (collab?.email) {
+              const projName = data.agency_subclients?.name || data.projects?.profiles?.nome || data.projects?.type || 'Projeto';
+              await NotificationService.sendNotification({
+                to: collab.email,
+                type: 'task_assigned',
+                taskName: data.title,
+                projectName: projName,
+                extraInfo: data.description,
+                link: `${process.env.FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin/jtbd`
+              });
+            }
+          } catch (e) {
+            console.error("Erro ao enviar e-mail de tarefa atribuída:", e);
+          }
+        })();
+      }
+
+      await redis.del('analytics:dashboard').catch(() => {});
       return res.status(201).json({ data });
     } catch (error: any) {
       console.error('Error creating task:', error.message);
@@ -222,6 +249,7 @@ export class TaskController {
         
       if (error) throw error;
       
+      await redis.del('analytics:dashboard').catch(() => {});
       return res.status(200).json({ data });
     } catch (error: any) {
       console.error('Error updating task:', error.message);
@@ -237,6 +265,7 @@ export class TaskController {
       
       if (error) throw error;
       
+      await redis.del('analytics:dashboard').catch(() => {});
       return res.status(204).send();
     } catch (error: any) {
       console.error('Error deleting task:', error.message);

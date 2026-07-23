@@ -116,12 +116,20 @@ export default function AnalyticsPage() {
   // ============================================================================
   // 🚀 OTIMIZAÇÃO DE INFRAESTRUTURA E CACHE BUSTER SEGURO (Fase 1 - Backend API)
   // ============================================================================
-  const fetchOperationalData = useCallback(async (showLoadingOverlay = false) => {
+  const fetchOperationalData = useCallback(async (showLoadingOverlay = false, forceFresh = false) => {
     if (showLoadingOverlay) setIsLocalLoading(true);
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
       
-      const response = await fetch(`${backendUrl}/api/v1/analytics/dashboard`, {
+      if (forceFresh) {
+        await fetch(`${backendUrl}/api/v1/analytics/clear-cache`, { method: 'POST' }).catch(() => {});
+      }
+
+      const freshUrl = forceFresh 
+        ? `${backendUrl}/api/v1/analytics/dashboard?fresh=true&t=${Date.now()}` 
+        : `${backendUrl}/api/v1/analytics/dashboard`;
+
+      const response = await fetch(freshUrl, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
       });
@@ -307,10 +315,10 @@ export default function AnalyticsPage() {
 
       showToast("Tarefa sincronizada com a Mesa de Trabalho!");
       setEditingTask(null);
-      await fetchOperationalData(); 
+      await fetchOperationalData(false, true); 
     } catch (e) {
       showToast("Erro ao atualizar tarefa.");
-      await fetchOperationalData(); 
+      await fetchOperationalData(false, true); 
     } finally {
       setIsProcessing(false);
     }
@@ -438,6 +446,8 @@ export default function AnalyticsPage() {
     
     setIsProcessing(true);
     try {
+      const mainAttachmentUrl = demand.attachment_url || (demand.media_assets && demand.media_assets.length > 0 ? demand.media_assets[0].url : null);
+      
       const { error } = await supabase.from('tasks').insert({
         project_id: targetProject || null,
         agency_id: targetAgency || null,
@@ -445,15 +455,15 @@ export default function AnalyticsPage() {
         assigned_to: demand.assigneeId,
         title: demand.title,
         description: demand.description,
-        caption: demand.caption, // 🟢 Mapeando a Legenda para o Banco de Dados
-        external_links: demand.external_links || [], // 🟢 Mapeando links dinâmicos cumulativos
+        caption: demand.caption,
+        external_links: demand.external_links || [],
+        media_assets: demand.media_assets || [],
+        attachment_url: mainAttachmentUrl,
         urgency: demand.urgency,
         status: 'pending',
         stage: 'Demanda Pontual',
         task_type: demand.taskType || 'setup',
-        // 🟢 Utilizando o prazo definido no modal ou um prazo padrão de 24h
         deadline: demand.deadline ? new Date(demand.deadline).toISOString() : new Date(Date.now() + 86400000).toISOString(),
-        // 🟢 Utilizando o tempo estimado definido no modal
         estimated_time: demand.estTime || 60 
       });
       if (error) throw error;
@@ -465,6 +475,28 @@ export default function AnalyticsPage() {
         "warning",
         "/admin/jtbd"
       );
+
+      // Disparar e-mail no backend em background se possível
+      (async () => {
+        try {
+          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+          const { data: collab } = await supabase.from('profiles').select('email').eq('id', demand.assigneeId).single();
+          if (collab?.email) {
+            await fetch(`${backendUrl}/api/v1/notifications/email`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: collab.email,
+                type: 'task_assigned',
+                taskName: demand.title,
+                projectName: 'Demanda Pontual',
+                extraInfo: demand.description,
+                link: `${process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin/jtbd`
+              })
+            }).catch(() => {});
+          }
+        } catch (e) {}
+      })();
 
       showToast("Demanda adicionada às tarefas do colaborador!");
       
@@ -658,11 +690,11 @@ export default function AnalyticsPage() {
       );
 
       showToast(hasPreviousTasks ? "🔄 Ciclo Mensal Renovado com Sucesso!" : "🚀 Produção Iniciada com Sucesso!");
-      await fetchOperationalData(); // Limpa as tarefas temporárias e traz os IDs reais
+      await fetchOperationalData(false, true); // Limpa o cache do Redis e traz as tarefas reais do banco
     } catch (error) {
       console.error(error);
       showToast("Erro ao iniciar a produção.");
-      await fetchOperationalData(); // Reverte o otimismo caso dê erro no banco
+      await fetchOperationalData(false, true); // Reverte o otimismo caso dê erro no banco
     } finally {
       setIsProcessing(false);
     }

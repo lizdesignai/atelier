@@ -58,6 +58,33 @@ export class NotificationService {
         buttonText = "Ver Tarefa";
         break;
 
+      case 'task_assigned':
+        subject = `[NOVA DEMANDA] ${projectName || 'Projeto'} - ${taskName}`;
+        icon = "📋";
+        title = "Nova Demanda Atribuída";
+        message = `Você recebeu uma nova demanda: <strong>${taskName}</strong> do cliente/projeto <strong>${projectName || 'Projeto'}</strong>.`;
+        if (extraInfo) {
+          message += `<br/><br/><strong>Instruções:</strong> ${extraInfo}`;
+        }
+        buttonText = "Acessar Mesa de Trabalho";
+        break;
+
+      case 'captacao_reminder':
+        subject = `[CAPTAÇÃO] ${taskName} - ${projectName || 'Atelier'}`;
+        icon = "📸";
+        title = "Lembrete de Captação";
+        message = extraInfo || `Lembrete da sua captação agendada para <strong>${taskName}</strong> (${projectName}).`;
+        buttonText = "Ver Detalhes no JTBD";
+        break;
+
+      case 'reuniao_reminder':
+        subject = `[REUNIÃO] ${taskName} - ${projectName || 'Atelier'}`;
+        icon = "🤝";
+        title = "Lembrete de Reunião";
+        message = extraInfo || `Lembrete da sua reunião agendada para <strong>${taskName}</strong> (${projectName}).`;
+        buttonText = "Ver Detalhes no JTBD";
+        break;
+
       case 'custom':
         subject = customSubject || "Aviso do Sistema";
         icon = "⚡";

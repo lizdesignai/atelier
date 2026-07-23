@@ -23,6 +23,8 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
   const [isUploadingFile, setIsUploadingFile] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const [subclientDetails, setSubclientDetails] = useState<any>(null);
+
   useEffect(() => {
     setMounted(true);
   }, []);
@@ -30,6 +32,12 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
   useEffect(() => {
     if (isOpen && (projectId || subclientId)) {
       fetchAssets();
+      if (subclientId) {
+        supabase.from('agency_subclients').select('*').eq('id', subclientId).maybeSingle()
+          .then(({ data }) => setSubclientDetails(data));
+      } else {
+        setSubclientDetails(null);
+      }
     }
   }, [isOpen, projectId, subclientId]);
 
@@ -169,6 +177,16 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
                 <button onClick={() => fileInputRef.current?.click()} disabled={isUploadingFile} className="bg-[var(--color-atelier-terracota)] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-2.5 rounded-full hover:bg-[#9b836b] transition-colors flex items-center gap-2 disabled:opacity-50">
                   {isUploadingFile ? <Loader2 size={14} className="animate-spin" /> : <FolderUp size={14} />} Adicionar Material
                 </button>
+                {subclientDetails?.trello_url && (
+                  <a 
+                    href={subclientDetails.trello_url} 
+                    target="_blank" 
+                    rel="noreferrer" 
+                    className="bg-[#0079BF] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-2.5 rounded-full hover:bg-[#026AA7] transition-colors flex items-center gap-2"
+                  >
+                    <ExternalLink size={14} /> Trello do Subcliente
+                  </a>
+                )}
                 <button onClick={() => setIsAddingLink(!isAddingLink)} className="bg-[var(--color-atelier-grafite)] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-2.5 rounded-full hover:bg-gray-700 transition-colors flex items-center gap-2">
                   <ExternalLink size={14} /> Adicionar Link
                 </button>

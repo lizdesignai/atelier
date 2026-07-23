@@ -7,10 +7,12 @@ import {
   Sparkles, Loader2, PlusCircle, Trash2, Save, 
   Layers, CheckSquare, Square, Flame, Edit3, Check, X, 
   ArrowRight, Trello, ExternalLink, PanelRightClose, PanelRightOpen, ListTodo,
-  AlertCircle, AlignLeft, MessageSquare, ChevronLeft, ChevronRight, FolderUp
+  AlertCircle, AlignLeft, MessageSquare, ChevronLeft, ChevronRight, FolderUp,
+  ChevronDown, Paperclip, UploadCloud, FileText, Image as ImageIcon, Eye, Calendar, Download
 } from "lucide-react";
 import { ALL_SKILLS } from "../constants";
 import ClientAssetsModal from "../../../../components/ClientAssetsModal";
+import { formatForDateTimeLocal, parseFromDateTimeLocal } from "../../../../lib/dateUtils";
 
 // 🟢 TIPAGEM ESTRITA BLINDADA
 interface ProjectsManagerProps {
@@ -35,7 +37,9 @@ interface ProjectsManagerProps {
     caption: string; 
     deadline: string; 
     estTime: number;
-    external_links?: string[];
+    external_links?: any[];
+    media_assets?: any[];
+    attachment_url?: string;
   };
   setAdHocDemand: (demand: any) => void;
   team: any[];
@@ -357,6 +361,67 @@ export default function ProjectsManager({
   const [isImportingTrelloUrl, setIsImportingTrelloUrl] = useState(false);
   const [newLinkTitle, setNewLinkTitle] = useState("");
   const [newLinkInput, setNewLinkInput] = useState("");
+
+  const [isUploadingAdHocFiles, setIsUploadingAdHocFiles] = useState(false);
+  const [openAdHocAccordion, setOpenAdHocAccordion] = useState<{ [key: string]: boolean }>({
+    instructions: false,
+    caption: false,
+    media: true,
+    links: false
+  });
+
+  const toggleAdHocAccordion = (key: string) => {
+    setOpenAdHocAccordion(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const handleAdHocMediaUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    setIsUploadingAdHocFiles(true);
+    try {
+      let currentAssets = [...(adHocDemand.media_assets || [])];
+      let mainUrl = adHocDemand.attachment_url;
+
+      for (const file of files) {
+        const isVideo = file.type.startsWith('video/');
+        const bucket = isVideo ? 'community_videos' : 'community_images';
+        const fileExt = file.name.split('.').pop();
+        const fileName = `adhoc_${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
+        const filePath = `demands/${fileName}`;
+
+        const { error } = await supabase.storage.from(bucket).upload(filePath, file, { upsert: true });
+        if (error) throw error;
+
+        const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
+        currentAssets.push({ type: isVideo ? 'video' : 'image', url: data.publicUrl, name: file.name });
+        if (!mainUrl) mainUrl = data.publicUrl;
+      }
+
+      setAdHocDemand({
+        ...adHocDemand,
+        media_assets: currentAssets,
+        attachment_url: mainUrl
+      });
+      showToast("Mídias anexadas à demanda!");
+    } catch (err) {
+      showToast("Erro ao anexar arquivos.");
+    } finally {
+      setIsUploadingAdHocFiles(false);
+      e.target.value = "";
+    }
+  };
+
+  const handleDeleteAdHocAsset = (index: number) => {
+    const currentAssets = adHocDemand.media_assets || [];
+    const updated = currentAssets.filter((_: any, idx: number) => idx !== index);
+    const mainUrl = updated.length > 0 ? updated[0].url : null;
+    setAdHocDemand({
+      ...adHocDemand,
+      media_assets: updated,
+      attachment_url: mainUrl
+    });
+  };
 
   const [walletSearch, setWalletSearch] = useState("");
   const [walletFilter, setWalletFilter] = useState<'all' | 'agency' | 'studio'>('all');
@@ -1057,7 +1122,7 @@ export default function ProjectsManager({
                 <div className="flex gap-4">
                   <div className="flex flex-col gap-1.5 w-1/2">
                     <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Deadline</span>
-                    <input type="datetime-local" value={adHocDemand.deadline} onChange={(e) => setAdHocDemand({...adHocDemand, deadline: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[12px] outline-none focus:border-orange-500 shadow-sm font-medium" />
+                    <input type="datetime-local" value={formatForDateTimeLocal(adHocDemand.deadline)} onChange={(e) => setAdHocDemand({...adHocDemand, deadline: e.target.value ? parseFromDateTimeLocal(e.target.value) : ""})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[12px] outline-none focus:border-orange-500 shadow-sm font-medium" />
                   </div>
                   <div className="flex flex-col gap-1.5 w-1/2">
                     <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Tempo Est. (Min)</span>
@@ -1196,90 +1261,182 @@ export default function ProjectsManager({
                           />
                         </div>
 
-                        <div className="flex flex-col gap-1.5">
-                          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1">
-                            <AlignLeft size={12}/> Instruções para a Equipe
-                          </span>
-                          <textarea 
-                            placeholder="Copie as infos do card do Trello e cole aqui..." 
-                            value={adHocDemand.description || ""} 
-                            onChange={(e) => setAdHocDemand({...adHocDemand, description: e.target.value})} 
-                            className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium resize-none h-20 custom-scrollbar transition-colors shadow-sm" 
-                          />
+                        {/* ACORDEÃO 1: INSTRUÇÕES DA EQUIPE */}
+                        <div className="border border-gray-200 rounded-2xl overflow-hidden">
+                          <button 
+                            type="button"
+                            onClick={() => toggleAdHocAccordion('instructions')}
+                            className="w-full p-3.5 bg-gray-50 flex items-center justify-between hover:bg-gray-100 transition-colors"
+                          >
+                            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2">
+                              <AlignLeft size={14}/> Instruções da Equipe
+                            </span>
+                            {openAdHocAccordion.instructions ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          </button>
+                          <AnimatePresence>
+                            {openAdHocAccordion.instructions && (
+                              <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden p-3.5 bg-white border-t border-gray-100">
+                                <textarea 
+                                  placeholder="Copie as infos do card do Trello e cole aqui..." 
+                                  value={adHocDemand.description || ""} 
+                                  onChange={(e) => setAdHocDemand({...adHocDemand, description: e.target.value})} 
+                                  className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[12px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium resize-none h-20 custom-scrollbar shadow-sm" 
+                                />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
 
-                        <div className="flex flex-col gap-1.5">
-                          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1">
-                            <MessageSquare size={12}/> Legenda do Post (Aprovação Cliente)
-                          </span>
-                          <textarea 
-                            placeholder="Escreva a legenda que ficará visível no Cockpit..."
-                            value={adHocDemand.caption || ""} 
-                            onChange={(e) => setAdHocDemand({...adHocDemand, caption: e.target.value})} 
-                            className="w-full bg-white border border-[var(--color-atelier-terracota)]/30 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium resize-none h-20 custom-scrollbar transition-colors shadow-sm" 
-                          />
+                        {/* ACORDEÃO 2: LEGENDA DO POST */}
+                        <div className="border border-gray-200 rounded-2xl overflow-hidden">
+                          <button 
+                            type="button"
+                            onClick={() => toggleAdHocAccordion('caption')}
+                            className="w-full p-3.5 bg-gray-50 flex items-center justify-between hover:bg-gray-100 transition-colors"
+                          >
+                            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2">
+                              <MessageSquare size={14}/> Legenda do Post (Aprovação)
+                            </span>
+                            {openAdHocAccordion.caption ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          </button>
+                          <AnimatePresence>
+                            {openAdHocAccordion.caption && (
+                              <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden p-3.5 bg-white border-t border-gray-100">
+                                <textarea 
+                                  placeholder="Escreva a legenda visível para o cliente..."
+                                  value={adHocDemand.caption || ""} 
+                                  onChange={(e) => setAdHocDemand({...adHocDemand, caption: e.target.value})} 
+                                  className="w-full bg-white border border-[var(--color-atelier-terracota)]/30 rounded-xl p-3 text-[12px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium resize-none h-20 custom-scrollbar shadow-sm" 
+                                />
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
-                        
-                        <div className="flex flex-col gap-1.5">
-                          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1">
-                            <ExternalLink size={12}/> Links Externos (Download/Referência)
-                          </span>
-                          <div className="flex gap-2 flex-wrap">
-                            <input 
-                              type="text"
-                              placeholder="Nome do Link (Ex: Figma)"
-                              value={newLinkTitle}
-                              onChange={(e) => setNewLinkTitle(e.target.value)}
-                              className="w-1/3 bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm"
-                            />
-                            <input 
-                              type="url"
-                              placeholder="https://..."
-                              value={newLinkInput}
-                              onChange={(e) => setNewLinkInput(e.target.value)}
-                              onKeyDown={(e) => {
-                                if (e.key === 'Enter' && newLinkInput.trim() && newLinkTitle.trim()) {
-                                  e.preventDefault();
-                                  setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), { title: newLinkTitle.trim(), url: newLinkInput.trim() }]});
-                                  setNewLinkTitle("");
-                                  setNewLinkInput("");
-                                }
-                              }}
-                              className="flex-1 bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm"
-                            />
-                            <button 
-                              onClick={(e) => {
-                                e.preventDefault();
-                                if (newLinkInput.trim() && newLinkTitle.trim()) {
-                                  setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), { title: newLinkTitle.trim(), url: newLinkInput.trim() }]});
-                                  setNewLinkTitle("");
-                                  setNewLinkInput("");
-                                }
-                              }}
-                              className="bg-[var(--color-atelier-grafite)] text-white px-4 rounded-xl flex items-center justify-center hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-sm"
-                            >
-                              <PlusCircle size={16} />
-                            </button>
-                          </div>
-                          {adHocDemand.external_links && adHocDemand.external_links.length > 0 && (
-                            <div className="flex flex-wrap gap-2 mt-2">
-                              {adHocDemand.external_links.map((link: any, i: number) => (
-                                <div key={i} className="flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg border border-[var(--color-atelier-terracota)]/20 text-[11px] font-medium">
-                                  <span className="max-w-[150px] truncate">{typeof link === 'string' ? link : link.title}</span>
-                                  <button onClick={(e) => { e.preventDefault(); setAdHocDemand({...adHocDemand, external_links: adHocDemand.external_links.filter((_: any, idx: number) => idx !== i)}); }} className="hover:text-red-500">
-                                    <X size={12} />
+
+                        {/* ACORDEÃO 3: MÍDIAS & ANEXOS */}
+                        <div className="border border-gray-200 rounded-2xl overflow-hidden">
+                          <button 
+                            type="button"
+                            onClick={() => toggleAdHocAccordion('media')}
+                            className="w-full p-3.5 bg-gray-50 flex items-center justify-between hover:bg-gray-100 transition-colors"
+                          >
+                            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2">
+                              <Paperclip size={14}/> Mídias & Anexos ({(adHocDemand.media_assets?.length) || (adHocDemand.attachment_url ? 1 : 0)})
+                            </span>
+                            {openAdHocAccordion.media ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          </button>
+                          <AnimatePresence>
+                            {openAdHocAccordion.media && (
+                              <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden p-3.5 bg-white border-t border-gray-100 flex flex-col gap-2">
+                                {((adHocDemand.media_assets && adHocDemand.media_assets.length > 0) || adHocDemand.attachment_url) ? (
+                                  <div className="grid grid-cols-3 gap-2">
+                                    {(adHocDemand.media_assets || [{ type: 'image', url: adHocDemand.attachment_url }]).map((asset: any, idx: number) => (
+                                      <div key={idx} className="h-16 rounded-xl border border-gray-200 overflow-hidden relative group bg-gray-100">
+                                        {asset.type === 'video' ? (
+                                          <video src={asset.url} className="w-full h-full object-cover" />
+                                        ) : (
+                                          <img src={asset.url} alt="Mídia" className="w-full h-full object-cover" />
+                                        )}
+                                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                                          <a href={asset.url} target="_blank" rel="noreferrer" className="p-1 bg-white text-gray-800 rounded-full hover:bg-gray-200" title="Ver">
+                                            <Eye size={10} />
+                                          </a>
+                                          <button type="button" onClick={() => handleDeleteAdHocAsset(idx)} className="p-1 bg-red-500 text-white rounded-full hover:bg-red-600" title="Apagar">
+                                            <Trash2 size={10} />
+                                          </button>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                ) : (
+                                  <span className="text-[10px] text-gray-400 italic">Nenhum anexo inserido ainda.</span>
+                                )}
+
+                                <label className="flex items-center justify-center gap-2 py-2 px-3 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-xl text-orange-600 transition-colors text-[9px] font-bold uppercase tracking-widest cursor-pointer mt-1">
+                                  <input type="file" multiple accept="image/*,video/*,application/pdf" className="hidden" onChange={handleAdHocMediaUpload} disabled={isUploadingAdHocFiles} />
+                                  {isUploadingAdHocFiles ? <Loader2 size={12} className="animate-spin" /> : <UploadCloud size={12} />}
+                                  <span>Adicionar Anexos</span>
+                                </label>
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
+                        </div>
+
+                        {/* ACORDEÃO 4: LINKS EXTERNOS */}
+                        <div className="border border-gray-200 rounded-2xl overflow-hidden">
+                          <button 
+                            type="button"
+                            onClick={() => toggleAdHocAccordion('links')}
+                            className="w-full p-3.5 bg-gray-50 flex items-center justify-between hover:bg-gray-100 transition-colors"
+                          >
+                            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2">
+                              <ExternalLink size={14}/> Links Externos
+                            </span>
+                            {openAdHocAccordion.links ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                          </button>
+                          <AnimatePresence>
+                            {openAdHocAccordion.links && (
+                              <motion.div initial={{ height: 0 }} animate={{ height: 'auto' }} exit={{ height: 0 }} className="overflow-hidden p-3.5 bg-white border-t border-gray-100 flex flex-col gap-2">
+                                <div className="flex gap-2">
+                                  <input 
+                                    type="text"
+                                    placeholder="Nome (Ex: Figma)"
+                                    value={newLinkTitle}
+                                    onChange={(e) => setNewLinkTitle(e.target.value)}
+                                    className="w-1/3 bg-white border border-gray-200 rounded-xl p-2.5 text-[11px] outline-none focus:border-[var(--color-atelier-terracota)]"
+                                  />
+                                  <input 
+                                    type="url"
+                                    placeholder="https://..."
+                                    value={newLinkInput}
+                                    onChange={(e) => setNewLinkInput(e.target.value)}
+                                    onKeyDown={(e) => {
+                                      if (e.key === 'Enter' && newLinkInput.trim() && newLinkTitle.trim()) {
+                                        e.preventDefault();
+                                        setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), { title: newLinkTitle.trim(), url: newLinkInput.trim() }]});
+                                        setNewLinkTitle("");
+                                        setNewLinkInput("");
+                                      }
+                                    }}
+                                    className="flex-1 bg-white border border-gray-200 rounded-xl p-2.5 text-[11px] outline-none focus:border-[var(--color-atelier-terracota)]"
+                                  />
+                                  <button 
+                                    type="button"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      if (newLinkInput.trim() && newLinkTitle.trim()) {
+                                        setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), { title: newLinkTitle.trim(), url: newLinkInput.trim() }]});
+                                        setNewLinkTitle("");
+                                        setNewLinkInput("");
+                                      }
+                                    }}
+                                    className="bg-[var(--color-atelier-grafite)] text-white px-3 rounded-xl flex items-center justify-center hover:bg-[var(--color-atelier-terracota)] transition-colors"
+                                  >
+                                    <PlusCircle size={14} />
                                   </button>
                                 </div>
-                              ))}
-                            </div>
-                          )}
+                                {adHocDemand.external_links && adHocDemand.external_links.length > 0 && (
+                                  <div className="flex flex-wrap gap-1.5">
+                                    {adHocDemand.external_links.map((link: any, i: number) => (
+                                      <div key={i} className="flex items-center gap-1.5 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-2.5 py-1 rounded-lg border border-[var(--color-atelier-terracota)]/20 text-[10px]">
+                                        <span className="max-w-[120px] truncate">{typeof link === 'string' ? link : link.title}</span>
+                                        <button type="button" onClick={(e) => { e.preventDefault(); setAdHocDemand({...adHocDemand, external_links: adHocDemand.external_links?.filter((_: any, idx: number) => idx !== i)}); }} className="hover:text-red-500">
+                                          <X size={10} />
+                                        </button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </motion.div>
+                            )}
+                          </AnimatePresence>
                         </div>
 
                         <div className="flex flex-col gap-1.5">
                           <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Escopo (Tag)</span>
                           <select 
                             value={adHocDemand.taskType} onChange={(e) => setAdHocDemand({...adHocDemand, taskType: e.target.value})} 
-                            className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium cursor-pointer shadow-sm"
+                            className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[12px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium cursor-pointer shadow-sm"
                           >
                             <option value="">Definir Escopo...</option>
                             {ALL_SKILLS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
@@ -1290,7 +1447,7 @@ export default function ProjectsManager({
                           <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Para o Executor <span className="text-red-500">*</span></span>
                           <select 
                             value={adHocDemand.assigneeId} onChange={(e) => setAdHocDemand({...adHocDemand, assigneeId: e.target.value})} 
-                            className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium cursor-pointer shadow-sm"
+                            className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[12px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium cursor-pointer shadow-sm"
                           >
                             <option value="">Escolher Membro da Equipe...</option>
                             {team.map(t => {
@@ -1300,23 +1457,23 @@ export default function ProjectsManager({
                           </select>
                         </div>
 
-                        <div className="flex gap-4">
-                          <div className="flex flex-col gap-1.5 w-1/2">
-                            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Deadline Trello</span>
-                            <input type="datetime-local" value={adHocDemand.deadline} onChange={(e) => setAdHocDemand({...adHocDemand, deadline: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[12px] outline-none focus:border-orange-500 shadow-sm font-medium" />
+                        <div className="flex gap-3">
+                          <div className="flex flex-col gap-1 w-1/2">
+                            <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Deadline</span>
+                            <input type="datetime-local" value={formatForDateTimeLocal(adHocDemand.deadline)} onChange={(e) => setAdHocDemand({...adHocDemand, deadline: e.target.value ? parseFromDateTimeLocal(e.target.value) : ""})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-2.5 text-[11px] outline-none focus:border-orange-500 font-medium" />
                           </div>
-                          <div className="flex flex-col gap-1.5 w-1/2">
-                            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Est. (Min)</span>
-                            <input type="number" value={adHocDemand.estTime} onChange={(e) => setAdHocDemand({...adHocDemand, estTime: parseInt(e.target.value) || 0})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-orange-500 shadow-sm font-medium" />
+                          <div className="flex flex-col gap-1 w-1/2">
+                            <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Est. (Min)</span>
+                            <input type="number" value={adHocDemand.estTime} onChange={(e) => setAdHocDemand({...adHocDemand, estTime: parseInt(e.target.value) || 0})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-2.5 text-[11px] outline-none focus:border-orange-500 font-medium" />
                           </div>
                         </div>
 
-                        <label className="flex items-center gap-3 cursor-pointer p-4 rounded-xl bg-orange-50/50 border border-orange-100 hover:bg-orange-50 transition-colors mt-2">
+                        <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl bg-orange-50/50 border border-orange-100 hover:bg-orange-50 transition-colors mt-1">
                           <input type="checkbox" className="hidden" checked={adHocDemand.urgency || false} onChange={(e) => setAdHocDemand({...adHocDemand, urgency: e.target.checked})} />
-                          <div className={`w-5 h-5 rounded flex items-center justify-center border ${adHocDemand.urgency ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-orange-200'}`}>
-                            {adHocDemand.urgency && <Check size={12} strokeWidth={3}/>}
+                          <div className={`w-4 h-4 rounded flex items-center justify-center border ${adHocDemand.urgency ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-orange-200'}`}>
+                            {adHocDemand.urgency && <Check size={10} strokeWidth={3}/>}
                           </div>
-                          <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-orange-600 flex items-center gap-1">Urgência Máxima</span>
+                          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-orange-600 flex items-center gap-1">Urgência Máxima</span>
                         </label>
                       </div>
 

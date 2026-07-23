@@ -9,17 +9,19 @@ export class AnalyticsController {
   static async getDashboardData(req: Request, res: Response) {
     try {
       const cacheKey = 'analytics:dashboard';
+      const isFreshRequested = req.query.fresh === 'true';
       
-      // Tenta recuperar do Cache do Redis (Upstash)
-      try {
-        const cachedData = await redis.get(cacheKey);
-        if (cachedData) {
-          // Se for stringified, parseamos antes de enviar
-          const parsed = typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData;
-          return res.status(200).json({ data: parsed });
+      // Tenta recuperar do Cache do Redis (Upstash) se não for forçado fresh
+      if (!isFreshRequested) {
+        try {
+          const cachedData = await redis.get(cacheKey);
+          if (cachedData) {
+            const parsed = typeof cachedData === 'string' ? JSON.parse(cachedData) : cachedData;
+            return res.status(200).json({ data: parsed });
+          }
+        } catch (cacheErr) {
+          console.warn('[Redis Cache Error] Falha ao ler cache do analytics:', cacheErr);
         }
-      } catch (cacheErr) {
-        console.warn('[Redis Cache Error] Falha ao ler cache do analytics:', cacheErr);
       }
 
       const fifteenDaysAgo = new Date();
@@ -61,6 +63,17 @@ export class AnalyticsController {
     } catch (error: any) {
       console.error('Error fetching analytics dashboard:', error.message);
       return res.status(500).json({ error: 'Internal Server Error' });
+    }
+  }
+
+  // POST /api/v1/analytics/clear-cache
+  static async clearCache(req: Request, res: Response) {
+    try {
+      await redis.del('analytics:dashboard');
+      return res.status(200).json({ success: true, message: 'Cache limpo' });
+    } catch (e: any) {
+      console.warn('Erro ao limpar cache do Redis:', e.message);
+      return res.status(200).json({ success: true, message: 'Sucesso com fallback' });
     }
   }
 }

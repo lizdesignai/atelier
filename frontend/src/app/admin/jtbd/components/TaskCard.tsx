@@ -4,11 +4,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../../lib/supabase";
 import ClientAssetsModal from "../../../../components/ClientAssetsModal";
 import { NotificationEngine } from "../../../../lib/NotificationEngine";
+import { formatForDateTimeLocal, parseFromDateTimeLocal } from "../../../../lib/dateUtils";
 import { 
   Clock, Target, Activity, Flame, ArrowRight, 
   Loader2, PlayCircle, PauseCircle, ChevronRight, 
   CheckCircle2, X, Save, AlignLeft, Paperclip, UploadCloud, Eye, 
-  Image as ImageIcon, ZoomIn, RotateCcw, MessageSquare, Send, FileText, Timer, PlusCircle, UserCircle2
+  Image as ImageIcon, ZoomIn, RotateCcw, MessageSquare, Send, FileText, Timer, PlusCircle, UserCircle2, Trash2, ExternalLink
 } from "lucide-react";
 
 interface TaskCardProps {
@@ -99,6 +100,34 @@ export default function TaskCard({
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao atualizar links." }));
     } finally {
       setIsSavingLink(false);
+    }
+  };
+
+  const handleDeleteAsset = async (assetIndex: number) => {
+    try {
+      const currentAssets = task.media_assets || (displayImageUrl ? [{ type: isPdf ? 'pdf' : 'image', url: displayImageUrl }] : []);
+      const updatedAssets = currentAssets.filter((_: any, idx: number) => idx !== assetIndex);
+      
+      const newMainUrl = updatedAssets.length > 0 ? updatedAssets[0].url : null;
+
+      await supabase.from('tasks').update({
+        media_assets: updatedAssets,
+        attachment_url: newMainUrl
+      }).eq('id', task.id);
+
+      await supabase.from('social_posts').update({
+        media_assets: updatedAssets,
+        image_url: newMainUrl
+      }).eq('task_id', task.id);
+
+      task.media_assets = updatedAssets;
+      task.attachment_url = newMainUrl;
+
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Anexo removido com sucesso!" }));
+      window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
+    } catch (e) {
+      console.error("Erro ao apagar anexo:", e);
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao apagar anexo." }));
     }
   };
 
@@ -374,13 +403,27 @@ export default function TaskCard({
         <div className="p-5 flex flex-col gap-3">
           <div className="flex justify-between items-start pointer-events-none relative z-10">
             <div className="flex flex-col pr-4">
-              <div 
-                className="pointer-events-auto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] transition-colors mb-1 flex items-center gap-1 cursor-pointer"
-                onClick={(e) => { e.stopPropagation(); setIsAssetsModalOpen(true); }}
-                title="Ver Cofre de Ativos"
-              >
-                {task.projects?.type === 'Identidade Visual' ? <Target size={10}/> : <Activity size={10}/>}
-                {(task.agency_subclients?.name || task.projects?.profiles?.nome)?.split(" ")[0]} • {task.stage}
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <div 
+                  className="pointer-events-auto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] transition-colors flex items-center gap-1 cursor-pointer"
+                  onClick={(e) => { e.stopPropagation(); setIsAssetsModalOpen(true); }}
+                  title="Ver Cofre de Ativos"
+                >
+                  {task.projects?.type === 'Identidade Visual' ? <Target size={10}/> : <Activity size={10}/>}
+                  {(task.agency_subclients?.name || task.projects?.profiles?.nome)?.split(" ")[0]} • {task.stage}
+                </div>
+                {(task.agency_subclients?.trello_url || task.projects?.trello_url) && (
+                  <a
+                    href={task.agency_subclients?.trello_url || task.projects?.trello_url}
+                    target="_blank"
+                    rel="noreferrer"
+                    onClick={(e) => e.stopPropagation()}
+                    className="pointer-events-auto text-[9px] font-bold text-[#0079BF] hover:underline flex items-center gap-0.5 bg-[#0079BF]/10 px-1.5 py-0.5 rounded border border-[#0079BF]/20 transition-colors"
+                    title="Abrir Trello"
+                  >
+                    <ExternalLink size={9} /> Trello
+                  </a>
+                )}
               </div>
               <span className={`font-roboto font-bold text-[14px] leading-snug ${isCompleted ? 'text-[var(--color-atelier-grafite)]/40 line-through' : 'text-[var(--color-atelier-grafite)]'}`}>
                 {task.title}
@@ -649,7 +692,7 @@ export default function TaskCard({
                               <CheckCircle2 size={14} /> Aprovar p/ Cliente
                             </button>
                           )}
-                          <button onClick={handleAdminFeedbackSubmit} disabled={isProcessingFeedback || !adminFeedback.trim()} className={`px-5 py-2 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 transition-colors shadow-sm ${isAdmin ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-600'}`}>
+                        <button onClick={handleAdminFeedbackSubmit} disabled={isProcessingFeedback || !adminFeedback.trim()} className={`px-5 py-2 text-white rounded-lg text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50 transition-colors shadow-sm ${isAdmin ? 'bg-orange-500 hover:bg-orange-600' : 'bg-blue-500 hover:bg-blue-600'}`}>
                             {isProcessingFeedback ? <Loader2 size={14} className="animate-spin"/> : <Send size={14}/>} {isAdmin && isReview ? 'Solicitar Ajuste' : 'Enviar Mensagem'}
                           </button>
                         </div>
@@ -685,10 +728,17 @@ export default function TaskCard({
                             ) : (
                                <img src={asset.url} alt="Arte" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                             )}
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                              <a href={asset.url} target="_blank" rel="noreferrer" className="bg-white/95 backdrop-blur-md p-2 rounded-full text-[var(--color-atelier-grafite)] opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl transform translate-y-2 group-hover:translate-y-0">
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2">
+                              <a href={asset.url} target="_blank" rel="noreferrer" className="bg-white/95 backdrop-blur-md p-2 rounded-full text-[var(--color-atelier-grafite)] opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl transform translate-y-2 group-hover:translate-y-0" title="Visualizar">
                                  <Eye size={14} />
                               </a>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleDeleteAsset(idx); }}
+                                className="bg-red-500/90 hover:bg-red-600 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl transform translate-y-2 group-hover:translate-y-0"
+                                title="Apagar Anexo"
+                              >
+                                <Trash2 size={14} />
+                              </button>
                             </div>
                           </div>
                         ))}
@@ -701,9 +751,14 @@ export default function TaskCard({
                              <span className="font-bold uppercase tracking-widest text-[11px] text-gray-500">Documento PDF</span>
                              
                              <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-3 backdrop-blur-sm">
-                               <a href={displayImageUrl!} target="_blank" rel="noreferrer" className="bg-white text-[var(--color-atelier-grafite)] px-5 py-2.5 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg flex items-center gap-2 hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-colors">
-                                 <Eye size={14}/> Ler Documento
-                               </a>
+                               <div className="flex items-center gap-2">
+                                 <a href={displayImageUrl!} target="_blank" rel="noreferrer" className="bg-white text-[var(--color-atelier-grafite)] px-4 py-2.5 rounded-xl font-bold uppercase tracking-widest text-[10px] shadow-lg flex items-center gap-2 hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-colors">
+                                   <Eye size={14}/> Ler
+                                 </a>
+                                 <button onClick={() => handleDeleteAsset(0)} className="bg-red-500 text-white p-2.5 rounded-xl font-bold text-[10px] shadow-lg flex items-center gap-1 hover:bg-red-600 transition-colors" title="Apagar Anexo">
+                                   <Trash2 size={14}/>
+                                 </button>
+                               </div>
                                <a href={displayImageUrl!} download target="_blank" rel="noreferrer" className="text-white font-bold uppercase tracking-widest text-[9px] underline hover:text-[var(--color-atelier-terracota)] transition-colors">
                                  Fazer Download
                                </a>
@@ -712,10 +767,17 @@ export default function TaskCard({
                         ) : (
                           <div className={`w-full h-48 sm:h-56 rounded-[1.5rem] overflow-hidden border border-gray-200 shadow-sm relative group cursor-pointer bg-gray-100 ${isRejectedByClient ? 'border-red-300 ring-2 ring-red-500/20' : ''}`} onClick={() => setIsLightboxOpen(true)}>
                             <img src={displayImageUrl!} alt="Arte Anexada" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center">
-                              <div className="bg-white/95 backdrop-blur-md px-5 py-3 rounded-full text-[var(--color-atelier-grafite)] opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl transform translate-y-4 group-hover:translate-y-0 flex items-center gap-2">
-                                 <ZoomIn size={18} /> <span className="text-[10px] font-bold uppercase tracking-widest">Expandir Arte</span>
+                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2">
+                              <div className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-full text-[var(--color-atelier-grafite)] opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl transform translate-y-4 group-hover:translate-y-0 flex items-center gap-2">
+                                 <ZoomIn size={16} /> <span className="text-[10px] font-bold uppercase tracking-widest">Expandir</span>
                               </div>
+                              <button 
+                                onClick={(e) => { e.stopPropagation(); handleDeleteAsset(0); }}
+                                className="bg-red-500/90 hover:bg-red-600 text-white p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl transform translate-y-4 group-hover:translate-y-0"
+                                title="Apagar Anexo"
+                              >
+                                <Trash2 size={16} />
+                              </button>
                             </div>
                           </div>
                         )}
@@ -728,20 +790,37 @@ export default function TaskCard({
                           <Paperclip size={16} />
                         </div>
                         <div className="flex flex-col truncate">
-                          <span className="text-[12px] font-bold text-[var(--color-atelier-grafite)] truncate">Arquivo Anexado</span>
+                          <span className="text-[12px] font-bold text-[var(--color-atelier-grafite)] truncate">Arquivos Anexados ({(task.media_assets?.length) || (displayImageUrl ? 1 : 0)})</span>
                           <span className="text-[9px] uppercase font-bold tracking-widest text-green-600 mt-0.5 flex items-center gap-1"><CheckCircle2 size={10}/> Vinculado ao Fluxo</span>
                         </div>
                       </div>
                       <div className="flex items-center gap-2 shrink-0 pl-2">
                         {onUpload && (
-                          <label className="flex items-center justify-center gap-2 h-9 px-4 bg-orange-50 hover:bg-orange-100 border border-transparent hover:border-orange-200 rounded-xl text-orange-600 transition-all shadow-sm cursor-pointer" title="Substituir Arquivo">
+                          <label className="flex items-center justify-center gap-2 h-9 px-4 bg-orange-50 hover:bg-orange-100 border border-transparent hover:border-orange-200 rounded-xl text-orange-600 transition-all shadow-sm cursor-pointer" title="Adicionar Mídia / Anexos">
                             <input type="file" multiple accept="image/*,video/*,application/pdf" className="hidden" onChange={handleFileSelection} disabled={isUploading} />
                             {isUploading ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />}
-                            <span className="font-bold text-[10px] uppercase tracking-widest hidden sm:block">Substituir</span>
+                            <span className="font-bold text-[10px] uppercase tracking-widest hidden sm:block">Adicionar Anexos</span>
                           </label>
                         )}
                       </div>
                     </div>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-3">
+                    <div className="bg-gray-50 border border-dashed border-gray-300 p-6 rounded-2xl flex flex-col items-center justify-center text-center gap-2">
+                      <UploadCloud size={32} className="text-gray-400" />
+                      <span className="text-[12px] font-bold text-gray-600">Nenhum anexo adicionado a esta tarefa</span>
+                      {onUpload && (
+                        <label className="mt-2 flex items-center justify-center gap-2 h-9 px-5 bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] rounded-xl transition-all shadow-sm cursor-pointer" title="Anexar Arquivos">
+                          <input type="file" multiple accept="image/*,video/*,application/pdf" className="hidden" onChange={handleFileSelection} disabled={isUploading} />
+                          {isUploading ? <Loader2 size={14} className="animate-spin" /> : <PlusCircle size={14} />}
+                          <span className="font-bold text-[10px] uppercase tracking-widest">Adicionar Anexos</span>
+                        </label>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
 
                     <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-gray-100">
                       <div className="flex items-center justify-between">
@@ -804,32 +883,7 @@ export default function TaskCard({
                         </div>
                       )}
                     </div>
-
                   </div>
-                ) : (
-                  <div className={`p-6 rounded-2xl border-2 border-dashed flex flex-col items-center gap-3 transition-colors text-center ${(!isCompleted && onUpload) ? 'bg-gray-50 border-gray-200 hover:bg-gray-100 hover:border-[var(--color-atelier-terracota)]/50 cursor-pointer' : 'bg-gray-50 border-gray-100 opacity-60'}`}>
-                    {isUploading ? (
-                      <>
-                        <Loader2 size={28} className="animate-spin text-[var(--color-atelier-terracota)]" />
-                        <span className="font-bold uppercase tracking-widest text-[10px] text-[var(--color-atelier-terracota)] mt-1">Fazendo Upload Seguro...</span>
-                      </>
-                    ) : (
-                      <>
-                        <UploadCloud size={28} className="text-gray-300" />
-                        <span className="font-bold uppercase tracking-widest text-[10px] text-gray-500">Área de Entrega de Peças</span>
-                        {!isCompleted && onUpload ? (
-                          <label className="mt-2 bg-white border border-gray-200 px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:text-white hover:bg-[var(--color-atelier-terracota)] hover:border-transparent cursor-pointer shadow-sm transition-all">
-                            <input type="file" accept="image/*,video/*,application/pdf" className="hidden" onChange={handleFileSelection} disabled={isUploading} />
-                            Anexar Imagem ou PDF
-                          </label>
-                        ) : (
-                          <span className="text-[10px] italic text-gray-400 max-w-[200px] mt-1">Nenhum ficheiro anexado e a tarefa encontra-se encerrada.</span>
-                        )}
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
 
               {/* 🟢 DASHBOARD DE TELEMETRIA E GESTÃO DE PRAZO (ADMIN VIEW) */}
               {isAdmin && (
@@ -841,8 +895,8 @@ export default function TaskCard({
                     <div className="flex items-center gap-3">
                       <input 
                         type="datetime-local" 
-                        value={localDeadline ? new Date(localDeadline).toISOString().slice(0, 16) : ""} 
-                        onChange={(e) => setLocalDeadline(e.target.value ? new Date(e.target.value).toISOString() : null)} 
+                        value={formatForDateTimeLocal(localDeadline)} 
+                        onChange={(e) => setLocalDeadline(e.target.value ? parseFromDateTimeLocal(e.target.value) : null)} 
                         className="flex-1 bg-white border border-gray-200 rounded-xl p-3 text-[13px] outline-none focus:border-orange-400 shadow-sm" 
                       />
                       <button onClick={handleUpdateDeadline} disabled={isSavingDeadline || localDeadline === task.deadline} className="bg-orange-100 text-orange-700 hover:bg-orange-500 hover:text-white px-5 h-[46px] rounded-xl text-[11px] font-bold uppercase tracking-widest transition-colors flex items-center gap-2 disabled:opacity-50 shadow-sm">
@@ -868,7 +922,6 @@ export default function TaskCard({
                    </div>
                  </div>
                )}
-              </div>
             </motion.div>
           </div>
         )}
