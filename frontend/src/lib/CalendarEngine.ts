@@ -81,11 +81,19 @@ export class CalendarEngine {
       
       // Agrupar cronologicamente por dia (YYYY-MM-DD)
       const scheduleMap = userTasks.reduce((acc, t) => {
-        const dateStr = new Date(t.deadline).toISOString().split('T')[0];
-        if (!acc[dateStr]) acc[dateStr] = { tasks: [], totalMinutes: 0, heavyCount: 0 };
-        acc[dateStr].tasks.push(t);
-        acc[dateStr].totalMinutes += (t.estimated_time || 60);
-        if (this.HEAVY_TYPES.includes(t.task_type)) acc[dateStr].heavyCount += 1;
+        if (!t.deadline) return acc; // Segurança extra
+        try {
+          const dateObj = new Date(t.deadline);
+          if (isNaN(dateObj.getTime())) return acc; // Ignorar datas inválidas silenciosamente
+          
+          const dateStr = dateObj.toISOString().split('T')[0];
+          if (!acc[dateStr]) acc[dateStr] = { tasks: [], totalMinutes: 0, heavyCount: 0 };
+          acc[dateStr].tasks.push(t);
+          acc[dateStr].totalMinutes += (t.estimated_time || 60);
+          if (this.HEAVY_TYPES.includes(t.task_type)) acc[dateStr].heavyCount += 1;
+        } catch (e) {
+          console.warn("Invalid deadline for task:", t.id);
+        }
         return acc;
       }, {} as Record<string, { tasks: TaskPayload[], totalMinutes: number, heavyCount: number }>);
 

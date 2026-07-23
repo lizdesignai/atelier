@@ -331,7 +331,16 @@ export default function JTBDPage() {
   const allUserTasks = allTasks.filter(t => t.assigned_to === viewingUserId);
   
   const displayedTasks = selectedDate 
-    ? allUserTasks.filter(t => new Date(t.deadline).toISOString().split('T')[0] === selectedDate)
+    ? allUserTasks.filter(t => {
+        if (!t.deadline) return false;
+        try {
+          const d = new Date(t.deadline);
+          if (isNaN(d.getTime())) return false;
+          return d.toISOString().split('T')[0] === selectedDate;
+        } catch {
+          return false;
+        }
+      })
     : allUserTasks;
 
   // 🟢 FILTROS DE COLUNAS
