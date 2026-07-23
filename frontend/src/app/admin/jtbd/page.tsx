@@ -115,7 +115,7 @@ export default function JTBDPage() {
       
       const { data: tasksData } = await supabase
         .from('tasks')
-        .select('*, projects(profiles(nome), type, client_id, trello_url), agency_subclients(id, name, trello_url)')
+        .select('*, projects(profiles(nome), type, client_id), agency_subclients(id, name, trello_url)')
         .in('assigned_to', teamIds)
         .order('priority_score', { ascending: false }) 
         .order('deadline', { ascending: true });
