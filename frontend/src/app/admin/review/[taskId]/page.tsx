@@ -95,11 +95,9 @@ export default function ReviewTaskPage() {
       
       if (finalStatus === 'in_progress') {
          showToast("Feedback enviado com sucesso!");
-         NotificationEngine.notifyManagement("📝 Ajuste Solicitado", `O Gestor solicitou ajustes na tarefa "${data.title}".`, "action");
          router.push("/admin/jtbd");
       } else if (finalStatus === 'completed' || finalStatus === 'pending_client_approval') {
          showToast("Tarefa Aprovada com sucesso!");
-         NotificationEngine.notifyManagement("✅ Tarefa Aprovada", `O Gestor aprovou a tarefa "${data.title}".`, "success");
          router.push("/admin/jtbd");
       }
 

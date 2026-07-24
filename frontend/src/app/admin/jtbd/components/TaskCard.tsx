@@ -318,12 +318,16 @@ export default function TaskCard({
 
       // Notifications
       if (isAdmin && task.assigned_to) {
-        await NotificationEngine.notifyUser(
+        await NotificationEngine.notifyCollaboratorWithEmail(
           task.assigned_to,
           "💬 Novo Feedback Recebido",
           `A gestão enviou um novo feedback na tarefa "${task.title}".`,
-          "action",
-          "/admin/jtbd"
+          "task_feedback",
+          {
+            taskName: task.title,
+            projectName: task.agency_subclients?.name || task.projects?.profiles?.nome || 'Projeto',
+            link: "/admin/jtbd"
+          }
         );
       } else if (!isAdmin) {
         await NotificationEngine.notifyManagement(
@@ -471,13 +475,35 @@ export default function TaskCard({
                   )}
 
                   {!isFocus && (
-                    <button 
-                      onClick={(e) => { e.stopPropagation(); onReschedule(); }}
-                      disabled={isRescheduling}
-                      className={`text-[9px] uppercase font-bold tracking-widest px-2 py-0.5 rounded transition-colors flex items-center gap-1 text-blue-500 hover:bg-blue-50 cursor-pointer pointer-events-auto disabled:opacity-50`}
-                    >
-                      {isRescheduling ? <Loader2 size={10} className="animate-spin"/> : <ArrowRight size={10}/>} Adiar
-                    </button>
+                    <>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onReschedule(); }}
+                        disabled={isRescheduling}
+                        className={`text-[9px] uppercase font-bold tracking-widest px-2 py-0.5 rounded transition-colors flex items-center gap-1 text-blue-500 hover:bg-blue-50 cursor-pointer pointer-events-auto disabled:opacity-50`}
+                      >
+                        {isRescheduling ? <Loader2 size={10} className="animate-spin"/> : <ArrowRight size={10}/>} Adiar
+                      </button>
+                      
+                      {isAdmin && isDelayed && task.assigned_to && (
+                        <button 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            NotificationEngine.notifyCollaboratorWithEmail(
+                              task.assigned_to,
+                              "⏰ Atraso Identificado",
+                              `A tarefa "${task.title}" encontra-se atrasada. A gestão solicita atualização.`,
+                              "task_overdue",
+                              { taskName: task.title, projectName: task.agency_subclients?.name || task.projects?.profiles?.nome || 'Projeto' }
+                            );
+                            window.dispatchEvent(new CustomEvent("showToast", { detail: "Cobrança enviada ao colaborador!" }));
+                          }}
+                          className={`text-[9px] uppercase font-bold tracking-widest px-2 py-0.5 rounded transition-colors flex items-center gap-1 text-red-500 hover:bg-red-50 cursor-pointer pointer-events-auto border border-red-200 shadow-sm`}
+                          title="Enviar aviso de cobrança"
+                        >
+                          Cobrar
+                        </button>
+                      )}
+                    </>
                   )}
                 </div>
               </div>

@@ -240,14 +240,43 @@ export class TaskController {
       const { id } = req.params;
       const updates = req.body;
       
+      // Get the existing task to check if assigned_to changes
+      const { data: existingTask } = await supabase
+        .from('tasks')
+        .select('assigned_to')
+        .eq('id', id)
+        .single();
+        
       const { data, error } = await supabase
         .from('tasks')
         .update(updates)
         .eq('id', id)
-        .select()
+        .select('*, projects(profiles(nome), type, service_type), agency_subclients(name)')
         .single();
         
       if (error) throw error;
+      
+      // If assignment changed and is now assigned to someone, notify them
+      if (updates.assigned_to && existingTask && existingTask.assigned_to !== updates.assigned_to) {
+        (async () => {
+          try {
+            const { data: collab } = await supabase.from('profiles').select('email, nome').eq('id', updates.assigned_to).single();
+            if (collab?.email) {
+              const projName = data.agency_subclients?.name || data.projects?.profiles?.nome || data.projects?.type || 'Projeto';
+              await NotificationService.sendNotification({
+                to: collab.email,
+                type: 'task_assigned',
+                taskName: data.title,
+                projectName: projName,
+                extraInfo: data.description,
+                link: `${process.env.FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin/jtbd`
+              });
+            }
+          } catch (e) {
+            console.error("Erro ao enviar e-mail de tarefa reatribuída:", e);
+          }
+        })();
+      }
       
       await redis.del('analytics:dashboard').catch(() => {});
       return res.status(200).json({ data });

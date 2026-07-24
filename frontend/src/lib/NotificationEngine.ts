@@ -110,6 +110,57 @@ export class NotificationEngine {
   }
 
   /**
+   * Dispara uma notificação para um Colaborador específico (In-App e E-mail)
+   */
+  static async notifyCollaboratorWithEmail(
+    userId: string,
+    title: string,
+    message: string,
+    emailTemplateType: string,
+    extraData: any = {}
+  ) {
+    try {
+      // 1. Envia notificação in-app
+      const { error } = await supabase.from('notifications').insert({
+        user_id: userId,
+        title,
+        message,
+        type: 'action',
+        action_url: extraData.link || '/admin/jtbd',
+        is_read: false
+      });
+
+      if (error) throw error;
+
+      // 2. Busca e-mail real do colaborador
+      const { data: collab } = await supabase
+        .from('profiles')
+        .select('email')
+        .eq('id', userId)
+        .single();
+
+      if (collab && this.isValidRealEmail(collab.email)) {
+        fetch('/api/notify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: collab.email,
+            type: emailTemplateType, 
+            subject: title,
+            body: message,
+            link: extraData.link || '/admin/jtbd',
+            taskName: extraData.taskName,
+            projectName: extraData.projectName,
+            extraInfo: extraData.extraInfo
+          })
+        }).catch(err => console.log("Aviso silencioso: Falha no disparo de e-mail para colaborador", err));
+      }
+    } catch (error) {
+      console.error('❌ Erro no NotificationEngine (notifyCollaboratorWithEmail):', error);
+    }
+  }
+
+  /**
    * Marca uma notificação individual como lida
    */
   static async markAsRead(notificationId: string) {

@@ -17,11 +17,11 @@ export class NotificationService {
 
     switch (type) {
       case 'internal_review':
-        subject = `[REVISÃO] ${projectName} - ${taskName} por ${collaboratorName || 'Colaborador'}`;
+        subject = `[REVISÃO] ${projectName} - ${taskName}`;
         icon = "👀";
-        title = "Revisão Interna";
-        message = `O colaborador(a) <strong>${collaboratorName || 'Desconhecido'}</strong> finalizou a tarefa <strong>${taskName}</strong> do projeto/cliente <strong>${projectName}</strong> e enviou para revisão interna.`;
-        buttonText = "Avaliar Tarefa no Cockpit";
+        title = "Pronto para Revisão";
+        message = `A tarefa <strong>${taskName}</strong> do projeto <strong>${projectName}</strong> foi enviada para revisão interna por <strong>${collaboratorName || 'Colaborador'}</strong>.`;
+        buttonText = "Avaliar no Cockpit";
         
         const backendUrl = process.env.BACKEND_URL || 'https://atelier-zwlt.onrender.com';
         const frontendUrl = process.env.FRONTEND_URL || 'https://atelier.lizdesign.com.br';
@@ -36,33 +36,33 @@ export class NotificationService {
               ✅ APROVAR IMEDIATAMENTE
             </a>
             <a href="${frontendUrl}/admin/review/${taskId}" style="display: block; width: 100%; box-sizing: border-box; background-color: #fef2f2; color: #ef4444; border: 1px solid #fca5a5; text-decoration: none; padding: 16px; border-radius: 12px; font-size: 14px; font-weight: bold; text-align: center;">
-              👀 REVISAR / SOLICITAR AJUSTE NA TAREFA
+              👀 REVISAR
             </a>
           </div>
         `;
         break;
 
       case 'task_in_progress':
-        subject = `[WORK] Tarefa Iniciada: ${taskName}`;
+        subject = `[WORK] Iniciada: ${taskName}`;
         icon = "▶️";
         title = "Trabalho Iniciado";
-        message = `A tarefa <strong>${taskName}</strong> do projeto <strong>${projectName}</strong> acabou de entrar em progresso.`;
+        message = `A tarefa <strong>${taskName}</strong> (${projectName}) está agora em progresso.`;
         buttonText = "Ver Tarefa";
         break;
 
       case 'task_paused':
-        subject = `[WORK] Tarefa Pausada: ${taskName}`;
+        subject = `[PAUSA] Pausada: ${taskName}`;
         icon = "⏸️";
         title = "Trabalho Pausado";
-        message = `A tarefa <strong>${taskName}</strong> do projeto <strong>${projectName}</strong> foi pausada temporariamente.`;
+        message = `A tarefa <strong>${taskName}</strong> (${projectName}) foi pausada.`;
         buttonText = "Ver Tarefa";
         break;
 
       case 'task_assigned':
-        subject = `[NOVA DEMANDA] ${projectName || 'Projeto'} - ${taskName}`;
+        subject = `[NOVA TAREFA] ${taskName}`;
         icon = "📋";
-        title = "Nova Demanda Atribuída";
-        message = `Você recebeu uma nova demanda: <strong>${taskName}</strong> do cliente/projeto <strong>${projectName || 'Projeto'}</strong>.`;
+        title = "Nova Tarefa Atribuída";
+        message = `Você foi atribuído(a) à tarefa <strong>${taskName}</strong> do projeto <strong>${projectName || 'Projeto'}</strong>.`;
         if (extraInfo) {
           message += `<br/><br/><strong>Instruções:</strong> ${extraInfo}`;
         }
@@ -70,19 +70,19 @@ export class NotificationService {
         break;
 
       case 'captacao_reminder':
-        subject = `[CAPTAÇÃO] ${taskName} - ${projectName || 'Atelier'}`;
+        subject = `[CAPTAÇÃO] ${taskName}`;
         icon = "📸";
         title = "Lembrete de Captação";
-        message = extraInfo || `Lembrete da sua captação agendada para <strong>${taskName}</strong> (${projectName}).`;
-        buttonText = "Ver Detalhes no JTBD";
+        message = extraInfo || `Lembrete: captação agendada para <strong>${taskName}</strong> (${projectName}).`;
+        buttonText = "Ver Detalhes";
         break;
 
       case 'reuniao_reminder':
-        subject = `[REUNIÃO] ${taskName} - ${projectName || 'Atelier'}`;
+        subject = `[REUNIÃO] ${taskName}`;
         icon = "🤝";
         title = "Lembrete de Reunião";
-        message = extraInfo || `Lembrete da sua reunião agendada para <strong>${taskName}</strong> (${projectName}).`;
-        buttonText = "Ver Detalhes no JTBD";
+        message = extraInfo || `Lembrete: reunião agendada para <strong>${taskName}</strong> (${projectName}).`;
+        buttonText = "Ver Detalhes";
         break;
 
       case 'custom':
@@ -90,7 +90,7 @@ export class NotificationService {
         icon = "⚡";
         title = customSubject || "Notificação";
         message = customBody || "Existem novas métricas ou alertas a necessitar da sua atenção.";
-        buttonText = "Acessar Dashboard";
+        buttonText = "Acessar Sistema";
         break;
 
       default:

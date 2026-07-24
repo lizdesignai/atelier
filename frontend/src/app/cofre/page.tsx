@@ -33,6 +33,9 @@ export default function CofrePage() {
   const [showUpsellModal, setShowUpsellModal] = useState(false);
   const [isProcessingNps, setIsProcessingNps] = useState(false);
 
+  // 🟢 NOVO: Arquivos Finais Dinâmicos
+  const [projectAssets, setProjectAssets] = useState<any[]>([]);
+
   useEffect(() => {
     const fetchProjectsAndDeadline = async () => {
       const { data: { session } } = await supabase.auth.getSession();
@@ -71,6 +74,18 @@ export default function CofrePage() {
   // 4. Recalcula os Dias e o Desbloqueio sempre que o activeProject mudar
   useEffect(() => {
     if (!activeProject) return;
+
+    const fetchAssets = async () => {
+      const { data } = await supabase
+        .from('project_assets')
+        .select('*')
+        .eq('project_id', activeProject.id)
+        .order('created_at', { ascending: false });
+      if (data) {
+        setProjectAssets(data);
+      }
+    };
+    fetchAssets();
 
     if (activeProject.data_limite) {
       const today = new Date();
@@ -346,31 +361,26 @@ export default function CofrePage() {
                   </h3>
                   
                   <div className="flex flex-col gap-3">
-                    <button className="flex items-center justify-between p-5 rounded-[1.5rem] bg-white/60 border border-white hover:border-[var(--color-atelier-terracota)]/40 hover:bg-white transition-all duration-300 group shadow-sm hover:shadow-md hover:-translate-y-0.5">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-[1rem] bg-white border border-[var(--color-atelier-terracota)]/10 flex items-center justify-center text-[var(--color-atelier-terracota)] group-hover:bg-[var(--color-atelier-terracota)] group-hover:text-white transition-colors shadow-inner">
-                          <Fingerprint size={20} strokeWidth={1.5} />
-                        </div>
-                        <div className="flex flex-col text-left">
-                          <span className="font-roboto font-bold text-[14px] text-[var(--color-atelier-grafite)]">Logos e Vetores</span>
-                          <span className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 font-medium">Download Original</span>
-                        </div>
+                    {projectAssets.length > 0 ? (
+                      projectAssets.map(asset => (
+                        <a key={asset.id} href={asset.file_url} target="_blank" rel="noopener noreferrer" className="flex items-center justify-between p-5 rounded-[1.5rem] bg-white/60 border border-white hover:border-[var(--color-atelier-terracota)]/40 hover:bg-white transition-all duration-300 group shadow-sm hover:shadow-md hover:-translate-y-0.5">
+                          <div className="flex items-center gap-4 w-[85%]">
+                            <div className="w-12 h-12 rounded-[1rem] bg-white border border-[var(--color-atelier-terracota)]/10 flex items-center justify-center text-[var(--color-atelier-terracota)] group-hover:bg-[var(--color-atelier-terracota)] group-hover:text-white transition-colors shadow-inner shrink-0">
+                              <Download size={20} strokeWidth={1.5} />
+                            </div>
+                            <div className="flex flex-col text-left overflow-hidden">
+                              <span className="font-roboto font-bold text-[14px] text-[var(--color-atelier-grafite)] truncate">{asset.file_name}</span>
+                              <span className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 font-medium">{asset.file_size}</span>
+                            </div>
+                          </div>
+                          <Download size={18} className="text-[var(--color-atelier-grafite)]/30 group-hover:text-[var(--color-atelier-terracota)] transition-colors mr-2 shrink-0" />
+                        </a>
+                      ))
+                    ) : (
+                      <div className="text-center p-6 bg-white/30 rounded-[1.5rem] border border-white">
+                        <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/50 font-medium">Nenhum arquivo final disponível no momento.</p>
                       </div>
-                      <Download size={18} className="text-[var(--color-atelier-grafite)]/30 group-hover:text-[var(--color-atelier-terracota)] transition-colors mr-2" />
-                    </button>
-
-                    <button className="flex items-center justify-between p-5 rounded-[1.5rem] bg-white/60 border border-white hover:border-[var(--color-atelier-terracota)]/40 hover:bg-white transition-all duration-300 group shadow-sm hover:shadow-md hover:-translate-y-0.5">
-                      <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-[1rem] bg-white border border-[var(--color-atelier-terracota)]/10 flex items-center justify-center text-[var(--color-atelier-terracota)] group-hover:bg-[var(--color-atelier-terracota)] group-hover:text-white transition-colors shadow-inner">
-                          <Layers size={20} strokeWidth={1.5} />
-                        </div>
-                        <div className="flex flex-col text-left">
-                          <span className="font-roboto font-bold text-[14px] text-[var(--color-atelier-grafite)]">Mockups (Aplicações)</span>
-                          <span className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 font-medium">Exemplos Práticos</span>
-                        </div>
-                      </div>
-                      <Download size={18} className="text-[var(--color-atelier-grafite)]/30 group-hover:text-[var(--color-atelier-terracota)] transition-colors mr-2" />
-                    </button>
+                    )}
                   </div>
                 </div>
 

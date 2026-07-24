@@ -113,70 +113,87 @@ function getEmailTemplate(type: string, data: any) {
     // 2. NOTIFICAÇÕES INTERNAS (ADMIN / GESTOR / EQUIPA)
     // -------------------------------------------------------------
     case 'admin_alert_briefing':
-      subject = `[SISTEMA] Briefing Submetido: ${clientName}`;
+      subject = `[NOVO] Briefing: ${clientName}`;
       icon = "🎯";
-      title = "Diagnóstico Pronto";
-      message = `O cliente <strong>${clientName}</strong> concluiu o Dossiê Estratégico. A IA está a postos para gerar a primeira análise.`;
-      buttonText = "Ver Dossiê";
+      title = "Briefing Recebido";
+      message = `O cliente <strong>${clientName}</strong> enviou o briefing.`;
+      buttonText = "Analisar Dossiê";
       break;
 
     case 'upsell_accepted':
-      subject = `[SINAL DE ESCALA] Upsell Solicitado: ${clientName}`;
+      subject = `[VENDA] Upsell: ${clientName}`;
       icon = "🔥";
-      title = "Boiling Lead";
-      message = `O cliente <strong>${clientName}</strong> expressou interesse em escalar os serviços através do painel. Ação imediata de contacto requerida.`;
-      buttonText = "Abrir CRM";
+      title = "Oportunidade";
+      message = `O cliente <strong>${clientName}</strong> demonstrou interesse em novos serviços.`;
+      buttonText = "Ver no CRM";
       break;
 
     case 'art_approved':
-      subject = `[CURADORIA] Arte Aprovada: ${clientName}`;
+      subject = `[APROVADO] Arte: ${clientName}`;
       icon = "🟢";
       title = "Luz Verde";
-      message = `A Direção Visual foi aprovada por <strong>${clientName}</strong> sem ressalvas. Mover para a próxima fase.`;
-      buttonText = "Avançar Operação";
+      message = `O cliente <strong>${clientName}</strong> aprovou a direção visual.`;
+      buttonText = "Avançar Projeto";
       break;
 
     case 'art_rejected':
-      subject = `[CURADORIA] Arte Recusada: ${clientName}`;
+      subject = `[RECUSADO] Arte: ${clientName}`;
       icon = "🛑";
-      title = "Atenção Tática";
-      message = `A entrega sofreu rejeição. É imperativo rever os apontamentos deixados pelo cliente e corrigir a rota.`;
+      title = "Ajuste Necessário";
+      message = `A entrega foi recusada. Verifique as anotações do cliente.`;
       buttonText = "Revisar Peça";
       break;
 
     case 'visual_pin_added':
-      subject = `[FIGMA] Apontamento Visual Adicionado: ${clientName}`;
+      subject = `[FEEDBACK] Figma: ${clientName}`;
       icon = "📍";
-      title = "Feedback Visual";
-      message = `O cliente introduziu um pino de alteração diretamente sobre a peça criativa.`;
+      title = "Novo Pino Visual";
+      message = `Um novo comentário foi adicionado diretamente na peça criativa.`;
       buttonText = "Ler Feedback";
       break;
 
     case 'chat_activity':
-      subject = `[INBOX] Nova Mensagem: ${clientName}`;
+      subject = `[INBOX] Mensagem de ${clientName}`;
       icon = "📨";
-      title = "Mensagem Recebida";
-      message = `Chegou uma nova comunicação através da linha direta do projeto.`;
+      title = "Nova Mensagem";
+      message = `Há uma nova comunicação no chat do projeto.`;
       buttonText = "Abrir Inbox";
       break;
 
     case 'fever_chart_alert':
-      subject = `[RISCO] Fever Chart Crítico: ${projectName}`;
+      subject = `[RISCO] Alerta: ${projectName}`;
       icon = "⚠️";
-      title = "Alerta Operacional";
-      message = `Consumo crítico do Buffer de Segurança detetado no projeto <strong>${projectName}</strong>.<br><br><span style="color:#f97316; font-size: 13px;">Detalhe: ${extraInfo}</span>`;
-      buttonText = "Intervir Agora";
+      title = "Buffer Crítico";
+      message = `Atenção ao consumo de horas em <strong>${projectName}</strong>.<br><br><span style="color:#f97316; font-size: 13px;">Detalhe: ${extraInfo}</span>`;
+      buttonText = "Intervir";
+      break;
+
+    case 'task_feedback':
+      subject = `[NOVO FEEDBACK] ${taskName}`;
+      icon = "💬";
+      title = "Feedback Adicionado";
+      message = `A gestão ou o cliente adicionou um novo feedback na tarefa <strong>${taskName}</strong> do projeto <strong>${projectName || 'Projeto'}</strong>.`;
+      buttonText = "Ver Tarefa";
+      break;
+      
+    case 'task_overdue':
+      subject = `[ATRASADA] Tarefa: ${taskName}`;
+      icon = "⏰";
+      title = "Atenção ao Prazo";
+      message = `A tarefa <strong>${taskName}</strong> do projeto <strong>${projectName || 'Projeto'}</strong> está com o prazo expirado ou necessita de atualização imediata.`;
+      buttonText = "Acessar Tarefa";
       break;
 
     // -------------------------------------------------------------
     // 3. MOTOR DINÂMICO (Para os alertas do NotificationEngine)
     // -------------------------------------------------------------
     case 'custom':
+    case 'custom_collaborator':
       subject = customSubject || "Aviso do Sistema";
       icon = "⚡";
       title = customSubject || "Notificação";
       message = customBody || "Existem novas métricas ou alertas a necessitar da sua atenção.";
-      buttonText = "Acessar Dashboard";
+      buttonText = "Acessar Sistema";
       break;
 
     default:

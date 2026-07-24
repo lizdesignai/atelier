@@ -220,23 +220,26 @@ export default function JTBDPage() {
       // Atualiza com os tempos reais calculados no backend
       setAllTasks(prev => prev.map(t => t.id === task.id ? { ...t, ...data } : t));
 
-      if (finalStatus === 'completed') {
-         await AtelierPMEngine.unlockDependencies(task.id);
-         
-         // 🟢 SINCRONIZAÇÃO TRELLO NATIVA
-         try {
-           await syncTaskCompletionToTrello(task.id);
-         } catch(e) {
-           console.error("Trello Sync Erro:", e);
+      if (finalStatus === 'in_progress') {
+         showToast("Tarefa iniciada com sucesso!");
+         window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
+      } else if (finalStatus === 'completed' || finalStatus === 'pending_client_approval') {
+         if (finalStatus === 'completed') {
+           await AtelierPMEngine.unlockDependencies(task.id);
+           
+           // 🟢 SINCRONIZAÇÃO TRELLO NATIVA
+           try {
+             await syncTaskCompletionToTrello(task.id);
+           } catch(e) {
+             console.error("Trello Sync Erro:", e);
+           }
          }
-
-         showToast("Tarefa Concluída com sucesso!");
-         NotificationEngine.notifyManagement("✅ Tarefa Concluída", `A tarefa "${task.title}" de "${task.agency_subclients?.name || task.projects?.profiles?.nome || 'Sem Cliente'}" foi concluída e aprovada.`, "success");
+         showToast("Tarefa Aprovada com sucesso!");
+         window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
       } else if (finalStatus === 'review') {
-         showToast("Tarefa enviada para Revisão Interna!");
-         NotificationEngine.notifyManagement("👀 Revisão Solicitada", ` ${currentUser?.nome?.split(' ')[0] || 'Desconhecido'} enviou a tarefa "${task.title}" de "${task.agency_subclients?.name || task.projects?.profiles?.nome || 'Sem Cliente'}" para revisão interna.`, "action");
+         showToast("Tarefa enviada para revisão interna!");
+         window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
       }
-
     } catch (error) {
       showToast("Erro ao sincronizar tarefa.");
       fetchJTBDData();
