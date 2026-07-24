@@ -58,6 +58,14 @@ export class NotificationService {
         buttonText = "Ver Tarefa";
         break;
 
+      case 'task_completed':
+        subject = `[CONCLUÍDA] Tarefa: ${taskName}`;
+        icon = "✅";
+        title = "Tarefa Concluída";
+        message = `A tarefa <strong>${taskName}</strong> do projeto <strong>${projectName}</strong> foi aprovada e finalizada.`;
+        buttonText = "Ver no Cockpit";
+        break;
+
       case 'task_assigned':
         subject = `[NOVA TAREFA] ${taskName}`;
         icon = "📋";
@@ -67,6 +75,14 @@ export class NotificationService {
           message += `<br/><br/><strong>Instruções:</strong> ${extraInfo}`;
         }
         buttonText = "Acessar Mesa de Trabalho";
+        break;
+
+      case 'demand_sent':
+        subject = `[DEMANDA ENVIADA] ${taskName}`;
+        icon = "🚀";
+        title = "Demanda Enviada";
+        message = `A tarefa <strong>${taskName}</strong> para o projeto <strong>${projectName || 'Projeto'}</strong> foi enviada e atribuída a <strong>${collaboratorName || 'Colaborador'}</strong> com sucesso.`;
+        buttonText = "Acessar Painel";
         break;
 
       case 'captacao_reminder':
@@ -173,13 +189,50 @@ export class NotificationService {
     mediaUrl?: string
   }) {
     try {
+      const { subject, html } = this.getEmailTemplate(params.type, params);
+      const recipients = Array.isArray(params.to) ? params.to : [params.to];
+      
+      // IMPORT SUPABASE HERE to avoid circular dependency if needed, or we can just import at the top
+      const { supabase } = require('../config/supabase');
+
+      // IN-APP NOTIFICATIONS
+      try {
+        const { data: users } = await supabase
+          .from('profiles')
+          .select('id, email')
+          .in('email', recipients);
+          
+        if (users && users.length > 0) {
+          // Extrai título amigável baseado no subject (removendo tags como [REVISÃO])
+          let inAppTitle = subject.replace(/\[.*?\]\s*/, '');
+          let inAppMessage = params.extraInfo || `Atualização em ${params.taskName || 'tarefa'}`;
+          
+          if (params.type === 'internal_review') inAppMessage = `Tarefa pronta para revisão: ${params.taskName}`;
+          if (params.type === 'task_assigned') inAppMessage = `Você recebeu a tarefa: ${params.taskName}`;
+          if (params.type === 'task_in_progress') inAppMessage = `Tarefa iniciada: ${params.taskName}`;
+          if (params.type === 'task_paused') inAppMessage = `Tarefa pausada: ${params.taskName}`;
+          if (params.type === 'task_completed') inAppMessage = `Tarefa concluída: ${params.taskName}`;
+          
+          const notificationsToInsert = users.map((u: any) => ({
+            user_id: u.id,
+            title: inAppTitle,
+            message: inAppMessage,
+            type: params.type === 'task_completed' ? 'success' : 'action',
+            action_url: params.link || '/admin/jtbd',
+            is_read: false
+          }));
+          
+          await supabase.from('notifications').insert(notificationsToInsert);
+        }
+      } catch (dbErr) {
+        console.error("[NotificationService] Falha ao inserir notificação in-app:", dbErr);
+      }
+
       if (!process.env.RESEND_API_KEY) {
         console.log('[NotificationService] Simulação de envio (RESEND_API_KEY não definida)', params.type);
         return { success: true, simulated: true };
       }
 
-      const { subject, html } = this.getEmailTemplate(params.type, params);
-      const recipients = Array.isArray(params.to) ? params.to : [params.to];
       const fromEmail = 'LizDesign <sistema@lizdesign.com.br>'; 
 
       const data = await resend.emails.send({

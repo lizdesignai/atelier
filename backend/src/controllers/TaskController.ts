@@ -43,8 +43,9 @@ export class TaskController {
         (async () => {
           try {
             const { data: collab } = await supabase.from('profiles').select('email, nome').eq('id', data.assigned_to).single();
+            const projName = data.agency_subclients?.name || data.projects?.profiles?.nome || data.projects?.type || 'Projeto';
+            
             if (collab?.email) {
-              const projName = data.agency_subclients?.name || data.projects?.profiles?.nome || data.projects?.type || 'Projeto';
               await NotificationService.sendNotification({
                 to: collab.email,
                 type: 'task_assigned',
@@ -54,8 +55,27 @@ export class TaskController {
                 link: `${process.env.FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin/jtbd`
               });
             }
+
+            // Notifica também os gestores
+            const { data: managers } = await supabase
+              .from('profiles')
+              .select('email')
+              .in('role', ['admin', 'gestor']);
+
+            if (managers && managers.length > 0) {
+              const managerEmails = managers.map(m => m.email);
+              await NotificationService.sendNotification({
+                to: managerEmails,
+                type: 'demand_sent',
+                taskName: data.title,
+                projectName: projName,
+                collaboratorName: collab?.nome || 'Colaborador',
+                link: `${process.env.FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin/jtbd`
+              });
+            }
+
           } catch (e) {
-            console.error("Erro ao enviar e-mail de tarefa atribuída:", e);
+            console.error("Erro ao enviar e-mail de tarefa atribuída/enviada:", e);
           }
         })();
       }
@@ -124,24 +144,29 @@ export class TaskController {
       res.status(200).json({ data });
 
       // Disparar Notificação para o Gestor em background (não trava o event loop principal)
-      if (['in_progress', 'paused', 'review'].includes(finalStatus)) {
+      if (['in_progress', 'paused', 'review', 'completed'].includes(finalStatus)) {
         (async () => {
           try {
-            const { data: managers } = await supabase
+            const { data: profiles } = await supabase
               .from('profiles')
-              .select('email')
-              .in('role', ['admin', 'gestor']);
+              .select('email, role, id');
 
-            const managerEmails = managers?.map((m: any) => m.email) || [];
+            let recipients = profiles
+              ?.filter((p: any) => ['admin', 'gestor'].includes(p.role) || p.id === data.assigned_to)
+              .map((p: any) => p.email) || [];
+              
+            // Remove duplicatas (caso um admin seja também o designado)
+            recipients = [...new Set(recipients)];
             
             let notifyType = '';
             if (finalStatus === 'in_progress') notifyType = 'task_in_progress';
             if (finalStatus === 'paused') notifyType = 'task_paused';
             if (finalStatus === 'review') notifyType = 'internal_review';
+            if (finalStatus === 'completed') notifyType = 'task_completed';
 
-            if (managerEmails.length > 0 && notifyType) {
+            if (recipients.length > 0 && notifyType) {
                await NotificationService.sendNotification({
-                 to: managerEmails as string[],
+                 to: recipients as string[],
                  type: notifyType as string,
                  taskId: String(id),
                  collaboratorName: String(req.body.collaboratorName || 'O Colaborador'),
