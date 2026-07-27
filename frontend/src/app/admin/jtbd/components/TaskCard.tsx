@@ -579,7 +579,7 @@ export default function TaskCard({
           ===================================================================== */}
       <AnimatePresence>
         {isEffectivelyModalOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center px-4">
+          <div className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center sm:px-4">
             <motion.div 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
@@ -588,13 +588,13 @@ export default function TaskCard({
               className="absolute inset-0 bg-black/60 backdrop-blur-md" 
             />
             <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 20 }} 
+              initial={{ scale: 0.95, opacity: 0, y: 50 }} 
               animate={{ scale: 1, opacity: 1, y: 0 }} 
-              exit={{ scale: 0.95, opacity: 0, y: 20 }} 
-              className="bg-white rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-lg border border-white/20 flex flex-col max-h-[90vh] overflow-hidden"
+              exit={{ scale: 0.95, opacity: 0, y: 50 }} 
+              className="bg-white rounded-t-3xl sm:rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-lg border border-white/20 flex flex-col h-[92vh] sm:h-auto sm:max-h-[90vh] overflow-hidden"
             >
               {/* FIXED HEADER */}
-              <div className="p-8 pb-5 flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 shrink-0 bg-white z-20">
+              <div className="p-6 sm:p-8 pb-4 sm:pb-5 flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 shrink-0 bg-white z-20">
                 <div className="pr-4">
                   <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)] mb-1 block">
                     {task.agency_subclients?.name || task.projects?.profiles?.nome} • {task.stage}
@@ -607,10 +607,10 @@ export default function TaskCard({
               </div>
 
               {/* SCROLLABLE BODY */}
-              <div className="p-8 pt-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
+              <div className="p-6 sm:p-8 pt-4 sm:pt-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
 
                 {/* INSTRUÇÕES (ACCORDION) */}
-                <div className="flex flex-col gap-2 shrink-0">
+                <div className="flex flex-col gap-2 shrink-0 order-3">
                   <button 
                     onClick={() => setIsInstructionsOpen(!isInstructionsOpen)}
                     className="flex justify-between items-center w-full focus:outline-none"
@@ -637,7 +637,7 @@ export default function TaskCard({
                 </div>
 
                 {/* LEGENDA (ACCORDION) */}
-                <div className="flex flex-col gap-2 shrink-0">
+                <div className="flex flex-col gap-2 shrink-0 order-4 border-t sm:border-t-0 border-gray-100 pt-5 sm:pt-0">
                   <div className="flex items-center justify-between">
                     <button 
                       onClick={() => setIsCaptionOpen(!isCaptionOpen)}
@@ -675,7 +675,7 @@ export default function TaskCard({
 
                 {/* HISTÓRICO DE FEEDBACK E THREADS */}
                 {(!isCompleted || feedbackThread.length > 0) && (
-                  <div className="flex flex-col gap-2 shrink-0 border-t border-gray-100 pt-5 mt-2">
+                  <div className="flex flex-col gap-2 shrink-0 border-t border-gray-100 pt-5 order-5">
                     <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-2 mb-2">
                       <MessageSquare size={14}/> Histórico de Feedback (Thread)
                     </h4>
@@ -727,7 +727,7 @@ export default function TaskCard({
                   </div>
                 )}
 
-              <div className="flex flex-col gap-3 shrink-0">
+              <div className="flex flex-col gap-3 shrink-0 order-1">
                 <div className="flex items-center justify-between">
                   <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-2">
                     {isPdf ? <FileText size={14}/> : <ImageIcon size={14}/>} Material Final Anexado
@@ -848,7 +848,7 @@ export default function TaskCard({
                 )}
               </div>
 
-                    <div className="flex flex-col gap-2 mt-4 pt-4 border-t border-gray-100">
+                    <div className="flex flex-col gap-2 mt-2 sm:mt-4 pt-4 border-t border-gray-100 order-2">
                       <div className="flex items-center justify-between">
                         <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-2">
                           <Target size={14}/> Links Externos (Referência)
@@ -913,7 +913,7 @@ export default function TaskCard({
 
               {/* 🟢 DASHBOARD DE TELEMETRIA E GESTÃO DE PRAZO (ADMIN VIEW) */}
               {isAdmin && (
-                <div className="mt-4 pt-6 border-t border-gray-100 flex flex-col gap-5 shrink-0">
+                <div className="mt-4 pt-6 border-t border-gray-100 flex flex-col gap-5 shrink-0 order-6 pb-6 sm:pb-0">
                   <div className="flex flex-col gap-3">
                     <h4 className="font-roboto text-[10px] font-bold uppercase tracking-widest text-orange-500 flex items-center gap-2">
                       <Clock size={12}/> Ajuste de Prazo

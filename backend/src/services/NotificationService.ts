@@ -35,8 +35,8 @@ export class NotificationService {
             <a href="${backendUrl}/api/v1/tasks/${taskId}/email-action?action=approve" style="display: block; width: 100%; box-sizing: border-box; background-color: #22c55e; color: #ffffff; text-decoration: none; padding: 16px; border-radius: 12px; font-size: 14px; font-weight: bold; text-align: center;">
               ✅ APROVAR IMEDIATAMENTE
             </a>
-            <a href="${frontendUrl}/admin/review/${taskId}" style="display: block; width: 100%; box-sizing: border-box; background-color: #fef2f2; color: #ef4444; border: 1px solid #fca5a5; text-decoration: none; padding: 16px; border-radius: 12px; font-size: 14px; font-weight: bold; text-align: center;">
-              👀 REVISAR
+            <a href="${frontendUrl}/admin/review/${taskId}" style="display: block; width: 100%; box-sizing: border-box; background-color: #18181b; color: #ffffff; text-decoration: none; padding: 18px 24px; border-radius: 14px; font-size: 14px; font-weight: bold; text-align: center; text-transform: uppercase; letter-spacing: 1px;">
+              👀 ABRIR PARA REVISÃO (MOBILE)
             </a>
           </div>
         `;
@@ -74,7 +74,7 @@ export class NotificationService {
         if (extraInfo) {
           message += `<br/><br/><strong>Instruções:</strong> ${extraInfo}`;
         }
-        buttonText = "Acessar Mesa de Trabalho";
+        buttonText = "👁️ Acessar Tarefa";
         break;
 
       case 'demand_sent':

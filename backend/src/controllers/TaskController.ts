@@ -52,7 +52,7 @@ export class TaskController {
                 taskName: data.title,
                 projectName: projName,
                 extraInfo: data.description,
-                link: `${process.env.FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin/jtbd`
+                link: `${process.env.FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin/task/${data.id}`
               });
             }
 
@@ -294,7 +294,7 @@ export class TaskController {
                 taskName: data.title,
                 projectName: projName,
                 extraInfo: data.description,
-                link: `${process.env.FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin/jtbd`
+                link: `${process.env.FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin/task/${data.id}`
               });
             }
           } catch (e) {

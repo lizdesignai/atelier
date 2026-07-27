@@ -83,8 +83,7 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
         subclient_id: subclientId || null,
         file_name: newLinkName,
         file_url: finalUrl,
-        file_size: 'Link Externo',
-        type: 'link'
+        file_size: 'Link Externo'
       });
 
       if (error) throw error;
@@ -119,8 +118,7 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
         subclient_id: subclientId || null,
         file_name: file.name,
         file_url: data.publicUrl,
-        file_size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
-        type: 'file'
+        file_size: (file.size / 1024 / 1024).toFixed(2) + ' MB'
       });
 
       if (dbError) throw dbError;
@@ -235,13 +233,13 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
                     <div key={asset.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex flex-col gap-3 group hover:border-[var(--color-atelier-terracota)]/30 transition-all hover:bg-white shadow-sm">
                       <div className="flex items-start gap-3">
                         <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm">
-                          {getFileIcon(asset.file_name, asset.type)}
+                          {getFileIcon(asset.file_name, asset.file_size === 'Link Externo' ? 'link' : 'file')}
                         </div>
                         <div className="flex flex-col flex-1 min-w-0">
                           <span className="font-roboto font-bold text-[13px] text-gray-800 truncate" title={asset.file_name}>
                             {asset.file_name}
                           </span>
-                          <span className="text-[10px] text-gray-400 mt-0.5">{asset.type === 'link' ? 'Link Externo' : (asset.file_size || 'Tamanho desconhecido')}</span>
+                          <span className="text-[10px] text-gray-400 mt-0.5">{asset.file_size === 'Link Externo' ? 'Link Externo' : (asset.file_size || 'Tamanho desconhecido')}</span>
                         </div>
                       </div>
                       <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-100">
@@ -253,9 +251,9 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
                           target="_blank" 
                           rel="noreferrer"
                           className="w-8 h-8 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors"
-                          title={asset.type === 'link' ? "Acessar Link" : "Fazer Download / Ver"}
+                          title={asset.file_size === 'Link Externo' ? "Acessar Link" : "Fazer Download / Ver"}
                         >
-                          {asset.type === 'link' ? <ExternalLink size={14} /> : <Download size={14} />}
+                          {asset.file_size === 'Link Externo' ? <ExternalLink size={14} /> : <Download size={14} />}
                         </a>
                       </div>
                     </div>
