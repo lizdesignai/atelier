@@ -953,7 +953,7 @@ export default function ProjectsManager({
       <ClientAssetsModal 
         isOpen={isAssetsModalOpen}
         onClose={() => setIsAssetsModalOpen(false)}
-        projectId={isSubclientView ? displayData?.agency_id : (selectedEntityType === 'project' ? displayData?.id : null)}
+        projectId={isSubclientView ? displayData?.agency_id : (selectedEntityType === 'project' || selectedEntityType === 'agency' ? displayData?.id : null)}
         subclientId={isSubclientView ? displayData?.id : null}
         clientName={selectedEntityType === 'agency' || isSubclientView ? displayData?.name : displayData?.profiles?.nome}
       />

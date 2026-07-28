@@ -84,9 +84,21 @@ export default function MissionsVaultModal({ isOpen, onClose, projectId, clientI
 
       if (isGeneral) {
         // Envio Livre (Guarda na tabela de assets gerais do projeto)
+        const resolveProjectId = async (projId: string): Promise<string | null> => {
+          if (!projId) return null;
+          try {
+            const { data: directProject } = await supabase.from('projects').select('id').eq('id', projId).maybeSingle();
+            if (directProject?.id) return directProject.id;
+            const { data: clientProject } = await supabase.from('projects').select('id').eq('client_id', projId).order('created_at', { ascending: false }).limit(1).maybeSingle();
+            if (clientProject?.id) return clientProject.id;
+          } catch (e) {}
+          return null;
+        };
+
+        const targetProjId = await resolveProjectId(projectId);
         const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
         const { error: dbError } = await supabase.from('project_assets').insert({
-          project_id: projectId,
+          project_id: targetProjId,
           file_name: file.name,
           file_url: publicUrl,
           file_size: `${fileSizeMB} MB`

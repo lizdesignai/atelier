@@ -41,6 +41,32 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
     }
   }, [isOpen, projectId, subclientId]);
 
+  const resolveProjectId = async (projId: string | null): Promise<string | null> => {
+    if (!projId) return null;
+    try {
+      const { data: directProject } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('id', projId)
+        .maybeSingle();
+
+      if (directProject?.id) return directProject.id;
+
+      const { data: clientProject } = await supabase
+        .from('projects')
+        .select('id')
+        .eq('client_id', projId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (clientProject?.id) return clientProject.id;
+    } catch (err) {
+      console.warn("Erro ao validar project_id:", err);
+    }
+    return null;
+  };
+
   const fetchAssets = async () => {
     setIsLoading(true);
     try {
@@ -49,7 +75,12 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
       if (subclientId) {
         query = query.eq('subclient_id', subclientId);
       } else if (projectId) {
-        query = query.eq('project_id', projectId).is('subclient_id', null);
+        const validProjId = await resolveProjectId(projectId);
+        if (validProjId) {
+          query = query.or(`project_id.eq.${validProjId},project_id.eq.${projectId}`);
+        } else {
+          query = query.eq('project_id', projectId);
+        }
       }
 
       const { data, error } = await query;
@@ -78,8 +109,10 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
         finalUrl = `https://${finalUrl}`;
       }
 
+      const validProjId = await resolveProjectId(projectId);
+
       const { error } = await supabase.from('project_assets').insert({
-        project_id: projectId || null,
+        project_id: validProjId,
         subclient_id: subclientId || null,
         file_name: newLinkName,
         file_url: finalUrl,
@@ -113,8 +146,10 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
 
       const { data } = supabase.storage.from('vault_assets').getPublicUrl(fileName);
 
+      const validProjId = await resolveProjectId(projectId);
+
       const { error: dbError } = await supabase.from('project_assets').insert({
-        project_id: projectId || null,
+        project_id: validProjId,
         subclient_id: subclientId || null,
         file_name: file.name,
         file_url: data.publicUrl,
