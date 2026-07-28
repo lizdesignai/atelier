@@ -849,7 +849,7 @@ export default function AnalyticsPage() {
            
            {/* Botão Ações em Lote Elegante */}
            <div className="flex items-center gap-2 bg-white/60 border border-white py-2 px-3 rounded-2xl shadow-sm">
-             <span className={`font-roboto text-[9px] font-bold uppercase tracking-widest transition-colors ${isBulkMode ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/50'}`}>Ações Lote</span>
+             <span className={`font-roboto text-[9px] font-bold uppercase tracking-widest transition-colors ${isBulkMode ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/50'}`}></span>
              <button 
                onClick={() => { setIsBulkMode(!isBulkMode); setSelectedTaskIds([]); setSelectedRuleIds([]); }} 
                className={`w-9 h-5 rounded-full flex items-center px-0.5 transition-colors ${isBulkMode ? 'bg-[var(--color-atelier-terracota)]' : 'bg-gray-300'}`}
