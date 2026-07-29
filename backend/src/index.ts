@@ -61,6 +61,7 @@ import chatRoutes from './routes/chat';
 import clientRoutes from './routes/clients';
 import studioRoutes from './routes/studio';
 import managementRoutes from './routes/management';
+import notificationsRoutes from './routes/notifications';
 import { ReminderSchedulerService } from './services/ReminderSchedulerService';
 
 // Rotas Base da API v1
@@ -71,6 +72,7 @@ app.use('/api/v1/chat', chatRoutes);
 app.use('/api/v1/clients', clientRoutes);
 app.use('/api/v1/studio', studioRoutes);
 app.use('/api/v1/management', managementRoutes);
+app.use('/api/v1/notifications', notificationsRoutes);
 
 app.listen(port, () => {
   console.log(`[Backend] Atelier API rodando na porta ${port}`);

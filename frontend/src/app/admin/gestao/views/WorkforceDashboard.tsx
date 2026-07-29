@@ -6,7 +6,7 @@ import {
   Users, Target, RotateCcw, Clock, 
   FileText, Copy, CheckCircle2, AlertTriangle, 
   TrendingUp, TrendingDown, Loader2, X, DollarSign,
-  Briefcase, CheckSquare, AlertCircle, Save, Edit3
+  Briefcase, CheckSquare, AlertCircle, Save, Edit3, PieChart
 } from "lucide-react";
 import { startOfMonth, endOfMonth, startOfDay, startOfWeek, differenceInBusinessDays, differenceInHours } from "date-fns";
 
@@ -49,7 +49,7 @@ export default function WorkforceDashboard({ currentUser }: WorkforceDashboardPr
       // 2. Busca sessões de trabalho do mês atual
       const { data: sessions } = await supabase
         .from('work_sessions')
-        .select('*')
+        .select('*, tasks(id, title, task_type)')
         .gte('start_time', currentMonthStart.toISOString())
         .lte('start_time', currentMonthEnd.toISOString());
 
@@ -98,6 +98,18 @@ export default function WorkforceDashboard({ currentUser }: WorkforceDashboardPr
         });
         const avgLeadTime = leadTimeCount > 0 ? (leadTimeSum / leadTimeCount).toFixed(1) : 0;
 
+        // E. Quebra de Horas por Atividade/Demanda
+        const activityBreakdown: Record<string, number> = {};
+        memberSessions.forEach(s => {
+          const taskNode = Array.isArray(s.tasks) ? s.tasks[0] : s.tasks;
+          const typeName = taskNode?.task_type || taskNode?.title || 'Não Categorizado';
+          const typeLabel = typeof typeName === 'string' ? typeName.toUpperCase() : 'OUTROS';
+          activityBreakdown[typeLabel] = (activityBreakdown[typeLabel] || 0) + (s.duration_minutes || 0);
+        });
+        const sortedBreakdown = Object.entries(activityBreakdown)
+          .map(([name, mins]) => ({ name, hours: mins / 60 }))
+          .sort((a, b) => b.hours - a.hours);
+
         return {
           ...member,
           hoursToday,
@@ -109,7 +121,8 @@ export default function WorkforceDashboard({ currentUser }: WorkforceDashboardPr
           completedTasks,
           reworkRate,
           avgLeadTime,
-          baseSalary: member.base_salary || 0
+          baseSalary: member.base_salary || 0,
+          activityBreakdown: sortedBreakdown
         };
       });
 
@@ -390,6 +403,28 @@ ${qualidadeText}
                           <span className="block text-[10px] font-bold text-gray-400 uppercase tracking-widest">Tempo/Entrega</span>
                         </div>
                       </div>
+                    </div>
+                  </div>
+                  
+                  {/* BLOCO 4: DISTRIBUIÇÃO DE ESFORÇO POR ATIVIDADE */}
+                  <div>
+                    <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-4 flex items-center gap-2"><PieChart size={14}/> Distribuição de Esforço (Mês Atual)</h4>
+                    <div className="bg-white border border-gray-200 p-5 rounded-2xl flex flex-col gap-3 max-h-60 overflow-y-auto custom-scrollbar">
+                      {selectedMember.activityBreakdown && selectedMember.activityBreakdown.length > 0 ? (
+                        selectedMember.activityBreakdown.map((item: any, idx: number) => (
+                          <div key={idx} className="flex flex-col gap-1">
+                            <div className="flex justify-between items-center text-[12px] font-bold">
+                              <span className="text-[var(--color-atelier-grafite)] truncate pr-4">{item.name}</span>
+                              <span className="text-[var(--color-atelier-terracota)] shrink-0">{item.hours.toFixed(1)}h</span>
+                            </div>
+                            <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                              <div className="h-full bg-[var(--color-atelier-grafite)] rounded-full" style={{ width: `${Math.min((item.hours / selectedMember.totalHours) * 100, 100)}%` }}></div>
+                            </div>
+                          </div>
+                        ))
+                      ) : (
+                        <div className="text-center text-[10px] font-bold uppercase tracking-widest text-gray-400 py-4">Sem dados de atividade categorizada neste mês.</div>
+                      )}
                     </div>
                   </div>
                   

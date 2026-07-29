@@ -69,7 +69,8 @@ export class ManagementController {
 
       const dashboardData = {
         team: sortedTeam,
-        todaySessions: sessions,
+        sessions: sessions,
+        tasks: tasks,
         metrics: {
           totalMinutesToday,
           avgFocusMinutes,

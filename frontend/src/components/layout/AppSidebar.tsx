@@ -182,7 +182,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   const homeRoute = isContador 
     ? '/admin/financeiro' 
     : isTeamMember 
-      ? (isAdminOnly ? '/admin' : '/admin/jtbd') 
+      ? (isAdminOnly ? '/admin/analytics' : '/admin/jtbd') 
       : (clientServiceType === "Gestão de Instagram" ? '/cockpit' : '/');
 
   // ====================================================
@@ -196,7 +196,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     { href: '/admin/inbox', icon: <Inbox size={20} strokeWidth={1.5} />, label: 'Inbox', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Users size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : isTeamMember ? [
-    { href: isAdminOnly ? '/admin' : '/admin/jtbd', icon: <Home size={20} strokeWidth={1.5} />, label: 'Início' },
+    { href: isAdminOnly ? '/admin/analytics' : '/admin/jtbd', icon: <Home size={20} strokeWidth={1.5} />, label: 'Início' },
     { href: '/admin/inbox', icon: <Inbox size={20} strokeWidth={1.5} />, label: 'Inbox', badge: globalUnreadCount },
     { href: '/admin/projetos', icon: <FolderKanban size={20} strokeWidth={1.5} />, label: 'Projetos' }
   ] : [

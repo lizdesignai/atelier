@@ -107,8 +107,7 @@ export default function DemandsDashboard({ currentUser }: DemandsDashboardProps)
       const { data: tasksData } = await supabase
         .from('tasks')
         .select('*')
-        .gte('created_at', monthStart)
-        .lte('created_at', monthEnd)
+        .or(`created_at.gte.${monthStart},deadline.gte.${monthStart},completed_at.gte.${monthStart},status.in.(pending,review,needs_revision)`)
         .order('created_at', { ascending: false });
 
       if (tasksData) setTasks(tasksData);

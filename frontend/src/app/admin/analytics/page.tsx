@@ -550,6 +550,28 @@ export default function AnalyticsPage() {
         "/admin/jtbd"
       );
 
+      // Disparar e-mail no backend em background se possível
+      (async () => {
+        try {
+          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+          const { data: collab } = await supabase.from('profiles').select('email').eq('id', captacaoForm.assigneeId).single();
+          if (collab?.email) {
+            await fetch(`${backendUrl}/api/v1/notifications/email`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: collab.email,
+                type: 'task_assigned',
+                taskName: `📸 CAPTAÇÃO: ${captacaoForm.title}`,
+                projectName: 'Logística de Captação',
+                extraInfo: `Data: ${new Date(captacaoForm.date).toLocaleDateString('pt-BR')}. Local: ${captacaoForm.location}`,
+                link: `${process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin/jtbd`
+              })
+            }).catch(() => {});
+          }
+        } catch (e) {}
+      })();
+
       showToast("📍 Logística de captação agendada com sucesso!");
       setIsCaptacaoModalOpen(false);
       setCaptacaoForm({ title: "", assigneeId: "", date: "", location: "", notes: "" });
