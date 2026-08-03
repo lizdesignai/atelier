@@ -659,6 +659,7 @@ export default function JTBDMobileView({
                 }} 
                 forceOpenModal={true} 
                 currentUser={currentUser}
+                isRescheduling={false}
                 onCloseModal={() => setActiveTaskModal(null)}
                 onRevert={(taskId) => {
                   updateTaskStatus(activeTaskModal.task, 'review');

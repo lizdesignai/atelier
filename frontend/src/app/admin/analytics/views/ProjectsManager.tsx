@@ -58,6 +58,8 @@ interface ProjectsManagerProps {
   showToast: (msg: string) => void;
   handleStartTask: (taskId: string, userId: string) => Promise<void>;
   routingRules?: any[]; 
+  mobileWidgetView?: string;
+  setMobileWidgetView?: (view: string) => void;
 }
 
 // 🟢 EXTRAIR ID DO BOARD PARA A API REST
