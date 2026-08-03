@@ -1865,6 +1865,16 @@ clientName={selectedEntityType === 'agency' || isSubclientView ? displayData?.na
                                 zIndex: 30 - offset * 10
                               }}
                               transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                              drag={isTop ? "x" : false}
+                              dragConstraints={{ left: 0, right: 0 }}
+                              onDragEnd={(e, { offset, velocity }) => {
+                                const swipe = offset.x * velocity.x;
+                                if (swipe < -10000 && activeWalletIndex < filteredWallet.length - 1) {
+                                  setActiveWalletIndex(prev => prev + 1);
+                                } else if (swipe > 10000 && activeWalletIndex > 0) {
+                                  setActiveWalletIndex(prev => prev - 1);
+                                }
+                              }}
                               onClick={() => {
                                 if (isTop) {
                                   setMobileExpandedClient(entity);

@@ -451,7 +451,7 @@ export default function InboxMobileView({
             </div>
 
             {/* MENSAGENS EM ROLAGEM */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-3 relative z-0">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-3 relative z-0 bg-[url('/images/Pattern%20LizDesign.png')] bg-cover bg-center">
               {messages.length === 0 ? (
                 <div className="m-auto text-center opacity-40 flex flex-col items-center gap-2">
                   <MessageSquare size={32} className="text-[var(--color-atelier-terracota)]" />
@@ -471,10 +471,10 @@ export default function InboxMobileView({
                         <span className="text-[9px] font-bold text-gray-400 mb-1 ml-1">{senderName}</span>
                       )}
                       
-                      <div className={`p-3.5 rounded-3xl shadow-2xs flex flex-col gap-2 ${
+                      <div className={`p-4 rounded-[2rem] shadow-sm flex flex-col gap-2 relative z-10 ${
                         isMe 
-                          ? 'bg-[var(--color-atelier-grafite)] text-white' 
-                          : 'bg-white text-gray-800 border border-gray-100'
+                          ? 'bg-[var(--color-atelier-grafite)] text-white rounded-tr-sm' 
+                          : 'bg-white text-gray-800 border border-gray-100 rounded-tl-sm'
                       }`}>
                         {msg.attachment_url && (
                           <div className="rounded-xl overflow-hidden max-h-[220px] max-w-full">

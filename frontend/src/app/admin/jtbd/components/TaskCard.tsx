@@ -596,12 +596,12 @@ export default function TaskCard({
               className="bg-white rounded-t-3xl sm:rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-lg border border-white/20 flex flex-col h-[92vh] sm:h-auto sm:max-h-[90vh] overflow-hidden"
             >
               {/* FIXED HEADER */}
-              <div className="p-6 sm:p-8 pb-4 sm:pb-5 flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 shrink-0 bg-white z-20">
+              <div className="p-5 sm:p-8 pb-3 sm:pb-5 flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 shrink-0 bg-white z-20">
                 <div className="pr-4">
                   <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)] mb-1 block">
                     {task.agency_subclients?.name || task.projects?.profiles?.nome} • {task.stage}
                   </span>
-                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-tight">
+                  <h3 className="font-elegant text-2xl sm:text-3xl text-[var(--color-atelier-grafite)] leading-tight">
                     {task.title}
                   </h3>
                 </div>
@@ -609,7 +609,7 @@ export default function TaskCard({
               </div>
 
               {/* SCROLLABLE BODY */}
-              <div className="p-6 sm:p-8 pt-4 sm:pt-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
+              <div className="p-5 sm:p-8 pt-4 sm:pt-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
 
                 {/* INSTRUÇÕES (ACCORDION) */}
                 <div className="flex flex-col gap-2 shrink-0 order-3">

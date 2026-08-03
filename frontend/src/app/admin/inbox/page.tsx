@@ -97,6 +97,8 @@ export default function AdminInboxPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [messageText, setMessageText] = useState("");
   const [isSending, setIsSending] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const mobileMessagesEndRef = useRef<HTMLDivElement>(null);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   
@@ -104,8 +106,6 @@ export default function AdminInboxPage() {
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [channelTypeMap, setChannelTypeMap] = useState<Record<string, string>>({});
   const [channelPreviews, setChannelPreviews] = useState<Record<string, string>>({});
-
-  const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // Estados do Modal de Criação
   const [isChannelModalOpen, setIsChannelModalOpen] = useState(false);
@@ -308,11 +308,15 @@ export default function AdminInboxPage() {
 
   const scrollToBottom = () => {
     setTimeout(() => {
-      if (messagesEndRef.current) {
-        const scrollContainer = messagesEndRef.current.closest('.overflow-y-auto');
-        if (scrollContainer) scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: "smooth" });
-      }
-    }, 150);
+      [messagesEndRef, mobileMessagesEndRef].forEach(ref => {
+        if (ref.current) {
+          const scrollContainer = ref.current.closest('.overflow-y-auto');
+          if (scrollContainer) {
+            scrollContainer.scrollTo({ top: scrollContainer.scrollHeight, behavior: 'smooth' });
+          }
+        }
+      });
+    }, 100);
   };
 
   // ============================================================================
@@ -537,7 +541,7 @@ export default function AdminInboxPage() {
         handleFileUpload={handleAttachmentUpload}
         isSending={isSending}
         isUploadingAttachment={isUploadingAttachment}
-        messagesEndRef={messagesEndRef}
+        messagesEndRef={mobileMessagesEndRef}
       />
 
       {/* DESKTOP INBOX (HIDDEN LG:FLEX - 100% INTOCADO) */}
@@ -805,7 +809,7 @@ export default function AdminInboxPage() {
             </div>
 
             {/* CHAT MESSAGES */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar px-10 py-8 flex flex-col gap-6 bg-gradient-to-b from-transparent to-white/40">
+            <div className="flex-1 overflow-y-auto custom-scrollbar px-10 py-8 flex flex-col gap-6 bg-gradient-to-b from-transparent to-white/40 bg-[url('/images/Pattern%20LizDesign.png')] bg-cover bg-center">
               {messages.length === 0 ? (
                 <div className="flex-1 flex flex-col items-center justify-center text-center opacity-50 shrink-0">
                   <div className="w-16 h-16 rounded-full bg-gray-100 flex items-center justify-center mb-4"><MessageSquare size={24} className="text-gray-400"/></div>
