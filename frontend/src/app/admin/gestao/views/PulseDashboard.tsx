@@ -4,13 +4,15 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../../lib/supabase";
 import { 
   CheckCircle2, Target, Coffee, 
-  PlayCircle, Loader2, Zap, Clock
+  PlayCircle, Loader2, Zap, Clock, Activity, Layers, Users, DollarSign
 } from "lucide-react";
 import { startOfDay, endOfDay, format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
 interface PulseDashboardProps {
   currentUser: any;
+  activeTab?: string;
+  setActiveTab?: (tab: 'pulse' | 'workforce' | 'economics' | 'demands') => void;
 }
 
 // 🟢 UTILITÁRIO: Extração segura de nós do Supabase (Array vs Object)
@@ -19,7 +21,7 @@ function extractNode(node: any): any {
   return Array.isArray(node) ? node[0] : node;
 }
 
-export default function PulseDashboard({ currentUser }: PulseDashboardProps) {
+export default function PulseDashboard({ currentUser, activeTab = 'pulse', setActiveTab }: PulseDashboardProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState(Date.now()); // O "Tick Engine" Global
   const [team, setTeam] = useState<any[]>([]);
@@ -114,7 +116,7 @@ export default function PulseDashboard({ currentUser }: PulseDashboardProps) {
   if (isLoading) return <div className="flex h-full items-center justify-center"><Loader2 size={40} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full gap-6 overflow-hidden relative">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-auto md:h-full gap-6 overflow-y-auto md:overflow-hidden relative">
       
       {/* HEADER DA VISÃO */}
       <header className="shrink-0 flex items-center justify-between border-b border-[var(--color-atelier-grafite)]/10 pb-4">
@@ -125,9 +127,38 @@ export default function PulseDashboard({ currentUser }: PulseDashboardProps) {
           </div>
           <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none">O Pulso da Operação</h2>
         </div>
-        <div className="text-right flex flex-col items-end">
-          <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none">{format(now, "HH:mm")}</span>
-          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1">{format(now, "dd 'de' MMMM, yyyy", { locale: ptBR })}</span>
+        <div className="flex items-center gap-4">
+          <div className="text-right hidden xl:flex flex-col items-end mr-2">
+            <span className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">{format(now, "HH:mm")}</span>
+            <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-0.5">{format(now, "dd 'de' MMMM", { locale: ptBR })}</span>
+          </div>
+          {/* NAV HORIZONTAL COMPACTA E SOFISTICADA ALINHADA AO HEAD */}
+          <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0">
+            <button 
+              onClick={() => setActiveTab?.('pulse')} 
+              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'pulse' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+            >
+              <Activity size={13} /> Pulso Live
+            </button>
+            <button 
+              onClick={() => setActiveTab?.('demands')} 
+              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'demands' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+            >
+              <Layers size={13} /> Demandas
+            </button>
+            <button 
+              onClick={() => setActiveTab?.('workforce')} 
+              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'workforce' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+            >
+              <Users size={13} /> Equipe & RH
+            </button>
+            <button 
+              onClick={() => setActiveTab?.('economics')} 
+              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'economics' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+            >
+              <DollarSign size={13} /> Unit Economics
+            </button>
+          </div>
         </div>
       </header>
 

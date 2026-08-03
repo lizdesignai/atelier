@@ -109,10 +109,10 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-[calc(100vh-60px)] max-w-[1500px] mx-auto pb-4 gap-6 overflow-hidden mt-4 px-4 lg:px-0 animate-[fadeInUp_0.6s_ease-out_both]">
+    <div className="flex flex-col lg:flex-row h-auto min-h-[calc(100dvh-60px)] md:h-[calc(100vh-60px)] max-w-[1500px] mx-auto pb-4 gap-6 overflow-y-auto md:overflow-hidden mt-4 px-4 lg:px-0 animate-[fadeInUp_0.6s_ease-out_both]">
       
       {/* SEÇÃO ESQUERDA (80%): PAINEL OPERACIONAL DE CAPTAÇÃO */}
-      <div className="flex-1 flex flex-col glass-panel bg-white/60 rounded-[2.5rem] border border-white shadow-sm p-6 lg:p-8 overflow-hidden h-full">
+      <div className="flex-1 flex flex-col glass-panel bg-white/60 rounded-[2.5rem] border border-white shadow-sm p-6 lg:p-8 overflow-hidden h-auto md:h-full">
         
         {/* HEADER EXECUTIVO */}
         <header className="flex flex-col md:flex-row justify-end items-start md:items-center gap-4 shrink-0 mb-6 border-b border-gray-100 pb-4">
@@ -203,7 +203,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* SEÇÃO DIREITA (20%): BLOCO DE NOTAS DIÁRIO PERSISTENTE */}
-      <div className="w-full lg:w-[360px] flex flex-col gap-4 shrink-0 h-full">
+      <div className="w-full lg:w-[360px] flex flex-col gap-4 shrink-0 h-auto lg:h-full">
         <div className="glass-panel bg-white/80 p-5 rounded-[2.5rem] border border-white shadow-sm flex flex-col h-full overflow-hidden">
           <div className="flex items-center justify-between border-b border-gray-100 pb-3 mb-4 shrink-0">
             <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Mural de Notas</span>
@@ -223,7 +223,7 @@ export default function AdminDashboard() {
         {selectedItem && (
           <div className="fixed inset-0 z-[600] flex justify-end">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedItem(null)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="w-full max-w-2xl h-full bg-white relative z-10 shadow-2xl border-l border-gray-100 flex flex-col overflow-hidden">
+            <motion.div initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ type: 'spring', damping: 25, stiffness: 200 }} className="w-full md:max-w-2xl h-full bg-white relative z-10 shadow-2xl border-l border-gray-100 flex flex-col overflow-hidden">
               <header className="p-6 border-b bg-gray-50 flex items-center justify-between">
                 <div>
                   <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">{selectedItem.type === 'consultoria' ? 'Ficha de Consultoria' : 'Ficha de Briefing'}</h3>
@@ -293,10 +293,10 @@ export default function AdminDashboard() {
         {isMeetingModalOpen && (
           <div className="fixed inset-0 z-[700] flex items-center justify-center px-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsMeetingModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95 }} className="bg-white p-6 md:p-8 rounded-[2rem] shadow-2xl relative z-10 w-full max-w-md border border-gray-100 flex flex-col gap-4">
+            <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95 }} className="bg-white p-6 md:p-8 rounded-none md:rounded-[2rem] shadow-2xl relative z-10 w-full h-full md:h-auto md:max-w-md border border-gray-100 flex flex-col gap-4">
               <div className="flex justify-between items-center border-b border-gray-100 pb-3">
                 <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Agendar Reunião</h3>
-                <button onClick={() => setIsMeetingModalOpen(false)}><X size={16}/></button>
+                <button onClick={() => setIsMeetingModalOpen(false)} className="w-10 h-10 md:w-8 md:h-8 flex items-center justify-center rounded-full bg-gray-100 md:bg-transparent hover:bg-gray-200 transition-colors"><X size={18} className="md:w-4 md:h-4"/></button>
               </div>
               <form onSubmit={handleScheduleMeeting} className="flex flex-col gap-4">
                 <div className="flex flex-col gap-1">

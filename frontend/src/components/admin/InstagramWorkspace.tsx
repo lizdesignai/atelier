@@ -350,7 +350,7 @@ export default function InstagramWorkspace({ activeProjectId, currentProject }: 
                 const postPins = pins.filter(pin => pin.post_id === post.id);
                 return (
                   <div key={post.id} className="glass-panel bg-white/70 p-6 rounded-[2rem] flex flex-col md:flex-row gap-6 border border-[var(--color-atelier-grafite)]/5 relative group shadow-sm">
-                    <button onClick={() => handleDeletePost(post.id)} className="absolute top-4 right-4 text-red-400 hover:text-red-600 opacity-0 group-hover:opacity-100 transition-opacity bg-white p-2 rounded-full shadow-md z-10"><Trash2 size={14}/></button>
+                    <button onClick={() => handleDeletePost(post.id)} className="absolute top-4 right-4 text-red-400 hover:text-red-600 opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity bg-white p-3 md:p-2 rounded-full shadow-md z-10 w-10 h-10 md:w-auto md:h-auto flex items-center justify-center"><Trash2 size={18} className="md:w-3.5 md:h-3.5"/></button>
                     
                     <div className="w-32 h-40 rounded-xl overflow-hidden shrink-0 border border-white shadow-inner relative">
                       <img src={post.image_url} alt="Post" className="w-full h-full object-cover" />

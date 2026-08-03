@@ -30,7 +30,26 @@ export class TaskController {
   // POST /api/v1/tasks
   static async createTask(req: Request, res: Response) {
     try {
-      const taskData = req.body;
+      const taskData = { ...req.body };
+
+      // Auto-assign collaborator if assigned_to is not manually specified
+      if (!taskData.assigned_to && (taskData.project_id || taskData.subclient_id)) {
+        try {
+          let query = supabase.from('collaborator_assignments').select('collaborator_id');
+          if (taskData.project_id) {
+            query = query.eq('project_id', taskData.project_id);
+          } else if (taskData.subclient_id) {
+            query = query.eq('subclient_id', taskData.subclient_id);
+          }
+          const { data: assignment } = await query.limit(1).maybeSingle();
+          if (assignment?.collaborator_id) {
+            taskData.assigned_to = assignment.collaborator_id;
+          }
+        } catch (assignErr) {
+          console.warn("Auto-assignment lookup skipped:", assignErr);
+        }
+      }
+
       const { data, error } = await supabase
         .from('tasks')
         .insert(taskData)

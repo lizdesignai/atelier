@@ -190,24 +190,23 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   // ====================================================
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
-  // Definir os itens do menu móvel (3 principais)
   const mobileMainItems: Array<{ href: string; icon: React.ReactNode; label: string; badge?: number }> = isContador ? [
     { href: '/admin/financeiro', icon: <DollarSign size={20} strokeWidth={1.5} />, label: 'Finanças' },
     { href: '/admin/inbox', icon: <Inbox size={20} strokeWidth={1.5} />, label: 'Inbox', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Users size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : isTeamMember ? [
-    { href: isAdminOnly ? '/admin/analytics' : '/admin/jtbd', icon: <Home size={20} strokeWidth={1.5} />, label: 'Início' },
+    { href: '/admin/jtbd', icon: <Crosshair size={20} strokeWidth={1.5} />, label: 'Focus' },
     { href: '/admin/inbox', icon: <Inbox size={20} strokeWidth={1.5} />, label: 'Inbox', badge: globalUnreadCount },
-    { href: '/admin/projetos', icon: <FolderKanban size={20} strokeWidth={1.5} />, label: 'Projetos' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : [
     { href: clientServiceType === "Gestão de Instagram" ? '/cockpit' : '/', icon: <Home size={20} strokeWidth={1.5} />, label: 'Início' },
     { href: '/brandbook', icon: <Sparkles size={20} strokeWidth={1.5} />, label: 'Marca' },
     { href: '/comunidade', icon: <Users size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ];
 
-  const mobileDrawerItems: Array<{ href: string; icon: React.ReactNode; label: string; badge?: number }> = isContador ? [] : isTeamMember ? [
-    { href: '/admin/clientes', icon: <Users size={20} strokeWidth={1.5} />, label: 'Clientes' },
-    { href: '/admin/analytics', icon: <Activity size={20} strokeWidth={1.5} />, label: 'Analytics' }
+  const mobileDrawerItems: Array<{ href: string; icon: React.ReactNode; label: string; badge?: number }> = isContador ? [] : isManagerOrAdmin ? [
+    { href: '/admin/analytics', icon: <Activity size={20} strokeWidth={1.5} />, label: 'Analytics' },
+    { href: '/admin/clientes', icon: <Users size={20} strokeWidth={1.5} />, label: 'Clientes' }
   ] : [
     { href: '/cofre', icon: <Lock size={20} strokeWidth={1.5} />, label: 'Cofre' },
     { href: '/referencias', icon: <Compass size={20} strokeWidth={1.5} />, label: 'Inspiração' }
@@ -220,7 +219,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
       animate={{ width: isCollapsed ? 88 : 280 }}
       transition={{ type: "spring", stiffness: 350, damping: 35, mass: 1 }}
       className={`
-        relative z-50 flex flex-col shrink-0 
+        hidden md:flex relative z-50 flex-col shrink-0 
         h-[calc(100vh-2rem)] my-4 ml-4 rounded-[2.5rem]
         bg-white/40 backdrop-blur-2xl border border-white/60 
         shadow-[8px_8px_32px_rgba(122,116,112,0.04)]
@@ -378,33 +377,46 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     </motion.aside>
 
     {/* ==================================================== */}
-    {/* MOBILE BOTTOM NAVIGATION BAR */}
+    {/* MOBILE BOTTOM NAVIGATION BAR (FLOATING PILL) */}
     {/* ==================================================== */}
-    <div className="md:hidden fixed bottom-0 left-0 w-full z-[100] px-6 pb-6 pt-3 bg-white/80 backdrop-blur-xl border-t border-[var(--color-atelier-grafite)]/5 flex items-center justify-between shadow-[0_-10px_30px_rgba(0,0,0,0.03)]">
+    <div className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[99999] px-1.5 py-1.5 bg-white/60 backdrop-blur-3xl border border-white/60 rounded-[2rem] flex items-center justify-between w-auto min-w-[280px] max-w-[340px]">
       {mobileMainItems.map((item) => (
-         <Link key={item.href} href={item.href} className="flex flex-col items-center gap-1 group relative">
-            <div className={`relative z-10 flex items-center justify-center transition-all duration-300 ${pathname === item.href ? 'text-[var(--color-atelier-terracota)] scale-110' : 'text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-grafite)]/80'}`}>
+         <Link 
+            key={item.href} 
+            href={item.href} 
+            className={`flex items-center justify-center gap-1.5 relative transition-all duration-500 rounded-full overflow-hidden ${pathname === item.href ? 'bg-[var(--color-atelier-terracota)] text-white px-3.5 py-2' : 'text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-grafite)] hover:bg-gray-50/50 w-10 h-10 shrink-0'}`}
+         >
+            <div className="relative z-10 flex items-center justify-center shrink-0">
               {item.icon}
               {item.badge !== undefined && item.badge > 0 && (
-                <div className="absolute -top-1 -right-1 w-2 h-2 bg-red-500 rounded-full border border-white shadow-sm animate-pulse-slow"></div>
+                <div className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-white shadow-sm ${pathname === item.href ? 'bg-white' : 'bg-red-500 animate-pulse-slow'}`}></div>
               )}
             </div>
-            <span className={`text-[9px] font-bold tracking-wide transition-colors duration-300 ${pathname === item.href ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/40'}`}>
-              {item.label}
-            </span>
-            {pathname === item.href && (
-              <motion.div layoutId="mobile-nav-indicator" className="absolute -bottom-2 w-1 h-1 bg-[var(--color-atelier-terracota)] rounded-full" />
-            )}
+            
+            <AnimatePresence>
+              {pathname === item.href && (
+                <motion.span 
+                  initial={{ width: 0, opacity: 0 }} 
+                  animate={{ width: "auto", opacity: 1 }} 
+                  exit={{ width: 0, opacity: 0 }} 
+                  className="text-[10px] font-bold tracking-wide whitespace-nowrap origin-left"
+                >
+                  {item.label}
+                </motion.span>
+              )}
+            </AnimatePresence>
          </Link>
       ))}
       
       {/* BOTÃO MAIS (DRAWER) */}
       {mobileDrawerItems.length > 0 && (
-        <button onClick={() => setIsMobileDrawerOpen(true)} className="flex flex-col items-center gap-1 group relative outline-none">
-          <div className="relative z-10 flex items-center justify-center transition-all duration-300 text-[var(--color-atelier-grafite)]/40 group-hover:text-[var(--color-atelier-grafite)]/80">
+        <button 
+           onClick={() => setIsMobileDrawerOpen(true)} 
+           className="flex items-center justify-center relative transition-all duration-300 rounded-full text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-grafite)] hover:bg-gray-50/50 w-10 h-10 shrink-0 outline-none"
+        >
+          <div className="relative z-10 flex items-center justify-center scale-90">
             <Menu size={20} strokeWidth={1.5} />
           </div>
-          <span className="text-[9px] font-bold tracking-wide text-[var(--color-atelier-grafite)]/40">Mais</span>
         </button>
       )}
     </div>
@@ -430,7 +442,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
                 <img src="/images/simbolo-rosa.png" alt="Atelier" className="w-8 h-8 object-contain" />
                 <span className="font-elegant text-xl text-[var(--color-atelier-grafite)] leading-none tracking-tight">Menu</span>
               </div>
-              <button onClick={() => setIsMobileDrawerOpen(false)} className="w-8 h-8 flex items-center justify-center bg-white/50 rounded-full text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)]">
+              <button onClick={() => setIsMobileDrawerOpen(false)} className="w-10 h-10 flex items-center justify-center bg-white/50 rounded-full text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)]">
                 <X size={18} strokeWidth={2} />
               </button>
             </div>

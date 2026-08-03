@@ -25,6 +25,7 @@ interface OverviewDashboardProps {
   isIdvService: (project: any) => boolean;
   isQueueMinimized?: boolean;
   setIsQueueMinimized?: (val: boolean) => void;
+  mobileWidgetView?: 'tarefas' | 'carteira' | 'cliente';
 }
 
 export default function OverviewDashboard({
@@ -44,12 +45,14 @@ export default function OverviewDashboard({
   isIdvService,
   isQueueMinimized,
   setIsQueueMinimized,
+  mobileWidgetView = 'tarefas',
 }: OverviewDashboardProps) {
   
   // Estados locais
   const [taskSearch, setTaskSearch] = useState("");
   const [taskFilterCollab, setTaskFilterCollab] = useState<string>('all');
   const [taskFilterClient, setTaskFilterClient] = useState<string>('all');
+  const [isMobileSearchActive, setIsMobileSearchActive] = useState(false);
   
   // Clientes com tarefas ativas (Extraídos diretamente das tarefas para contemplar Agências e Studio)
   const clientsWithTasks = Array.from(
@@ -65,7 +68,10 @@ export default function OverviewDashboard({
   
   return (
     <>
-      <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={`flex flex-col gap-6 h-full min-h-0 relative shrink-0 transition-all ${isQueueMinimized ? 'w-16' : 'w-full lg:w-[350px]'}`}>
+      {/* ==================================================== */}
+      {/* DESKTOP VIEW */}
+      {/* ==================================================== */}
+      <motion.div key="overview-desktop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className={`hidden lg:flex flex-col gap-6 h-full min-h-0 relative shrink-0 transition-all ${isQueueMinimized ? 'w-16' : 'w-[350px]'}`}>
           
           {isQueueMinimized ? (
              <div 
@@ -80,7 +86,7 @@ export default function OverviewDashboard({
                 <div className="w-8 h-8 rounded-full bg-[var(--color-atelier-terracota)] text-white flex items-center justify-center text-[10px] font-bold shadow-sm mt-auto mb-4">{activeTasksForQueue.length}</div>
              </div>
           ) : (
-          <div className="w-full glass-panel p-6 flex flex-col h-full min-h-0 relative">
+          <div className="w-full glass-panel p-6 flex flex-col h-full min-h-0 relative overflow-hidden">
             {/* COLUNA 1: FILA GERAL COM BUSCA INTELIGENTE */}
             <button 
               onClick={() => setIsQueueMinimized?.(true)} 
@@ -133,7 +139,7 @@ export default function OverviewDashboard({
                 </div>
               </div>
             </div>
-            <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3">
+            <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3 pr-2">
               {activeTasksForQueue
                 .filter(t => t.title.toLowerCase().includes(taskSearch.toLowerCase()) || t.projects?.profiles?.nome?.toLowerCase().includes(taskSearch.toLowerCase()))
                 .filter(t => taskFilterCollab === 'all' || t.assigned_to === taskFilterCollab)
@@ -146,7 +152,7 @@ export default function OverviewDashboard({
                     <div 
                       key={task.id} 
                       onClick={() => isBulkMode ? toggleTaskSelection(task.id) : null}
-                      className={`p-4 rounded-[1.2rem] border flex flex-col group transition-all shadow-sm ${isBulkMode ? 'cursor-pointer hover:scale-[1.02]' : ''} ${isSelected ? 'bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)]' : 'bg-white/80 border-[var(--color-atelier-grafite)]/5 hover:border-[var(--color-atelier-terracota)]/30 hover:bg-white'}`}
+                      className={`p-5 rounded-[2rem] border flex flex-col group transition-all duration-300 shadow-sm ${isBulkMode ? 'cursor-pointer hover:scale-[1.02]' : ''} ${isSelected ? 'bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)] shadow-md' : 'bg-white border-[var(--color-atelier-grafite)]/5 hover:border-[var(--color-atelier-terracota)]/30 hover:shadow-md'}`}
                     >
                       <div className="flex items-center gap-4 flex-1">
                         
@@ -156,10 +162,10 @@ export default function OverviewDashboard({
                           </div>
                         )}
 
-                        <div className="w-10 h-10 rounded-xl overflow-hidden border border-gray-100 shrink-0 bg-gray-50 flex items-center justify-center shadow-inner">
-                          {task.projects?.profiles?.avatar_url ? <img src={task.projects.profiles.avatar_url} className="w-full h-full object-cover" /> : <span className="font-elegant text-lg text-[var(--color-atelier-terracota)]">{task.projects?.profiles?.nome?.charAt(0) || "W"}</span>}
+                        <div className="w-12 h-12 rounded-[1.2rem] overflow-hidden border border-gray-100 shrink-0 bg-gray-50 flex items-center justify-center shadow-inner">
+                          {task.projects?.profiles?.avatar_url ? <img src={task.projects.profiles.avatar_url} className="w-full h-full object-cover" /> : <span className="font-elegant text-xl text-[var(--color-atelier-terracota)]">{task.projects?.profiles?.nome?.charAt(0) || "W"}</span>}
                         </div>
-                        <div className="flex flex-col cursor-pointer flex-1" onClick={(e) => { if (isBulkMode) return; setEditingTask(task); }}>
+                        <div className="flex flex-col cursor-pointer flex-1 justify-center" onClick={(e) => { if (isBulkMode) return; setEditingTask(task); }}>
                           <div className="flex justify-between items-start">
                             <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors leading-tight pr-2">{task.title}</span>
                             {task.urgency && <Flame size={12} className="text-orange-500 shrink-0 mt-0.5"/>}
@@ -195,6 +201,82 @@ export default function OverviewDashboard({
             </div>
           </div>
           )}
+      </motion.div>
+
+      {/* ==================================================== */}
+      {/* MOBILE VIEW (COMPACT UI) */}
+      {/* ==================================================== */}
+      <motion.div key="overview-mobile" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex lg:hidden flex-col gap-4 w-full">
+        {/* Dynamic Header */}
+        <div className="flex items-center justify-between w-full h-10">
+           {isMobileSearchActive ? (
+             <div className="flex items-center w-full gap-2 animate-[fadeIn_0.2s_ease-out]">
+                <div className="relative flex-1">
+                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-atelier-terracota)]" />
+                  <input 
+                    autoFocus
+                    type="text" 
+                    placeholder="Buscar tarefa..." 
+                    value={taskSearch}
+                    onChange={(e) => setTaskSearch(e.target.value)}
+                    className="w-full bg-white border border-[var(--color-atelier-terracota)]/30 rounded-full py-2 pl-9 pr-4 text-[12px] outline-none shadow-sm text-[var(--color-atelier-grafite)] font-bold"
+                  />
+                </div>
+                <button onClick={() => { setIsMobileSearchActive(false); setTaskSearch(""); }} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0">
+                  <X size={14} className="text-gray-500" />
+                </button>
+             </div>
+           ) : (
+             <div className="flex items-center justify-between w-full animate-[fadeIn_0.2s_ease-out]">
+               <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Fila.</h2>
+               <div className="flex items-center gap-2">
+                 <button onClick={() => setIsMobileSearchActive(true)} className="w-9 h-9 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-terracota)]">
+                   <Search size={16} />
+                 </button>
+                 
+                 {/* Filtros Simplificados */}
+                 <button onClick={() => setTaskFilterClient(taskFilterClient === 'all' ? clientsWithTasks[0]?.id || 'all' : 'all')} className={`w-9 h-9 rounded-full shadow-sm border flex items-center justify-center ${taskFilterClient !== 'all' ? 'bg-[var(--color-atelier-terracota)] text-white border-[var(--color-atelier-terracota)]' : 'bg-white border-gray-100 text-[var(--color-atelier-grafite)]/60'}`}>
+                   <FolderKanban size={16} />
+                 </button>
+               </div>
+             </div>
+           )}
+        </div>
+
+        {/* Compact Carousel */}
+        <div className="flex flex-row overflow-x-auto custom-scrollbar gap-3 pb-2 pt-1 snap-x snap-mandatory w-full">
+           {activeTasksForQueue
+              .filter(t => t.title.toLowerCase().includes(taskSearch.toLowerCase()) || t.projects?.profiles?.nome?.toLowerCase().includes(taskSearch.toLowerCase()))
+              .filter(t => taskFilterCollab === 'all' || t.assigned_to === taskFilterCollab)
+              .filter(t => taskFilterClient === 'all' || t.project_id === taskFilterClient || t.projects?.id === taskFilterClient)
+              .map(task => {
+                 const avatarUrl = task.projects?.profiles?.avatar_url;
+                 return (
+                   <div key={task.id} onClick={() => setEditingTask(task)} className="bg-white/90 rounded-[1.2rem] p-3 border border-white flex items-center gap-3 active:scale-[0.98] transition-transform shrink-0 w-[82vw] snap-center">
+                      <div className="w-10 h-10 rounded-[1rem] overflow-hidden bg-gray-100 border border-gray-200 shrink-0 flex items-center justify-center">
+                         {avatarUrl ? <img src={avatarUrl} className="w-full h-full object-cover" /> : <span className="font-elegant text-[var(--color-atelier-terracota)] font-bold text-lg uppercase">{task.projects?.profiles?.nome?.charAt(0) || "W"}</span>}
+                      </div>
+                      <div className="flex-1 flex flex-col min-w-0">
+                         <span className="font-roboto font-bold text-[12px] text-[var(--color-atelier-grafite)] truncate leading-tight pr-2">{task.title}</span>
+                         <span className="text-[10px] text-[var(--color-atelier-grafite)]/50 truncate mt-0.5">{task.projects?.profiles?.nome || "White-Label"}</span>
+                      </div>
+                      <div className="shrink-0 flex flex-col items-end">
+                         <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)]">{new Date(task.deadline).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>
+                         <div className="flex items-center gap-1 mt-1">
+                           <span className="text-[9px] font-bold text-gray-400">{task.profiles?.nome?.split(" ")[0] || "Livre"}</span>
+                           <div className="w-4 h-4 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center">
+                             {task.profiles?.avatar_url ? <img src={task.profiles.avatar_url} className="w-full h-full object-cover" /> : <UserCircle2 size={10} className="text-gray-400" />}
+                           </div>
+                         </div>
+                      </div>
+                   </div>
+                 )
+              })
+           }
+           {activeTasksForQueue.length === 0 && (
+             <div className="w-full text-center py-8 bg-white/40 rounded-2xl text-[var(--color-atelier-grafite)]/30 text-xs font-bold uppercase tracking-widest">Nenhuma tarefa</div>
+           )}
+        </div>
       </motion.div>
     </>
   );

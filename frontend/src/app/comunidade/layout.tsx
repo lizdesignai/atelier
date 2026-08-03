@@ -79,7 +79,7 @@ function ComunidadeContent({ children }: { children: React.ReactNode }) {
         {/* ==========================================
             COLUNA CENTRAL: O PALCO PRINCIPAL (50%)
             ========================================== */}
-        <main className="flex-1 max-w-[600px] flex flex-col pb-24 md:pb-32">
+        <main className="flex-1 max-w-[600px] flex flex-col pb-28 md:pb-32">
           {children}
         </main>
 
@@ -93,7 +93,7 @@ function ComunidadeContent({ children }: { children: React.ReactNode }) {
       {/* ==========================================
           MOBILE BOTTOM NAVIGATION (Exclusivo para Telemóveis)
           ========================================== */}
-      <div className="md:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-xl border-t border-[var(--color-atelier-grafite)]/10 z-50 px-6 py-3 flex justify-between items-center shadow-[0_-10px_40px_rgba(0,0,0,0.05)] pb-safe">
+      <div className="md:hidden fixed bottom-0 left-0 w-full bg-white/90 backdrop-blur-xl border-t border-[var(--color-atelier-grafite)]/10 z-50 px-6 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] flex justify-between items-center shadow-[0_-10px_40px_rgba(0,0,0,0.05)]">
         <MobileNavItem href="/comunidade" icon={<Globe2 size={24} />} active={pathname === '/comunidade' && currentGroup === 'global'} />
         <MobileNavItem href="/comunidade?grupo=networking" icon={<Users size={24} />} active={currentGroup === 'networking'} />
         <MobileNavItem href="/comunidade?grupo=feedback" icon={<Lightbulb size={24} />} active={currentGroup === 'feedback'} />

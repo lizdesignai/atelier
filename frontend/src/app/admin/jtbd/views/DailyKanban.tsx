@@ -1,5 +1,7 @@
+"use client";
+
 // src/app/admin/jtbd/views/DailyKanban.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Clock, AlertTriangle, CheckCircle2, Image as ImageIcon, PlayCircle, FileText, User, Briefcase } from "lucide-react";
 import TaskCard from "../components/TaskCard";
@@ -43,6 +45,16 @@ export default function DailyKanban({
   // ==========================================================================
   const [activeTaskModal, setActiveTaskModal] = useState<{task: any, isFocus: boolean, isReview: boolean, isCompleted: boolean} | null>(null);
   const [activeAssetsTask, setActiveAssetsTask] = useState<any | null>(null);
+
+  useEffect(() => {
+    const handleOpenModal = (e: CustomEvent) => {
+      if (e.detail) {
+        setActiveTaskModal(e.detail);
+      }
+    };
+    window.addEventListener("openTaskModal" as any, handleOpenModal);
+    return () => window.removeEventListener("openTaskModal" as any, handleOpenModal);
+  }, []);
 
   // 🟢 UNIFICAÇÃO DA FILA: Junta as tarefas pendentes com as em andamento
   const activeQueueTasks = [...inProgressTasks, ...pendingTasks];
@@ -252,14 +264,14 @@ export default function DailyKanban({
                        <Briefcase size={10} className="text-gray-400 group-hover/client:text-[var(--color-atelier-terracota)]" />
                      </div>
                    )}
-                   <span className="text-[9px] font-medium text-gray-500 truncate max-w-[80px] group-hover/client:text-[var(--color-atelier-terracota)] transition-colors">{clientName}</span>
+                   <span className="text-[10px] font-bold text-gray-600 max-w-[100px] truncate group-hover/client:text-[var(--color-atelier-terracota)] transition-colors">{clientName}</span>
                  </div>
               </div>
               
-              {/* Data de Conclusão */}
-              <div className="flex flex-col items-end">
-                 <span className="text-[9px] font-bold text-gray-400">{formattedDate}</span>
-                 <span className="text-[8px] font-medium text-gray-400">{formattedTime}</span>
+              {/* Data da Conclusão */}
+              <div className="flex items-center gap-1 text-[9px] font-bold text-gray-400 bg-gray-50 px-2 py-0.5 rounded border border-gray-100">
+                <Clock size={10} />
+                <span>{formattedDate}</span>
               </div>
             </div>
           </div>
@@ -268,16 +280,14 @@ export default function DailyKanban({
     }
 
     return (
-      <motion.div 
+      <motion.div
         key={task.id}
         layout="position"
         layoutId={`task-${task.id}`}
-        
-        initial={{ opacity: 0, y: 30, scale: 0.95, filter: "blur(8px)" }}
+        initial={{ opacity: 0, y: 20 }}
         animate={{ 
           opacity: 1, 
           y: 0, 
-          scale: 1, 
           filter: "blur(0px)",
           ...(isLive ? { backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] } : {}) 
         }}

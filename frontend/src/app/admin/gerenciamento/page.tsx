@@ -72,12 +72,12 @@ export function GerenciamentoWorkspace({ activeProjectId, currentProject }: { ac
       {/* =====================================================================
           MENU DE NAVEGAÇÃO FLUTUANTE (DOCK TOPO-DIREITA)
           ===================================================================== */}
-      <div className="fixed top-8 right-4 md:right-8 z-[100] flex justify-end">
+      <div className="fixed top-8 right-4 md:right-8 z-[100] flex justify-end max-w-[calc(100vw-2rem)] md:max-w-none">
         <motion.div 
           initial={{ y: -50, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          className="flex items-center gap-2 p-2 bg-white/70 backdrop-blur-2xl border border-white/60 shadow-[0_20px_40px_rgba(0,0,0,0.1)] rounded-full opacity-40 hover:opacity-100 transition-opacity duration-300 group"
+          className="flex items-center gap-2 p-2 bg-white/70 backdrop-blur-2xl border border-white/60 shadow-[0_20px_40px_rgba(0,0,0,0.1)] rounded-full opacity-100 md:opacity-40 md:hover:opacity-100 transition-opacity duration-300 group overflow-x-auto"
         >
           {tabs.map(tab => {
             const isActive = activeTab === tab.id;
@@ -156,12 +156,12 @@ export function GerenciamentoInstagram() {
   const currentProject = dbProjects.find(p => p.id === activeProjectId);
 
   if (isLoading) {
-    return <div className="flex h-screen items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
+    return <div className="flex h-auto min-h-[calc(100dvh-60px)] md:h-screen items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
   }
 
   if (!currentProject) {
     return (
-      <div className="flex flex-col items-center justify-center h-[calc(100vh-100px)] gap-4 opacity-40">
+      <div className="flex flex-col items-center justify-center h-auto min-h-[calc(100dvh-100px)] md:h-[calc(100vh-100px)] gap-4 opacity-40">
         <Smartphone size={48} className="text-[var(--color-atelier-grafite)]" />
         <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Nenhum Cliente Ativo.</h2>
       </div>
@@ -169,7 +169,7 @@ export function GerenciamentoInstagram() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] w-full mx-auto relative z-10 pt-8 pb-6 px-4 md:px-8 gap-6">
+    <div className="flex flex-col h-auto min-h-[calc(100dvh-60px)] md:h-[calc(100vh-60px)] max-w-[1400px] w-full mx-auto relative z-10 pt-8 pb-6 px-4 md:px-8 gap-6 overflow-y-auto md:overflow-hidden">
       
       {/* 🟢 FUNDO IMERSIVO PROFISSIONAL (GLOW EFEITO VIDRO) */}
       <div className="fixed inset-0 w-full h-full pointer-events-none z-[-1] overflow-hidden">
@@ -184,7 +184,7 @@ export function GerenciamentoInstagram() {
       </div>
 
       {/* CABEÇALHO SUPERIOR (SELEÇÃO DE CLIENTE) */}
-      <header className="flex justify-between items-end shrink-0 animate-[fadeInUp_0.5s_ease-out] relative z-20">
+      <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-0 shrink-0 animate-[fadeInUp_0.5s_ease-out] relative z-20">
         <div className="flex items-center gap-6">
           <div className="w-16 h-16 rounded-[1.5rem] bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-terracota)]/20 shadow-md flex items-center justify-center text-[var(--color-atelier-terracota)] font-elegant text-3xl overflow-hidden shrink-0 transition-transform hover:scale-105">
              {currentProject.profiles?.avatar_url ? (
@@ -218,7 +218,7 @@ export function GerenciamentoInstagram() {
               {isClientMenuOpen && (
                 <motion.div 
                   initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.2 }}
-                  className="absolute top-[110%] left-0 w-[300px] md:w-[400px] bg-white/90 backdrop-blur-xl border border-white shadow-[0_20px_50px_rgba(122,116,112,0.15)] rounded-[2rem] overflow-hidden z-50 flex flex-col py-2"
+                  className="absolute top-[110%] left-0 w-[calc(100vw-3rem)] max-w-[300px] md:max-w-none md:w-[400px] bg-white/90 backdrop-blur-xl border border-white shadow-[0_20px_50px_rgba(122,116,112,0.15)] rounded-[2rem] overflow-hidden z-50 flex flex-col py-2"
                 >
                   <div className="px-5 py-3 border-b border-[var(--color-atelier-grafite)]/5 text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">Selecione o Cliente Operacional</div>
                   <div className="max-h-[350px] overflow-y-auto custom-scrollbar">

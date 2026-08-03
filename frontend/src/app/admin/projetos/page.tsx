@@ -728,14 +728,14 @@ function PainelIdentidade() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6 px-4 md:px-0">
+    <div className="flex flex-col h-auto min-h-[calc(100dvh-60px)] md:h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6 px-4 md:px-0">
       
       <AnimatePresence>
         {isBriefingModalOpen && (
           <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 md:p-10">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[var(--color-atelier-grafite)]/40 backdrop-blur-md" onClick={() => setIsBriefingModalOpen(false)}></motion.div>
             
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-[var(--color-atelier-creme)] w-full h-full max-w-4xl rounded-[2.5rem] shadow-2xl relative z-10 flex flex-col overflow-hidden border border-white">
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-[var(--color-atelier-creme)] w-full h-full md:max-w-4xl rounded-none md:rounded-[2.5rem] shadow-2xl relative z-10 flex flex-col overflow-hidden border border-white">
               
               <div className="p-6 border-b border-white/40 flex justify-between items-center bg-white/60 backdrop-blur-xl shrink-0">
                 <div className="flex items-center gap-3">
@@ -789,7 +789,7 @@ function PainelIdentidade() {
                     <div className="flex flex-col gap-10">
                       <div>
                         <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">1. Dados & Contato</h3>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <InfoBlock label="Nome do Responsável" value={clientBriefing.nome} />
                           <InfoBlock label="WhatsApp" value={clientBriefing.whatsapp} />
                           <InfoBlock label="E-mail de Contato" value={clientBriefing.email} />
@@ -814,7 +814,7 @@ function PainelIdentidade() {
                         <div className="flex flex-col gap-4">
                           <InfoBlock label="Por que a empresa foi aberta? Qual a motivação?" value={clientBriefing.motivo_abertura} />
                           <InfoBlock label="Propósito principal além de lucrar" value={clientBriefing.proposito} />
-                          <div className="grid grid-cols-3 gap-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                             <InfoBlock label="Tempo de Mercado" value={clientBriefing.tempo_mercado} />
                             <InfoBlock label="A Marca em Emojis" value={clientBriefing.emoji} />
                             <InfoBlock label="Música que a define" value={clientBriefing.musica} />
@@ -826,7 +826,7 @@ function PainelIdentidade() {
 
                       <div>
                         <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">4. Público Alvo</h3>
-                        <div className="grid grid-cols-3 gap-4 mb-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
                           <InfoBlock label="Gênero" value={clientBriefing.genero === 'Outro' ? clientBriefing.genero_outro : clientBriefing.genero} />
                           <InfoBlock label="Classe Social" value={clientBriefing.classe === 'Outro' ? clientBriefing.classe_outro : clientBriefing.classe} />
                           <InfoBlock label="Idade" value={clientBriefing.idade === 'Outro' ? clientBriefing.idade_outro : clientBriefing.idade} />
@@ -946,7 +946,7 @@ function PainelIdentidade() {
               {isClientMenuOpen && (
                 <motion.div 
                   initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.2 }}
-                  className="absolute top-[110%] left-0 w-[300px] bg-white/90 backdrop-blur-xl border border-white shadow-[0_20px_50px_rgba(122,116,112,0.15)] rounded-2xl overflow-hidden z-50 flex flex-col py-2"
+                  className="absolute top-[110%] left-0 w-[calc(100vw-3rem)] max-w-[300px] md:max-w-none md:w-[300px] bg-white/90 backdrop-blur-xl border border-white shadow-[0_20px_50px_rgba(122,116,112,0.15)] rounded-2xl overflow-hidden z-50 flex flex-col py-2"
                 >
                   <div className="px-4 py-2 border-b border-[var(--color-atelier-grafite)]/5 text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">Projetos Ativos</div>
                   <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
@@ -1059,7 +1059,7 @@ function PainelIdentidade() {
         <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0 animate-[fadeInUp_0.8s_ease-out_0.2s_both] relative z-10">
           
           {/* 1. COLUNA ESQUERDA: ENGENHARIA DO PROJETO */}
-          <div className="w-full lg:w-1/3 flex flex-col h-full shrink-0">
+          <div className="w-full lg:w-1/3 flex flex-col h-auto lg:h-full shrink-0">
             <div className="glass-panel p-8 rounded-[2.5rem] bg-white/40 flex flex-col border border-white h-full shadow-sm hover:shadow-md transition-shadow">
               
               <div className="flex justify-between items-center mb-8 pb-4 border-b border-[var(--color-atelier-grafite)]/10 shrink-0">
@@ -1136,7 +1136,7 @@ function PainelIdentidade() {
           </div>
 
           {/* 2. COLUNA DO MEIO: MATERIAIS FINAIS / ATIVOS */}
-          <div className="w-full lg:w-1/3 flex flex-col h-full shrink-0">
+          <div className="w-full lg:w-1/3 flex flex-col h-[500px] lg:h-full shrink-0">
             <div className="glass-panel p-8 rounded-[2.5rem] bg-white/40 flex flex-col border border-white h-full shadow-sm hover:shadow-md transition-shadow">
               <div className="flex flex-col mb-6 shrink-0 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><UploadCloud size={20} className="text-[var(--color-atelier-terracota)]" /> Materiais Finais</h3>

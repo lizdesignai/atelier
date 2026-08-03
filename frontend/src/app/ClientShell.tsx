@@ -38,7 +38,7 @@ function GlobalToast() {
   if (!toast.visible) return null;
 
   return (
-    <div className="fixed bottom-8 right-8 z-[9999] bg-white/90 backdrop-blur-xl border border-[var(--color-atelier-terracota)]/30 text-[var(--color-atelier-grafite)] px-6 py-4 rounded-2xl shadow-[0_20px_40px_rgba(173,111,64,0.15)] animate-[fadeInUp_0.3s_ease-out] flex items-center gap-3">
+    <div className="fixed bottom-24 md:bottom-8 right-4 md:right-8 z-[9999] bg-white/90 backdrop-blur-xl border border-[var(--color-atelier-terracota)]/30 text-[var(--color-atelier-grafite)] px-5 py-3 md:px-6 md:py-4 rounded-2xl shadow-[0_20px_40px_rgba(173,111,64,0.15)] animate-[fadeInUp_0.3s_ease-out] flex items-center gap-3">
       <div className="w-2 h-2 rounded-full bg-[var(--color-atelier-terracota)] animate-pulse"></div>
       <span className="font-roboto text-[13px] font-bold tracking-wide">{toast.message}</span>
     </div>
@@ -144,6 +144,7 @@ export default function ClientShell({ children }: { children: React.ReactNode })
   const isLoginPage = pathname === "/login";
 
   useEffect(() => {
+    let timer: NodeJS.Timeout;
     const checkAuth = async () => {
       const token = typeof window !== "undefined" ? localStorage.getItem("atelier_token") : null;
       const role = typeof window !== "undefined" ? localStorage.getItem("atelier_role") : null;
@@ -156,6 +157,7 @@ export default function ClientShell({ children }: { children: React.ReactNode })
         localStorage.removeItem("atelier_token");
         localStorage.removeItem("atelier_role");
         router.replace("/login");
+        setIsInitializing(false);
         return;
       }
 
@@ -163,23 +165,25 @@ export default function ClientShell({ children }: { children: React.ReactNode })
         setUserRole(role);
 
         if (isLoginPage) {
-          router.replace(role === "client" ? "/" : role === "contador" ? "/admin/financeiro" : "/admin");
+          router.replace(role === "client" ? "/" : role === "contador" ? "/admin/financeiro" : "/admin/analytics");
         } else if (role === "client" && pathname.startsWith("/admin")) {
           router.replace("/");
         } else if ((role === "admin" || role === "gestor") && pathname === "/") {
-          router.replace("/admin");
+          router.replace("/admin/analytics");
         } else if (role === "contador" && pathname === "/") {
           router.replace("/admin/financeiro");
         }
 
-        const timer = setTimeout(() => setIsInitializing(false), 3800);
-        return () => clearTimeout(timer);
+        timer = setTimeout(() => setIsInitializing(false), 500);
       } else {
         setIsInitializing(false);
       }
     };
 
     checkAuth();
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [pathname, router, isLoginPage]);
 
   const handleLogout = () => {
@@ -207,8 +211,8 @@ export default function ClientShell({ children }: { children: React.ReactNode })
         >
           {!isLoginPage && (
             <>
-              <div className="absolute top-[-10%] left-[-5%] w-[500px] h-[500px] bg-[var(--color-atelier-terracota)]/5 blur-[120px] rounded-full pointer-events-none z-0"></div>
-              <div className="absolute bottom-[-15%] right-[-10%] w-[600px] h-[600px] bg-[var(--color-atelier-rose)]/10 blur-[150px] rounded-full pointer-events-none z-0"></div>
+              <div className="hidden md:block absolute top-[-10%] left-[-5%] w-[500px] h-[500px] bg-[var(--color-atelier-terracota)]/5 blur-[120px] rounded-full pointer-events-none z-0"></div>
+              <div className="hidden md:block absolute bottom-[-15%] right-[-10%] w-[600px] h-[600px] bg-[var(--color-atelier-rose)]/10 blur-[150px] rounded-full pointer-events-none z-0"></div>
             </>
           )}
 
@@ -225,7 +229,7 @@ export default function ClientShell({ children }: { children: React.ReactNode })
               <AppHeader handleLogout={handleLogout} />
             )}
 
-            <main className={`flex-1 overflow-hidden flex flex-col ${isLoginPage || isSidebarHidden ? "p-0" : "px-6 md:px-12 py-8"}`}>
+            <main className={`flex-1 overflow-hidden flex flex-col ${isLoginPage || isSidebarHidden ? "p-0" : "px-4 md:px-12 pt-4 pb-24 md:py-8"}`}>
               <div className={isLoginPage || isSidebarHidden ? "w-full h-full overflow-y-auto" : "flex-1 overflow-y-auto custom-scrollbar"}>
                 {children}
               </div>

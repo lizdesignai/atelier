@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { NotificationEngine } from "../../../lib/NotificationEngine";
+import InboxMobileView from "./views/InboxMobileView";
 
 // ============================================================================
 // TIPAGEM ESTRITA (Arquitetura Zero 'any')
@@ -84,6 +85,7 @@ export default function AdminInboxPage() {
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [activeChannelId, setActiveChannelId] = useState<string | null>(null);
   const [activeDMUserId, setActiveDMUserId] = useState<string | null>(null);
+  const [mobileView, setMobileView] = useState<'channels' | 'chat'>('channels');
 
   // 3. Estados de Dados (Memória)
   const [clients, setClients] = useState<ClientData[]>([]);
@@ -152,13 +154,14 @@ export default function AdminInboxPage() {
           const { data: clientsData } = await supabase.from('projects').select('*, profiles(*)').in('status', ['active', 'delivered']);
           if (clientsData) setClients(clientsData as ClientData[]);
 
-          // Puxar Equipa
+          // Puxar Equipa (Filtrando usuários pausados)
           const { data: corpUsers } = await supabase.from('profiles').select('*').in('role', ['admin', 'gestor', 'colaborador']).order('nome');
           if (corpUsers) {
+            const activeCorpUsers = corpUsers.filter((u: any) => u.status !== 'paused' && !u.is_paused);
             if (pData?.role === 'colaborador') {
-              setCorporateUsers(corpUsers.filter(u => u.role === 'admin' || u.role === 'gestor') as ProfileData[]);
+              setCorporateUsers(activeCorpUsers.filter((u: any) => u.role === 'admin' || u.role === 'gestor') as ProfileData[]);
             } else {
-              setCorporateUsers(corpUsers as ProfileData[]);
+              setCorporateUsers(activeCorpUsers as ProfileData[]);
             }
           }
           
@@ -509,17 +512,46 @@ export default function AdminInboxPage() {
   }
 
   return (
-    <div className="relative h-[calc(100vh-60px)] w-full flex p-4 lg:p-6 gap-6 bg-transparent overflow-hidden">
-      
-      {/* BACKGROUND (Marca D'Água) */}
-      <div className="absolute inset-0 z-0 flex items-center justify-center opacity-[0.02] pointer-events-none">
-         <MessageSquare size={500} />
-      </div>
+    <>
+      {/* MOBILE INBOX (LG:HIDDEN) - MENSAGEIRO ULTRA FLUIDO */}
+      <InboxMobileView 
+        currentUser={currentUser}
+        clients={clients}
+        corporateUsers={corporateUsers}
+        channels={channels}
+        messages={messages}
+        activeSpace={activeSpace}
+        setActiveSpace={setActiveSpace}
+        activeProjectId={activeProjectId}
+        setActiveProjectId={setActiveProjectId}
+        activeChannelId={activeChannelId}
+        setActiveChannelId={setActiveChannelId}
+        activeDMUserId={activeDMUserId}
+        setActiveDMUserId={setActiveDMUserId}
+        unreadCounts={unreadCounts}
+        channelTypeMap={channelTypeMap}
+        channelPreviews={channelPreviews}
+        messageText={messageText}
+        setMessageText={setMessageText}
+        handleSendMessage={handleSendMessage}
+        handleFileUpload={handleAttachmentUpload}
+        isSending={isSending}
+        isUploadingAttachment={isUploadingAttachment}
+        messagesEndRef={messagesEndRef}
+      />
+
+      {/* DESKTOP INBOX (HIDDEN LG:FLEX - 100% INTOCADO) */}
+      <div className="hidden lg:flex relative h-[calc(100vh-60px)] w-full p-6 gap-6 bg-transparent overflow-hidden">
+        
+        {/* BACKGROUND (Marca D'Água) */}
+        <div className="absolute inset-0 z-0 flex items-center justify-center opacity-[0.02] pointer-events-none">
+           <MessageSquare size={500} />
+        </div>
 
       {/* ======================================================================
           COLUNA ESQUERDA (Navegação & Diretórios)
           ====================================================================== */}
-      <aside className="w-[340px] glass-panel border border-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.05)] rounded-[2.5rem] flex flex-col overflow-hidden shrink-0 z-10 bg-white/60 backdrop-blur-xl">
+      <aside className={`w-full md:w-[340px] glass-panel border border-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.05)] rounded-[2.5rem] flex-col overflow-hidden shrink-0 z-10 bg-white/60 backdrop-blur-xl ${mobileView === 'channels' ? 'flex' : 'hidden md:flex'}`}>
         
         {/* SEGMENTED CONTROL COMPACTO */}
         <div className="shrink-0 p-5 pb-3 border-b border-[var(--color-atelier-grafite)]/5 bg-white/30">
@@ -598,7 +630,7 @@ export default function AdminInboxPage() {
                     {channels.filter(c => !c.is_private && !c.is_archived).map(channel => {
                       const unread = unreadCounts[channel.id] || 0;
                       return (
-                      <button key={channel.id} onClick={() => setActiveChannelId(channel.id)} className={`w-full text-left px-4 py-3 rounded-[1rem] font-roboto flex items-center justify-between transition-all border ${activeChannelId === channel.id ? 'bg-white text-[var(--color-atelier-terracota)] shadow-sm border-white scale-[1.02] z-10' : 'bg-transparent text-[var(--color-atelier-grafite)]/80 border-transparent hover:bg-white/60'}`}>
+                      <button key={channel.id} onClick={() => { setActiveChannelId(channel.id); setMobileView('chat'); }} className={`w-full text-left px-4 py-3 rounded-[1rem] font-roboto flex items-center justify-between transition-all border ${activeChannelId === channel.id ? 'bg-white text-[var(--color-atelier-terracota)] shadow-sm border-white scale-[1.02] z-10' : 'bg-transparent text-[var(--color-atelier-grafite)]/80 border-transparent hover:bg-white/60'}`}>
                         <div className="flex items-center gap-2.5 truncate pr-2 w-full">
                            <Hash size={16} className={`shrink-0 ${activeChannelId === channel.id ? 'text-[var(--color-atelier-terracota)]' : 'text-gray-400'}`} /> 
                            <div className="flex flex-col truncate flex-1">
@@ -623,7 +655,7 @@ export default function AdminInboxPage() {
                     {channels.filter(c => c.is_private && !c.is_archived).map(channel => {
                       const unread = unreadCounts[channel.id] || 0;
                       return (
-                      <button key={channel.id} onClick={() => setActiveChannelId(channel.id)} className={`w-full text-left px-4 py-3 rounded-[1rem] font-roboto flex items-center justify-between transition-all border ${activeChannelId === channel.id ? 'bg-[var(--color-atelier-grafite)] text-white shadow-lg border-[var(--color-atelier-grafite)] scale-[1.02] z-10' : 'bg-transparent text-[var(--color-atelier-grafite)]/80 border-transparent hover:bg-white/60'}`}>
+                      <button key={channel.id} onClick={() => { setActiveChannelId(channel.id); setMobileView('chat'); }} className={`w-full text-left px-4 py-3 rounded-[1rem] font-roboto flex items-center justify-between transition-all border ${activeChannelId === channel.id ? 'bg-[var(--color-atelier-grafite)] text-white shadow-lg border-[var(--color-atelier-grafite)] scale-[1.02] z-10' : 'bg-transparent text-[var(--color-atelier-grafite)]/80 border-transparent hover:bg-white/60'}`}>
                         <div className="flex items-center gap-2.5 truncate pr-2 w-full">
                            <Lock size={14} className={`shrink-0 ${activeChannelId === channel.id ? 'text-white/60' : 'text-gray-400'}`} /> 
                            <div className="flex flex-col truncate flex-1">
@@ -652,7 +684,7 @@ export default function AdminInboxPage() {
                 <div className="flex-1 overflow-y-auto custom-scrollbar p-5 flex flex-col gap-6">
                   <div className="flex flex-col gap-2">
                     <span className="px-2 font-roboto text-[10px] uppercase tracking-widest font-bold text-gray-400">Global</span>
-                    <button onClick={() => { setActiveDMUserId(null); }} className={`w-full text-left p-3.5 rounded-[1.2rem] flex items-center gap-3.5 transition-all border ${!activeDMUserId ? 'bg-[var(--color-atelier-grafite)] text-white shadow-lg border-[var(--color-atelier-grafite)] scale-[1.02]' : 'bg-white/60 border-white hover:bg-white text-[var(--color-atelier-grafite)] shadow-sm'}`}>
+                    <button onClick={() => { setActiveDMUserId(null); setMobileView('chat'); }} className={`w-full text-left p-3.5 rounded-[1.2rem] flex items-center gap-3.5 transition-all border ${!activeDMUserId ? 'bg-[var(--color-atelier-grafite)] text-white shadow-lg border-[var(--color-atelier-grafite)] scale-[1.02]' : 'bg-white/60 border-white hover:bg-white text-[var(--color-atelier-grafite)] shadow-sm'}`}>
                       <div className={`w-11 h-11 rounded-[0.8rem] flex items-center justify-center shrink-0 shadow-inner ${!activeDMUserId ? 'bg-white/10 text-white' : 'bg-gray-50 border border-gray-100 text-[var(--color-atelier-terracota)]'}`}><Globe size={20} /></div>
                       <div className="flex flex-col flex-1 overflow-hidden">
                          <div className="flex justify-between items-center w-full">
@@ -693,7 +725,7 @@ export default function AdminInboxPage() {
                       const statusText = isOnline ? 'Online' : (user.last_seen ? `Visto às ${new Date(user.last_seen).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}` : 'Inativo');
 
                       return (
-                        <button key={user.id} onClick={() => setActiveDMUserId(user.id)} className={`w-full text-left p-3 rounded-[1.2rem] flex items-center gap-3 transition-all border ${isActive ? 'bg-white border-[var(--color-atelier-terracota)]/30 shadow-md scale-[1.02]' : 'bg-transparent border-transparent hover:bg-white/70'}`}>
+                        <button key={user.id} onClick={() => { setActiveDMUserId(user.id); setMobileView('chat'); }} className={`w-full text-left p-3 rounded-[1.2rem] flex items-center gap-3 transition-all border ${isActive ? 'bg-white border-[var(--color-atelier-terracota)]/30 shadow-md scale-[1.02]' : 'bg-transparent border-transparent hover:bg-white/70'}`}>
                           <div className="relative shrink-0">
                             <div className="w-11 h-11 rounded-[0.8rem] bg-gray-50 flex items-center justify-center overflow-hidden border border-white shadow-sm">{user.avatar_url ? <img src={user.avatar_url} className="w-full h-full object-cover"/> : <span className="font-elegant text-base font-bold text-[var(--color-atelier-grafite)]">{user.nome.charAt(0)}</span>}</div>
                             <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 border-2 border-white rounded-full flex items-center justify-center ${isOnline ? 'bg-green-500' : 'bg-gray-300'}`}>{isOnline && <div className="absolute w-full h-full bg-green-500 rounded-full animate-ping opacity-60"></div>}</div>
@@ -728,7 +760,7 @@ export default function AdminInboxPage() {
       {/* ======================================================================
           COLUNA DIREITA (Palco de Chat / Feed Central)
           ====================================================================== */}
-      <main className="flex-1 glass-panel border border-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.05)] rounded-[2.5rem] flex flex-col overflow-hidden z-10 bg-white/70 backdrop-blur-2xl">
+      <main className={`flex-1 glass-panel border border-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.05)] rounded-[2.5rem] flex-col overflow-hidden z-10 bg-white/70 backdrop-blur-2xl ${mobileView === 'chat' ? 'flex' : 'hidden md:flex'}`}>
         {!activeChannelId || !activeChannel ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center opacity-70">
             <div className="w-24 h-24 bg-[var(--color-atelier-grafite)]/5 rounded-full flex items-center justify-center mb-6 border border-[var(--color-atelier-grafite)]/10"><MessageSquare size={40} className="text-[var(--color-atelier-terracota)]" /></div>
@@ -738,9 +770,12 @@ export default function AdminInboxPage() {
         ) : (
           <>
             {/* CHAT HEADER (Inteligência Visual Embutida) */}
-            <div className="bg-white/90 backdrop-blur-xl border-b border-[var(--color-atelier-grafite)]/10 px-8 py-5 flex justify-between items-center z-20 shrink-0">
-              <div className="flex items-center gap-5">
-                <div className={`w-14 h-14 rounded-[1.2rem] flex items-center justify-center shadow-sm border ${activeChannel.type === 'dm' || activeChannel.type === 'corporate_global' ? 'border-transparent bg-transparent' : activeChannel.is_private ? 'bg-[var(--color-atelier-grafite)] text-white border-transparent' : 'bg-white text-[var(--color-atelier-terracota)] border-gray-100'}`}>
+            <div className="bg-white/90 backdrop-blur-xl border-b border-[var(--color-atelier-grafite)]/10 px-4 md:px-8 py-4 md:py-5 flex justify-between items-center z-20 shrink-0">
+              <div className="flex items-center gap-3 md:gap-5">
+                <button onClick={() => setMobileView('channels')} className="md:hidden w-10 h-10 flex items-center justify-center bg-gray-100 rounded-xl text-gray-500 hover:text-[var(--color-atelier-terracota)] transition-colors shrink-0">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>
+                </button>
+                <div className={`hidden md:flex w-14 h-14 rounded-[1.2rem] items-center justify-center shadow-sm border ${activeChannel.type === 'dm' || activeChannel.type === 'corporate_global' ? 'border-transparent bg-transparent' : activeChannel.is_private ? 'bg-[var(--color-atelier-grafite)] text-white border-transparent' : 'bg-white text-[var(--color-atelier-terracota)] border-gray-100'}`}>
                   {HeaderIcon}
                 </div>
                 <div className="flex flex-col">
@@ -896,5 +931,6 @@ export default function AdminInboxPage() {
         )}
       </AnimatePresence>
     </div>
+    </>
   );
 }

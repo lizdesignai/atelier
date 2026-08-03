@@ -192,3 +192,51 @@
   height: 0px; 
   background: transparent;
 }
+
+/* ============================================= */
+/* 5. INFRAESTRUTURA MOBILE — UTILITIES GLOBAIS  */
+/* ============================================= */
+
+/* Safe Height: Substitui h-[calc(100vh-Xpx)] com altura dinâmica que respeita teclado virtual */
+@media (max-width: 767px) {
+  .mobile-safe-height {
+    height: auto !important;
+    min-height: calc(100dvh - 60px);
+    overflow-y: auto;
+  }
+}
+
+/* Scroll Unlock: Desbloqueia scroll vertical em containers fixos no mobile */
+@media (max-width: 767px) {
+  .mobile-scroll-unlock {
+    height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+}
+
+/* Touch Target: Garante 44px mínimo para áreas de toque (WCAG 2.5.8) */
+.touch-target {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Safe Area Padding para Bottom Navigation e iPhones com notch/Dynamic Island */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.mb-bottom-nav {
+  margin-bottom: calc(80px + env(safe-area-inset-bottom, 0px));
+}
+
+/* Otimização de Cursor: Desativa SVG cursor custom em dispositivos touch (performance) */
+@media (pointer: coarse) {
+  *, *::before, *::after,
+  a, button, select, input, label, [role="button"] {
+    cursor: auto !important;
+  }
+}

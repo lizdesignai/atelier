@@ -149,7 +149,7 @@ export default function MissionsVaultModal({ isOpen, onClose, projectId, clientI
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 md:p-8">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-0 md:p-8">
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             onClick={onClose}
@@ -160,13 +160,16 @@ export default function MissionsVaultModal({ isOpen, onClose, projectId, clientI
             initial={{ opacity: 0, scale: 0.95, y: 20 }} 
             animate={{ opacity: 1, scale: 1, y: 0 }} 
             exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            className="relative w-full max-w-[850px] max-h-[90vh] overflow-hidden bg-[var(--color-atelier-creme)] rounded-[2.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.3)] border border-white flex flex-col"
+            className="relative w-full h-full md:max-w-[850px] md:h-auto md:max-h-[90vh] overflow-hidden bg-[var(--color-atelier-creme)] rounded-none md:rounded-[2.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.3)] md:border border-white flex flex-col"
           >
             {/* ==========================================
                 HEADER DO MODAL
                 ========================================== */}
-            <div className="p-6 md:p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 backdrop-blur-xl shrink-0 z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-              <div>
+            <div className="p-6 md:p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 backdrop-blur-xl shrink-0 z-10 flex flex-col md:flex-row md:items-center justify-between gap-6 relative">
+              <button onClick={onClose} className="absolute right-4 top-6 md:relative md:right-0 md:top-0 w-10 h-10 rounded-full bg-white flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors shadow-sm border border-white/50">
+                <X size={18} />
+              </button>
+              <div className="pr-12 md:pr-0">
                 <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-3">
                   <Camera size={28} className="text-[var(--color-atelier-terracota)]" /> 
                   O Cofre de Materiais
@@ -177,10 +180,10 @@ export default function MissionsVaultModal({ isOpen, onClose, projectId, clientI
               </div>
               
               <div className="flex items-center gap-4">
-                <div className="flex bg-white/50 p-1 rounded-2xl border border-white shadow-sm">
+                <div className="flex w-full md:w-auto bg-white/50 p-1 rounded-2xl border border-white shadow-sm">
                   <button 
                     onClick={() => setActiveTab('missions')}
-                    className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'missions' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white'}`}
+                    className={`flex-1 md:flex-none justify-center px-2 sm:px-4 py-3.5 md:py-2.5 rounded-xl font-roboto text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1 sm:gap-2 ${activeTab === 'missions' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white'}`}
                   >
                     Missões Ativas
                     {pendingMissionsCount > 0 && (
@@ -189,14 +192,11 @@ export default function MissionsVaultModal({ isOpen, onClose, projectId, clientI
                   </button>
                   <button 
                     onClick={() => setActiveTab('general')}
-                    className={`px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeTab === 'general' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white'}`}
+                    className={`flex-1 md:flex-none justify-center px-2 sm:px-4 py-3.5 md:py-2.5 rounded-xl font-roboto text-[9px] sm:text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1 sm:gap-2 ${activeTab === 'general' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white'}`}
                   >
                     Envio Livre
                   </button>
                 </div>
-                <button onClick={onClose} className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors shadow-sm border border-white/50">
-                  <X size={18} />
-                </button>
               </div>
             </div>
 

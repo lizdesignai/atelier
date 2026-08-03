@@ -468,7 +468,7 @@ export default function FinanceiroPage() {
   if (isGlobalLoading || isLocalLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   return (
-    <div className="flex flex-col min-h-screen max-w-[1400px] mx-auto relative z-10 pb-20 gap-6 px-4 md:px-0">
+    <div className="flex flex-col h-auto min-h-full md:h-full max-w-[1400px] mx-auto relative z-10 pb-4 gap-6 px-4 md:px-0 overflow-y-auto md:overflow-hidden">
       
       {/* HEADER DE COMANDO TRIPLO */}
       <header className="shrink-0 flex flex-col md:flex-row md:items-end justify-end gap-4 mt-6 animate-[fadeInUp_0.5s_ease-out]">
@@ -539,7 +539,7 @@ export default function FinanceiroPage() {
         {isOutflowModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 md:px-8">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsOutflowModalOpen(false)} className="absolute inset-0 bg-black/20 backdrop-blur-md" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-[var(--color-atelier-grafite)]/10 flex flex-col gap-6">
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 h-full md:h-auto md:max-w-md rounded-none md:rounded-[2.5rem] shadow-2xl relative z-10 w-full border border-[var(--color-atelier-grafite)]/10 flex flex-col gap-6">
               <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <div>
                   <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><ArrowDownRight size={24} className="text-red-500"/> Nova Despesa</h3>
@@ -565,7 +565,7 @@ export default function FinanceiroPage() {
                   </select>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Valor (R$)</span>
                     <div className="relative">
@@ -593,7 +593,7 @@ export default function FinanceiroPage() {
         {isReportModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 md:px-8">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsReportModalOpen(false)} className="absolute inset-0 bg-black/20 backdrop-blur-md" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-[var(--color-atelier-grafite)]/10 flex flex-col gap-6">
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 h-full md:h-auto md:max-w-md rounded-none md:rounded-[2.5rem] shadow-2xl relative z-10 w-full border border-[var(--color-atelier-grafite)]/10 flex flex-col gap-6">
               
               <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <div>
@@ -604,7 +604,7 @@ export default function FinanceiroPage() {
               </div>
 
               <div className="flex flex-col gap-4">
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Data Inicial</span>
                     <input type="date" value={reportPeriod.start} onChange={(e) => setReportPeriod({...reportPeriod, start: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl px-3 py-3.5 text-[13px] outline-none font-bold cursor-pointer focus:border-[var(--color-atelier-terracota)]/50" />
@@ -642,7 +642,7 @@ export default function FinanceiroPage() {
         {isEditModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 md:px-8">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsEditModalOpen(false)} className="absolute inset-0 bg-black/20 backdrop-blur-md" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-lg border border-[var(--color-atelier-grafite)]/10 flex flex-col gap-6">
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 h-full md:h-auto md:max-w-lg rounded-none md:rounded-[2.5rem] shadow-2xl relative z-10 w-full border border-[var(--color-atelier-grafite)]/10 flex flex-col gap-6">
               
               <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <div>

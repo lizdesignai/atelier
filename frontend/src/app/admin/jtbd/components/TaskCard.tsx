@@ -1,3 +1,5 @@
+"use client";
+
 // src/app/admin/jtbd/components/TaskCard.tsx
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";

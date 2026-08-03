@@ -55,17 +55,24 @@ export class ReminderSchedulerService {
         const diffMinutes = Math.floor(diffMs / 60000);
 
         const sentReminders: string[] = Array.isArray(task.sent_reminders) ? task.sent_reminders : [];
-        let reminderToTrigger: { key: string; label: string; isExact: boolean } | null = null;
+        let reminderToTrigger: { key: string; label: string; isExact: boolean; notificationType?: string } | null = null;
 
-        // Regras de disparo: 2h (-120m), 1h (-60m), 30m (-30m) e Na Hora (0m)
-        if (diffMinutes <= 120 && diffMinutes > 60 && !sentReminders.includes('2h')) {
-          reminderToTrigger = { key: '2h', label: 'em 2 horas', isExact: false };
-        } else if (diffMinutes <= 60 && diffMinutes > 30 && !sentReminders.includes('1h')) {
-          reminderToTrigger = { key: '1h', label: 'em 1 hora', isExact: false };
-        } else if (diffMinutes <= 30 && diffMinutes > 0 && !sentReminders.includes('30m')) {
-          reminderToTrigger = { key: '30m', label: 'em 30 minutos', isExact: false };
-        } else if (diffMinutes <= 0 && diffMinutes >= -30 && !sentReminders.includes('0m')) {
-          reminderToTrigger = { key: '0m', label: 'agora', isExact: true };
+        // Regras de disparo gerais: 24h e 12h para QUALQUER tarefa
+        if (diffMinutes <= 1440 && diffMinutes > 720 && !sentReminders.includes('24h')) {
+          reminderToTrigger = { key: '24h', label: 'em 24 horas', isExact: false, notificationType: 'deadline_24h' };
+        } else if (diffMinutes <= 720 && diffMinutes > 120 && !sentReminders.includes('12h')) {
+          reminderToTrigger = { key: '12h', label: 'em 12 horas', isExact: false, notificationType: 'deadline_12h' };
+        } else if (isCaptacao || isReuniao) {
+          // Regras de disparo específicas para reuniões e captações (curto prazo)
+          if (diffMinutes <= 120 && diffMinutes > 60 && !sentReminders.includes('2h')) {
+            reminderToTrigger = { key: '2h', label: 'em 2 horas', isExact: false, notificationType: isCaptacao ? 'captacao_reminder' : 'reuniao_reminder' };
+          } else if (diffMinutes <= 60 && diffMinutes > 30 && !sentReminders.includes('1h')) {
+            reminderToTrigger = { key: '1h', label: 'em 1 hora', isExact: false, notificationType: isCaptacao ? 'captacao_reminder' : 'reuniao_reminder' };
+          } else if (diffMinutes <= 30 && diffMinutes > 0 && !sentReminders.includes('30m')) {
+            reminderToTrigger = { key: '30m', label: 'em 30 minutos', isExact: false, notificationType: isCaptacao ? 'captacao_reminder' : 'reuniao_reminder' };
+          } else if (diffMinutes <= 0 && diffMinutes >= -30 && !sentReminders.includes('0m')) {
+            reminderToTrigger = { key: '0m', label: 'agora', isExact: true, notificationType: isCaptacao ? 'captacao_reminder' : 'reuniao_reminder' };
+          }
         }
 
         if (!reminderToTrigger) continue;
@@ -79,16 +86,21 @@ export class ReminderSchedulerService {
         const projProfiles = Array.isArray(rawTask.projects) ? rawTask.projects[0]?.profiles : rawTask.projects?.profiles;
         const projName = Array.isArray(projProfiles) ? projProfiles[0]?.nome : projProfiles?.nome;
         const entityName = subclientName || projName || 'Atelier';
-        const eventType = isCaptacao ? 'Captação' : 'Reunião';
         
-        let notificationTitle = `[LEMBRETE] ${eventType}: ${task.title}`;
-        let notificationMessage = `Olá ${collab.nome || 'colaborador'}, a sua ${eventType.toLowerCase()} "${task.title}" (${entityName}) está agendada para ${reminderToTrigger.label}.`;
+        let notificationTitle = `[LEMBRETE] Tarefa: ${task.title}`;
+        let notificationMessage = `Olá ${collab.nome || 'colaborador'}, a tarefa "${task.title}" (${entityName}) está agendada para entrega ${reminderToTrigger.label}.`;
 
-        if (reminderToTrigger.isExact) {
+        if (reminderToTrigger.key === '24h') {
+          notificationTitle = `⏳ [24H] Faltam 24h para: ${task.title}`;
+          notificationMessage = `Atenção ${collab.nome || 'colaborador'}, faltam 24h para o prazo de entrega da tarefa "${task.title}" (${entityName}).`;
+        } else if (reminderToTrigger.key === '12h') {
+          notificationTitle = `🔥 [12H URGENTE] Faltam 12h para: ${task.title}`;
+          notificationMessage = `Alerta urgente ${collab.nome || 'colaborador'}, faltam apenas 12h para a entrega de "${task.title}" (${entityName})!`;
+        } else if (reminderToTrigger.isExact) {
           if (isCaptacao) {
             notificationTitle = `📸 BOA CAPTAÇÃO! ${task.title}`;
             notificationMessage = `Chegou a hora! Boa captação para o cliente ${entityName}. Que a sessão seja um excelente sucesso! 📸✨`;
-          } else {
+          } else if (isReuniao) {
             notificationTitle = `🤝 BOA REUNIÃO! ${task.title}`;
             notificationMessage = `Chegou a hora! Boa reunião para o projeto ${entityName}. Excelente alinhamento para todos! 🤝✨`;
           }
@@ -99,7 +111,7 @@ export class ReminderSchedulerService {
           user_id: task.assigned_to,
           title: notificationTitle,
           message: notificationMessage,
-          type: reminderToTrigger.isExact ? 'success' : 'warning',
+          type: reminderToTrigger.key === '12h' ? 'warning' : 'action',
           action_url: '/admin/jtbd',
           is_read: false
         });
@@ -108,7 +120,7 @@ export class ReminderSchedulerService {
         if (collab.email) {
           await NotificationService.sendNotification({
             to: collab.email,
-            type: isCaptacao ? 'captacao_reminder' : 'reuniao_reminder',
+            type: reminderToTrigger.notificationType || 'custom',
             taskName: task.title,
             projectName: entityName,
             extraInfo: notificationMessage,

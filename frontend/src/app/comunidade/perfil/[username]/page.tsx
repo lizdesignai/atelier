@@ -421,7 +421,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
         <div className="w-full max-w-[1200px] glass-panel rounded-[3.5rem] bg-white/60 border border-white shadow-[0_15px_40px_rgba(122,116,112,0.05)] overflow-hidden relative">
           
           {/* CAPA (Cover) */}
-          <div className="w-full h-[250px] md:h-[300px] bg-gradient-to-br from-[var(--color-atelier-terracota)]/10 to-[var(--color-atelier-rose)]/10 relative group">
+          <div className="w-full h-[180px] md:h-[300px] bg-gradient-to-br from-[var(--color-atelier-terracota)]/10 to-[var(--color-atelier-rose)]/10 relative group">
             {profile.cover_url ? (
               <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover" />
             ) : (
@@ -444,7 +444,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
             
             <div className="relative flex flex-col md:flex-row md:justify-between items-center md:items-end -mt-20 md:-mt-24 mb-6 md:mb-4 gap-4 md:gap-0">
               <div className="relative group mx-auto md:mx-0">
-                <div className="w-40 h-40 md:w-48 md:h-48 rounded-[2rem] border-[6px] border-white bg-[var(--color-atelier-creme)] shadow-lg overflow-hidden text-[var(--color-atelier-terracota)] flex items-center justify-center font-elegant text-6xl">
+                <div className="w-28 h-28 md:w-48 md:h-48 rounded-[2rem] border-[6px] border-white bg-[var(--color-atelier-creme)] shadow-lg overflow-hidden text-[var(--color-atelier-terracota)] flex items-center justify-center font-elegant text-4xl md:text-6xl">
                   {profile.avatar_url ? (
                     <img src={profile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
                   ) : (

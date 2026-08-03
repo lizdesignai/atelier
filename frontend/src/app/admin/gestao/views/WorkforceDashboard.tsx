@@ -6,15 +6,18 @@ import {
   Users, Target, RotateCcw, Clock, 
   FileText, Copy, CheckCircle2, AlertTriangle, 
   TrendingUp, TrendingDown, Loader2, X, DollarSign,
-  Briefcase, CheckSquare, AlertCircle, Save, Edit3, PieChart
+  Briefcase, CheckSquare, AlertCircle, Save, Edit3, PieChart, UserCheck, PauseCircle, Play, Activity, Layers
 } from "lucide-react";
+import CollaboratorAssignmentModal from "../components/CollaboratorAssignmentModal";
 import { startOfMonth, endOfMonth, startOfDay, startOfWeek, differenceInBusinessDays, differenceInHours } from "date-fns";
 
 interface WorkforceDashboardProps {
   currentUser: any;
+  activeTab?: string;
+  setActiveTab?: (tab: 'pulse' | 'workforce' | 'economics' | 'demands') => void;
 }
 
-export default function WorkforceDashboard({ currentUser }: WorkforceDashboardProps) {
+export default function WorkforceDashboard({ currentUser, activeTab = 'workforce', setActiveTab }: WorkforceDashboardProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [teamStats, setTeamStats] = useState<any[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -25,6 +28,9 @@ export default function WorkforceDashboard({ currentUser }: WorkforceDashboardPr
   const [isUpdatingSalary, setIsUpdatingSalary] = useState(false);
   const [salaryInput, setSalaryInput] = useState<string>("");
   const [editingSalaryId, setEditingSalaryId] = useState<string | null>(null);
+
+  // Modal de Atribuição de Clientes/Subclientes
+  const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
 
   // Configuração Temporal (SLA)
   const HOURS_PER_DAY = 6; 
@@ -40,11 +46,22 @@ export default function WorkforceDashboard({ currentUser }: WorkforceDashboardPr
 
   const fetchWorkforceData = async () => {
     try {
-      // 1. Busca perfis da equipa (Agora incluindo current_status, last_seen e base_salary)
-      const { data: teamData } = await supabase
+      // 1. Busca perfis da equipa (Com fallback caso a coluna contract_status não exista no banco)
+      let teamData: any[] = [];
+      const { data: mainData, error: profileErr } = await supabase
         .from('profiles')
-        .select('id, nome, role, avatar_url, current_status, last_seen, base_salary')
+        .select('id, nome, role, avatar_url, current_status, last_seen, base_salary, contract_status')
         .in('role', ['colaborador', 'gestor', 'admin']);
+
+      if (profileErr) {
+        const fallbackRes = await supabase
+          .from('profiles')
+          .select('id, nome, role, avatar_url, current_status, last_seen, base_salary')
+          .in('role', ['colaborador', 'gestor', 'admin']);
+        teamData = (fallbackRes.data || []).map((m: any) => ({ ...m, contract_status: 'active' }));
+      } else {
+        teamData = mainData || [];
+      }
 
       // 2. Busca sessões de trabalho do mês atual
       const { data: sessions } = await supabase
@@ -122,6 +139,7 @@ export default function WorkforceDashboard({ currentUser }: WorkforceDashboardPr
           reworkRate,
           avgLeadTime,
           baseSalary: member.base_salary || 0,
+          contractStatus: member.contract_status || 'active',
           activityBreakdown: sortedBreakdown
         };
       });
@@ -176,6 +194,36 @@ export default function WorkforceDashboard({ currentUser }: WorkforceDashboardPr
   };
 
   // ==========================================================================
+  // PAUSAR / REATIVAR CONTRATO DO COLABORADOR (SAZONALIDADE)
+  // ==========================================================================
+  const handleToggleContractStatus = async (memberId: string, currentStatus: string) => {
+    const newStatus = currentStatus === 'paused' ? 'active' : 'paused';
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ contract_status: newStatus })
+        .eq('id', memberId);
+
+      if (error) {
+        if (error.code === '42703' || error.message?.includes('contract_status')) {
+          alert("A coluna 'contract_status' ainda não existe na tabela 'profiles' no Supabase. Por favor execute o seguinte SQL no Supabase:\n\nALTER TABLE profiles ADD COLUMN IF NOT EXISTS contract_status text DEFAULT 'active';");
+          return;
+        }
+        throw error;
+      }
+      
+      setTeamStats(prev => prev.map(m => m.id === memberId ? { ...m, contractStatus: newStatus } : m));
+      window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
+      window.dispatchEvent(new CustomEvent("showToast", { 
+        detail: newStatus === 'paused' ? "Contrato pausado por sazonalidade!" : "Contrato reativado com sucesso!" 
+      }));
+    } catch (e) {
+      console.error("Erro ao alterar status do contrato:", e);
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao alterar status do contrato." }));
+    }
+  };
+
+  // ==========================================================================
   // MOTOR DE DIAGNÓSTICO
   // ==========================================================================
   const generateDiagnosticReport = (member: any) => {
@@ -216,7 +264,7 @@ ${qualidadeText}
   if (isLoading) return <div className="flex h-full items-center justify-center"><Loader2 size={40} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full gap-6 overflow-hidden relative">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-auto md:h-full gap-6 overflow-y-auto md:overflow-hidden relative">
       
       {/* HEADER DA VISÃO */}
       <header className="shrink-0 flex items-center justify-between border-b border-[var(--color-atelier-grafite)]/10 pb-4">
@@ -227,9 +275,32 @@ ${qualidadeText}
           </div>
           <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none">Análise de Colaboradores</h2>
         </div>
-        <div className="text-right flex flex-col items-end">
-          <span className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">SLA Global</span>
-          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1">Meta: {EXPECTED_MONTHLY_HOURS}h ativas/mês</span>
+        {/* NAV HORIZONTAL SOFISTICADA ALINHADA AO HEAD (SUBSTITUI SLA GLOBAL) */}
+        <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0">
+          <button 
+            onClick={() => setActiveTab?.('pulse')} 
+            className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'pulse' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+          >
+            <Activity size={13} /> Pulso Live
+          </button>
+          <button 
+            onClick={() => setActiveTab?.('demands')} 
+            className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'demands' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+          >
+            <Layers size={13} /> Demandas
+          </button>
+          <button 
+            onClick={() => setActiveTab?.('workforce')} 
+            className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'workforce' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+          >
+            <Users size={13} /> Equipe & RH
+          </button>
+          <button 
+            onClick={() => setActiveTab?.('economics')} 
+            className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'economics' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+          >
+            <DollarSign size={13} /> Unit Economics
+          </button>
         </div>
       </header>
 
@@ -237,7 +308,7 @@ ${qualidadeText}
       <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
         
         {/* COLUNA ESQUERDA: LISTA DE COLABORADORES */}
-        <div className="w-full lg:w-[320px] glass-panel bg-white/50 rounded-[2rem] border border-white shadow-sm flex flex-col h-[250px] lg:h-full shrink-0 overflow-hidden">
+        <div className="w-full lg:w-[320px] glass-panel bg-white/50 rounded-[2rem] border border-white shadow-sm flex flex-col h-auto lg:h-full shrink-0 overflow-hidden">
           <div className="p-5 border-b border-gray-100 shrink-0 bg-white/40">
             <h3 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-gray-500">Membros da Equipe</h3>
           </div>
@@ -262,8 +333,13 @@ ${qualidadeText}
                       {isOnline && <div className="absolute w-full h-full bg-green-500 rounded-full animate-ping opacity-60"></div>}
                     </div>
                   </div>
-                  <div className="flex flex-col text-left overflow-hidden">
-                    <span className={`font-bold text-[13px] truncate ${isSelected ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]'}`}>{member.nome}</span>
+                  <div className="flex flex-col text-left overflow-hidden flex-1">
+                    <div className="flex items-center justify-between gap-1">
+                      <span className={`font-bold text-[13px] truncate ${isSelected ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]'}`}>{member.nome}</span>
+                      {member.contractStatus === 'paused' && (
+                        <span className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 shrink-0">Pausado</span>
+                      )}
+                    </div>
                     <span className="text-[9px] uppercase tracking-widest text-gray-400 truncate">{member.role}</span>
                   </div>
                 </button>
@@ -291,7 +367,14 @@ ${qualidadeText}
                       <div className={`absolute -bottom-1.5 -right-1.5 w-6 h-6 border-4 border-white rounded-full flex items-center justify-center shadow-sm ${selectedMember.current_status === 'online' ? 'bg-green-500' : selectedMember.current_status === 'idle' ? 'bg-orange-400' : 'bg-gray-300'}`}></div>
                     </div>
                     <div>
-                      <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] leading-tight">{selectedMember.nome}</h2>
+                      <div className="flex items-center gap-3">
+                        <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] leading-tight">{selectedMember.nome}</h2>
+                        {selectedMember.contractStatus === 'paused' && (
+                          <span className="bg-amber-100 text-amber-800 border border-amber-300 text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
+                            <PauseCircle size={12} /> Contrato Pausado
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-center gap-3 mt-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">
                         <span className="bg-gray-100 px-2 py-1 rounded-md">{selectedMember.role}</span>
                         <span>•</span>
@@ -300,29 +383,56 @@ ${qualidadeText}
                     </div>
                   </div>
                   
-                  {/* Painel Financeiro Direto */}
-                  <div className="bg-green-50/50 border border-green-100 p-4 rounded-[1.5rem] flex items-center gap-4">
-                    <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center shrink-0"><DollarSign size={18}/></div>
-                    <div className="flex flex-col">
-                      <span className="text-[9px] font-bold uppercase tracking-widest text-green-600/60 mb-0.5">Remuneração Base / Mês</span>
-                      {editingSalaryId === selectedMember.id ? (
-                        <div className="flex items-center gap-2">
-                          <input 
-                            type="number" 
-                            autoFocus
-                            value={salaryInput} 
-                            onChange={(e) => setSalaryInput(e.target.value)}
-                            className="w-24 bg-white border border-green-200 rounded p-1 text-[14px] font-bold text-green-700 outline-none"
-                          />
-                          <button onClick={() => handleUpdateSalary(selectedMember.id)} disabled={isUpdatingSalary} className="text-green-600 hover:text-green-800"><Save size={16}/></button>
-                          <button onClick={() => setEditingSalaryId(null)} className="text-gray-400 hover:text-red-500"><X size={16}/></button>
-                        </div>
+                  {/* Painel Financeiro Direto e Atribuição */}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <button
+                      onClick={() => handleToggleContractStatus(selectedMember.id, selectedMember.contractStatus)}
+                      className={`text-xs font-bold uppercase tracking-wider px-4 py-3 rounded-[1.5rem] transition-all flex items-center gap-2 shadow-sm shrink-0 border ${
+                        selectedMember.contractStatus === 'paused'
+                          ? 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600'
+                          : 'bg-white text-gray-700 border-gray-200 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200'
+                      }`}
+                      title={selectedMember.contractStatus === 'paused' ? "Reativar Contrato do Colaborador" : "Pausar Contrato por Sazonalidade"}
+                    >
+                      {selectedMember.contractStatus === 'paused' ? (
+                        <>
+                          <Play size={16} /> Reativar Contrato
+                        </>
                       ) : (
-                        <div className="flex items-center gap-2 group">
-                          <span className="font-elegant text-2xl text-green-700 leading-none">R$ {selectedMember.baseSalary.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
-                          <button onClick={() => { setSalaryInput(selectedMember.baseSalary.toString()); setEditingSalaryId(selectedMember.id); }} className="opacity-0 group-hover:opacity-100 text-green-600/50 hover:text-green-600 transition-opacity"><Edit3 size={14}/></button>
-                        </div>
+                        <>
+                          <PauseCircle size={16} className="text-amber-600" /> Pausar Contrato
+                        </>
                       )}
+                    </button>
+                    <button
+                      onClick={() => setIsAssignmentModalOpen(true)}
+                      className="bg-[var(--color-atelier-terracota)] text-white text-xs font-bold uppercase tracking-wider px-4 py-3 rounded-[1.5rem] hover:bg-[#9b836b] transition-all flex items-center gap-2 shadow-sm shrink-0"
+                    >
+                      <UserCheck size={16} /> Atribuir Clientes
+                    </button>
+                    <div className="bg-green-50/50 border border-green-100 p-4 rounded-[1.5rem] flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center shrink-0"><DollarSign size={18}/></div>
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-green-600/60 mb-0.5">Remuneração Base / Mês</span>
+                        {editingSalaryId === selectedMember.id ? (
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="number" 
+                              autoFocus
+                              value={salaryInput} 
+                              onChange={(e) => setSalaryInput(e.target.value)}
+                              className="w-24 bg-white border border-green-200 rounded p-1 text-[14px] font-bold text-green-700 outline-none"
+                            />
+                            <button onClick={() => handleUpdateSalary(selectedMember.id)} disabled={isUpdatingSalary} className="text-green-600 hover:text-green-800"><Save size={16}/></button>
+                            <button onClick={() => setEditingSalaryId(null)} className="text-gray-400 hover:text-red-500"><X size={16}/></button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 group">
+                            <span className="font-elegant text-2xl text-green-700 leading-none">R$ {selectedMember.baseSalary.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</span>
+                            <button onClick={() => { setSalaryInput(selectedMember.baseSalary.toString()); setEditingSalaryId(selectedMember.id); }} className="opacity-0 group-hover:opacity-100 text-green-600/50 hover:text-green-600 transition-opacity"><Edit3 size={14}/></button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -493,6 +603,11 @@ ${qualidadeText}
         )}
       </AnimatePresence>
 
+      <CollaboratorAssignmentModal
+        isOpen={isAssignmentModalOpen}
+        onClose={() => setIsAssignmentModalOpen(false)}
+        collaborator={selectedMember}
+      />
     </motion.div>
   );
 }

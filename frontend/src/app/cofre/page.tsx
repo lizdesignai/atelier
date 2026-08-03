@@ -194,7 +194,7 @@ export default function CofrePage() {
   }
 
   return (
-    <div className="relative z-10 max-w-[1400px] mx-auto h-[calc(100vh-80px)] flex flex-col overflow-hidden">
+    <div className="relative z-10 max-w-[1400px] mx-auto h-auto min-h-[calc(100dvh-80px)] md:h-[calc(100vh-80px)] flex flex-col overflow-x-hidden md:overflow-hidden">
       
       <AnimatePresence mode="wait">
         
@@ -329,12 +329,12 @@ export default function CofrePage() {
               </p>
             </header>
 
-            {/* Grid No-Scroll */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 flex-1 min-h-0 pb-6">
+            {/* Grid No-Scroll on Desktop / Scroll on Mobile */}
+            <div className="flex flex-col lg:grid lg:grid-cols-12 gap-6 flex-1 min-h-0 pb-6">
               
               <motion.div 
                 initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 1, duration: 0.8 }}
-                className="lg:col-span-7 glass-panel p-3 rounded-[2.5rem] relative group flex flex-col h-[400px] lg:h-full border border-white shadow-sm"
+                className="lg:col-span-7 glass-panel p-3 rounded-[2.5rem] relative group flex flex-col h-[400px] lg:h-full border border-white shadow-sm shrink-0"
               >
                 <div className="w-full flex-1 rounded-[2rem] overflow-hidden relative shadow-inner group-hover:shadow-[0_20px_50px_rgba(173,111,64,0.15)] transition-all duration-700">
                   <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors z-10"></div>
@@ -353,7 +353,7 @@ export default function CofrePage() {
 
               <motion.div 
                 initial={{ opacity: 0, x: 50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 1.2, duration: 0.8 }}
-                className="lg:col-span-5 flex flex-col gap-6 h-[500px] lg:h-full overflow-y-auto custom-scrollbar"
+                className="lg:col-span-5 flex flex-col gap-6 h-auto lg:h-full lg:overflow-y-auto custom-scrollbar shrink-0"
               >
                 <div className="glass-panel p-8 rounded-[2.5rem] flex flex-col gap-5 border border-white shadow-sm shrink-0">
                   <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2 mb-2">
@@ -414,7 +414,7 @@ export default function CofrePage() {
         {showNpsModal && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={handleSkipNps} className="absolute inset-0 bg-[var(--color-atelier-grafite)]/60 backdrop-blur-md cursor-pointer" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="glass-panel bg-white/95 backdrop-blur-xl p-10 md:p-12 rounded-[3.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.15)] relative z-10 w-full max-w-xl border border-white flex flex-col gap-8 text-center">
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="glass-panel bg-white/95 backdrop-blur-xl p-6 md:p-12 rounded-[3.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.15)] relative z-10 w-full max-w-xl max-h-[95dvh] overflow-y-auto border border-white flex flex-col gap-8 text-center">
                 <div className="mx-auto w-20 h-20 rounded-[1.5rem] bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center shadow-inner">
                   <Star size={32} />
                 </div>
@@ -464,7 +464,7 @@ export default function CofrePage() {
         {showUpsellModal && (
           <div className="fixed inset-0 z-[250] flex items-center justify-center px-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[var(--color-atelier-grafite)]/60 backdrop-blur-md" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="glass-panel bg-white p-10 md:p-12 rounded-[3.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.2)] relative z-10 w-full max-w-xl border border-white flex flex-col gap-6 text-center">
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="glass-panel bg-white p-6 md:p-12 rounded-[3.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.2)] relative z-10 w-full max-w-xl max-h-[95dvh] overflow-y-auto border border-white flex flex-col gap-6 text-center">
                 <div className="mx-auto w-20 h-20 rounded-[1.5rem] bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center mb-2 shadow-inner border border-[var(--color-atelier-terracota)]/20">
                   <Zap size={32} fill="currentColor" />
                 </div>

@@ -172,7 +172,7 @@ export default function NotificationBell() {
             animate={{ opacity: 1, y: 0, scale: 1 }} 
             exit={{ opacity: 0, y: 10, scale: 0.95 }} 
             transition={{ duration: 0.2 }}
-            className="absolute top-[120%] right-0 w-[340px] md:w-[400px] glass-panel bg-white/90 backdrop-blur-2xl border border-white shadow-[0_30px_60px_rgba(0,0,0,0.15)] rounded-[2.5rem] flex flex-col z-[200] overflow-hidden"
+            className="absolute top-[120%] right-0 w-[calc(100vw-2rem)] max-w-[340px] md:max-w-none md:w-[400px] glass-panel bg-white/90 backdrop-blur-2xl border border-white shadow-[0_30px_60px_rgba(0,0,0,0.15)] rounded-[2.5rem] flex flex-col z-[200] overflow-hidden"
           >
             
             <div className="px-6 py-5 border-b border-[var(--color-atelier-grafite)]/5 flex justify-between items-center bg-white/50 shrink-0">
@@ -180,7 +180,7 @@ export default function NotificationBell() {
               {unreadCount > 0 && (
                 <button 
                   onClick={handleMarkAllAsRead}
-                  className="text-[9px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] transition-colors flex items-center gap-1.5 bg-white px-3 py-1.5 rounded-full shadow-sm border border-[var(--color-atelier-grafite)]/5"
+                  className="text-[11px] md:text-[9px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] transition-colors flex items-center gap-1.5 bg-white px-4 py-2.5 md:px-3 md:py-1.5 rounded-full shadow-sm border border-[var(--color-atelier-grafite)]/5"
                 >
                   <CheckCheck size={12} /> Marcar Lidas
                 </button>

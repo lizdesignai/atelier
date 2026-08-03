@@ -22,21 +22,21 @@ export function middleware(request: NextRequest) {
   const isMobile = /mobile/i.test(userAgent) && !/ipad|tablet|playbook|silk/i.test(userAgent);
   const isTablet = /ipad|tablet|playbook|silk/i.test(userAgent);
 
-  // Reescrever para Smartphone
-  if (isMobile) {
-    const url = request.nextUrl.clone();
-    url.pathname = `/mobile${pathname === '/' ? '' : pathname}`;
-    return NextResponse.rewrite(url);
-  }
+  // [MOBILE v2] Rewrite desativado — agora usamos layout responsivo nas rotas principais
+  // Smartphones e tablets acessam as mesmas rotas com adaptação via Tailwind breakpoints
+  // if (isMobile) {
+  //   const url = request.nextUrl.clone();
+  //   url.pathname = `/mobile${pathname === '/' ? '' : pathname}`;
+  //   return NextResponse.rewrite(url);
+  // }
 
-  // Reescrever para Tablet
-  if (isTablet) {
-    const url = request.nextUrl.clone();
-    url.pathname = `/tablet${pathname === '/' ? '' : pathname}`;
-    return NextResponse.rewrite(url);
-  }
+  // if (isTablet) {
+  //   const url = request.nextUrl.clone();
+  //   url.pathname = `/tablet${pathname === '/' ? '' : pathname}`;
+  //   return NextResponse.rewrite(url);
+  // }
 
-  // Desktop passa direto sem intervenção
+  // Todos os dispositivos passam direto para as rotas responsivas
   return NextResponse.next();
 }
 

@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   MessageSquare, Hash, Send, Paperclip, Image as ImageIcon, 
-  CheckCheck, ShieldCheck, Clock, Info, ArrowRight, Loader2, FileText
+  CheckCheck, ShieldCheck, Clock, Info, ArrowRight, Loader2, FileText, ChevronLeft
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { NotificationEngine } from "../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
@@ -33,6 +33,7 @@ export default function CanaisClientePage() {
   // 🟢 NOVO: Estados para Notificações de Chat
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
   const [channelPreviews, setChannelPreviews] = useState<Record<string, string>>({});
+  const [mobileView, setMobileView] = useState<"list" | "chat">("list");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -275,7 +276,7 @@ export default function CanaisClientePage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1500px] mx-auto relative z-10 pb-6 gap-6 px-4 md:px-0">
+    <div className="flex flex-col h-auto min-h-[calc(100dvh-60px)] md:h-[calc(100vh-60px)] max-w-[1500px] mx-auto relative z-10 pb-6 gap-6 px-4 md:px-0">
       
       {/* ==========================================
           1. CABEÇALHO (Visão Cliente)
@@ -306,12 +307,12 @@ export default function CanaisClientePage() {
       {/* ==========================================
           2. A ESTRUTURA DE 2 PAINÉIS (Split Screen)
           ========================================== */}
-      <div className="flex gap-6 flex-1 min-h-0 animate-[fadeInUp_0.8s_ease-out_0.2s_both]">
+      <div className="flex flex-col md:flex-row gap-6 flex-1 min-h-0 animate-[fadeInUp_0.8s_ease-out_0.2s_both]">
         
         {/* PAINEL ESQUERDO: LISTA DE CANAIS (300px) */}
-        <div className="w-[300px] flex flex-col gap-6 h-full shrink-0">
+        <div className={`w-full md:w-[300px] flex flex-col gap-6 md:h-full shrink-0 ${mobileView === "chat" ? "hidden md:flex" : "flex"}`}>
           
-          <div className="glass-panel rounded-[2.5rem] bg-white/40 border border-white shadow-sm flex flex-col flex-1 overflow-hidden transition-colors hover:bg-white/60">
+          <div className="glass-panel rounded-[2.5rem] bg-white/40 border border-white shadow-sm flex flex-col h-[calc(100dvh-150px)] md:h-full flex-1 overflow-hidden transition-colors hover:bg-white/60">
             <div className="p-6 border-b border-[var(--color-atelier-grafite)]/10 bg-white/40 shrink-0">
               <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-tight">Tópicos</h2>
               <p className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1">Organização por assuntos.</p>
@@ -328,7 +329,7 @@ export default function CanaisClientePage() {
                 return (
                 <button 
                   key={channel.id}
-                  onClick={() => setActiveChannelId(channel.id)}
+                  onClick={() => { setActiveChannelId(channel.id); setMobileView("chat"); }}
                   className={`
                     w-full text-left px-4 py-3.5 rounded-[1.2rem] font-roboto flex items-center justify-between transition-all border
                     ${activeChannelId === channel.id 
@@ -372,12 +373,15 @@ export default function CanaisClientePage() {
 
         {/* PAINEL DIREITO: O PALCO DE MENSAGENS (Restante da tela) */}
         {/* 🛠️ CORREÇÃO CRÍTICA: Adicionado `min-h-0` e `min-w-0` para obrigar o flexbox a respeitar o limite de altura da tela */}
-        <div className="flex-1 min-h-0 min-w-0 glass-panel rounded-[2.5rem] bg-white/60 border border-white flex flex-col relative overflow-hidden shadow-sm h-full">
+        <div className={`flex-1 min-h-0 min-w-0 glass-panel rounded-[2.5rem] bg-white/60 border border-white flex flex-col relative overflow-hidden shadow-sm h-[calc(100dvh-100px)] md:h-full ${mobileView === "list" ? "hidden md:flex" : "flex"}`}>
           
           {/* Cabeçalho do Chat Ativo */}
-          <div className="bg-white/80 backdrop-blur-xl border-b border-[var(--color-atelier-grafite)]/10 px-8 py-5 flex justify-between items-center z-20 shrink-0">
+          <div className="bg-white/80 backdrop-blur-xl border-b border-[var(--color-atelier-grafite)]/10 px-4 md:px-8 py-5 flex justify-between items-center z-20 shrink-0">
             <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-[1rem] bg-white text-[var(--color-atelier-terracota)] border border-[var(--color-atelier-terracota)]/20 flex items-center justify-center shadow-inner shrink-0">
+              <button onClick={() => setMobileView("list")} className="md:hidden w-10 h-10 flex items-center justify-center rounded-xl bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/60 shadow-sm shrink-0">
+                <ChevronLeft size={20} />
+              </button>
+              <div className="w-12 h-12 rounded-[1rem] bg-white text-[var(--color-atelier-terracota)] border border-[var(--color-atelier-terracota)]/20 flex items-center justify-center shadow-inner shrink-0 hidden md:flex">
                 <Hash size={20} strokeWidth={2} />
               </div>
               <div className="flex flex-col">

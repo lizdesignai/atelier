@@ -68,9 +68,9 @@ export default function AnalyticsModals({
   const [isUploadingEditMedia, setIsUploadingEditMedia] = useState(false);
   const [openAccordion, setOpenAccordion] = useState<{ [key: string]: boolean }>({
     instructions: true,
-    caption: false,
+    caption: true,
     media: true,
-    links: false
+    links: true
   });
 
   const toggleAccordion = (key: string) => {
@@ -204,7 +204,7 @@ export default function AnalyticsModals({
       {/* MODAL DE EDIÇÃO DE TAREFA ÚNICA */}
       <AnimatePresence>
         {editingTask && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center px-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditingTask(null)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
             <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-lg border border-white/20 flex flex-col gap-4 max-h-[90vh] overflow-y-auto custom-scrollbar">
               <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4 shrink-0">
@@ -417,7 +417,7 @@ export default function AnalyticsModals({
       {/* MODAL: RAIO-X DO COLABORADOR */}
       <AnimatePresence>
         {selectedCollab && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4">
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center px-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedCollab(null)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
             <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-[var(--color-atelier-creme)] p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-3xl border border-white/40 flex flex-col h-[85vh]">
               

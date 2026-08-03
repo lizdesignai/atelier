@@ -434,13 +434,13 @@ export default function ComunidadeFeed() {
           </div>
           
           {newPostImagePreview && (
-            <div className="relative w-full h-56 rounded-[1.5rem] overflow-hidden border-4 border-white shadow-md ml-[4.5rem] max-w-[calc(100%-4.5rem)]">
+            <div className="relative w-full h-56 rounded-[1.5rem] overflow-hidden border-4 border-white shadow-md ml-0 md:ml-[4.5rem] max-w-full md:max-w-[calc(100%-4.5rem)] mt-2 md:mt-0">
               <img src={newPostImagePreview} alt="Preview" className="w-full h-full object-cover" />
               <button type="button" onClick={() => {setNewPostImagePreview(null); setNewPostImageFile(null)}} className="absolute top-3 right-3 w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-red-500 transition-colors backdrop-blur-md border border-white/20"><X size={14}/></button>
             </div>
           )}
 
-          <div className="flex items-center justify-between pt-4 mt-2 border-t border-[var(--color-atelier-grafite)]/5 ml-[4.5rem]">
+          <div className="flex items-center justify-between pt-4 mt-2 border-t border-[var(--color-atelier-grafite)]/5 ml-0 md:ml-[4.5rem]">
             <label className="flex items-center gap-2 px-5 py-2.5 rounded-[1rem] bg-white border border-white shadow-sm text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-terracota)] hover:border-[var(--color-atelier-terracota)]/20 transition-all cursor-pointer">
               <ImageIcon size={18} />
               <span className="font-roboto text-[11px] font-bold uppercase tracking-widest">Anexar Imagem</span>

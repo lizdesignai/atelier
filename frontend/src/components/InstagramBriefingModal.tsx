@@ -118,19 +118,19 @@ export default function InstagramBriefingModal({ isOpen, onClose, projectId, cli
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 py-8 md:p-10">
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-0 md:p-10">
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
         
-        <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-[#FEF5E6] w-full h-full max-w-3xl rounded-[2.5rem] shadow-2xl relative z-10 flex flex-col overflow-hidden border border-white">
+        <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-[#FEF5E6] w-full h-full md:max-w-3xl md:h-auto md:max-h-[95vh] rounded-none md:rounded-[2.5rem] shadow-2xl relative z-10 flex flex-col overflow-hidden md:border border-white">
           
           {/* HEADER DO MODAL */}
-          <div className="p-5 border-b border-[var(--color-atelier-grafite)]/10 flex justify-between items-center bg-white/50 shrink-0">
+          <div className="p-4 md:p-5 border-b border-[var(--color-atelier-grafite)]/10 flex justify-between items-center bg-white/50 shrink-0">
             <div className="flex items-center gap-2">
               <Target size={18} className="text-[var(--color-atelier-terracota)]" />
               <span className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Dossiê de Mercado (Instagram)</span>
             </div>
-            <button onClick={onClose} className="w-8 h-8 flex items-center justify-center rounded-full bg-[var(--color-atelier-grafite)]/5 text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-colors">
-              <X size={16} />
+            <button onClick={onClose} className="w-10 h-10 md:w-8 md:h-8 flex items-center justify-center rounded-full bg-[var(--color-atelier-grafite)]/5 text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-colors">
+              <X size={20} className="md:w-4 md:h-4" />
             </button>
           </div>
 

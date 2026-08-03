@@ -101,6 +101,24 @@ export class NotificationService {
         buttonText = "Ver Detalhes";
         break;
 
+      case 'deadline_24h':
+        subject = `[URGENTE - 24H] Faltam 24h para entregar: ${taskName}`;
+        icon = "⏳";
+        title = "Entrega em 24 Horas";
+        message = `Atenção: restam 24 horas para a entrega da tarefa <strong>${taskName}</strong> (${projectName || 'Projeto'}).`;
+        if (extraInfo) message += `<br/><br/>${extraInfo}`;
+        buttonText = "Acessar o Focus";
+        break;
+
+      case 'deadline_12h':
+        subject = `[ALERTA CRÍTICO - 12H] Faltam 12h para entregar: ${taskName}`;
+        icon = "🔥";
+        title = "Entrega em 12 Horas";
+        message = `Alerta de prazo! Restam apenas 12 horas para a entrega da tarefa <strong>${taskName}</strong> (${projectName || 'Projeto'}).`;
+        if (extraInfo) message += `<br/><br/>${extraInfo}`;
+        buttonText = "Acessar o Focus Agora";
+        break;
+
       case 'custom':
         subject = customSubject || "Aviso do Sistema";
         icon = "⚡";

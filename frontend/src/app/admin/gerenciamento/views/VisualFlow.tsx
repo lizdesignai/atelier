@@ -413,12 +413,12 @@ export default function VisualFlow({ activeProjectId, activeSubclientId, current
       {/* MODAIS (Omitidos p/ focar no principal... preservado do original) */}
       <AnimatePresence>
         {isFigmaPromptOpen && (
-          <div className="fixed inset-0 z-[250] flex items-center justify-center px-4 bg-black/60 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[250] flex items-center justify-center p-0 md:p-4 bg-black/60 backdrop-blur-sm">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="bg-white p-8 md:p-10 rounded-[2.5rem] shadow-2xl w-full max-w-lg relative flex flex-col gap-4 border border-gray-100"
+              className="bg-white p-4 md:p-10 rounded-none md:rounded-[2.5rem] shadow-2xl w-full h-full md:h-auto md:max-w-lg relative flex flex-col gap-4 border border-gray-100"
             >
               <button onClick={() => setIsFigmaPromptOpen(false)} className="absolute top-6 right-6 w-10 h-10 flex items-center justify-center rounded-full bg-gray-50 text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
                 <X size={18} />

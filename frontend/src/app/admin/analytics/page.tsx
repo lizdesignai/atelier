@@ -1,13 +1,13 @@
 // src/app/admin/analytics/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabase";
 import { AtelierPMEngine } from "../../../lib/AtelierPMEngine"; 
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
 import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
-import { BrainCircuit, Loader2, X, Cpu, Play, CheckSquare, Check, Activity, FolderKanban, GitMerge, Crown, DollarSign, Users } from "lucide-react";
+import { BrainCircuit, Loader2, X, Cpu, Play, CheckSquare, Check, Activity, FolderKanban, GitMerge, Crown, DollarSign, Users, SlidersHorizontal } from "lucide-react";
 import Link from "next/link";
 import { useProfile } from "../../../hooks/useProfile";
 // Importações do Núcleo Estático
@@ -53,6 +53,7 @@ export default function AnalyticsPage() {
   const { data: profile } = useProfile();
   const userRole = profile?.role || 'admin';
   const [activeView, setActiveView] = useState<'analytics' | 'dona' | 'produtividade' | 'clientes' | 'financeiro'>('analytics');
+  const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
   const [isQueueMinimized, setIsQueueMinimized] = useState(false);
   const [isRoutingModalOpen, setIsRoutingModalOpen] = useState(false);
   const [isCollabModalOpen, setIsCollabModalOpen] = useState(false);
@@ -132,22 +133,29 @@ export default function AnalyticsPage() {
       const response = await fetch(freshUrl, {
         method: 'GET',
         headers: { 'Content-Type': 'application/json' },
+      }).catch(err => {
+        console.warn("Backend fetch endpoint offline or waking up, switching to direct Supabase fallback:", err);
+        return null;
       });
 
-      if (!response.ok) {
-        throw new Error('Falha ao buscar dados do backend');
+      if (!response || !response.ok) {
+        throw new Error('Backend indisponível no momento. Ativando fallback direto via Supabase.');
       }
 
       const { data } = await response.json();
 
-      if (data.team) setTeam(data.team);
+      if (data.team) {
+        const activeTeam = data.team.filter((t: any) => t.status !== 'paused' && !t.is_paused);
+        setTeam(activeTeam);
+      }
       if (data.routingRules) setRoutingRules(data.routingRules);
       if (data.agencies) setAgencies(data.agencies);
       if (data.subclients) setAgencySubclients(data.subclients);
       
       if (data.tasks && data.team) {
+        const activeTeam = data.team.filter((t: any) => t.status !== 'paused' && !t.is_paused);
         const mappedTasks = data.tasks.map((task: any) => {
-          const executor = data.team.find((t: any) => t.id === task.assigned_to);
+          const executor = activeTeam.find((t: any) => t.id === task.assigned_to);
           let projectVisualData = task.projects;
           
           if (task.agency_id && data.agencies && data.subclients) {
@@ -176,30 +184,81 @@ export default function AnalyticsPage() {
         setMetrics({
           activeProjects: validProjects.filter(p => p.status === 'active').length || 0,
           pendingTasks: standardTasks.filter((t: any) => t.status !== 'completed').length || 0,
-          totalTeam: data.team.length || 0
+          totalTeam: activeTeam.length || 0
         });
 
-        if (!selectedEntityId) {
-            if (validProjects.length > 0) {
-                setSelectedEntityId(validProjects[0].id);
-                setSelectedEntityType('project');
-            } else if (data.agencies && data.agencies.length > 0) {
-                setSelectedEntityId(data.agencies[0].id);
-                setSelectedEntityType('agency');
-            }
-        }
+        setSelectedEntityId(prev => {
+          if (prev) return prev;
+          if (validProjects.length > 0) {
+            setSelectedEntityType('project');
+            return validProjects[0].id;
+          } else if (data.agencies && data.agencies.length > 0) {
+            setSelectedEntityType('agency');
+            return data.agencies[0].id;
+          }
+          return prev;
+        });
       }
 
     } catch (error) {
-      console.error("Erro no Analytics:", error);
-      showToast("Erro ao sincronizar os dados gerais.");
+      console.warn("Executando fallback direto do Supabase para o Analytics:", error);
+      try {
+        const { data: rawTeamData } = await supabase.from('profiles').select('*').in('role', ['admin', 'gestor', 'colaborador']).order('nome');
+        const teamData = rawTeamData?.filter((t: any) => t.status !== 'paused' && !t.is_paused);
+        const { data: agData } = await supabase.from('agencies').select('*').order('name');
+        const { data: subData } = await supabase.from('agency_subclients').select('*').order('name');
+        const { data: taskData } = await supabase.from('tasks').select('*, projects(profiles(nome), type, client_id), agency_subclients(id, name)').order('created_at', { ascending: false });
+
+        if (teamData) setTeam(teamData);
+        if (agData) setAgencies(agData);
+        if (subData) setAgencySubclients(subData);
+
+        if (taskData) {
+          const mappedTasks = taskData.map((task: any) => {
+            const executor = teamData?.find((t: any) => t.id === task.assigned_to);
+            let projectVisualData = task.projects;
+            if (task.agency_id && agData && subData) {
+              const agency = agData.find((a: any) => a.id === task.agency_id);
+              const subclient = subData.find((s: any) => s.id === task.subclient_id);
+              projectVisualData = {
+                type: 'Agência / White-Label',
+                service_type: 'Produção Contínua',
+                profiles: { nome: `${agency?.name || 'Agência'} • ${subclient?.name || 'Cliente'}`, avatar_url: null }
+              };
+            }
+            return {
+              ...task,
+              projects: projectVisualData,
+              profiles: executor ? { nome: executor.nome, avatar_url: executor.avatar_url } : null
+            };
+          });
+
+          const standardTasks = mappedTasks.filter((t: any) => t.project_id !== null || t.agency_id !== null);
+          const engineAlerts = mappedTasks.filter((t: any) => t.project_id === null && t.agency_id === null);
+
+          setTasks(standardTasks);
+          setSystemAlerts(engineAlerts);
+
+          setMetrics({
+            activeProjects: (validProjects || []).filter(p => p.status === 'active').length || 0,
+            pendingTasks: standardTasks.filter((t: any) => t.status !== 'completed').length || 0,
+            totalTeam: teamData?.length || 0
+          });
+        }
+      } catch (fallbackErr) {
+        console.error("Erro no fallback do Supabase:", fallbackErr);
+        showToast("Erro ao sincronizar os dados gerais.");
+      }
     } finally {
       setIsLocalLoading(false);
     }
-  }, [validProjects, selectedEntityId]); 
+  }, [validProjects]); 
+
+  const hasFetchedInitialRef = useRef(false);
 
   useEffect(() => {
-    if (isGlobalLoading) return;
+    if (isGlobalLoading || hasFetchedInitialRef.current) return;
+    hasFetchedInitialRef.current = true;
     fetchOperationalData(true);
   }, [isGlobalLoading, fetchOperationalData]);
 
@@ -279,6 +338,8 @@ export default function AnalyticsPage() {
           deadline: editingTask.deadline,
           assigned_to: editingTask.assigned_to || null,
           external_links: editingTask.external_links || [],
+          media_assets: editingTask.media_assets || [],
+          attachment_url: editingTask.attachment_url || null,
           profiles: editingTask.assigned_to ? team.find(m => m.id === editingTask.assigned_to) : null
         };
       }
@@ -296,7 +357,9 @@ export default function AnalyticsPage() {
           urgency: editingTask.urgency,
           deadline: editingTask.deadline,
           assigned_to: editingTask.assigned_to || null,
-          external_links: editingTask.external_links || []
+          external_links: editingTask.external_links || [],
+          media_assets: editingTask.media_assets || [],
+          attachment_url: editingTask.attachment_url || null
         })
       });
       
@@ -584,16 +647,40 @@ export default function AnalyticsPage() {
     try {
       await supabase.from('agency_subclients').update({ deliverables_count: demand }).eq('id', subId);
       showToast("Demanda de posts atualizada.");
+      window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
       await fetchOperationalData();
     } catch (e) { showToast("Erro ao atualizar demanda."); }
   };
 
-  const handleDeleteSubclient = async (subId: string) => {
-    if (!window.confirm("Remover este perfil da agência?")) return;
+  const handleEditSubclient = async (subId: string, updates: { name: string; deliverables_count: number; trello_url?: string }) => {
     try {
+      const { error } = await supabase
+        .from('agency_subclients')
+        .update({
+          name: updates.name,
+          deliverables_count: updates.deliverables_count,
+          trello_url: updates.trello_url || null
+        })
+        .eq('id', subId);
+
+      if (error) throw error;
+      showToast("Perfil de subcliente atualizado com sucesso!");
+      window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
+      await fetchOperationalData(true, true);
+    } catch (e) {
+      showToast("Erro ao atualizar subcliente.");
+    }
+  };
+
+  const handleDeleteSubclient = async (subId: string) => {
+    if (!window.confirm("Remover este perfil da agência? Todas as atribuições e tarefas vinculadas serão removidas.")) return;
+    try {
+      await supabase.from('collaborator_assignments').delete().eq('subclient_id', subId);
+      await supabase.from('tasks').delete().eq('subclient_id', subId);
       await supabase.from('agency_subclients').delete().eq('id', subId);
       showToast("Perfil removido da operação.");
-      await fetchOperationalData();
+      window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
+      await fetchOperationalData(true, true);
     } catch (e) { showToast("Erro ao remover perfil."); }
   };
 
@@ -799,17 +886,18 @@ export default function AnalyticsPage() {
   const currentTaskTypes = isIdvService(routeProjObj) ? TASK_TYPES_IDV : TASK_TYPES_IG;
 
   const unifiedWallet = [
-    ...validProjects.filter(p => p.status === 'active').map(p => ({ id: p.id, name: p.profiles?.nome, type: 'project', label: isIdvService(p) ? 'IDV' : 'Instagram' })),
-    ...agencies.map(a => ({ id: a.id, name: a.name, type: 'agency', label: 'White-Label' }))
+    ...validProjects.filter(p => p.status === 'active').map(p => ({ id: p.id, name: p.profiles?.nome, type: 'project', label: isIdvService(p) ? 'IDV' : 'Instagram', avatar_url: p.profiles?.avatar_url })),
+    ...agencies.map(a => ({ id: a.id, name: a.name, type: 'agency', label: 'White-Label', avatar_url: null }))
   ].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
   if (isGlobalLoading || isLocalLoading) return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6 px-4 md:px-0">
+    <div className="flex flex-col h-[calc(100dvh-70px)] md:h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-4 md:pb-6 gap-3 md:gap-6 px-4 overflow-hidden">
       
-      <header className="shrink-0 flex flex-col md:flex-row md:items-end justify-between gap-4 mt-6 animate-[fadeInUp_0.5s_ease-out]">
-        <div className="transition-opacity duration-300 opacity-100">
+      <header className="shrink-0 flex flex-row items-center justify-between gap-4 mt-6 animate-[fadeInUp_0.5s_ease-out] relative">
+        
+        <div className="transition-opacity duration-300 opacity-100 flex-1 min-w-0 pr-4">
           {activeView === 'dona' && (
             <>
               <div className="flex items-center gap-2 mb-1">
@@ -818,7 +906,7 @@ export default function AnalyticsPage() {
                 </span>
                 <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Visão Geral</span>
               </div>
-              <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Tela da <span className="text-[var(--color-atelier-terracota)] italic">Dona.</span></h1>
+              <h1 className="font-elegant text-3xl md:text-4xl text-[var(--color-atelier-grafite)] truncate">Tela da <span className="text-[var(--color-atelier-terracota)] italic">Dona.</span></h1>
             </>
           )}
           {activeView === 'produtividade' && (
@@ -829,7 +917,7 @@ export default function AnalyticsPage() {
                 </span>
                 <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Base de</span>
               </div>
-              <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Produtividade <span className="text-[var(--color-atelier-terracota)] italic">da Equipe.</span></h1>
+              <h1 className="font-elegant text-3xl md:text-4xl text-[var(--color-atelier-grafite)] truncate">Produtividade <span className="text-[var(--color-atelier-terracota)] italic">da Equipe.</span></h1>
             </>
           )}
           {activeView === 'clientes' && (
@@ -840,7 +928,7 @@ export default function AnalyticsPage() {
                 </span>
                 <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Gestão de Relacionamento</span>
               </div>
-              <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Base de <span className="text-[var(--color-atelier-terracota)] italic">Clientes.</span></h1>
+              <h1 className="font-elegant text-3xl md:text-4xl text-[var(--color-atelier-grafite)] truncate">Base de <span className="text-[var(--color-atelier-terracota)] italic">Clientes.</span></h1>
             </>
           )}
           {activeView === 'financeiro' && (
@@ -851,7 +939,7 @@ export default function AnalyticsPage() {
                 </span>
                 <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Controle de Fluxo</span>
               </div>
-              <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Visão <span className="text-[var(--color-atelier-terracota)] italic">Financeira.</span></h1>
+              <h1 className="font-elegant text-3xl md:text-4xl text-[var(--color-atelier-grafite)] truncate">Visão <span className="text-[var(--color-atelier-terracota)] italic">Financeira.</span></h1>
             </>
           )}
           {activeView === 'analytics' && (
@@ -862,115 +950,131 @@ export default function AnalyticsPage() {
                 </span>
                 <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Gestão do Estúdio</span>
               </div>
-              <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Estratégia & <span className="text-[var(--color-atelier-terracota)] italic">Analytics.</span></h1>
+              <h1 className="font-elegant text-3xl md:text-4xl text-[var(--color-atelier-grafite)] truncate">Estratégia & <span className="text-[var(--color-atelier-terracota)] italic">Analytics.</span></h1>
             </>
           )}
         </div>
-        
-        <div className="flex items-center gap-4">
-           
-           {/* Botão Ações em Lote Elegante */}
-           <div className="flex items-center gap-2 bg-white/60 border border-white py-2 px-3 rounded-2xl shadow-sm">
-             <span className={`font-roboto text-[9px] font-bold uppercase tracking-widest transition-colors ${isBulkMode ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/50'}`}></span>
-             <button 
-               onClick={() => { setIsBulkMode(!isBulkMode); setSelectedTaskIds([]); setSelectedRuleIds([]); }} 
-               className={`w-9 h-5 rounded-full flex items-center px-0.5 transition-colors ${isBulkMode ? 'bg-[var(--color-atelier-terracota)]' : 'bg-gray-300'}`}
-             >
-               <motion.div 
-                 layout
-                 className="w-4 h-4 bg-white rounded-full shadow-sm"
-                 initial={false}
-                 animate={{ x: isBulkMode ? 16 : 0 }}
-                 transition={{ type: "spring", stiffness: 500, damping: 30 }}
-               />
-             </button>
-           </div>
-           
-           {/* Novo Top Menu de Navegação Global */}
-           <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0 overflow-hidden">
-              <button 
-                onClick={() => setActiveView('analytics')} 
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all overflow-hidden ${activeView === 'analytics' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-12 justify-center px-0'}`}
-              >
-                <BrainCircuit size={14} className="shrink-0" />
-                <AnimatePresence>
-                  {activeView === 'analytics' && (
-                    <motion.span initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="whitespace-nowrap overflow-hidden origin-left">
-                      Analytics
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </button>
 
-              {userRole === 'admin' && (
-                <button 
-                  onClick={() => setActiveView('dona')} 
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all overflow-hidden ${activeView === 'dona' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-12 justify-center px-0'}`}
-                >
-                  <Crown size={14} className="shrink-0" />
-                  <AnimatePresence>
-                    {activeView === 'dona' && (
-                      <motion.span initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="whitespace-nowrap overflow-hidden origin-left">
-                        Tela da Dona
-                      </motion.span>
+        {/* HEADER CONTROLS (AVATAR & COMPACT VERTICAL MENU) */}
+        <div className="flex items-center gap-3 shrink-0">
+          
+          {/* BOTÃO DO MENU VERTICAL DE TELAS E AÇÕES */}
+          <div className="relative">
+            <button
+              onClick={() => setIsNavMenuOpen(!isNavMenuOpen)}
+              className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-white/80 border border-white shadow-sm hover:bg-white text-[var(--color-atelier-grafite)] transition-all active:scale-95 cursor-pointer"
+              title="Menu de Telas & Ações"
+            >
+              <SlidersHorizontal size={16} className="text-[var(--color-atelier-terracota)]" />
+              <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Telas</span>
+            </button>
+
+            {/* DROPDOWN VERTICAL */}
+            <AnimatePresence>
+              {isNavMenuOpen && (
+                <>
+                  <div className="fixed inset-0 z-40" onClick={() => setIsNavMenuOpen(false)} />
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    className="absolute right-0 top-full mt-2 w-64 bg-white/95 backdrop-blur-2xl border border-white rounded-3xl p-3 shadow-2xl z-50 flex flex-col gap-1.5"
+                  >
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 px-3 pt-1 block">
+                      Alternar Visualização
+                    </span>
+
+                    {/* OPÇÕES DE NAVEGAÇÃO DE TELAS */}
+                    <button
+                      onClick={() => { setActiveView('analytics'); setIsNavMenuOpen(false); }}
+                      className={`flex items-center gap-3 p-2.5 rounded-2xl transition-all ${activeView === 'analytics' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'hover:bg-gray-100 text-[var(--color-atelier-grafite)]/70'}`}
+                    >
+                      <BrainCircuit size={16} className={activeView === 'analytics' ? 'text-white' : 'text-[var(--color-atelier-terracota)]'} />
+                      <span className="font-bold text-[11px] uppercase tracking-wider">Analytics</span>
+                    </button>
+
+                    {userRole === 'admin' && (
+                      <button
+                        onClick={() => { setActiveView('dona'); setIsNavMenuOpen(false); }}
+                        className={`flex items-center gap-3 p-2.5 rounded-2xl transition-all ${activeView === 'dona' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'hover:bg-gray-100 text-[var(--color-atelier-grafite)]/70'}`}
+                      >
+                        <Crown size={16} className={activeView === 'dona' ? 'text-white' : 'text-[var(--color-atelier-terracota)]'} />
+                        <span className="font-bold text-[11px] uppercase tracking-wider">Tela da Dona</span>
+                      </button>
                     )}
-                  </AnimatePresence>
-                </button>
-              )}
 
-              <button 
-                onClick={() => setActiveView('produtividade')} 
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all overflow-hidden ${activeView === 'produtividade' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-12 justify-center px-0'}`}
-              >
-                <Activity size={14} className="shrink-0" />
-                <AnimatePresence>
-                  {activeView === 'produtividade' && (
-                    <motion.span initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="whitespace-nowrap overflow-hidden origin-left">
-                      Produtividade
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </button>
+                    <button
+                      onClick={() => { setActiveView('produtividade'); setIsNavMenuOpen(false); }}
+                      className={`flex items-center gap-3 p-2.5 rounded-2xl transition-all ${activeView === 'produtividade' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'hover:bg-gray-100 text-[var(--color-atelier-grafite)]/70'}`}
+                    >
+                      <Activity size={16} className={activeView === 'produtividade' ? 'text-white' : 'text-[var(--color-atelier-terracota)]'} />
+                      <span className="font-bold text-[11px] uppercase tracking-wider">Produtividade</span>
+                    </button>
 
-              <button 
-                onClick={() => setActiveView('clientes')} 
-                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all overflow-hidden ${activeView === 'clientes' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-12 justify-center px-0'}`}
-              >
-                <Users size={14} className="shrink-0" />
-                <AnimatePresence>
-                  {activeView === 'clientes' && (
-                    <motion.span initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="whitespace-nowrap overflow-hidden origin-left">
-                      Clientes
-                    </motion.span>
-                  )}
-                </AnimatePresence>
-              </button>
+                    <button
+                      onClick={() => { setActiveView('clientes'); setIsNavMenuOpen(false); }}
+                      className={`flex items-center gap-3 p-2.5 rounded-2xl transition-all ${activeView === 'clientes' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'hover:bg-gray-100 text-[var(--color-atelier-grafite)]/70'}`}
+                    >
+                      <Users size={16} className={activeView === 'clientes' ? 'text-white' : 'text-[var(--color-atelier-terracota)]'} />
+                      <span className="font-bold text-[11px] uppercase tracking-wider">Clientes</span>
+                    </button>
 
-              {userRole === 'admin' && (
-                <button 
-                  onClick={() => setActiveView('financeiro')} 
-                  className={`flex items-center gap-2 px-4 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all overflow-hidden ${activeView === 'financeiro' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-12 justify-center px-0'}`}
-                >
-                  <DollarSign size={14} className="shrink-0" />
-                  <AnimatePresence>
-                    {activeView === 'financeiro' && (
-                      <motion.span initial={{ width: 0, opacity: 0 }} animate={{ width: "auto", opacity: 1 }} exit={{ width: 0, opacity: 0 }} className="whitespace-nowrap overflow-hidden origin-left">
-                        Financeiro
-                      </motion.span>
+                    {userRole === 'admin' && (
+                      <button
+                        onClick={() => { setActiveView('financeiro'); setIsNavMenuOpen(false); }}
+                        className={`flex items-center gap-3 p-2.5 rounded-2xl transition-all ${activeView === 'financeiro' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'hover:bg-gray-100 text-[var(--color-atelier-grafite)]/70'}`}
+                      >
+                        <DollarSign size={16} className={activeView === 'financeiro' ? 'text-white' : 'text-[var(--color-atelier-terracota)]'} />
+                        <span className="font-bold text-[11px] uppercase tracking-wider">Financeiro</span>
+                      </button>
                     )}
-                  </AnimatePresence>
-                </button>
+
+                    <div className="h-px bg-gray-200/60 my-1" />
+
+                    {/* AÇÕES EM LOTE DENTRO DO MENU */}
+                    <div className="flex items-center justify-between p-2.5 rounded-2xl bg-gray-50/80 border border-gray-100">
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-atelier-grafite)]">Ações em Lote</span>
+                        <span className="text-[8px] text-gray-400 font-medium">Seleção múltipla</span>
+                      </div>
+                      <button
+                        onClick={() => { setIsBulkMode(!isBulkMode); setSelectedTaskIds([]); setSelectedRuleIds([]); }}
+                        className={`w-9 h-5 rounded-full flex items-center px-0.5 transition-colors ${isBulkMode ? 'bg-[var(--color-atelier-terracota)]' : 'bg-gray-300'}`}
+                      >
+                        <motion.div
+                          layout
+                          className="w-4 h-4 bg-white rounded-full shadow-sm"
+                          initial={false}
+                          animate={{ x: isBulkMode ? 16 : 0 }}
+                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                        />
+                      </button>
+                    </div>
+
+                  </motion.div>
+                </>
               )}
-           </div>
+            </AnimatePresence>
+          </div>
+
+          {/* AVATAR DO PERFIL AO LADO DO MENU */}
+          <Link href="/perfil" className="w-10 h-10 rounded-[1.2rem] bg-gray-100 border border-white/60 shadow-sm flex items-center justify-center overflow-hidden active:scale-95 transition-transform shrink-0">
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+            ) : (
+              <span className="font-elegant text-xl text-[var(--color-atelier-terracota)] uppercase">{profile?.nome?.charAt(0) || "U"}</span>
+            )}
+          </Link>
+
         </div>
       </header>
 
       <LiveExecutionBar liveTasks={liveTasks} />
 
-      <div className="flex-1 min-h-0 relative flex flex-col lg:flex-row gap-6">
+      <div className="flex-1 min-h-0 relative flex flex-col lg:flex-row gap-3 md:gap-6 px-0 lg:px-0 overflow-hidden lg:overflow-visible pb-2 lg:pb-0">
         <AnimatePresence mode="wait">
           {activeView === 'analytics' && (
-            <motion.div key="analytics" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-full flex flex-col lg:flex-row gap-6 absolute inset-0">
+            <motion.div key="analytics" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-auto lg:h-full flex flex-col lg:flex-row gap-6 lg:absolute lg:inset-0">
               <OverviewDashboard 
                 metrics={metrics}
                 activeTasksForQueue={activeTasksForQueue}
@@ -1012,6 +1116,7 @@ export default function AnalyticsPage() {
                   agencySubclients={agencySubclients}
                   handleDeleteSubclient={handleDeleteSubclient}
                   handleUpdateSubclientDemand={handleUpdateSubclientDemand}
+                  handleEditSubclient={handleEditSubclient}
                   groupTasksByStage={groupTasksByStage}
                   isBulkMode={isBulkMode}
                   toggleTaskSelection={toggleTaskSelection}
@@ -1027,25 +1132,25 @@ export default function AnalyticsPage() {
           )}
 
           {activeView === 'dona' && (
-            <motion.div key="dona" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-full absolute inset-0 overflow-y-auto">
+            <motion.div key="dona" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-auto md:h-full md:absolute md:inset-0 overflow-y-auto custom-scrollbar">
               <AdminDashboard />
             </motion.div>
           )}
 
           {activeView === 'produtividade' && (
-            <motion.div key="produtividade" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-full absolute inset-0 overflow-y-auto">
+            <motion.div key="produtividade" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-auto md:h-full md:absolute md:inset-0 overflow-y-auto md:overflow-hidden">
               <ProdutividadePage />
             </motion.div>
           )}
 
           {activeView === 'clientes' && (
-            <motion.div key="clientes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-full absolute inset-0 overflow-y-auto">
+            <motion.div key="clientes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-auto md:h-full md:absolute md:inset-0 overflow-y-auto md:overflow-hidden">
               <ClientesPage />
             </motion.div>
           )}
 
           {activeView === 'financeiro' && (
-            <motion.div key="financeiro" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-full absolute inset-0 overflow-y-auto">
+            <motion.div key="financeiro" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-auto md:h-full md:absolute md:inset-0 overflow-y-auto md:overflow-hidden">
               <FinanceiroPage />
             </motion.div>
           )}
@@ -1053,7 +1158,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* Botão Flutuante de Equipe (Artesãos) */}
-      <div className="fixed bottom-8 right-8 z-40 flex flex-col-reverse items-end gap-3 group">
+      <div className="fixed bottom-24 right-4 md:bottom-8 md:right-8 z-40 flex flex-col-reverse items-end gap-3 group">
         {/* Botão principal */}
         <button 
           onClick={() => { setSelectedCollab(null); setIsCollabModalOpen(true); }}
@@ -1087,7 +1192,7 @@ export default function AnalyticsPage() {
         {isCollabModalOpen && !selectedCollab && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
              <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsCollabModalOpen(false)}></div>
-             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="w-full max-w-md bg-[var(--color-atelier-bg)] rounded-[2.5rem] shadow-2xl relative flex flex-col border border-white/50 max-h-[80vh]">
+             <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="w-full h-full md:h-auto md:max-w-md bg-[var(--color-atelier-bg)] rounded-none md:rounded-[2.5rem] shadow-2xl relative flex flex-col border border-white/50 md:max-h-[80vh]">
                 <div className="p-6 border-b border-[var(--color-atelier-grafite)]/10 shrink-0 flex justify-between items-center bg-white/40">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-2xl bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center"><Users size={20} /></div>

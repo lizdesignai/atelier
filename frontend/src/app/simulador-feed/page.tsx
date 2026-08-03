@@ -79,7 +79,7 @@ export default function SimuladorFeedPage() {
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1500px] mx-auto relative z-10 pb-6 gap-6 px-4 md:px-0">
+    <div className="flex flex-col h-auto min-h-[calc(100dvh-60px)] md:h-[calc(100vh-60px)] max-w-[1500px] mx-auto relative z-10 pb-6 gap-6 px-4 md:px-0">
       
       {/* 1. CABEÇALHO */}
       <header className="shrink-0 flex flex-col md:flex-row md:items-end justify-between gap-6 animate-[fadeInUp_0.5s_ease-out]">
@@ -100,9 +100,9 @@ export default function SimuladorFeedPage() {
       <div className="flex flex-col md:flex-row gap-6 flex-1 min-h-0 animate-[fadeInUp_0.8s_ease-out_0.2s_both]">
         
         {/* LADO ESQUERDO: INFORMAÇÕES E AÇÕES */}
-        <div className="w-full md:w-[380px] flex flex-col gap-6 shrink-0 h-full">
+        <div className="w-full md:w-[380px] flex flex-col gap-6 shrink-0 h-auto md:h-full">
           
-          <div className="glass-panel rounded-[2.5rem] bg-white/60 border border-white shadow-sm flex flex-col overflow-hidden h-full">
+          <div className="glass-panel rounded-[2.5rem] bg-white/60 border border-white shadow-sm flex flex-col overflow-hidden h-auto md:h-full">
             <div className="p-8 border-b border-[var(--color-atelier-grafite)]/5 bg-gradient-to-br from-white/80 to-transparent shrink-0">
               <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] mb-1">Mês de Referência</h2>
               <div className="flex items-center gap-2 text-[var(--color-atelier-terracota)]">
@@ -111,7 +111,7 @@ export default function SimuladorFeedPage() {
               </div>
             </div>
             
-            <div className="p-8 flex flex-col gap-6 flex-1 overflow-y-auto custom-scrollbar">
+            <div className="p-8 flex flex-col gap-6 flex-1 overflow-visible md:overflow-y-auto custom-scrollbar">
               
               {/* STATUS DO FEED */}
               <div className="flex flex-col gap-2">
@@ -176,7 +176,7 @@ export default function SimuladorFeedPage() {
         </div>
 
         {/* LADO DIREITO: SIMULADOR DE CELULAR / INSTAGRAM GRID */}
-        <div className="flex-1 glass-panel rounded-[2.5rem] bg-white/40 border border-white/60 shadow-sm flex items-center justify-center overflow-hidden relative min-h-0 h-full">
+        <div className="flex-1 glass-panel rounded-[2.5rem] bg-white/40 border border-white/60 shadow-sm flex items-center justify-center overflow-hidden relative min-h-[500px] md:min-h-0 h-[600px] md:h-full">
           
           {/* Fundo Decorativo */}
           <div className="absolute inset-0 z-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-5"></div>

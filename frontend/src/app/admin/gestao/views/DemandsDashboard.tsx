@@ -5,7 +5,7 @@ import { supabase } from "../../../../lib/supabase";
 import { 
   Layers, Filter, CheckSquare, Clock, AlertCircle, 
   UserCircle2, Loader2, Briefcase, Zap, Search,
-  ChevronDown, BarChart3, Target, Activity, Trophy, PieChart
+  ChevronDown, BarChart3, Target, Activity, Trophy, PieChart, Users, DollarSign
 } from "lucide-react";
 import { startOfMonth, endOfMonth } from "date-fns";
 
@@ -50,9 +50,11 @@ const ConcentricRings = ({ completed, review, pending, total, size = 100 }: { co
 
 interface DemandsDashboardProps {
   currentUser: any;
+  activeTab?: string;
+  setActiveTab?: (tab: 'pulse' | 'workforce' | 'economics' | 'demands') => void;
 }
 
-export default function DemandsDashboard({ currentUser }: DemandsDashboardProps) {
+export default function DemandsDashboard({ currentUser, activeTab = 'demands', setActiveTab }: DemandsDashboardProps) {
   const [isLoading, setIsLoading] = useState(true);
   
   // 🟢 ESTADO DA CHAVINHA DE ALTERNÂNCIA (SUB-TABS)
@@ -226,7 +228,7 @@ export default function DemandsDashboard({ currentUser }: DemandsDashboardProps)
   if (isLoading) return <div className="flex h-full items-center justify-center"><Loader2 size={40} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-auto md:h-full overflow-y-auto md:overflow-hidden">
       
       {/* 🟢 CABEÇALHO GLOBAL E CHAVINHA DE ALTERNÂNCIA */}
       <div className="shrink-0 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-6">
@@ -240,20 +242,50 @@ export default function DemandsDashboard({ currentUser }: DemandsDashboardProps)
           <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] leading-none tracking-tight">Ecosistema de Tarefas</h2>
         </div>
 
-        {/* Segmented Control (Chavinha) */}
-        <div className="bg-white/40 p-1.5 rounded-[1rem] border border-white shadow-sm flex items-center shrink-0 w-full md:w-auto overflow-hidden">
-          <button 
-            onClick={() => setActiveSubTab('overview')} 
-            className={`flex-1 md:flex-none px-6 py-3 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest transition-all ${activeSubTab === 'overview' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/60'}`}
-          >
-            Visão Geral
-          </button>
-          <button 
-            onClick={() => setActiveSubTab('log')} 
-            className={`flex-1 md:flex-none px-6 py-3 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest transition-all ${activeSubTab === 'log' ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/60'}`}
-          >
-            Registro Operacional
-          </button>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Segmented Control (Chavinha) */}
+          <div className="bg-white/40 p-1.5 rounded-[1rem] border border-white shadow-sm flex items-center shrink-0 w-full md:w-auto overflow-hidden">
+            <button 
+              onClick={() => setActiveSubTab('overview')} 
+              className={`flex-1 md:flex-none px-4 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeSubTab === 'overview' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/60'}`}
+            >
+              Visão Geral
+            </button>
+            <button 
+              onClick={() => setActiveSubTab('log')} 
+              className={`flex-1 md:flex-none px-4 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeSubTab === 'log' ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/60'}`}
+            >
+              Registro Operacional
+            </button>
+          </div>
+
+          {/* NAV HORIZONTAL COMPACTA E SOFISTICADA ALINHADA AO HEAD */}
+          <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0">
+            <button 
+              onClick={() => setActiveTab?.('pulse')} 
+              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'pulse' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+            >
+              <Activity size={13} /> Pulso Live
+            </button>
+            <button 
+              onClick={() => setActiveTab?.('demands')} 
+              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'demands' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+            >
+              <Layers size={13} /> Demandas
+            </button>
+            <button 
+              onClick={() => setActiveTab?.('workforce')} 
+              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'workforce' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+            >
+              <Users size={13} /> Equipe & RH
+            </button>
+            <button 
+              onClick={() => setActiveTab?.('economics')} 
+              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'economics' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+            >
+              <DollarSign size={13} /> Unit Economics
+            </button>
+          </div>
         </div>
       </div>
 
@@ -385,7 +417,7 @@ export default function DemandsDashboard({ currentUser }: DemandsDashboardProps)
               </div>
 
               {/* COLUNA DIREITA: LEADERBOARD VERTICAL GIGANTE */}
-              <div className="w-full lg:w-[350px] xl:w-[400px] shrink-0 h-full glass-panel bg-[var(--color-atelier-grafite)] text-white p-8 rounded-[2.5rem] shadow-2xl flex flex-col relative overflow-hidden">
+              <div className="w-full lg:w-[350px] xl:w-[400px] shrink-0 h-auto lg:h-full glass-panel bg-[var(--color-atelier-grafite)] text-white p-8 rounded-[2.5rem] shadow-2xl flex flex-col relative overflow-hidden">
                 <div className="absolute top-[-10%] left-[-20%] w-80 h-80 bg-[var(--color-atelier-terracota)]/10 blur-[80px] rounded-full pointer-events-none"></div>
                 <div className="absolute bottom-[-10%] right-[-20%] w-72 h-72 bg-blue-500/10 blur-[60px] rounded-full pointer-events-none"></div>
                 

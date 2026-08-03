@@ -1,8 +1,10 @@
+"use client";
+
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
-import { X, FolderUp, Loader2, File, ExternalLink, Image as ImageIcon, Download, CheckCircle, Trash2, Calendar } from "lucide-react";
+import { X, FolderUp, Loader2, File, ExternalLink, Image as ImageIcon, Download, CheckCircle, Trash2, Calendar, Pencil } from "lucide-react";
 
 interface ClientAssetsModalProps {
   isOpen: boolean;
@@ -24,9 +26,20 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [subclientDetails, setSubclientDetails] = useState<any>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+
+  // Edit / Delete states
+  const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editUrl, setEditUrl] = useState("");
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
 
   useEffect(() => {
     setMounted(true);
+    if (typeof window !== "undefined") {
+      setUserRole(localStorage.getItem("atelier_role"));
+    }
   }, []);
 
   useEffect(() => {
@@ -168,12 +181,57 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
     }
   };
 
+  const handleDeleteAsset = async (assetId: string) => {
+    if (!confirm("Tem certeza que deseja remover este material do cofre?")) return;
+    setDeletingAssetId(assetId);
+    try {
+      const { error } = await supabase.from('project_assets').delete().eq('id', assetId);
+      if (error) throw error;
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Material removido com sucesso." }));
+      fetchAssets();
+    } catch (err: any) {
+      window.dispatchEvent(new CustomEvent("showToast", { detail: `Erro ao remover: ${err.message || 'Falha no banco'}` }));
+    } finally {
+      setDeletingAssetId(null);
+    }
+  };
+
+  const handleStartEdit = (asset: any) => {
+    setEditingAssetId(asset.id);
+    setEditName(asset.file_name || "");
+    setEditUrl(asset.file_url || "");
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editingAssetId || !editName || !editUrl) return;
+    setIsSavingEdit(true);
+    try {
+      let finalUrl = editUrl.trim();
+      if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
+        finalUrl = `https://${finalUrl}`;
+      }
+      const { error } = await supabase
+        .from('project_assets')
+        .update({ file_name: editName, file_url: finalUrl })
+        .eq('id', editingAssetId);
+
+      if (error) throw error;
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Material atualizado!" }));
+      setEditingAssetId(null);
+      fetchAssets();
+    } catch (err: any) {
+      window.dispatchEvent(new CustomEvent("showToast", { detail: `Erro ao salvar: ${err.message || 'Falha no banco'}` }));
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
   if (!mounted) return null;
 
   return createPortal(
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-0 md:p-4">
           <motion.div 
             initial={{ opacity: 0 }} 
             animate={{ opacity: 1 }} 
@@ -185,12 +243,12 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
             initial={{ scale: 0.95, opacity: 0, y: 20 }} 
             animate={{ scale: 1, opacity: 1, y: 0 }} 
             exit={{ scale: 0.95, opacity: 0, y: 20 }} 
-            className="bg-white rounded-[2.5rem] p-8 relative z-10 w-full max-w-4xl max-h-[85vh] flex flex-col shadow-2xl"
+            className="bg-white rounded-none md:rounded-[2.5rem] p-4 md:p-8 relative z-10 w-full h-full md:max-w-4xl md:h-auto md:max-h-[85vh] flex flex-col shadow-2xl"
           >
             {/* Header */}
-            <div className="flex justify-between items-center mb-6 border-b border-gray-100 pb-6 shrink-0">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center">
+            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-0 mb-6 border-b border-gray-100 pb-6 shrink-0 relative">
+              <div className="flex items-center gap-4 pr-10">
+                <div className="w-12 h-12 rounded-2xl bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center shrink-0">
                   <FolderUp size={24} />
                 </div>
                 <div>
@@ -200,31 +258,31 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
                   </p>
                 </div>
               </div>
-              <div className="flex items-center gap-3">
+              <button onClick={onClose} className="absolute right-0 top-0 text-gray-400 hover:text-red-500 bg-gray-50 p-2.5 rounded-full transition-colors w-10 h-10 md:w-9 md:h-9 flex items-center justify-center">
+                  <X size={18} />
+              </button>
+              <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto">
                 <input 
                   type="file" 
                   ref={fileInputRef} 
                   onChange={handleFileUpload} 
                   className="hidden" 
                 />
-                <button onClick={() => fileInputRef.current?.click()} disabled={isUploadingFile} className="bg-[var(--color-atelier-terracota)] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-2.5 rounded-full hover:bg-[#9b836b] transition-colors flex items-center gap-2 disabled:opacity-50">
-                  {isUploadingFile ? <Loader2 size={14} className="animate-spin" /> : <FolderUp size={14} />} Adicionar Material
+                <button onClick={() => fileInputRef.current?.click()} disabled={isUploadingFile} className="flex-1 md:flex-none justify-center bg-[var(--color-atelier-terracota)] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-3 md:py-2.5 rounded-full hover:bg-[#9b836b] transition-colors flex items-center gap-2 disabled:opacity-50">
+                  {isUploadingFile ? <Loader2 size={14} className="animate-spin" /> : <FolderUp size={14} />} Add Material
                 </button>
                 {subclientDetails?.trello_url && (
                   <a 
                     href={subclientDetails.trello_url} 
                     target="_blank" 
                     rel="noreferrer" 
-                    className="bg-[#0079BF] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-2.5 rounded-full hover:bg-[#026AA7] transition-colors flex items-center gap-2"
+                    className="flex-1 md:flex-none justify-center bg-[#0079BF] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-3 md:py-2.5 rounded-full hover:bg-[#026AA7] transition-colors flex items-center gap-2"
                   >
-                    <ExternalLink size={14} /> Trello do Subcliente
+                    <ExternalLink size={14} /> Trello
                   </a>
                 )}
-                <button onClick={() => setIsAddingLink(!isAddingLink)} className="bg-[var(--color-atelier-grafite)] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-2.5 rounded-full hover:bg-gray-700 transition-colors flex items-center gap-2">
-                  <ExternalLink size={14} /> Adicionar Link
-                </button>
-                <button onClick={onClose} className="text-gray-400 hover:text-red-500 bg-gray-50 p-2.5 rounded-full transition-colors">
-                  <X size={18} />
+                <button onClick={() => setIsAddingLink(!isAddingLink)} className="flex-1 md:flex-none justify-center bg-[var(--color-atelier-grafite)] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-3 md:py-2.5 rounded-full hover:bg-gray-700 transition-colors flex items-center gap-2">
+                  <ExternalLink size={14} /> Add Link
                 </button>
               </div>
             </div>
@@ -264,35 +322,99 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
                 </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
-                  {assets.map((asset) => (
-                    <div key={asset.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex flex-col gap-3 group hover:border-[var(--color-atelier-terracota)]/30 transition-all hover:bg-white shadow-sm">
-                      <div className="flex items-start gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm">
-                          {getFileIcon(asset.file_name, asset.file_size === 'Link Externo' ? 'link' : 'file')}
+                  {assets.map((asset) => {
+                    const isAdminOrManager = userRole === 'admin' || userRole === 'gestor';
+                    const isEditing = editingAssetId === asset.id;
+
+                    if (isEditing) {
+                      return (
+                        <div key={asset.id} className="bg-amber-50/60 rounded-2xl p-4 border border-amber-200 flex flex-col gap-3 shadow-md col-span-1 md:col-span-2">
+                          <div className="flex flex-col gap-2">
+                            <label className="text-[10px] uppercase font-bold text-amber-800">Editar Título</label>
+                            <input
+                              type="text"
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              className="bg-white border border-amber-200 rounded-xl p-2 text-xs font-bold text-gray-800"
+                            />
+                            <label className="text-[10px] uppercase font-bold text-amber-800 mt-1">Editar URL</label>
+                            <input
+                              type="text"
+                              value={editUrl}
+                              onChange={(e) => setEditUrl(e.target.value)}
+                              className="bg-white border border-amber-200 rounded-xl p-2 text-xs text-gray-700"
+                            />
+                          </div>
+                          <div className="flex items-center justify-end gap-2 mt-2">
+                            <button
+                              onClick={() => setEditingAssetId(null)}
+                              className="px-3 py-1.5 rounded-lg text-xs font-bold text-gray-500 hover:bg-gray-200/60"
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              onClick={handleSaveEdit}
+                              disabled={isSavingEdit || !editName || !editUrl}
+                              className="px-4 py-1.5 rounded-lg bg-[var(--color-atelier-terracota)] text-white text-xs font-bold hover:bg-[#9b836b] disabled:opacity-50 flex items-center gap-1.5"
+                            >
+                              {isSavingEdit ? <Loader2 size={12} className="animate-spin" /> : null} Salvar
+                            </button>
+                          </div>
                         </div>
-                        <div className="flex flex-col flex-1 min-w-0">
-                          <span className="font-roboto font-bold text-[13px] text-gray-800 truncate" title={asset.file_name}>
-                            {asset.file_name}
+                      );
+                    }
+
+                    return (
+                      <div key={asset.id} className="bg-gray-50 rounded-2xl p-4 border border-gray-100 flex flex-col gap-3 group hover:border-[var(--color-atelier-terracota)]/30 transition-all hover:bg-white shadow-sm relative">
+                        <div className="flex items-start gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-white border border-gray-100 flex items-center justify-center shrink-0 shadow-sm">
+                            {getFileIcon(asset.file_name, asset.file_size === 'Link Externo' ? 'link' : 'file')}
+                          </div>
+                          <div className="flex flex-col flex-1 min-w-0">
+                            <span className="font-roboto font-bold text-[13px] text-gray-800 truncate" title={asset.file_name}>
+                              {asset.file_name}
+                            </span>
+                            <span className="text-[10px] text-gray-400 mt-0.5">{asset.file_size === 'Link Externo' ? 'Link Externo' : (asset.file_size || 'Tamanho desconhecido')}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-100">
+                          <span className="text-[9px] uppercase font-bold text-gray-400 flex items-center gap-1">
+                            <Calendar size={10} /> {new Date(asset.created_at).toLocaleDateString('pt-BR')}
                           </span>
-                          <span className="text-[10px] text-gray-400 mt-0.5">{asset.file_size === 'Link Externo' ? 'Link Externo' : (asset.file_size || 'Tamanho desconhecido')}</span>
+                          <div className="flex items-center gap-1.5">
+                            {isAdminOrManager && (
+                              <>
+                                <button
+                                  onClick={() => handleStartEdit(asset)}
+                                  className="w-10 h-10 md:w-7 md:h-7 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center hover:bg-amber-500 hover:text-white transition-colors"
+                                  title="Editar link/material"
+                                >
+                                  <Pencil size={12} className="md:w-3 md:h-3" />
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteAsset(asset.id)}
+                                  disabled={deletingAssetId === asset.id}
+                                  className="w-10 h-10 md:w-7 md:h-7 rounded-full bg-gray-100 text-red-500 flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors disabled:opacity-50"
+                                  title="Apagar material"
+                                >
+                                  {deletingAssetId === asset.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} className="md:w-3 md:h-3" />}
+                                </button>
+                              </>
+                            )}
+                            <a 
+                              href={asset.file_url} 
+                              target="_blank" 
+                              rel="noreferrer"
+                              className="w-10 h-10 md:w-7 md:h-7 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors"
+                              title={asset.file_size === 'Link Externo' ? "Acessar Link" : "Fazer Download / Ver"}
+                            >
+                              {asset.file_size === 'Link Externo' ? <ExternalLink size={12} className="md:w-3 md:h-3" /> : <Download size={12} className="md:w-3 md:h-3" />}
+                            </a>
+                          </div>
                         </div>
                       </div>
-                      <div className="flex items-center justify-between mt-auto pt-3 border-t border-gray-100">
-                        <span className="text-[9px] uppercase font-bold text-gray-400 flex items-center gap-1">
-                          <Calendar size={10} /> {new Date(asset.created_at).toLocaleDateString('pt-BR')}
-                        </span>
-                        <a 
-                          href={asset.file_url} 
-                          target="_blank" 
-                          rel="noreferrer"
-                          className="w-8 h-8 rounded-full bg-blue-50 text-blue-500 flex items-center justify-center hover:bg-blue-500 hover:text-white transition-colors"
-                          title={asset.file_size === 'Link Externo' ? "Acessar Link" : "Fazer Download / Ver"}
-                        >
-                          {asset.file_size === 'Link Externo' ? <ExternalLink size={14} /> : <Download size={14} />}
-                        </a>
-                      </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

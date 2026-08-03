@@ -223,8 +223,8 @@ export default function DiaryModule({ activeProjectId, currentProject, onActivit
                           {new Date(post.created_at).toLocaleDateString('pt-PT')}
                         </span>
                       </div>
-                      <button onClick={() => handleDeletePost(post.id)} className="text-[var(--color-atelier-grafite)]/20 hover:text-red-500 transition-colors">
-                        <Trash2 size={12}/>
+                      <button onClick={() => handleDeletePost(post.id)} className="text-[var(--color-atelier-grafite)]/20 hover:text-red-500 transition-colors p-2 md:p-0">
+                        <Trash2 size={16} className="md:w-3 md:h-3"/>
                       </button>
                     </div>
 

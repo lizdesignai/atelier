@@ -7,12 +7,15 @@ import { supabase } from "../../../../lib/supabase";
 import { 
   DollarSign, TrendingUp, Heart, ArrowUpRight, 
   ArrowDownRight, Zap, Skull, Star, ShieldAlert, 
-  Loader2, Info, Search, TrendingDown, Briefcase
+  Loader2, Info, Search, TrendingDown, Briefcase,
+  Activity, Layers, Users
 } from "lucide-react";
 import { differenceInDays, startOfMonth } from "date-fns";
 
 interface EconomicsDashboardProps {
   currentUser: any;
+  activeTab?: string;
+  setActiveTab?: (tab: 'pulse' | 'workforce' | 'economics' | 'demands') => void;
 }
 
 // 🟢 UTILITÁRIO: Extração segura de nós do Supabase (Array vs Object)
@@ -21,7 +24,7 @@ function extractNode(node: any): any {
   return Array.isArray(node) ? node[0] : node;
 }
 
-export default function EconomicsDashboard({ currentUser }: EconomicsDashboardProps) {
+export default function EconomicsDashboard({ currentUser, activeTab = 'economics', setActiveTab }: EconomicsDashboardProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [projectsData, setProjectsData] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -226,7 +229,7 @@ export default function EconomicsDashboard({ currentUser }: EconomicsDashboardPr
   if (isLoading) return <div className="flex h-full items-center justify-center"><Loader2 size={40} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full gap-6 overflow-hidden">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-auto md:h-full gap-6 overflow-y-auto md:overflow-hidden">
       
       {/* 🟢 HEADER ULTRA MODERNO (GLASSMORPHISM) */}
       <div className="shrink-0 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative z-20">
@@ -240,15 +243,43 @@ export default function EconomicsDashboard({ currentUser }: EconomicsDashboardPr
           <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] leading-none tracking-tight">Visão de Negócio</h2>
         </div>
 
-        <div className="flex flex-col items-end gap-3 w-full md:w-auto">
+        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
           {/* Barra de Busca Glass */}
-          <div className="relative w-full md:w-80 group">
+          <div className="relative w-full md:w-64 group">
             <div className="absolute inset-0 bg-white/40 backdrop-blur-xl rounded-2xl border border-white shadow-[0_4px_16px_rgba(0,0,0,0.04)] group-hover:shadow-[0_4px_24px_rgba(0,0,0,0.08)] transition-all -z-10"></div>
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[var(--color-atelier-terracota)] transition-colors" size={16} />
             <input 
-              type="text" placeholder="Buscar cliente ou agência..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-transparent py-3.5 pl-12 pr-4 text-[13px] font-bold outline-none text-[var(--color-atelier-grafite)] placeholder-gray-400"
+              type="text" placeholder="Buscar cliente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-transparent py-3 pl-12 pr-4 text-[12px] font-bold outline-none text-[var(--color-atelier-grafite)] placeholder-gray-400"
             />
+          </div>
+
+          {/* NAV HORIZONTAL COMPACTA E SOFISTICADA ALINHADA AO HEAD */}
+          <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0">
+            <button 
+              onClick={() => setActiveTab?.('pulse')} 
+              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'pulse' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+            >
+              <Activity size={13} /> Pulso Live
+            </button>
+            <button 
+              onClick={() => setActiveTab?.('demands')} 
+              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'demands' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+            >
+              <Layers size={13} /> Demandas
+            </button>
+            <button 
+              onClick={() => setActiveTab?.('workforce')} 
+              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'workforce' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+            >
+              <Users size={13} /> Equipe & RH
+            </button>
+            <button 
+              onClick={() => setActiveTab?.('economics')} 
+              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'economics' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+            >
+              <DollarSign size={13} /> Unit Economics
+            </button>
           </div>
         </div>
       </div>

@@ -147,7 +147,7 @@ export default function ExecutiveDashboard({ currentUser }: ExecutiveDashboardPr
   if (isLoading) return <div className="flex h-full items-center justify-center"><Loader2 size={40} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col h-full gap-6 overflow-hidden">
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col h-auto md:h-full gap-6 overflow-y-auto md:overflow-hidden">
       
       {/* HEADER C-LEVEL */}
       <header className="shrink-0 flex items-center justify-between border-b border-[var(--color-atelier-grafite)]/10 pb-4">

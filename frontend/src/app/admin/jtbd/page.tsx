@@ -1,7 +1,7 @@
-// src/app/admin/jtbd/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabase";
 import { AtelierPMEngine } from "../../../lib/AtelierPMEngine";
 import { CalendarEngine } from "../../../lib/CalendarEngine";
@@ -12,6 +12,9 @@ import { Loader2, Plus, Flame, User } from "lucide-react";
 import PersonalDesk from "./views/PersonalDesk";
 import CalendarWidget from "./views/CalendarWidget";
 import DailyKanban from "./views/DailyKanban";
+import JTBDMobileView from "./views/JTBDMobileView";
+import ClientSwitcherFAB from "./components/ClientSwitcherFAB";
+import TaskCard from "./components/TaskCard";
 import { format, addBusinessDays, isWeekend } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { syncTaskCompletionToTrello } from "../../../lib/trelloSync";
@@ -43,6 +46,11 @@ export default function JTBDPage() {
   const [isAdHocModalOpen, setIsAdHocModalOpen] = useState(false);
   const [adHocProcessing, setAdHocProcessing] = useState(false);
   const [adHocForm, setAdHocForm] = useState({ title: "", projectId: "", assigneeId: "", estTime: 60, deadline: "", description: "" });
+
+  // ⚡ Focus Mode & Client Switching States
+  const [focusMode, setFocusMode] = useState<'urgent' | 'monthly'>('urgent');
+  const [selectedClient, setSelectedClient] = useState<any | null>(null);
+  const [assignedClients, setAssignedClients] = useState<any[]>([]);
 
   // Lógica de Paginação da Semana (Offset)
   useEffect(() => {
@@ -89,6 +97,24 @@ export default function JTBDPage() {
     return () => window.removeEventListener("jtbdRefreshNeeded", handleAutoRefresh);
   }, []);
 
+  // Fetch assigned clients whenever viewingUserId changes
+  useEffect(() => {
+    if (!viewingUserId) return;
+    const fetchAssigned = async () => {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+      try {
+        const resAssigned = await fetch(`${backendUrl}/api/v1/focus/assigned-clients/${viewingUserId}`);
+        if (resAssigned.ok) {
+          const { data: clientsData } = await resAssigned.json();
+          setAssignedClients(clientsData || []);
+        }
+      } catch (cErr) {
+        console.warn("Failed to fetch assigned clients for FAB:", cErr);
+      }
+    };
+    fetchAssigned();
+  }, [viewingUserId]);
+
   const fetchJTBDData = async () => {
     setIsLoading(true);
     try {
@@ -102,7 +128,7 @@ export default function JTBDPage() {
       let teamData = [];
       if (profile.role === 'admin' || profile.role === 'gestor') {
         const { data: tData } = await supabase.from('profiles').select('*').in('role', ['admin', 'gestor', 'colaborador']).order('nome');
-        if (tData) teamData = tData;
+        if (tData) teamData = tData.filter((t: any) => t.status !== 'paused' && !t.is_paused);
         
         const { data: pData } = await supabase.from('projects').select('id, profiles(nome), type, client_id').eq('status', 'active');
         if (pData) setProjects(pData);
@@ -328,32 +354,53 @@ export default function JTBDPage() {
     }
   };
 
+  const [activeTaskModal, setActiveTaskModal] = useState<{task: any, isFocus: boolean, isReview: boolean, isCompleted: boolean} | null>(null);
+
   if (isLoading) return <div className="flex h-full min-h-[400px] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   const viewedUser = team.find(t => t.id === viewingUserId) || currentUser;
-  const allUserTasks = allTasks.filter(t => t.assigned_to === viewingUserId);
   
-  const displayedTasks = selectedDate 
+  // 🟢 INVARIÁVEL: Tarefas do colaborador ativo para métricas precisas (Eficiência % e Horas)
+  const userAllAssignedTasks = allTasks.filter(t => t.assigned_to === viewingUserId);
+
+  // Tasks assigned to viewed user or all tasks of selected client in monthly view
+  const allUserTasks = (focusMode === 'monthly' && selectedClient)
+    ? allTasks.filter(t => (selectedClient.type === 'project' ? t.project_id === selectedClient.id : t.subclient_id === selectedClient.id))
+    : userAllAssignedTasks;
+  
+  const now = new Date();
+  const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+
+  const displayedTasks = focusMode === 'urgent'
     ? allUserTasks.filter(t => {
-        if (!t.deadline) return false;
-        try {
-          const d = new Date(t.deadline);
-          if (isNaN(d.getTime())) return false;
-          return d.toISOString().split('T')[0] === selectedDate;
-        } catch {
-          return false;
+        if (selectedDate) {
+          if (!t.deadline) return false;
+          try {
+            const d = new Date(t.deadline);
+            return !isNaN(d.getTime()) && d.toISOString().split('T')[0] === selectedDate;
+          } catch {
+            return false;
+          }
         }
+        if (!t.deadline) return true; // Show un-deadlined tasks in urgent focus too
+        const deadlineDate = new Date(t.deadline);
+        return deadlineDate <= next24h || t.status === 'in_progress';
       })
-    : allUserTasks;
+    : allUserTasks.filter(t => {
+        if (selectedClient) {
+          if (selectedClient.type === 'project') return t.project_id === selectedClient.id;
+          if (selectedClient.type === 'subclient') return t.subclient_id === selectedClient.id;
+        }
+        return true;
+      });
 
   // 🟢 FILTROS DE COLUNAS
   const pendingTasks = displayedTasks.filter(t => t.status === 'pending');
   const inProgressTasks = displayedTasks.filter(t => t.status === 'in_progress');
   
-  // 🟢 MÁGICA VISUAL: Tarefas 'pending_client_approval' ficam ancoradas na coluna de revisão, mas o Kanban lidará com a desativação visual dos botões
+  // 🟢 MÁGICA VISUAL: Tarefas 'pending_client_approval' ficam ancoradas na coluna de revisão
   const reviewTasks = displayedTasks.filter(t => t.status === 'review');
   
-  const now = new Date();
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
@@ -366,23 +413,54 @@ export default function JTBDPage() {
     .sort((a, b) => {
       const dateA = a.completed_at ? new Date(a.completed_at).getTime() : (a.updated_at ? new Date(a.updated_at).getTime() : 0);
       const dateB = b.completed_at ? new Date(b.completed_at).getTime() : (b.updated_at ? new Date(b.updated_at).getTime() : 0);
-      return dateB - dateA; // Mais recentes primeiro
+      return dateB - dateA;
     });
 
   const isAdminOrManager = currentUser?.role === 'admin' || currentUser?.role === 'gestor';
   const isViewingSelf = viewingUserId === currentUser?.id;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1500px] mx-auto relative z-10 px-4 md:px-0">
+    <div className="flex flex-col h-[calc(100dvh-70px)] lg:h-[calc(100vh-60px)] max-w-[1500px] mx-auto relative z-10 px-4 overflow-hidden">
       
-      <div className="flex flex-col xl:flex-row gap-6 w-full mt-6 h-full flex-1 min-h-0">
+      {/* MOBILE VIEW (LG:HIDDEN) */}
+      <JTBDMobileView 
+        currentUser={currentUser}
+        viewedUser={viewedUser}
+        isViewingSelf={isViewingSelf}
+        allUserTasks={userAllAssignedTasks}
+        allTasks={allTasks}
+        assignedClients={assignedClients}
+        selectedClient={selectedClient}
+        onSelectClient={(client) => {
+          if (!client || selectedClient?.id === client?.id) {
+            setSelectedClient(null);
+            setFocusMode('urgent');
+          } else {
+            setSelectedClient(client);
+            setFocusMode('monthly');
+          }
+        }}
+        isAdminOrManager={isAdminOrManager}
+        onOpenTaskModal={(task, isFocus, isReview, isCompleted) => {
+          setActiveTaskModal({ 
+            task, 
+            isFocus: Boolean(isFocus || task?.status === 'in_progress'), 
+            isReview: Boolean(isReview || task?.status === 'review'), 
+            isCompleted: Boolean(isCompleted || task?.status === 'completed') 
+          });
+        }}
+        updateTaskStatus={updateTaskStatus}
+      />
+
+      {/* DESKTOP VIEW (HIDDEN LG:FLEX - COMPLETA E INTOCADA) */}
+      <div className="hidden lg:flex gap-6 w-full mt-6 h-full flex-1 min-h-0 overflow-hidden">
         
         {/* COLUNA ESQUERDA (SIDEBAR COMPACTA) */}
-        <div className="flex flex-col gap-6 w-full xl:w-[340px] shrink-0 h-full overflow-y-auto custom-scrollbar pr-2 pb-6">
+        <div className="flex flex-col gap-6 w-[340px] shrink-0 h-full overflow-y-auto custom-scrollbar pr-2 pb-6">
           <PersonalDesk 
             viewedUser={viewedUser}
             isViewingSelf={isViewingSelf}
-            allUserTasks={allUserTasks}
+            allUserTasks={userAllAssignedTasks}
           />
 
           <CalendarWidget 
@@ -391,12 +469,12 @@ export default function JTBDPage() {
             setWeekOffset={setWeekOffset}
             selectedDate={selectedDate}
             setSelectedDate={setSelectedDate}
-            allUserTasks={allUserTasks}
+            allUserTasks={userAllAssignedTasks}
           />
         </div>
 
         {/* COLUNA DIREITA (PAINEL PRINCIPAL KANBAN) */}
-        <div className="flex-1 flex flex-col h-full pb-6 relative z-10">
+        <div className="flex-1 flex flex-col h-full pb-6 relative z-10 overflow-hidden">
           <DailyKanban 
             pendingTasks={pendingTasks}
             inProgressTasks={inProgressTasks}
@@ -414,48 +492,74 @@ export default function JTBDPage() {
         </div>
       </div>
 
-      {/* BOTÃO FLUTUANTE (FAB) PARA COMANDOS */}
-      {isAdminOrManager && (
-        <div className="fixed bottom-8 right-8 z-50 flex flex-col-reverse items-end gap-3 group">
-          
-          {/* Botão Principal */}
-          <button className="w-14 h-14 bg-[var(--color-atelier-terracota)] rounded-full text-white shadow-xl flex items-center justify-center transition-transform hover:scale-105">
-            <Plus size={28} />
-          </button>
+      {/* RECYCLED FAB FOR ALL ROLES */}
+      <ClientSwitcherFAB 
+        userRole={currentUser?.role || 'colaborador'}
+        team={team}
+        assignedClients={assignedClients}
+        currentMode={focusMode}
+        selectedClient={selectedClient}
+        viewingUserId={viewingUserId}
+        onSelectUrgentView={() => {
+          setFocusMode('urgent');
+          setSelectedClient(null);
+        }}
+        onSelectClient={(client) => {
+          setSelectedClient(client);
+          setFocusMode('monthly');
+        }}
+        onSelectTeamMember={(userId) => {
+          setViewingUserId(userId);
+        }}
+        onOpenAdHocModal={() => setIsAdHocModalOpen(true)}
+      />
 
-          {/* Menu Oculto */}
-          <div className="flex flex-col-reverse items-end gap-3 opacity-0 translate-y-4 pointer-events-none group-hover:opacity-100 group-hover:translate-y-0 group-hover:pointer-events-auto transition-all duration-300 origin-bottom">
-            
-            {/* Atribuir Prioridade */}
-            <button 
-              onClick={() => setIsAdHocModalOpen(true)} 
-              className="flex items-center gap-2 bg-red-500 text-white px-5 py-3 rounded-full shadow-lg hover:bg-red-600 transition-colors font-bold text-sm"
+      {/* GLOBAL TASK CARD MODAL */}
+      <AnimatePresence>
+        {activeTaskModal && (
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center px-4">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              transition={{ duration: 0.3 }}
+              className="absolute inset-0 bg-black/60 backdrop-blur-md cursor-pointer"
+              onClick={() => setActiveTaskModal(null)}
+            />
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0, y: 40 }} 
+              animate={{ scale: 1, opacity: 1, y: 0 }} 
+              exit={{ scale: 0.9, opacity: 0, y: 40 }} 
+              transition={{ type: "spring", stiffness: 350, damping: 25 }}
+              className="relative z-10 w-full max-w-lg pointer-events-auto shadow-[0_30px_60px_rgba(0,0,0,0.4)] rounded-[2.5rem]"
             >
-               <span>Atribuir Prioridade</span> <Flame size={18} />
-            </button>
-            
-            {/* Divisor Visual */}
-            <div className="w-12 h-[1px] bg-gray-300 mr-2 my-1"></div>
-
-            {/* Avatares da Equipe */}
-            {team.map(user => (
-              <button 
-                key={user.id} 
-                onClick={() => setViewingUserId(user.id)} 
-                className={`flex items-center gap-3 px-4 py-2 rounded-full shadow-md transition-all border ${viewingUserId === user.id ? 'bg-[var(--color-atelier-grafite)] text-white border-[var(--color-atelier-grafite)]' : 'bg-white text-[var(--color-atelier-grafite)] border-white/50 hover:bg-gray-50 hover:scale-105'}`}
-              >
-                <span className="text-sm font-bold">{user.nome.split(" ")[0]}</span>
-                {user.avatar_url ? (
-                  <img src={user.avatar_url} className="w-7 h-7 rounded-full object-cover border border-white/20 shadow-inner" alt={user.nome} />
-                ) : (
-                  <div className="w-7 h-7 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 shadow-inner"><User size={14}/></div>
-                )}
-              </button>
-            ))}
+              <TaskCard 
+                task={activeTaskModal.task} 
+                isFocus={activeTaskModal.isFocus}
+                isReview={activeTaskModal.isReview}
+                isCompleted={activeTaskModal.isCompleted}
+                isAdmin={isAdminOrManager} 
+                onAction={(newStatus: string) => {
+                  updateTaskStatus(activeTaskModal.task, newStatus);
+                  setActiveTaskModal(null);
+                }} 
+                onReschedule={() => {
+                  handleReschedule(activeTaskModal.task);
+                  setActiveTaskModal(null);
+                }} 
+                isRescheduling={isRescheduling === activeTaskModal.task.id}
+                forceOpenModal={true} 
+                currentUser={currentUser}
+                onCloseModal={() => setActiveTaskModal(null)}
+                onRevert={(taskId) => {
+                  updateTaskStatus(activeTaskModal.task, 'review');
+                  setActiveTaskModal(null);
+                }}
+              />
+            </motion.div>
           </div>
-
-        </div>
-      )}
+        )}
+      </AnimatePresence>
 
       {/* MODAIS GLOBAIS */}
       <JTBDModals 

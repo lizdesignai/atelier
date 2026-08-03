@@ -5,7 +5,7 @@ import { supabase } from "../../../../lib/supabase";
 import { 
   FolderKanban, Briefcase, UserCircle2, MapPin, 
   Sparkles, Loader2, PlusCircle, Trash2, Save, 
-  Layers, CheckSquare, Square, Flame, Edit3, Check, X, 
+  Layers, CheckSquare, Square, Flame, Edit3, Check, X, Search,
   ArrowRight, Trello, ExternalLink, PanelRightClose, PanelRightOpen, ListTodo,
   AlertCircle, AlignLeft, MessageSquare, ChevronLeft, ChevronRight, FolderUp,
   ChevronDown, Paperclip, UploadCloud, FileText, Image as ImageIcon, Eye, Calendar, Download
@@ -47,6 +47,7 @@ interface ProjectsManagerProps {
   agencySubclients: any[];
   handleDeleteSubclient: (id: string) => void;
   handleUpdateSubclientDemand: (id: string, count: number) => void;
+  handleEditSubclient?: (id: string, updates: { name: string; deliverables_count: number; trello_url?: string }) => void;
   groupTasksByStage: (tasks: any[]) => Record<string, any[]>;
   isBulkMode: boolean;
   toggleTaskSelection: (id: string) => void;
@@ -334,6 +335,7 @@ export default function ProjectsManager({
   agencySubclients,
   handleDeleteSubclient,
   handleUpdateSubclientDemand,
+  handleEditSubclient,
   groupTasksByStage,
   isBulkMode,
   toggleTaskSelection,
@@ -343,13 +345,57 @@ export default function ProjectsManager({
   isIdvService,
   showToast,
   handleStartTask,
-  routingRules = [] 
+  routingRules = [],
+  mobileWidgetView = 'carteira',
+  setMobileWidgetView
 }: ProjectsManagerProps) {
 
   const [isAdHocModalOpen, setIsAdHocModalOpen] = useState(false);
   const [isSubclientModalOpen, setIsSubclientModalOpen] = useState(false);
   const [isCreatingSubclient, setIsCreatingSubclient] = useState(false);
   const [subclientForm, setSubclientForm] = useState({ name: "", count: 0, trello_url: "" });
+
+  const [editingSubclient, setEditingSubclient] = useState<any | null>(null);
+  const [editSubclientForm, setEditSubclientForm] = useState({ name: "", count: 1, trello_url: "" });
+
+  // Mobile Stacked Cards State
+  const [mobileExpandedClient, setMobileExpandedClient] = useState<any>(null);
+  const walletCarouselRef = useRef<HTMLDivElement>(null);
+  const [activeWalletIndex, setActiveWalletIndex] = useState(0);
+
+  const handleWalletScroll = () => {
+    if (walletCarouselRef.current) {
+      const scrollLeft = walletCarouselRef.current.scrollLeft;
+      const cardWidth = walletCarouselRef.current.firstElementChild?.clientWidth || 260;
+      const newIndex = Math.round(scrollLeft / (cardWidth + 16));
+      setActiveWalletIndex(newIndex);
+    }
+  };
+
+
+  const openEditSubclientModal = (sub: any) => {
+    setEditingSubclient(sub);
+    setEditSubclientForm({
+      name: sub.name || "",
+      count: sub.deliverables_count || 1,
+      trello_url: sub.trello_url || ""
+    });
+  };
+
+  const submitEditSubclient = async () => {
+    if (!editingSubclient || !editSubclientForm.name.trim()) {
+      showToast("O nome do cliente é obrigatório.");
+      return;
+    }
+    if (handleEditSubclient) {
+      await handleEditSubclient(editingSubclient.id, {
+        name: editSubclientForm.name,
+        deliverables_count: editSubclientForm.count,
+        trello_url: editSubclientForm.trello_url
+      });
+    }
+    setEditingSubclient(null);
+  };
 
   const [isTrelloModalOpen, setIsTrelloModalOpen] = useState(false);
   const [isTrelloInputOpen, setIsTrelloInputOpen] = useState(false);
@@ -424,6 +470,10 @@ export default function ProjectsManager({
   };
 
   const [walletSearch, setWalletSearch] = useState("");
+
+  useEffect(() => {
+    setActiveWalletIndex(0);
+  }, [walletSearch]);
   const [walletFilter, setWalletFilter] = useState<'all' | 'agency' | 'studio'>('all');
 
   const [isAssetsModalOpen, setIsAssetsModalOpen] = useState(false);
@@ -530,12 +580,12 @@ export default function ProjectsManager({
       return;
     }
 
-    const isSub = isSubclientView && displayData;
+    const isSub = isSubclientView && Boolean(displayData);
     const isAgency = selectedEntityType === 'agency';
     
     const projId = (!isSub && !isAgency) ? selectedEntityId : "";
-    const agId = isSub ? displayData.agency_id : (isAgency ? selectedEntityId : "");
-    const subId = isSub ? displayData.id : undefined;
+    const agId = isSub ? displayData?.agency_id : (isAgency ? selectedEntityId : "");
+    const subId = isSub ? displayData?.id : undefined;
 
     const payloadDemand = {
       ...adHocDemand,
@@ -622,11 +672,15 @@ export default function ProjectsManager({
   );
 
   return (
-    <motion.div key="projects" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col lg:flex-row gap-6 h-full overflow-hidden relative">
+    <>
+      {/* ==================================================== */}
+      {/* DESKTOP VIEW */}
+      {/* ==================================================== */}
+      <motion.div key="projects-desktop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="hidden lg:flex flex-col lg:flex-row gap-6 h-auto md:h-full overflow-y-auto md:overflow-hidden relative">
       
-      {/* SIDEBAR UNIFICADA */}
-      <div className="w-full lg:w-[320px] glass-panel bg-white/40 p-5 rounded-[2.5rem] border border-white shadow-sm flex flex-col h-[300px] lg:h-full shrink-0 transition-all hover:bg-white/50">
-        <div className="mb-4 pb-4 border-b border-[var(--color-atelier-grafite)]/10">
+      {/* SIDEBAR UNIFICADA (Filtro Horizontal no Mobile) */}
+      <div className="w-[100vw] -ml-4 px-4 lg:w-[320px] lg:ml-0 lg:px-0 lg:glass-panel lg:bg-white/40 lg:p-5 lg:rounded-[2.5rem] lg:border lg:border-white lg:shadow-sm flex flex-col h-auto lg:h-full shrink-0 transition-all lg:hover:bg-white/50 z-10">
+        <div className="hidden lg:block mb-4 pb-4 border-b border-[var(--color-atelier-grafite)]/10">
           <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 block mb-3">Carteira Unificada</span>
           
           <div className="flex items-center gap-2">
@@ -652,11 +706,11 @@ export default function ProjectsManager({
                   <button onClick={() => setWalletFilter('agency')} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors ${walletFilter === 'agency' ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-gray-600'}`}>Agências</button>
                   <button onClick={() => setWalletFilter('studio')} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors ${walletFilter === 'studio' ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-gray-600'}`}>Studio</button>
                </div>
-            </div>
+             </div>
           </div>
         </div>
         
-        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-1">
+        <div className="flex overflow-x-auto lg:overflow-y-auto custom-scrollbar flex-row lg:flex-col gap-3 pb-4 lg:pb-0 snap-x snap-mandatory lg:snap-none -mx-4 px-4 lg:mx-0 lg:px-0 pr-8 lg:pr-1 flex-1 lg:flex-auto min-h-0">
           {unifiedWallet.filter(item => {
              const matchesSearch = item.name?.toLowerCase().includes(walletSearch.toLowerCase());
              const matchesFilter = walletFilter === 'all' || 
@@ -669,10 +723,10 @@ export default function ProjectsManager({
               <button 
                   key={`${item.type}-${item.id}`} 
                   onClick={() => { setSelectedEntityId(item.id); setSelectedEntityType(item.type as any); setIsTrelloInputOpen(false); }} 
-                  className={`p-4 rounded-[1.2rem] text-left transition-all border ${selectedEntityId === item.id ? 'bg-white border-[var(--color-atelier-terracota)]/30 shadow-sm scale-[1.02]' : 'border-transparent hover:bg-white/50'}`}
+                  className={`shrink-0 snap-center lg:snap-align-none flex items-center gap-3 px-5 py-3 lg:p-5 rounded-full lg:rounded-[2rem] text-left transition-all duration-300 border ${selectedEntityId === item.id ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md lg:scale-[1.02]' : 'bg-white/80 lg:bg-transparent border-white/50 lg:border-transparent hover:bg-white hover:shadow-sm'}`}
               >
                 <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-xl flex items-center justify-center shadow-inner border border-white/50 overflow-hidden shrink-0 ${item.type === 'agency' ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-[var(--color-atelier-terracota)]'}`}>
+                  <div className={`w-8 h-8 rounded-full lg:rounded-xl flex items-center justify-center shadow-inner border border-white/50 overflow-hidden shrink-0 ${item.type === 'agency' ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-[var(--color-atelier-terracota)]'}`}>
                     {avatarUrl ? (
                       <img src={avatarUrl} alt={item.name} className="w-full h-full object-cover" />
                     ) : item.type === 'agency' ? (
@@ -681,9 +735,9 @@ export default function ProjectsManager({
                       <span className="font-elegant text-[14px] leading-none uppercase">{item.name?.charAt(0) || "U"}</span>
                     )}
                   </div>
-                  <div className="flex flex-col truncate">
-                    <span className={`font-roboto font-bold text-[13px] truncate transition-colors ${selectedEntityId === item.id ? 'text-[var(--color-atelier-grafite)]' : 'text-[var(--color-atelier-grafite)]/70'}`}>{item.name}</span>
-                    <span className={`text-[9px] uppercase font-bold tracking-widest ${item.type === 'agency' ? 'text-blue-500' : 'text-[var(--color-atelier-terracota)]/80'}`}>{item.label}</span>
+                  <div className="flex flex-col truncate pr-2">
+                    <span className={`font-roboto font-bold text-[12px] lg:text-[13px] truncate transition-colors ${selectedEntityId === item.id ? 'text-white' : 'text-[var(--color-atelier-grafite)]'}`}>{item.name}</span>
+                    <span className={`hidden lg:inline-block text-[9px] uppercase font-bold tracking-widest ${selectedEntityId === item.id ? 'text-white/80' : (item.type === 'agency' ? 'text-blue-500' : 'text-[var(--color-atelier-terracota)]/80')}`}>{item.label}</span>
                   </div>
                 </div>
               </button>
@@ -693,11 +747,12 @@ export default function ProjectsManager({
       </div>
 
       {/* PAINEL DINÂMICO DE GESTÃO */}
-      <div className="flex-1 glass-panel bg-white/80 p-8 flex flex-col rounded-[2.5rem] shadow-sm overflow-hidden h-full relative">
+      <div className={`flex-1 glass-panel bg-white/80 p-8 flex-col rounded-[2.5rem] shadow-sm overflow-hidden h-full relative ${mobileWidgetView === 'cliente' ? 'flex' : 'hidden lg:flex'}`}>
         {!selectedEntityId ? (
           <div className="flex-1 flex flex-col items-center justify-center opacity-40"><FolderKanban size={48} className="mb-4 text-[var(--color-atelier-terracota)]"/><p className="font-elegant text-3xl">Selecione um Cliente ou Agência</p></div>
         ) : (
           <>
+            {/* Botão Adicionar Demanda - DESKTOP */}
             <button 
               onClick={() => {
                 const isSub = isSubclientView && displayData;
@@ -723,7 +778,7 @@ export default function ProjectsManager({
                 });
                 setIsAdHocModalOpen(true);
               }}
-              className="absolute bottom-8 right-8 z-40 bg-[var(--color-atelier-grafite)] text-white w-14 h-14 rounded-full flex items-center justify-center shadow-[0_10px_25px_rgba(0,0,0,0.3)] hover:scale-110 hover:bg-[var(--color-atelier-terracota)] transition-all duration-300 group"
+              className="hidden md:flex absolute bottom-8 right-8 z-40 bg-[var(--color-atelier-grafite)] text-white w-14 h-14 rounded-full items-center justify-center shadow-[0_10px_25px_rgba(0,0,0,0.3)] hover:scale-110 hover:bg-[var(--color-atelier-terracota)] transition-all duration-300 group"
               title="Adicionar Demanda Pontual"
             >
               <PlusCircle size={24} className="group-hover:rotate-90 transition-transform duration-300" />
@@ -833,6 +888,28 @@ export default function ProjectsManager({
                  <button onClick={() => setIsCaptacaoModalOpen(true)} className="bg-[var(--color-atelier-grafite)] text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-sm hover:-translate-y-0.5">
                    <MapPin size={14} className="text-[var(--color-atelier-terracota)]"/> Agendar Captação
                  </button>
+                 {isSubclientView && displayData && (
+                    <>
+                      <button 
+                        onClick={() => openEditSubclientModal(displayData)}
+                        className="bg-white text-gray-700 border border-gray-200 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-gray-50 transition-all flex items-center gap-1.5 shadow-sm hover:-translate-y-0.5"
+                        title="Editar Perfil do Subcliente"
+                      >
+                        <Edit3 size={14} className="text-blue-600" /> Editar Subcliente
+                      </button>
+                      <button 
+                        onClick={() => {
+                          handleDeleteSubclient(displayData.id);
+                          setSelectedEntityType('agency');
+                          setSelectedEntityId(displayData.agency_id);
+                        }}
+                        className="bg-white text-red-600 border border-red-200 px-4 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 transition-all flex items-center gap-1.5 shadow-sm hover:-translate-y-0.5"
+                        title="Excluir Subcliente"
+                      >
+                        <Trash2 size={14} /> Excluir Subcliente
+                      </button>
+                    </>
+                  )}
                  {(selectedEntityType === 'project' || isSubclientView) && (
                    <button 
                      onClick={() => {
@@ -873,7 +950,10 @@ export default function ProjectsManager({
                                    {sub.name}
                                    {sub.trello_url && <span title="Conectado ao Trello" className="flex items-center"><Trello size={14} className="text-[#0079BF]" /></span>}
                                  </span>
-                                 <button onClick={() => handleDeleteSubclient(sub.id)} className="text-red-300 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"><Trash2 size={16}/></button>
+                                 <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <button onClick={() => openEditSubclientModal(sub)} title="Editar Subcliente" className="text-gray-400 hover:text-blue-600 transition-colors p-1"><Edit3 size={16}/></button>
+                                    <button onClick={() => handleDeleteSubclient(sub.id)} title="Excluir Subcliente" className="text-red-300 hover:text-red-500 transition-colors p-1"><Trash2 size={16}/></button>
+                                 </div>
                               </div>
                               <div className="flex items-center gap-4 bg-gray-50/50 p-4 rounded-xl border border-gray-100 z-10 relative">
                                  <div className="flex-1">
@@ -955,15 +1035,40 @@ export default function ProjectsManager({
         onClose={() => setIsAssetsModalOpen(false)}
         projectId={isSubclientView ? displayData?.agency_id : (selectedEntityType === 'project' || selectedEntityType === 'agency' ? displayData?.id : null)}
         subclientId={isSubclientView ? displayData?.id : null}
-        clientName={selectedEntityType === 'agency' || isSubclientView ? displayData?.name : displayData?.profiles?.nome}
+clientName={selectedEntityType === 'agency' || isSubclientView ? displayData?.name : displayData?.profiles?.nome}
       />
+
+      {/* Botão Mobile: Adicionar Demanda (Estilo Start Now da Imagem) */}
+      {selectedEntityId && (
+        <div className="md:hidden mt-auto pt-6 border-t border-[var(--color-atelier-grafite)]/5 shrink-0 z-20 pb-24">
+            <button 
+              onClick={() => {
+                const isSub = isSubclientView && displayData;
+                const isAgency = selectedEntityType === 'agency';
+                const projId = (!isSub && !isAgency) ? selectedEntityId : "";
+                const agId = isSub ? displayData.agency_id : (isAgency ? selectedEntityId : "");
+                const subId = isSub ? displayData.id : undefined;
+                
+                setAdHocDemand({ 
+                  ...adHocDemand, projectId: projId, agencyId: agId, subclientId: subId, 
+                  title: "", description: "", caption: "", assigneeId: "", taskType: "", 
+                  urgency: false, deadline: "", estTime: 0 
+                });
+                setIsAdHocModalOpen(true);
+              }}
+              className="w-full bg-[var(--color-atelier-terracota)] text-white py-4 rounded-full font-bold uppercase tracking-widest text-[12px] shadow-[0_10px_25px_rgba(0,0,0,0.2)] flex items-center justify-center gap-2 active:scale-95 transition-transform"
+            >
+              <PlusCircle size={18} /> Adicionar Demanda
+            </button>
+        </div>
+      )}
 
       {/* ==========================================
           MODAL GERAL: AD HOC DEMAND (Para projetos diretos sem trello)
           ========================================== */}
       <AnimatePresence>
         {isAdHocModalOpen && !isTrelloModalOpen && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center px-4 md:px-8 py-8">
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center px-4 md:px-8 py-8">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeAdHocModal} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
             <motion.div 
               initial={{ scale: 0.95, opacity: 0, y: 20 }} 
@@ -1557,8 +1662,410 @@ export default function ProjectsManager({
             </motion.div>
           </div>
         )}
+
+        {editingSubclient && (
+          <div className="fixed inset-0 z-[300] flex items-center justify-center px-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setEditingSubclient(null)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-blue-500/20 flex flex-col gap-6">
+              
+              <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
+                <div>
+                  <h3 className="font-elegant text-3xl text-blue-600 flex items-center gap-2"><Edit3 size={24} /> Editar Subcliente</h3>
+                  <p className="font-roboto text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Atualizar Dados do Perfil White-Label</p>
+                </div>
+                <button onClick={() => setEditingSubclient(null)} className="text-gray-400 hover:text-black transition-colors"><X size={20}/></button>
+              </div>
+              
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Nome do Cliente/Marca <span className="text-red-500">*</span></span>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: Marca X" 
+                    value={editSubclientForm.name} 
+                    onChange={(e) => setEditSubclientForm({...editSubclientForm, name: e.target.value})} 
+                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-blue-500 text-[var(--color-atelier-grafite)] font-medium transition-colors" 
+                  />
+                </div>
+                
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Volume Mensal Contratado (Posts)</span>
+                  <input 
+                    type="number" 
+                    placeholder="Ex: 12" 
+                    value={editSubclientForm.count || ""} 
+                    onChange={(e) => setEditSubclientForm({...editSubclientForm, count: parseInt(e.target.value) || 0})} 
+                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-blue-500 text-[var(--color-atelier-grafite)] font-medium transition-colors" 
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1.5">
+                    <Trello size={12}/> Link do Quadro Trello (Opcional)
+                  </span>
+                  <input 
+                    type="url" 
+                    placeholder="https://trello.com/b/..." 
+                    value={editSubclientForm.trello_url} 
+                    onChange={(e) => setEditSubclientForm({...editSubclientForm, trello_url: e.target.value})} 
+                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[#0079BF] focus:bg-[#0079BF]/5 text-[#0079BF] font-medium transition-colors placeholder:text-gray-400" 
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => setEditingSubclient(null)} 
+                  className="flex-1 bg-gray-100 text-gray-600 py-4 rounded-xl font-bold uppercase tracking-widest text-[11px] hover:bg-gray-200 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={submitEditSubclient} 
+                  disabled={!editSubclientForm.name.trim()} 
+                  className="flex-1 bg-blue-600 text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[11px] shadow-md hover:bg-blue-700 transition-all flex items-center justify-center gap-2 disabled:opacity-50 hover:-translate-y-0.5 disabled:hover:translate-y-0"
+                >
+                  <Save size={16}/> Salvar Alterações
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+      </motion.div>
+
+      {/* ==================================================== */}
+      {/* MOBILE VIEW (DA CARTEIRA PARA BAIXO INLINE) */}
+      {/* ==================================================== */}
+      <motion.div key="projects-mobile" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex lg:hidden flex-col w-full shrink-0">
+         
+         <div className="flex items-center justify-between w-full mb-2 px-0.5 shrink-0">
+            <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Carteira.</h2>
+            {!mobileExpandedClient && (
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-atelier-terracota)]" />
+                <input 
+                   type="text" 
+                   placeholder="Buscar cliente..." 
+                   value={walletSearch}
+                   onChange={(e) => setWalletSearch(e.target.value)}
+                   className="w-40 bg-white/80 border border-[var(--color-atelier-terracota)]/20 rounded-full py-1.5 pl-8 pr-3 text-[11px] outline-none shadow-sm text-[var(--color-atelier-grafite)] font-bold"
+                />
+              </div>
+            )}
+         </div>
+
+         <AnimatePresence mode="wait">
+           {mobileExpandedClient ? (
+             /* VISUALIZAÇÃO INLINE EXPANDIDA DO CLIENTE (DA CARTEIRA PARA BAIXO) */
+             <motion.div 
+               key="expanded-client-inline"
+               initial={{ opacity: 0, y: 15 }} 
+               animate={{ opacity: 1, y: 0 }} 
+               exit={{ opacity: 0, y: 15 }} 
+               className="w-full bg-white/90 backdrop-blur-md rounded-[2.2rem] border border-white p-4 flex flex-col gap-3 shrink-0"
+             >
+                {/* Header do Cliente com Botão Fechar */}
+                <div className="flex items-center justify-between pb-2 border-b border-gray-200/60 shrink-0">
+                   <div className="flex flex-col min-w-0 pr-2">
+                      <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">{mobileExpandedClient.label}</span>
+                      <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-tight truncate">{mobileExpandedClient.name || "White-Label"}</h3>
+                   </div>
+                   <button onClick={() => setMobileExpandedClient(null)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 active:scale-95 transition-transform shrink-0">
+                      <X size={16} />
+                   </button>
+                </div>
+
+                {/* Botões de Ação Rápida */}
+                <div className="grid grid-cols-2 gap-2 shrink-0">
+                   <button onClick={() => { setSelectedEntityId(mobileExpandedClient.id); setSelectedEntityType(mobileExpandedClient.type); setIsCaptacaoModalOpen(true); }} className="bg-[var(--color-atelier-terracota)] text-white py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 font-bold text-[10px] uppercase tracking-wider active:scale-95 transition-transform">
+                      <Calendar size={14} />
+                      <span>Reunião</span>
+                   </button>
+                   <button onClick={() => { setSelectedEntityId(mobileExpandedClient.id); setSelectedEntityType(mobileExpandedClient.type); setAdHocDemand({ title: "", taskType: "", assigneeId: "", urgency: false, deadline: "", estTime: 0 }); setIsAdHocModalOpen(true); }} className="bg-[var(--color-atelier-grafite)] text-white py-2.5 px-3 rounded-xl flex items-center justify-center gap-1.5 font-bold text-[10px] uppercase tracking-wider active:scale-95 transition-transform">
+                      <PlusCircle size={14} />
+                      <span>Nova Demanda</span>
+                   </button>
+                </div>
+
+                {/* Lista de Tarefas do Cliente */}
+                <div className="max-h-[200px] overflow-y-auto custom-scrollbar flex flex-col gap-2 pr-1 shrink-0">
+                   {tasks.filter(t => t.project_id === mobileExpandedClient.id || t.subclient_id === mobileExpandedClient.id || t.projects?.id === mobileExpandedClient.id).length === 0 ? (
+                      <div className="text-center py-6 flex flex-col items-center opacity-40">
+                         <FolderKanban size={24} className="mb-1 text-[var(--color-atelier-terracota)]" />
+                         <span className="text-[9px] uppercase font-bold tracking-widest">Sem tarefas ativas</span>
+                      </div>
+                   ) : (
+                      tasks.filter(t => t.project_id === mobileExpandedClient.id || t.subclient_id === mobileExpandedClient.id || t.projects?.id === mobileExpandedClient.id).map(task => (
+                         <div key={task.id} onClick={() => setEditingTask(task)} className="bg-white rounded-xl p-3 border border-gray-100 flex flex-col gap-2 cursor-pointer active:scale-[0.99] transition-transform">
+                            <div className="flex justify-between items-start gap-2">
+                               <span className="font-roboto font-bold text-[11px] text-[var(--color-atelier-grafite)] leading-tight">{task.title}</span>
+                               <div className="flex items-center gap-1 shrink-0 bg-gray-50 rounded-lg p-0.5 border border-gray-100" onClick={(e) => e.stopPropagation()}>
+                                 <button onClick={() => setEditingTask(task)} className="w-6 h-6 flex items-center justify-center text-gray-500 rounded-md active:bg-gray-200">
+                                   <Edit3 size={12} />
+                                 </button>
+                                 {task.status !== 'completed' && (
+                                   <button onClick={() => handleCompleteTask(task.id)} className="w-6 h-6 flex items-center justify-center text-green-600 rounded-md active:bg-green-100">
+                                     <Check size={12} strokeWidth={3} />
+                                   </button>
+                                 )}
+                               </div>
+                            </div>
+                            
+                            <div className="flex items-center justify-between pt-1.5 border-t border-gray-50">
+                               <span className="text-[9px] font-bold text-[var(--color-atelier-terracota)]">{new Date(task.deadline).toLocaleDateString('pt-BR')}</span>
+                               <div className="flex items-center gap-1">
+                                  <span className="text-[9px] font-bold text-gray-400">{task.profiles?.nome?.split(" ")[0] || "Livre"}</span>
+                                  <div className="w-4 h-4 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center">
+                                     {task.profiles?.avatar_url ? <img src={task.profiles.avatar_url} className="w-full h-full object-cover"/> : <UserCircle2 size={10} className="text-gray-400"/>}
+                                  </div>
+                               </div>
+                            </div>
+                         </div>
+                      ))
+                   )}
+                </div>
+             </motion.div>
+           ) : (
+             /* STACKED DECK CARDS (VERSÃO DINÂMICA EMPILHADA POR BAIXO) */
+             <motion.div key="stacked-deck-inline" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="flex flex-col items-center w-full shrink-0">
+               {(() => {
+                 const searchLower = walletSearch.trim().toLowerCase();
+                 const filteredWallet = unifiedWallet.filter(entity => {
+                    if (!searchLower) return true;
+                    const name = (entity.name || "").toLowerCase();
+                    const label = (entity.label || "").toLowerCase();
+                    return name.includes(searchLower) || label.includes(searchLower);
+                 });
+                 
+                 return (
+                   <div className="flex flex-col items-center w-full shrink-0">
+                     {/* STACK CONTAINER */}
+                     <div className="relative w-full h-[240px] flex items-center justify-center my-1">
+                       {filteredWallet.map((entity, idx) => {
+                          const offset = idx - activeWalletIndex;
+                          if (offset < 0 || offset > 2) return null;
+
+                          const clientName = entity.name || "White-Label";
+                          const avatarUrl = entity.avatar_url;
+                          const clientTasksCount = tasks.filter(t => t.project_id === entity.id || t.subclient_id === entity.id || t.projects?.id === entity.id).length;
+                          
+                          const isTop = offset === 0;
+
+                          return (
+                            <motion.div 
+                              key={entity.id} 
+                              initial={false}
+                              animate={{ 
+                                scale: isTop ? 1 : offset === 1 ? 0.94 : 0.88,
+                                y: offset * 14,
+                                opacity: isTop ? 1 : offset === 1 ? 0.75 : 0.4,
+                                zIndex: 30 - offset * 10
+                              }}
+                              transition={{ type: "spring", stiffness: 350, damping: 25 }}
+                              onClick={() => {
+                                if (isTop) {
+                                  setMobileExpandedClient(entity);
+                                } else {
+                                  setActiveWalletIndex(idx);
+                                }
+                              }}
+                              className={`absolute w-full h-[220px] rounded-[2.2rem] overflow-hidden border flex flex-col justify-between p-5 cursor-pointer active:scale-95 transition-transform ${isTop ? 'border-white/60' : 'border-white/30'}`}
+                            >
+                              {/* Background Image or Atelier Gradient */}
+                              {avatarUrl ? (
+                                 <img src={avatarUrl} alt={clientName} className="absolute inset-0 w-full h-full object-cover" />
+                              ) : (
+                                 <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-[var(--color-atelier-terracota)] via-[#6E3827] to-[var(--color-atelier-grafite)]" />
+                              )}
+                              
+                              {/* Elegant Atelier Grafite Sophisticated Overlay */}
+                              <div className="absolute inset-0 bg-gradient-to-t from-[var(--color-atelier-grafite)]/90 via-[var(--color-atelier-grafite)]/40 to-transparent" />
+                              
+                              {/* Top Badges */}
+                              <div className="relative z-10 flex items-center justify-between w-full">
+                                 <span className="bg-white/20 backdrop-blur-md text-white border border-white/30 text-[9px] font-bold uppercase tracking-widest px-3 py-1 rounded-full">
+                                    {entity.label}
+                                 </span>
+                                 <span className="bg-[var(--color-atelier-terracota)] text-white text-[10px] font-bold px-3 py-1 rounded-full">
+                                    {clientTasksCount} {clientTasksCount === 1 ? 'Tarefa' : 'Tarefas'}
+                                 </span>
+                              </div>
+
+                              {/* Bottom Content */}
+                              <div className="relative z-10 text-white flex flex-col gap-2.5">
+                                <div className="flex flex-col">
+                                  <span className="text-[9px] uppercase font-bold tracking-widest text-white/60 mb-0.5">Cliente / Marca</span>
+                                  <h3 className="font-elegant text-3xl leading-tight truncate">{clientName}</h3>
+                                </div>
+                                
+                                {isTop && (
+                                  <div className="bg-white/95 text-[var(--color-atelier-grafite)] w-full py-2.5 rounded-xl flex items-center justify-center gap-2 font-bold text-[10px] uppercase tracking-wider backdrop-blur-sm">
+                                    <span>Ver Detalhes</span>
+                                    <FolderKanban size={14} className="text-[var(--color-atelier-terracota)]" />
+                                  </div>
+                                )}
+                              </div>
+                            </motion.div>
+                          )
+                       })}
+
+                       {filteredWallet.length === 0 && (
+                          <div className="w-full text-center py-12 bg-white/40 rounded-3xl text-gray-400 text-xs font-bold uppercase tracking-widest">
+                             Nenhum cliente encontrado
+                          </div>
+                       )}
+                     </div>
+
+                     {/* NAV CONTROLS BELOW STACKED DECK */}
+                     {filteredWallet.length > 1 && (
+                       <div className="flex items-center justify-center gap-3 mt-3 shrink-0 z-40">
+                         <button 
+                           onClick={() => setActiveWalletIndex(prev => Math.max(0, prev - 1))}
+                           disabled={activeWalletIndex === 0}
+                           className="w-8 h-8 rounded-full bg-white/80 border border-white flex items-center justify-center text-[var(--color-atelier-grafite)] disabled:opacity-30 active:scale-90 transition-transform"
+                         >
+                           <ChevronLeft size={16} />
+                         </button>
+
+                         <div className="flex items-center gap-1.5">
+                           {filteredWallet.map((_, i) => (
+                             <button
+                               key={i}
+                               onClick={() => setActiveWalletIndex(i)}
+                               className={`h-1.5 rounded-full transition-all duration-300 ${i === activeWalletIndex ? 'w-5 bg-[var(--color-atelier-terracota)]' : 'w-1.5 bg-[var(--color-atelier-grafite)]/20'}`} 
+                             />
+                           ))}
+                         </div>
+
+                         <button 
+                           onClick={() => setActiveWalletIndex(prev => Math.min(filteredWallet.length - 1, prev + 1))}
+                           disabled={activeWalletIndex === filteredWallet.length - 1}
+                           className="w-8 h-8 rounded-full bg-white/80 border border-white flex items-center justify-center text-[var(--color-atelier-grafite)] disabled:opacity-30 active:scale-90 transition-transform"
+                         >
+                           <ChevronRight size={16} />
+                         </button>
+                       </div>
+                     )}
+                   </div>
+                 );
+               })()}
+             </motion.div>
+           )}
+         </AnimatePresence>
+      </motion.div>
+
+      {/* ==========================================
+          MODAL GERAL: AD HOC DEMAND (GLOBAL COM Z-INDEX ELEVADO)
+          ========================================== */}
+      <AnimatePresence>
+        {isAdHocModalOpen && !isTrelloModalOpen && (
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center px-4 md:px-8 py-8">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeAdHocModal} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div 
+              initial={{ scale: 0.95, opacity: 0, y: 20 }} 
+              animate={{ scale: 1, opacity: 1, y: 0 }} 
+              exit={{ scale: 0.95, opacity: 0, y: 20 }} 
+              transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-white/20 flex flex-col gap-6"
+            >
+              <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-2 shrink-0">
+                <div>
+                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
+                    <Flame size={24} className="text-[var(--color-atelier-terracota)]"/> Demanda Pontual
+                  </h3>
+                  <p className="font-roboto text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Lançar no Fluxo com Distribuição Inteligente</p>
+                </div>
+                <button onClick={closeAdHocModal} className="text-gray-400 hover:text-black transition-colors"><X size={20}/></button>
+              </div>
+              
+              <div className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Projeto / Cliente Alvo</span>
+                  <div className="w-full bg-gray-100 border border-gray-200 rounded-xl p-3.5 text-xs text-[var(--color-atelier-grafite)] font-bold">
+                    {displayData?.name || displayData?.profiles?.nome || "Cliente Selecionado"} ({isSubclientView ? 'Marca White-Label' : 'Projeto'})
+                  </div>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Título da Demanda <span className="text-red-500">*</span></span>
+                  <input 
+                    type="text" 
+                    placeholder="Ex: Criar carrossel sobre lançamento..." 
+                    value={adHocDemand.title} 
+                    onChange={(e) => setAdHocDemand({...adHocDemand, title: e.target.value})} 
+                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium transition-colors" 
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Tipo de Tarefa / Etapa</span>
+                  <select 
+                    value={adHocDemand.taskType} 
+                    onChange={(e) => setAdHocDemand({...adHocDemand, taskType: e.target.value})} 
+                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium transition-colors cursor-pointer"
+                  >
+                    <option value="">Selecione a etapa...</option>
+                    {routingRules && routingRules.length > 0 ? (
+                      routingRules.map(r => (
+                        <option key={r.id} value={r.task_type}>{r.task_type}</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="Copywriting">Copywriting</option>
+                        <option value="Design">Design</option>
+                        <option value="Revisão">Revisão</option>
+                        <option value="Agendamento">Agendamento</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Atribuir a Colaborador</span>
+                  <select 
+                    value={adHocDemand.assigneeId} 
+                    onChange={(e) => setAdHocDemand({...adHocDemand, assigneeId: e.target.value})} 
+                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium transition-colors cursor-pointer"
+                  >
+                    <option value="">Atribuição Automática (Roteador de Regras)</option>
+                    {team.map(collab => (
+                      <option key={collab.id} value={collab.id}>{collab.name || collab.nome}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="flex flex-col gap-1.5">
+                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Data e Hora do Prazo Final <span className="text-red-500">*</span></span>
+                  <input 
+                    type="datetime-local" 
+                    value={formatForDateTimeLocal(adHocDemand.deadline)} 
+                    onChange={(e) => setAdHocDemand({...adHocDemand, deadline: parseFromDateTimeLocal(e.target.value)})} 
+                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium transition-colors" 
+                  />
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2 shrink-0">
+                <button 
+                  onClick={closeAdHocModal} 
+                  className="flex-1 bg-gray-100 text-gray-600 py-3.5 rounded-xl font-bold uppercase tracking-widest text-[11px] hover:bg-gray-200 transition-all"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  onClick={() => { handleAddAdHocDemand(); closeAdHocModal(); }} 
+                  disabled={!adHocDemand.title.trim()} 
+                  className="flex-1 bg-[var(--color-atelier-terracota)] text-white py-3.5 rounded-xl font-bold uppercase tracking-widest text-[11px] shadow-md hover:bg-[#b05c42] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                >
+                  <Save size={16}/> Lançar Demanda
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
       </AnimatePresence>
 
-    </motion.div>
+    </>
   );
 }

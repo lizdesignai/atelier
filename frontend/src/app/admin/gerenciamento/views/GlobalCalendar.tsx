@@ -429,9 +429,9 @@ export default function GlobalCalendar({ activeProjectId, activeSubclientId, cur
           ========================================== */}
       <AnimatePresence>
         {isUploadModalOpen && (
-          <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-0 md:p-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsUploadModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-white/20 flex flex-col gap-6">
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-4 md:p-8 rounded-none md:rounded-[2.5rem] shadow-2xl relative z-10 w-full h-full md:h-auto md:max-w-md border border-white/20 flex flex-col gap-6">
               
               <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <div>

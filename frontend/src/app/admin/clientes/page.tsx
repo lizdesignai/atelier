@@ -19,6 +19,7 @@ import dynamic from "next/dynamic";
 
 const ConsultoriaModal = dynamic(() => import("./views/Consultoria"), { ssr: false });
 const ClientSettingsModal = dynamic(() => import("./views/ClientSettingsModal"), { ssr: false });
+const NovoClienteModal = dynamic(() => import("./views/NovoClienteModal"), { ssr: false });
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -50,6 +51,9 @@ export default function BaseClientesPage() {
 
   const [isNewClientModalOpen, setIsNewClientModalOpen] = useState(false);
   const [isConsultoriaModalOpen, setIsConsultoriaModalOpen] = useState(false); 
+  const [isNovoClienteModalOpen, setIsNovoClienteModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   
   const [isClientSettingsModalOpen, setIsClientSettingsModalOpen] = useState(false);
@@ -396,22 +400,22 @@ export default function BaseClientesPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6 overflow-hidden">
+    <div className="flex flex-col h-[calc(100dvh-100px)] md:h-full max-w-[1400px] mx-auto relative z-10 pb-4 gap-4 md:gap-6 overflow-hidden">
       
       <header className="shrink-0 flex flex-col gap-6 animate-[fadeInUp_0.5s_ease-out]">
-        <div className="flex justify-end items-end mt-6">
-
+        {/* DESKTOP HEADER (INTOCADO) */}
+        <div className="hidden md:flex justify-end items-end mt-6">
           <div className="flex items-center gap-3">
             <button 
               onClick={() => setIsConsultoriaModalOpen(true)}
-              className="bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] px-6 py-3.5 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)] transition-all shadow-sm items-center gap-2 hidden md:flex"
+              className="bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] px-6 py-3.5 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)] transition-all shadow-sm flex items-center gap-2"
             >
               <FileSearch size={16} className="text-[var(--color-atelier-terracota)]" /> Análise Estratégica
             </button>
 
             <button 
               onClick={() => setIsAgencyModalOpen(true)}
-              className="bg-white/40 border border-white text-[var(--color-atelier-grafite)] px-6 py-3.5 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] hover:bg-white transition-all shadow-sm flex items-center gap-2 hidden md:flex"
+              className="bg-white/40 border border-white text-[var(--color-atelier-grafite)] px-6 py-3.5 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] hover:bg-white transition-all shadow-sm flex items-center gap-2"
             >
               <Briefcase size={16} /> Nova Agência Parceira
             </button>
@@ -424,23 +428,113 @@ export default function BaseClientesPage() {
           </div>
         </div>
 
-        <div className="md:hidden flex flex-col gap-2">
-          <button 
-            onClick={() => setIsConsultoriaModalOpen(true)}
-            className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] py-3 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 shadow-sm"
-          >
-            <FileSearch size={16} className="text-[var(--color-atelier-terracota)]" /> Análise Estratégica
-          </button>
-          <button 
-            onClick={() => setIsAgencyModalOpen(true)}
-            className="w-full bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] py-3 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] flex items-center justify-center gap-2 shadow-sm"
-          >
-            <Briefcase size={16} /> Nova Agência Parceira
-          </button>
+        {/* MOBILE HEADER (NOVO) */}
+        <div className="md:hidden flex flex-col gap-4 mt-2">
+          {/* H1 e Options */}
+          <div className="flex items-center justify-between">
+            <h1 className="font-elegant text-3xl font-bold text-[var(--color-atelier-grafite)] tracking-tight">Clientes</h1>
+            <div className="relative">
+              <button 
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="w-10 h-10 rounded-full bg-white/60 border border-white flex items-center justify-center text-[var(--color-atelier-grafite)] shadow-sm active:scale-95 transition-transform"
+              >
+                <MoreVertical size={20} />
+              </button>
+
+              <AnimatePresence>
+                {isMobileMenuOpen && (
+                  <>
+                    <motion.div 
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      className="fixed inset-0 z-40 bg-black/10"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                    />
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                      className="absolute right-0 top-12 w-56 bg-white/90 backdrop-blur-xl border border-white shadow-xl rounded-2xl overflow-hidden z-50 flex flex-col"
+                    >
+                      <button 
+                        onClick={() => { setIsNewClientModalOpen(true); setIsMobileMenuOpen(false); }}
+                        className="flex items-center gap-3 px-4 py-3.5 text-xs font-bold text-[var(--color-atelier-grafite)] hover:bg-white text-left border-b border-gray-100/50 transition-colors"
+                      >
+                        <Plus size={16} className="text-[var(--color-atelier-terracota)]" /> Novo Contrato
+                      </button>
+                      <button 
+                        onClick={() => { setIsAgencyModalOpen(true); setIsMobileMenuOpen(false); }}
+                        className="flex items-center gap-3 px-4 py-3.5 text-xs font-bold text-[var(--color-atelier-grafite)] hover:bg-white text-left border-b border-gray-100/50 transition-colors"
+                      >
+                        <Briefcase size={16} className="text-gray-400" /> Nova Agência Parceira
+                      </button>
+                      <button 
+                        onClick={() => { setIsNovoClienteModalOpen(true); setIsMobileMenuOpen(false); }}
+                        className="flex items-center gap-3 px-4 py-3.5 text-xs font-bold text-[var(--color-atelier-grafite)] hover:bg-white text-left transition-colors"
+                      >
+                        <User size={16} className="text-gray-400" /> Novo Cliente
+                      </button>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* Search e Filtro Mobile */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1 group/search">
+              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within/search:text-[var(--color-atelier-terracota)] transition-colors" />
+              <input 
+                type="text" 
+                placeholder="Pesquisar cliente..." 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-white/60 border border-transparent focus:bg-white focus:border-[var(--color-atelier-terracota)]/30 rounded-2xl py-3 pl-11 pr-4 text-xs font-bold text-[var(--color-atelier-grafite)] outline-none transition-all shadow-sm placeholder:text-gray-400"
+              />
+            </div>
+            
+            <div className="relative">
+              <button 
+                onClick={() => setIsMobileFilterOpen(!isMobileFilterOpen)}
+                className={`w-11 h-11 rounded-2xl border flex items-center justify-center shadow-sm active:scale-95 transition-all ${filterStatus !== 'all' ? 'bg-[var(--color-atelier-grafite)] text-white border-[var(--color-atelier-grafite)]' : 'bg-white/60 text-[var(--color-atelier-grafite)] border-white'}`}
+              >
+                <Filter size={18} />
+                {filterStatus !== 'all' && (
+                  <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[var(--color-atelier-terracota)] border-2 border-white"></span>
+                )}
+              </button>
+
+              <AnimatePresence>
+                {isMobileFilterOpen && (
+                  <>
+                    <motion.div 
+                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                      className="fixed inset-0 z-40 bg-black/10"
+                      onClick={() => setIsMobileFilterOpen(false)}
+                    />
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.95, y: -10 }}
+                      animate={{ opacity: 1, scale: 1, y: 0 }}
+                      exit={{ opacity: 0, scale: 0.95, y: -10 }}
+                      className="absolute right-0 top-14 w-52 bg-white/90 backdrop-blur-xl border border-white shadow-xl rounded-2xl overflow-hidden z-50 flex flex-col p-2 gap-1"
+                    >
+                      <button onClick={() => { setFilterStatus('all'); setIsMobileFilterOpen(false); }} className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${filterStatus === 'all' ? 'bg-[var(--color-atelier-grafite)] text-white' : 'text-gray-600 hover:bg-white'}`}>Todos {filterStatus === 'all' && <CheckCircle2 size={14}/>}</button>
+                      <button onClick={() => { setFilterStatus('lead'); setIsMobileFilterOpen(false); }} className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${filterStatus === 'lead' ? 'bg-[var(--color-atelier-grafite)] text-white' : 'text-gray-600 hover:bg-white'}`}>Leads {filterStatus === 'lead' && <CheckCircle2 size={14}/>}</button>
+                      <button onClick={() => { setFilterStatus('agency'); setIsMobileFilterOpen(false); }} className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${filterStatus === 'agency' ? 'bg-[var(--color-atelier-grafite)] text-white' : 'text-gray-600 hover:bg-white'}`}>Agências (B2B) {filterStatus === 'agency' && <CheckCircle2 size={14}/>}</button>
+                      <button onClick={() => { setFilterStatus('active'); setIsMobileFilterOpen(false); }} className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${filterStatus === 'active' ? 'bg-[var(--color-atelier-grafite)] text-white' : 'text-gray-600 hover:bg-white'}`}>Ativos {filterStatus === 'active' && <CheckCircle2 size={14}/>}</button>
+                      <button onClick={() => { setFilterStatus('pending'); setIsMobileFilterOpen(false); }} className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${filterStatus === 'pending' ? 'bg-[var(--color-atelier-grafite)] text-white' : 'text-gray-600 hover:bg-white'}`}>Pendentes {filterStatus === 'pending' && <CheckCircle2 size={14}/>}</button>
+                      <button onClick={() => { setFilterStatus('archived'); setIsMobileFilterOpen(false); }} className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${filterStatus === 'archived' ? 'bg-[var(--color-atelier-grafite)] text-white' : 'text-gray-600 hover:bg-white'}`}>Arquivados {filterStatus === 'archived' && <CheckCircle2 size={14}/>}</button>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
         </div>
 
-        <div className="glass-panel p-2 rounded-2xl flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="relative w-full md:w-[350px] group/search">
+        {/* DESKTOP SEARCH E FILTROS (INTOCADO) */}
+        <div className="hidden md:flex glass-panel p-2 rounded-2xl flex-row justify-between items-center gap-4">
+          <div className="relative w-[350px] group/search">
             <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-atelier-grafite)]/40 group-focus-within/search:text-[var(--color-atelier-terracota)] transition-colors" />
             <input 
               type="text" 
@@ -451,7 +545,7 @@ export default function BaseClientesPage() {
             />
           </div>
 
-          <div className="flex items-center gap-2 w-full md:w-auto overflow-x-auto custom-scrollbar pb-1 md:pb-0 px-1">
+          <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar px-1">
             <FilterButton label="Todos" active={filterStatus === 'all'} onClick={() => setFilterStatus('all')} />
             <FilterButton label="Leads" active={filterStatus === 'lead'} onClick={() => setFilterStatus('lead')} />
             <FilterButton label="Agências (B2B)" active={filterStatus === 'agency'} onClick={() => setFilterStatus('agency')} />
@@ -464,7 +558,7 @@ export default function BaseClientesPage() {
 
       <div className="flex-1 glass-panel flex flex-col overflow-hidden shadow-sm animate-[fadeInUp_0.8s_ease-out_0.2s_both]">
         
-        <div className="grid grid-cols-12 gap-4 px-8 py-5 border-b border-[var(--color-atelier-grafite)]/10 bg-white/40 shrink-0">
+        <div className="hidden md:grid grid-cols-12 gap-4 px-8 py-5 border-b border-[var(--color-atelier-grafite)]/10 bg-white/40 shrink-0">
           <div className="col-span-4 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Identificação</div>
           <div className="col-span-3 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Status de Operação</div>
           <div className="col-span-3 font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">Progresso / Origem</div>
@@ -486,7 +580,7 @@ export default function BaseClientesPage() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ duration: 0.4, delay: index * 0.05 }}
-                  className="grid grid-cols-12 gap-4 px-4 py-4 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 hover:border-[var(--color-atelier-terracota)]/30 hover:bg-white hover:shadow-sm transition-all items-center group cursor-pointer"
+                  className="flex flex-col md:grid md:grid-cols-12 gap-4 px-4 py-4 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 hover:border-[var(--color-atelier-terracota)]/30 hover:bg-white hover:shadow-sm transition-all md:items-center group cursor-pointer relative"
                   onClick={(e) => {
                     if (openMenuId === project.id) return;
                     if (project.isLead || project.isAgency) {
@@ -506,7 +600,7 @@ export default function BaseClientesPage() {
                 >
                   
                   {/* 1. Avatar e Identificação */}
-                  <div className="col-span-4 flex items-center gap-4">
+                  <div className="md:col-span-4 flex items-center gap-4">
                     <div className={`w-12 h-12 rounded-2xl border flex items-center justify-center shrink-0 shadow-inner group-hover:scale-105 transition-transform overflow-hidden font-elegant text-2xl
                       ${project.isLead ? 'bg-purple-50 text-purple-600 border-purple-200' : project.isAgency ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)] border-[var(--color-atelier-terracota)]/20'}
                     `}>
@@ -539,7 +633,7 @@ export default function BaseClientesPage() {
                   </div>
 
                   {/* 2. Status */}
-                  <div className="col-span-3 flex flex-col justify-center items-start gap-2">
+                  <div className="md:col-span-3 flex flex-col justify-center items-start gap-2">
                     {project.isLead ? (
                       <StatusBadge icon={User} text="Potencial Cliente" color="gray" />
                     ) : project.isAgency ? (
@@ -559,7 +653,7 @@ export default function BaseClientesPage() {
                   </div>
 
                   {/* 3. Escopo e Progresso */}
-                  <div className="col-span-3 flex flex-col justify-center pr-8">
+                  <div className="md:col-span-3 flex flex-col justify-center md:pr-8">
                     {project.isLead ? (
                       <div className="flex flex-col gap-1">
                         <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-purple-500/70 truncate mr-2">
@@ -606,7 +700,7 @@ export default function BaseClientesPage() {
                   </div>
 
                   {/* 4. Ações (Botões Funcionais) */}
-                  <div className="col-span-2 flex justify-end items-center gap-3 relative">
+                  <div className="md:col-span-2 flex justify-between md:justify-end items-center gap-3 relative mt-2 md:mt-0 pt-4 md:pt-0 border-t border-[var(--color-atelier-grafite)]/10 md:border-transparent">
                     
                     {/* Botão de Trello Rápido (Se for agência e tiver Trello) */}
                     {project.isAgency && project.trello_url && (
@@ -1188,6 +1282,14 @@ export default function BaseClientesPage() {
         clientProfile={clientToEdit}
       />
 
+      {/* 🟢 MODAL DE NOVO CLIENTE */}
+      <NovoClienteModal 
+        isOpen={isNovoClienteModalOpen}
+        onClose={() => setIsNovoClienteModalOpen(false)}
+        onSuccess={() => {
+          refreshGlobalData();
+        }}
+      />
     </div>
   );
 }

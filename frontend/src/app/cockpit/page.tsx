@@ -317,7 +317,7 @@ export default function CockpitPage() {
   if (project.type === 'Gestão de Instagram' || project.service_type === 'Gestão de Instagram') {
     
     return (
-      <div className="flex flex-col h-[calc(100vh-60px)] max-w-[1500px] w-full mx-auto relative z-10 p-6 md:p-8 overflow-hidden gap-6">
+      <div className="flex flex-col h-auto min-h-[calc(100dvh-60px)] md:h-[calc(100vh-60px)] max-w-[1500px] w-full mx-auto relative z-10 p-4 md:p-8 overflow-x-hidden md:overflow-hidden gap-6">
         
         {/* CABEÇALHO COMPACTO E LIMPO */}
         <header className="animate-[fadeInUp_0.5s_ease-out] flex justify-between items-center shrink-0">
@@ -344,7 +344,7 @@ export default function CockpitPage() {
         <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0">
           
           {/* COLUNA ESQUERDA: AÇÕES EXIGIDAS E LINKS RÁPIDOS */}
-          <div className="w-full lg:w-[380px] flex flex-col gap-6 shrink-0 h-full">
+          <div className="w-full lg:w-[380px] flex flex-col gap-6 shrink-0 h-auto md:h-full">
             
             {/* Bloco de Avisos Importantes (Briefing e Arquivos) */}
             {(!briefing || pendingMissions > 0) && (
@@ -415,7 +415,7 @@ export default function CockpitPage() {
           </div>
 
           {/* COLUNA DIREITA: O CARROSSEL (ESTÚDIO DE APROVAÇÃO) */}
-          <div className="flex-1 glass-panel bg-white/70 rounded-[3rem] border border-white shadow-sm flex flex-col overflow-hidden relative min-h-0 transition-colors hover:bg-white/85">
+          <div className="flex-1 glass-panel bg-white/70 rounded-[3rem] border border-white shadow-sm flex flex-col overflow-hidden relative min-h-[600px] md:min-h-0 h-[600px] md:h-auto transition-colors hover:bg-white/85">
             
             {/* 1. SE EXISTIREM PEÇAS GRÁFICAS */}
             {allPosts.length > 0 ? (

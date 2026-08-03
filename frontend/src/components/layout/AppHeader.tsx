@@ -113,7 +113,7 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
 
   return (
     // Reduzida a altura do header invisível de h-24 para h-14, com menos padding
-    <header className="absolute top-0 left-0 w-full h-14 flex items-start justify-end px-6 z-40 pointer-events-none">
+    <header className="hidden md:flex absolute top-0 left-0 w-full h-14 items-start justify-end px-6 z-40 pointer-events-none">
       
       <div className="relative mt-4" ref={dropdownRef}>
         
@@ -167,7 +167,7 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
               animate={{ opacity: 1, y: 8, scale: 1 }} 
               exit={{ opacity: 0, y: -5, scale: 0.98 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className="absolute right-0 top-full w-[320px] bg-white/90 backdrop-blur-2xl border border-white/40 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col z-50 pointer-events-auto"
+              className="absolute right-0 top-full w-[calc(100vw-2rem)] max-w-[320px] md:w-[320px] bg-white/90 backdrop-blur-2xl border border-white/40 rounded-[2rem] shadow-[0_20px_40px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col z-50 pointer-events-auto"
             >
               <div className="px-5 py-4 border-b border-[var(--color-atelier-grafite)]/5 flex justify-between items-center bg-gray-50/50">
                 <h3 className="font-elegant text-lg text-[var(--color-atelier-grafite)] leading-none">Notificações</h3>
