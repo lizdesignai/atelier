@@ -1138,19 +1138,19 @@ export default function AnalyticsPage() {
           )}
 
           {activeView === 'produtividade' && (
-            <motion.div key="produtividade" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-auto md:h-full md:absolute md:inset-0 overflow-y-auto md:overflow-hidden">
+            <motion.div key="produtividade" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-full absolute inset-0 overflow-y-auto md:overflow-hidden">
               <ProdutividadePage />
             </motion.div>
           )}
 
           {activeView === 'clientes' && (
-            <motion.div key="clientes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-auto md:h-full md:absolute md:inset-0 overflow-y-auto md:overflow-hidden">
+            <motion.div key="clientes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-full absolute inset-0 overflow-y-auto md:overflow-hidden">
               <ClientesPage />
             </motion.div>
           )}
 
           {activeView === 'financeiro' && (
-            <motion.div key="financeiro" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-auto md:h-full md:absolute md:inset-0 overflow-y-auto md:overflow-hidden">
+            <motion.div key="financeiro" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-full absolute inset-0 overflow-y-auto md:overflow-hidden">
               <FinanceiroPage />
             </motion.div>
           )}

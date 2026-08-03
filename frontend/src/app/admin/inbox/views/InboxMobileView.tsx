@@ -423,8 +423,12 @@ export default function InboxMobileView({
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: 20 }}
             transition={{ duration: 0.2 }}
-            className="absolute inset-0 flex flex-col w-full h-full bg-transparent z-50 overflow-hidden"
+            className="absolute inset-0 flex flex-col w-full h-full bg-transparent z-50 p-2 md:p-4"
           >
+            <div className="flex flex-col w-full h-full bg-white/60 backdrop-blur-3xl border border-white/80 shadow-2xl rounded-[2.5rem] overflow-hidden relative">
+              {/* BACKGROUND PATTERN REDUCED OPACITY */}
+              <div className="absolute inset-0 bg-[url('/images/Pattern%20LizDesign.png')] bg-cover bg-center opacity-10 pointer-events-none z-0" />
+              
             {/* HEADER DO CHAT COM BOTÃO DE VOLTAR */}
             <div className="shrink-0 p-3.5 px-4 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 flex items-center justify-between shadow-xs z-10">
               <div className="flex items-center gap-3 min-w-0">
@@ -451,7 +455,7 @@ export default function InboxMobileView({
             </div>
 
             {/* MENSAGENS EM ROLAGEM */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-3 relative z-0 bg-[url('/images/Pattern%20LizDesign.png')] bg-cover bg-center">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-3 relative z-10">
               {messages.length === 0 ? (
                 <div className="m-auto text-center opacity-40 flex flex-col items-center gap-2">
                   <MessageSquare size={32} className="text-[var(--color-atelier-terracota)]" />
@@ -496,7 +500,7 @@ export default function InboxMobileView({
             </div>
 
             {/* BARRA FIXA DE ENVIO DE MENSAGEM */}
-            <form onSubmit={handleSendMessage} className="shrink-0 p-3 bg-white/80 backdrop-blur-xl border-t border-gray-200/50 flex items-center gap-2 z-10 pb-4">
+            <form onSubmit={handleSendMessage} className="shrink-0 p-3 bg-white/60 backdrop-blur-xl border-t border-gray-200/50 flex items-center gap-2 z-10">
               <label className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 cursor-pointer active:scale-95 transition-transform shrink-0">
                 <Paperclip size={18} />
                 <input type="file" onChange={handleFileUpload} className="hidden" accept="image/*,video/*,application/pdf" />
@@ -507,7 +511,7 @@ export default function InboxMobileView({
                 placeholder="Digite sua mensagem..." 
                 value={messageText}
                 onChange={(e) => setMessageText(e.target.value)}
-                className="flex-1 bg-gray-100 rounded-full py-2.5 px-4 text-xs font-bold text-gray-800 outline-none placeholder:text-gray-400"
+                className="flex-1 bg-white/80 rounded-full py-2.5 px-4 text-[16px] font-bold text-gray-800 outline-none placeholder:text-gray-400 border border-white shadow-inner"
               />
 
               <button 
@@ -518,6 +522,7 @@ export default function InboxMobileView({
                 {isSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
               </button>
             </form>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>

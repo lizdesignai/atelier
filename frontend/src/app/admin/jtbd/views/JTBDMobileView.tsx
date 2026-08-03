@@ -138,7 +138,7 @@ export default function JTBDMobileView({
   });
 
   // 6. Carteira do Designer (Unificação e Busca)
-  const unifiedWallet = assignedClients.length > 0 ? assignedClients : (() => {
+  const unifiedWallet = (() => {
     const map = new Map();
     allUserTasks.forEach(t => {
       const id = t.subclient_id || t.project_id || t.projects?.id;
@@ -277,23 +277,9 @@ export default function JTBDMobileView({
       <div className="flex flex-col w-full shrink-0 gap-2.5">
         <div className="flex items-center justify-between px-1">
           <h1 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">
-            Carteira do <span className="text-[var(--color-atelier-terracota)] italic">Designer.</span>
+            Seus <span className="text-[var(--color-atelier-terracota)] italic">Clientes.</span>
           </h1>
-          {!expandedClientInline && (
-            <div className="relative">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[var(--color-atelier-terracota)]" />
-              <input 
-                type="text" 
-                placeholder="Buscar..." 
-                value={walletSearch}
-                onChange={(e) => {
-                  setWalletSearch(e.target.value);
-                  setActiveWalletIndex(0);
-                }}
-                className="w-32 bg-white/80 border border-[var(--color-atelier-terracota)]/20 rounded-full py-1 pl-8 pr-3 text-[10px] outline-none shadow-xs text-[var(--color-atelier-grafite)] font-bold"
-              />
-            </div>
-          )}
+          {/* Search bar removida conforme solicitado */}
         </div>
 
         <AnimatePresence mode="wait">
@@ -357,7 +343,16 @@ export default function JTBDMobileView({
 
                   const clientName = entity.name || "White-Label";
                   const avatarUrl = entity.avatarUrl || entity.avatar_url;
-                  const clientTasksCount = allUserTasks.filter(t => t.project_id === entity.id || t.subclient_id === entity.id || t.projects?.id === entity.id).length;
+                  const currentMonth = new Date().getMonth();
+                  const currentYear = new Date().getFullYear();
+                  const clientTasksCount = allUserTasks.filter(t => {
+                    const isTarget = t.project_id === entity.id || t.subclient_id === entity.id || t.projects?.id === entity.id;
+                    if (!isTarget) return false;
+                    const isCompleted = t.status === 'completed' || t.status === 'concluded' || t.stage === 'Concluído' || t.stage === 'Finalizado';
+                    if (isCompleted) return false;
+                    const d = new Date(t.created_at);
+                    return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+                  }).length;
                   const isTop = offset === 0;
 
                   return (
@@ -373,11 +368,10 @@ export default function JTBDMobileView({
                       transition={{ type: "spring", stiffness: 350, damping: 25 }}
                       drag={isTop ? "x" : false}
                       dragConstraints={{ left: 0, right: 0 }}
-                      onDragEnd={(e, { offset, velocity }) => {
-                        const swipe = offset.x * velocity.x;
-                        if (swipe < -10000 && activeWalletIndex < filteredWallet.length - 1) {
+                      onDragEnd={(e, { offset }) => {
+                        if (offset.x < -20 && activeWalletIndex < filteredWallet.length - 1) {
                           setActiveWalletIndex(prev => prev + 1);
-                        } else if (swipe > 10000 && activeWalletIndex > 0) {
+                        } else if (offset.x > 20 && activeWalletIndex > 0) {
                           setActiveWalletIndex(prev => prev - 1);
                         }
                       }}
@@ -491,7 +485,7 @@ export default function JTBDMobileView({
               <AlertTriangle size={18} />
             </div>
             <div className="flex flex-col text-left">
-              <span className="text-[9px] uppercase font-bold tracking-wider text-orange-800/60">Mês Corrente</span>
+              
               <span className="font-roboto font-bold text-xs text-orange-950">Em Revisão</span>
             </div>
           </div>
@@ -511,7 +505,7 @@ export default function JTBDMobileView({
               <CheckCircle2 size={18} />
             </div>
             <div className="flex flex-col text-left">
-              <span className="text-[9px] uppercase font-bold tracking-wider text-green-800/60">Mês Corrente</span>
+              
               <span className="font-roboto font-bold text-xs text-green-950">Concluídas</span>
             </div>
           </div>
