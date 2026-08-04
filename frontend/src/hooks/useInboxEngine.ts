@@ -178,15 +178,36 @@ export function useInboxEngine() {
     }
 
     try {
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
-      const res = await fetch(`${backendUrl}/api/v1/chat/history/${activeChannelId}`);
-      if (!res.ok) throw new Error('Falha ao carregar histórico');
-      const { data } = await res.json();
-      
-      setMessages(data || []);
-      scrollToBottom();
+      let { data, error } = await supabase
+        .from('messages')
+        .select('*, profiles(id, nome, avatar_url, role)')
+        .eq('channel_id', activeChannelId)
+        .order('created_at', { ascending: true });
+
+      if (error) {
+        const fallbackRes = await supabase
+          .from('messages')
+          .select('*')
+          .eq('channel_id', activeChannelId)
+          .order('created_at', { ascending: true });
+
+        data = fallbackRes.data;
+        error = fallbackRes.error;
+      }
+
+      if (!error && data) {
+        const formattedMessages = data.map(m => ({
+          ...m,
+          profiles: Array.isArray(m.profiles) ? m.profiles[0] : (m.profiles || null)
+        }));
+        setMessages(formattedMessages);
+        scrollToBottom();
+      } else {
+        setMessages([]);
+      }
     } catch (e) {
       console.error("Erro no chat history:", e);
+      setMessages([]);
     }
   }, [activeChannelId]);
 

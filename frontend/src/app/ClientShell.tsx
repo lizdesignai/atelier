@@ -229,7 +229,7 @@ export default function ClientShell({ children }: { children: React.ReactNode })
               <AppHeader handleLogout={handleLogout} />
             )}
 
-            <main className={`flex-1 overflow-hidden flex flex-col ${isLoginPage || isSidebarHidden ? "p-0" : "px-4 md:px-12 pt-4 pb-24 md:py-8"}`}>
+            <main className={`flex-1 overflow-hidden flex flex-col ${isLoginPage || isSidebarHidden ? "p-0" : "px-4 md:px-12 pt-14 md:pt-4 pb-24 md:py-8"}`}>
               <div className={isLoginPage || isSidebarHidden ? "w-full h-full overflow-y-auto" : "flex-1 overflow-y-auto custom-scrollbar"}>
                 {children}
               </div>

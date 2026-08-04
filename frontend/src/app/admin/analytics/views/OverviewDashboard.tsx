@@ -53,6 +53,17 @@ export default function OverviewDashboard({
   const [taskFilterCollab, setTaskFilterCollab] = useState<string>('all');
   const [taskFilterClient, setTaskFilterClient] = useState<string>('all');
   const [isMobileSearchActive, setIsMobileSearchActive] = useState(false);
+  const [activeQueueIndex, setActiveQueueIndex] = useState(0);
+
+  const handleQueueScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const scrollLeft = target.scrollLeft;
+    const cardWidth = target.firstElementChild ? (target.firstElementChild as HTMLElement).offsetWidth + 12 : 280;
+    const index = Math.round(scrollLeft / cardWidth);
+    if (!isNaN(index) && index >= 0) {
+      setActiveQueueIndex(index);
+    }
+  };
   
   // Clientes com tarefas ativas (Extraídos diretamente das tarefas para contemplar Agências e Studio)
   const clientsWithTasks = Array.from(
@@ -75,8 +86,8 @@ export default function OverviewDashboard({
           
           {isQueueMinimized ? (
              <div 
-               className="w-full glass-panel flex flex-col items-center justify-start py-6 gap-6 h-full min-h-0 cursor-pointer hover:bg-white/50 transition-colors" 
                onClick={() => setIsQueueMinimized?.(false)} 
+               className="w-full h-full bg-white/60 backdrop-blur-xl border border-white rounded-[2.5rem] p-3 flex flex-col items-center cursor-pointer shadow-sm hover:shadow-md transition-all group" 
                title="Expandir Fila"
              >
                 <button className="text-gray-400 hover:text-[var(--color-atelier-terracota)] transition-colors"><PanelRightOpen size={20} /></button>
@@ -98,7 +109,7 @@ export default function OverviewDashboard({
             <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-4 shrink-0 flex flex-col gap-3 pr-8">
               <div className="flex justify-between items-center mb-1">
                   <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Próximas Tarefas</h3>
-                  <span className="bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest border border-[var(--color-atelier-terracota)]/20">{activeTasksForQueue.length} Pendentes</span>
+                  <span className="text-[var(--color-atelier-grafite)]/50 text-[11px] font-bold uppercase tracking-widest font-roboto">{activeTasksForQueue.length} tarefas</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="relative group flex-1">
@@ -228,7 +239,9 @@ export default function OverviewDashboard({
              </div>
            ) : (
              <div className="flex items-center justify-between w-full animate-[fadeIn_0.2s_ease-out]">
-               <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Fila.</h2>
+               <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] flex items-baseline gap-2">
+                 Fila. <span className="font-roboto font-normal text-xs text-[var(--color-atelier-grafite)]/50 tracking-wider">({activeTasksForQueue.length} tarefas)</span>
+               </h2>
                <div className="flex items-center gap-2">
                  <button onClick={() => setIsMobileSearchActive(true)} className="w-9 h-9 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-terracota)]">
                    <Search size={16} />
@@ -244,39 +257,66 @@ export default function OverviewDashboard({
         </div>
 
         {/* Compact Carousel */}
-        <div className="flex flex-row overflow-x-auto custom-scrollbar gap-3 pb-2 pt-1 snap-x snap-mandatory w-full">
-           {activeTasksForQueue
+        {(() => {
+            const filteredQueue = activeTasksForQueue
               .filter(t => t.title.toLowerCase().includes(taskSearch.toLowerCase()) || t.projects?.profiles?.nome?.toLowerCase().includes(taskSearch.toLowerCase()))
               .filter(t => taskFilterCollab === 'all' || t.assigned_to === taskFilterCollab)
-              .filter(t => taskFilterClient === 'all' || t.project_id === taskFilterClient || t.projects?.id === taskFilterClient)
-              .map(task => {
-                 const avatarUrl = task.projects?.profiles?.avatar_url;
-                 return (
-                   <div key={task.id} onClick={() => setEditingTask(task)} className="bg-white/90 rounded-[1.2rem] p-3 border border-white flex items-center gap-3 active:scale-[0.98] transition-transform shrink-0 w-[82vw] snap-center">
-                      <div className="w-10 h-10 rounded-[1rem] overflow-hidden bg-gray-100 border border-gray-200 shrink-0 flex items-center justify-center">
-                         {avatarUrl ? <img src={avatarUrl} className="w-full h-full object-cover" /> : <span className="font-elegant text-[var(--color-atelier-terracota)] font-bold text-lg uppercase">{task.projects?.profiles?.nome?.charAt(0) || "W"}</span>}
-                      </div>
-                      <div className="flex-1 flex flex-col min-w-0">
-                         <span className="font-roboto font-bold text-[12px] text-[var(--color-atelier-grafite)] truncate leading-tight pr-2">{task.title}</span>
-                         <span className="text-[10px] text-[var(--color-atelier-grafite)]/50 truncate mt-0.5">{task.projects?.profiles?.nome || "White-Label"}</span>
-                      </div>
-                      <div className="shrink-0 flex flex-col items-end">
-                         <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)]">{new Date(task.deadline).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>
-                         <div className="flex items-center gap-1 mt-1">
-                           <span className="text-[9px] font-bold text-gray-400">{task.profiles?.nome?.split(" ")[0] || "Livre"}</span>
-                           <div className="w-4 h-4 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center">
-                             {task.profiles?.avatar_url ? <img src={task.profiles.avatar_url} className="w-full h-full object-cover" /> : <UserCircle2 size={10} className="text-gray-400" />}
+              .filter(t => taskFilterClient === 'all' || t.project_id === taskFilterClient || t.projects?.id === taskFilterClient);
+
+            return (
+              <>
+                <div 
+                  onScroll={handleQueueScroll}
+                  className="flex flex-row overflow-x-auto custom-scrollbar gap-3 pb-2 pt-1 snap-x snap-mandatory w-full"
+                >
+                   {filteredQueue.map(task => {
+                      const avatarUrl = task.projects?.profiles?.avatar_url;
+                      return (
+                        <div key={task.id} onClick={() => setEditingTask(task)} className="bg-white/90 rounded-[1.2rem] p-3 border border-white flex items-center gap-3 active:scale-[0.98] transition-transform shrink-0 w-[82vw] snap-center">
+                           <div className="w-10 h-10 rounded-[1rem] overflow-hidden bg-gray-100 border border-gray-200 shrink-0 flex items-center justify-center">
+                              {avatarUrl ? <img src={avatarUrl} className="w-full h-full object-cover" /> : <span className="font-elegant text-[var(--color-atelier-terracota)] font-bold text-lg uppercase">{task.projects?.profiles?.nome?.charAt(0) || "W"}</span>}
                            </div>
-                         </div>
-                      </div>
-                   </div>
-                 )
-              })
-           }
-           {activeTasksForQueue.length === 0 && (
-             <div className="w-full text-center py-8 bg-white/40 rounded-2xl text-[var(--color-atelier-grafite)]/30 text-xs font-bold uppercase tracking-widest">Nenhuma tarefa</div>
-           )}
-        </div>
+                           <div className="flex-1 flex flex-col min-w-0">
+                              <span className="font-roboto font-bold text-[12px] text-[var(--color-atelier-grafite)] truncate leading-tight pr-2">{task.title}</span>
+                              <span className="text-[10px] text-[var(--color-atelier-grafite)]/50 truncate mt-0.5">{task.projects?.profiles?.nome || "White-Label"}</span>
+                           </div>
+                           <div className="shrink-0 flex flex-col items-end">
+                              <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)]">{new Date(task.deadline).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>
+                              <div className="flex items-center gap-1 mt-1">
+                                <span className="text-[9px] font-bold text-gray-400">{task.profiles?.nome?.split(" ")[0] || "Livre"}</span>
+                                <div className="w-4 h-4 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center">
+                                  {task.profiles?.avatar_url ? <img src={task.profiles.avatar_url} className="w-full h-full object-cover" /> : <UserCircle2 size={10} className="text-gray-400" />}
+                                </div>
+                              </div>
+                           </div>
+                        </div>
+                      )
+                   })}
+                   {filteredQueue.length === 0 && (
+                     <div className="w-full text-center py-8 bg-white/40 rounded-2xl text-[var(--color-atelier-grafite)]/30 text-xs font-bold uppercase tracking-widest">Nenhuma tarefa</div>
+                   )}
+                </div>
+
+                {/* NAV BOTTOM: NAVEGAÇÃO ENTRE AS TAREFAS DA FILA */}
+                {filteredQueue.length > 1 && (
+                  <div className="flex items-center justify-center gap-1.5 pt-1">
+                    {filteredQueue.map((_, i) => (
+                      <button
+                        key={i}
+                        type="button"
+                        onClick={() => setActiveQueueIndex(i)}
+                        className={`h-1.5 rounded-full transition-all duration-300 ${
+                          i === Math.min(activeQueueIndex, filteredQueue.length - 1) 
+                            ? 'w-5 bg-[var(--color-atelier-terracota)]' 
+                            : 'w-1.5 bg-[var(--color-atelier-grafite)]/20 hover:bg-[var(--color-atelier-grafite)]/40'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                )}
+              </>
+            );
+         })()}
       </motion.div>
     </>
   );

@@ -212,7 +212,7 @@ export default function AnalyticsModals({
                   <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Editar Demanda</h3>
                   <input type="text" value={editingTask.title} onChange={(e) => setEditingTask({...editingTask, title: e.target.value})} className="w-full bg-transparent font-roboto text-[14px] font-bold text-[var(--color-atelier-grafite)] outline-none mt-1 border-b border-gray-200 focus:border-[var(--color-atelier-terracota)]" />
                 </div>
-                <button onClick={() => setEditingTask(null)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] shrink-0"><X size={20}/></button>
+                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setEditingTask(null); }} className="w-10 h-10 rounded-full bg-gray-100/80 active:bg-gray-200 active:scale-95 text-gray-500 hover:text-[var(--color-atelier-terracota)] transition-all flex items-center justify-center shrink-0 cursor-pointer touch-manipulation z-20" title="Fechar"><X size={20}/></button>
               </div>
 
               {/* Informações de Execução (Responsável e Data) */}

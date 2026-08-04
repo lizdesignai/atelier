@@ -425,12 +425,12 @@ export default function InboxMobileView({
             transition={{ duration: 0.2 }}
             className="absolute inset-0 flex flex-col w-full h-full bg-transparent z-50 p-2 md:p-4"
           >
-            <div className="flex flex-col w-full h-full bg-white/60 backdrop-blur-3xl border border-white/80 shadow-2xl rounded-[2.5rem] overflow-hidden relative">
+            <div className="flex flex-col w-full h-full bg-white/40 backdrop-blur-3xl border border-white/80 shadow-2xl rounded-[2.5rem] overflow-hidden relative">
               {/* BACKGROUND PATTERN REDUCED OPACITY */}
               <div className="absolute inset-0 bg-[url('/images/Pattern%20LizDesign.png')] bg-cover bg-center opacity-10 pointer-events-none z-0" />
               
             {/* HEADER DO CHAT COM BOTÃO DE VOLTAR */}
-            <div className="shrink-0 p-3.5 px-4 bg-white/80 backdrop-blur-xl border-b border-gray-200/50 flex items-center justify-between shadow-xs z-10">
+            <div className="shrink-0 p-3.5 px-4 bg-white/40 backdrop-blur-xl border-b border-gray-200/50 flex items-center justify-between shadow-xs z-10">
               <div className="flex items-center gap-3 min-w-0">
                 <button 
                   onClick={handleBackToConversations} 

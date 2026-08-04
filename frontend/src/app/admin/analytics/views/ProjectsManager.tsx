@@ -1088,7 +1088,7 @@ clientName={selectedEntityType === 'agency' || isSubclientView ? displayData?.na
                     Adicionar tarefa para: {displayData?.name || displayData?.profiles?.nome}
                   </p>
                 </div>
-                <button onClick={closeAdHocModal} className="text-gray-400 hover:text-black transition-colors bg-gray-50 p-2 rounded-full"><X size={16}/></button>
+                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); closeAdHocModal(); }} className="w-10 h-10 rounded-full bg-gray-100/80 active:bg-gray-200 active:scale-95 text-gray-500 hover:text-[var(--color-atelier-terracota)] transition-all flex items-center justify-center shrink-0 cursor-pointer touch-manipulation z-20" title="Fechar"><X size={18}/></button>
               </div>
               
               <div className="flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-2 pb-2">
@@ -1773,8 +1773,8 @@ clientName={selectedEntityType === 'agency' || isSubclientView ? displayData?.na
                       <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">{mobileExpandedClient.label}</span>
                       <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-tight truncate">{mobileExpandedClient.name || "White-Label"}</h3>
                    </div>
-                   <button onClick={() => setMobileExpandedClient(null)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 active:scale-95 transition-transform shrink-0">
-                      <X size={16} />
+                   <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMobileExpandedClient(null); }} className="w-10 h-10 rounded-full bg-gray-100/80 active:bg-gray-200 active:scale-95 text-gray-500 hover:text-[var(--color-atelier-terracota)] transition-all flex items-center justify-center shrink-0 cursor-pointer touch-manipulation z-20" title="Fechar">
+                      <X size={18} />
                    </button>
                 </div>
 
@@ -1929,35 +1929,64 @@ clientName={selectedEntityType === 'agency' || isSubclientView ? displayData?.na
                      </div>
 
                      {/* NAV CONTROLS BELOW STACKED DECK */}
-                     {filteredWallet.length > 1 && (
-                       <div className="flex items-center justify-center gap-3 mt-3 shrink-0 z-40">
-                         <button 
-                           onClick={() => setActiveWalletIndex(prev => Math.max(0, prev - 1))}
-                           disabled={activeWalletIndex === 0}
-                           className="w-8 h-8 rounded-full bg-white/80 border border-white flex items-center justify-center text-[var(--color-atelier-grafite)] disabled:opacity-30 active:scale-90 transition-transform"
-                         >
-                           <ChevronLeft size={16} />
-                         </button>
+                      {filteredWallet.length > 1 && (
+                        <div className="flex items-center justify-center gap-3 mt-3 shrink-0 z-40">
+                          <button 
+                            type="button"
+                            onClick={() => setActiveWalletIndex(prev => {
+                              const total = filteredWallet.length;
+                              const current = Math.min(Math.max(0, prev), total - 1);
+                              return (current - 1 + total) % total;
+                            })}
+                            className="w-8 h-8 rounded-full bg-white/80 border border-white flex items-center justify-center text-[var(--color-atelier-grafite)] active:scale-90 transition-transform shadow-xs cursor-pointer touch-manipulation z-50 pointer-events-auto"
+                            title="Voltar"
+                          >
+                            <ChevronLeft size={16} />
+                          </button>
 
-                         <div className="flex items-center gap-1.5">
-                           {filteredWallet.map((_, i) => (
-                             <button
-                               key={i}
-                               onClick={() => setActiveWalletIndex(i)}
-                               className={`h-1.5 rounded-full transition-all duration-300 ${i === activeWalletIndex ? 'w-5 bg-[var(--color-atelier-terracota)]' : 'w-1.5 bg-[var(--color-atelier-grafite)]/20'}`} 
-                             />
-                           ))}
-                         </div>
+                          <div className="flex items-center gap-1.5">
+                            {(() => {
+                              const total = filteredWallet.length;
+                              const safeIndex = Math.min(activeWalletIndex, Math.max(0, total - 1));
+                              let indices: number[] = [];
+                              if (total <= 3) {
+                                indices = Array.from({ length: total }, (_, i) => i);
+                              } else if (safeIndex <= 0) {
+                                indices = [0, 1, 2];
+                              } else if (safeIndex >= total - 1) {
+                                indices = [total - 3, total - 2, total - 1];
+                              } else {
+                                indices = [safeIndex - 1, safeIndex, safeIndex + 1];
+                              }
+                              return indices.map((i) => (
+                                <button
+                                  key={i}
+                                  type="button"
+                                  onClick={() => setActiveWalletIndex(i)}
+                                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                                    i === safeIndex 
+                                      ? 'w-6 bg-[var(--color-atelier-terracota)]' 
+                                      : 'w-2 bg-[var(--color-atelier-grafite)]/20 hover:bg-[var(--color-atelier-grafite)]/40'
+                                  }`} 
+                                />
+                              ));
+                            })()}
+                          </div>
 
-                         <button 
-                           onClick={() => setActiveWalletIndex(prev => Math.min(filteredWallet.length - 1, prev + 1))}
-                           disabled={activeWalletIndex === filteredWallet.length - 1}
-                           className="w-8 h-8 rounded-full bg-white/80 border border-white flex items-center justify-center text-[var(--color-atelier-grafite)] disabled:opacity-30 active:scale-90 transition-transform"
-                         >
-                           <ChevronRight size={16} />
-                         </button>
-                       </div>
-                     )}
+                          <button 
+                            type="button"
+                            onClick={() => setActiveWalletIndex(prev => {
+                              const total = filteredWallet.length;
+                              const current = Math.min(Math.max(0, prev), total - 1);
+                              return (current + 1) % total;
+                            })}
+                            className="w-8 h-8 rounded-full bg-white/80 border border-white flex items-center justify-center text-[var(--color-atelier-grafite)] active:scale-90 transition-transform shadow-xs cursor-pointer touch-manipulation z-50 pointer-events-auto"
+                            title="Avançar"
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                        </div>
+                      )}
                    </div>
                  );
                })()}
@@ -1987,7 +2016,7 @@ clientName={selectedEntityType === 'agency' || isSubclientView ? displayData?.na
                   </h3>
                   <p className="font-roboto text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Lançar no Fluxo com Distribuição Inteligente</p>
                 </div>
-                <button onClick={closeAdHocModal} className="text-gray-400 hover:text-black transition-colors"><X size={20}/></button>
+                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); closeAdHocModal(); }} className="w-10 h-10 rounded-full bg-gray-100/80 active:bg-gray-200 active:scale-95 text-gray-500 hover:text-[var(--color-atelier-terracota)] transition-all flex items-center justify-center shrink-0 cursor-pointer touch-manipulation z-20" title="Fechar"><X size={18}/></button>
               </div>
               
               <div className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">

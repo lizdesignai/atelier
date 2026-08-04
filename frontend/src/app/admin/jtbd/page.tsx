@@ -188,11 +188,19 @@ export default function JTBDPage() {
           created_at: new Date().toISOString()
         });
       } else {
-        // Rota de Post / Peça Gráfica
-        // A entrada em social_posts é criada no momento do Upload, agora apenas mudamos o status.
-        await supabase.from('social_posts')
-          .update({ status: 'pending_approval' })
-          .eq('task_id', task.id);
+        // Rota de Post / Peça Gráfica ou Tarefa Genérica
+        const { data: existingPost } = await supabase
+          .from('social_posts')
+          .select('id')
+          .eq('task_id', task.id)
+          .limit(1)
+          .maybeSingle();
+          
+        if (existingPost) {
+          await supabase.from('social_posts')
+            .update({ status: 'pending_approval' })
+            .eq('task_id', task.id);
+        }
       }
 
       // Notifica o cliente
@@ -517,7 +525,7 @@ export default function JTBDPage() {
       {/* GLOBAL TASK CARD MODAL */}
       <AnimatePresence>
         {activeTaskModal && (
-          <div className="fixed inset-0 z-[100000] flex items-center justify-center px-4">
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 sm:p-6">
             <motion.div 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
@@ -527,11 +535,11 @@ export default function JTBDPage() {
               onClick={() => setActiveTaskModal(null)}
             />
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 40 }} 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }} 
               animate={{ scale: 1, opacity: 1, y: 0 }} 
-              exit={{ scale: 0.9, opacity: 0, y: 40 }} 
+              exit={{ scale: 0.9, opacity: 0, y: 20 }} 
               transition={{ type: "spring", stiffness: 350, damping: 25 }}
-              className="relative z-10 w-full max-w-lg pointer-events-auto shadow-[0_30px_60px_rgba(0,0,0,0.4)] rounded-[2.5rem]"
+              className="relative z-10 w-full max-w-lg pointer-events-auto shadow-[0_30px_60px_rgba(0,0,0,0.4)] rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden my-auto max-h-[85vh] flex flex-col"
             >
               <TaskCard 
                 task={activeTaskModal.task} 

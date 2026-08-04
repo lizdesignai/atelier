@@ -959,7 +959,7 @@ export default function AnalyticsPage() {
         <div className="flex items-center gap-3 shrink-0">
           
           {/* BOTÃO DO MENU VERTICAL DE TELAS E AÇÕES */}
-          <div className="relative hidden">
+          <div className="relative">
             <button
               onClick={() => setIsNavMenuOpen(!isNavMenuOpen)}
               className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-white/80 border border-white shadow-sm hover:bg-white text-[var(--color-atelier-grafite)] transition-all active:scale-95 cursor-pointer"

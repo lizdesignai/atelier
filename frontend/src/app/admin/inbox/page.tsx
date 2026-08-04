@@ -60,13 +60,15 @@ interface MessageData {
 const LizDesignLogo = () => (
   <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-white shadow-sm border border-gray-100">
     <img 
-      src="/public/images/simbolo-rosa.png" 
+      src="/images/simbolo-rosa.png" 
       alt="Liz Design" 
       className="w-full h-full object-cover"
       onError={(e) => {
-        // Fallback elegante caso a imagem /logo.png não exista no repositório
+        // Fallback elegante caso a imagem não exista
         e.currentTarget.style.display = 'none';
-        e.currentTarget.parentElement!.innerHTML = '<span class="font-elegant text-[var(--color-atelier-terracota)] font-bold text-sm">L</span>';
+        if (e.currentTarget.parentElement) {
+          e.currentTarget.parentElement.innerHTML = '<span class="font-elegant text-[var(--color-atelier-terracota)] font-bold text-sm">L</span>';
+        }
       }} 
     />
   </div>
@@ -150,10 +152,6 @@ export default function AdminInboxPage() {
           const { data: pData } = await supabase.from('profiles').select('*').eq('id', uData.id).single();
           setCurrentUser(pData as ProfileData);
 
-          // Puxar lista de clientes
-          const { data: clientsData } = await supabase.from('projects').select('*, profiles(*)').in('status', ['active', 'delivered']);
-          if (clientsData) setClients(clientsData as ClientData[]);
-
           // Puxar Equipa (Filtrando usuários pausados)
           const { data: corpUsers } = await supabase.from('profiles').select('*').in('role', ['admin', 'gestor', 'colaborador']).order('nome');
           if (corpUsers) {
@@ -232,23 +230,25 @@ export default function AdminInboxPage() {
           // Lógica de DM
           const participants = [currentUser.id, activeDMUserId].sort();
           const dmHash = `dm_${participants[0]}_${participants[1]}`;
-          let { data } = await supabase.from('channels').select('*').eq('name', dmHash).single();
+          let { data } = await supabase.from('channels').select('*').eq('name', dmHash).order('created_at', { ascending: true }).limit(1);
+          let dmChannel = data && data.length > 0 ? data[0] : null;
           
-          if (!data) {
+          if (!dmChannel) {
             const { data: newCh } = await supabase.from('channels').insert({ name: dmHash, type: 'dm', is_private: true }).select().single();
-            data = newCh;
+            dmChannel = newCh;
           }
-          setChannels([data as ChannelData]);
-          setActiveChannelId(data?.id || null);
+          setChannels(dmChannel ? [dmChannel as ChannelData] : []);
+          setActiveChannelId(dmChannel?.id || null);
         } else {
           // Lógica QG Central
-          let { data } = await supabase.from('channels').select('*').eq('type', 'corporate_global').single();
-          if (!data) {
+          let { data } = await supabase.from('channels').select('*').eq('type', 'corporate_global').order('created_at', { ascending: true }).limit(1);
+          let globalChannel = data && data.length > 0 ? data[0] : null;
+          if (!globalChannel) {
             const { data: newCh } = await supabase.from('channels').insert({ name: 'Equipe LizDesign', type: 'corporate_global', is_private: true }).select().single();
-            data = newCh;
+            globalChannel = newCh;
           }
-          setChannels([data as ChannelData]);
-          setActiveChannelId(data?.id || null);
+          setChannels(globalChannel ? [globalChannel as ChannelData] : []);
+          setActiveChannelId(globalChannel?.id || null);
         }
       }
     };
@@ -264,23 +264,40 @@ export default function AdminInboxPage() {
       setMessages([]);
       return;
     }
-    const { data } = await supabase
-      .from('messages')
-      .select('*, profiles(id, nome, avatar_url, role)')
-      .eq('channel_id', activeChannelId)
-      .order('created_at', { ascending: true });
 
-    if (data) {
-      // Normaliza o retorno dos profiles
-      const formattedMessages = data.map(m => ({
-        ...m,
-        profiles: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles
-      })) as MessageData[];
-      
-      setMessages(formattedMessages);
-      scrollToBottom();
-      
-      // 🟢 NOVO: Marcar como lido ao abrir o canal
+    try {
+      // 1. Tentar busca principal com join de perfis
+      let { data, error } = await supabase
+        .from('messages')
+        .select('*, profiles(id, nome, avatar_url, role)')
+        .eq('channel_id', activeChannelId)
+        .order('created_at', { ascending: true });
+
+      // 2. Se houver erro no join, fallback para busca direta de mensagens
+      if (error) {
+        const fallbackRes = await supabase
+          .from('messages')
+          .select('*')
+          .eq('channel_id', activeChannelId)
+          .order('created_at', { ascending: true });
+
+        data = fallbackRes.data;
+        error = fallbackRes.error;
+      }
+
+      if (!error && data) {
+        const formattedMessages = data.map(m => ({
+          ...m,
+          profiles: Array.isArray(m.profiles) ? m.profiles[0] : (m.profiles || null)
+        })) as MessageData[];
+        
+        setMessages(formattedMessages);
+        scrollToBottom();
+      } else {
+        setMessages([]);
+      }
+
+      // 🟢 Marcar como lido ao abrir o canal
       if (currentUser) {
         supabase.from('channel_reads').upsert(
           { channel_id: activeChannelId, user_id: currentUser.id, last_read_at: new Date().toISOString() },
@@ -289,6 +306,9 @@ export default function AdminInboxPage() {
           setUnreadCounts(prev => ({ ...prev, [activeChannelId]: 0 }));
         });
       }
+    } catch (err) {
+      console.error("[fetchMessages] Erro ao carregar mensagens:", err);
+      setMessages([]);
     }
   }, [activeChannelId, currentUser]);
 
@@ -764,7 +784,7 @@ export default function AdminInboxPage() {
       {/* ======================================================================
           COLUNA DIREITA (Palco de Chat / Feed Central)
           ====================================================================== */}
-      <main className={`flex-1 glass-panel border border-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.05)] rounded-[2.5rem] flex-col overflow-hidden z-10 bg-white/70 backdrop-blur-2xl ${mobileView === 'chat' ? 'flex' : 'hidden md:flex'}`}>
+      <main className={`flex-1 glass-panel border border-white/60 shadow-[0_20px_50px_rgba(0,0,0,0.05)] rounded-[2.5rem] flex-col overflow-hidden z-10 bg-white/40 backdrop-blur-2xl ${mobileView === 'chat' ? 'flex' : 'hidden md:flex'}`}>
         {!activeChannelId || !activeChannel ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center opacity-70">
             <div className="w-24 h-24 bg-[var(--color-atelier-grafite)]/5 rounded-full flex items-center justify-center mb-6 border border-[var(--color-atelier-grafite)]/10"><MessageSquare size={40} className="text-[var(--color-atelier-terracota)]" /></div>
@@ -774,7 +794,7 @@ export default function AdminInboxPage() {
         ) : (
           <>
             {/* CHAT HEADER (Inteligência Visual Embutida) */}
-            <div className="bg-white/90 backdrop-blur-xl border-b border-[var(--color-atelier-grafite)]/10 px-4 md:px-8 py-4 md:py-5 flex justify-between items-center z-20 shrink-0">
+            <div className="bg-white/40 backdrop-blur-xl border-b border-[var(--color-atelier-grafite)]/10 px-4 md:px-8 py-4 md:py-5 flex justify-between items-center z-20 shrink-0">
               <div className="flex items-center gap-3 md:gap-5">
                 <button onClick={() => setMobileView('channels')} className="md:hidden w-10 h-10 flex items-center justify-center bg-gray-100 rounded-xl text-gray-500 hover:text-[var(--color-atelier-terracota)] transition-colors shrink-0">
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>

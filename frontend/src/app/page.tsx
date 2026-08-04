@@ -63,9 +63,10 @@ export default function Home() {
       
       if (project) {
         
-        // REDIRECIONAMENTO DE SEGURANÇA: Se o cliente é de Instagram, redireciona para o Meu Espaço.
-        if (project.type === 'Gestão de Instagram') {
-          router.replace('/meu-espaco');
+        // REDIRECIONAMENTO DE SEGURANÇA: Se o cliente é de Instagram, redireciona para o Cockpit (/cockpit).
+        const rawType = project.service_type || project.type || "";
+        if (rawType === 'Gestão de Instagram' || rawType.toLowerCase().includes('instagram')) {
+          router.replace('/cockpit');
           return;
         }
 

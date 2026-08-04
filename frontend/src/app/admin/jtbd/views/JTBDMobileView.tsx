@@ -1,12 +1,12 @@
 // src/app/admin/jtbd/views/JTBDMobileView.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Flame, Briefcase, FolderKanban, CheckCircle2, Clock, 
-  AlertTriangle, Search, ChevronLeft, ChevronRight, PlayCircle,
-  MessageSquare, UserCircle2, ArrowRight, X
+  Flame, Briefcase, FolderKanban, CheckCircle2, Clock, Activity,
+  AlertTriangle, Search, ChevronLeft, ChevronRight, PlayCircle, PauseCircle,
+  MessageSquare, UserCircle2, ArrowRight, X 
 } from "lucide-react";
 import TaskCard from "../components/TaskCard";
 
@@ -41,6 +41,17 @@ export default function JTBDMobileView({
   const [walletSearch, setWalletSearch] = useState("");
   const [activeWalletIndex, setActiveWalletIndex] = useState(0);
   const [expandedClientInline, setExpandedClientInline] = useState<any | null>(null);
+  const [activeUrgentIndex, setActiveUrgentIndex] = useState(0);
+
+  const handleUrgentScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const target = e.currentTarget;
+    const scrollLeft = target.scrollLeft;
+    const cardWidth = target.firstElementChild ? (target.firstElementChild as HTMLElement).offsetWidth + 12 : 300;
+    const index = Math.round(scrollLeft / cardWidth);
+    if (!isNaN(index) && index >= 0) {
+      setActiveUrgentIndex(index);
+    }
+  };
   
   // Estado das modais/gavetas das tarefas em revisão e concluídas
   const [activeDrawer, setActiveDrawer] = useState<'review' | 'completed' | null>(null);
@@ -49,9 +60,10 @@ export default function JTBDMobileView({
   const [activeTaskModal, setActiveTaskModal] = useState<{task: any, isFocus: boolean, isReview: boolean, isCompleted: boolean} | null>(null);
 
   const handleTaskClick = (task: any, isFocus = false, isReview = false, isCompleted = false) => {
-    setActiveTaskModal({ task, isFocus, isReview, isCompleted });
     if (onOpenTaskModal) {
       onOpenTaskModal(task, isFocus, isReview, isCompleted);
+    } else {
+      setActiveTaskModal({ task, isFocus, isReview, isCompleted });
     }
   };
 
@@ -65,9 +77,21 @@ export default function JTBDMobileView({
   const cargaMin = totalEstMinutes % 60;
   const cargaFormatada = cargaMin > 0 ? `${cargaHoras}h ${cargaMin}m` : `${cargaHoras}h`;
 
-  const isCompletedStatus = (status: string) => {
+  const isCompletedStatus = (status: string, stage?: string) => {
     const s = (status || "").toLowerCase();
-    return s === 'completed' || s === 'done' || s === 'approved' || s === 'concluido' || s === 'concluída' || s === 'finalizado';
+    const st = (stage || "").toLowerCase();
+    return (
+      s === 'completed' || 
+      s === 'done' || 
+      s === 'approved' || 
+      s === 'concluido' || 
+      s === 'concluída' || 
+      s === 'finalizado' || 
+      s === 'concluded' ||
+      st === 'concluído' || 
+      st === 'finalizado' || 
+      st === 'concluido'
+    );
   };
 
   const completedTasksCount = allUserTasks.filter(t => isCompletedStatus(t.status)).length;
@@ -78,14 +102,21 @@ export default function JTBDMobileView({
     ? `Olá, ${viewedUser?.nome?.split(" ")[0] || ""}` 
     : `Espaço de ${viewedUser?.nome?.split(" ")[0] || ""}`;
 
-  // 2. Filtro Rigoroso do Mês Corrente
-  const now = new Date();
+  // Estado para atualização do relógio em tempo real a cada segundo
+  const [nowState, setNowState] = useState(Date.now());
+  
+  useEffect(() => {
+    const timer = setInterval(() => setNowState(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  const now = new Date(nowState);
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
   const isFromCurrentMonth = (task: any) => {
     const rawDate = task.completed_at || task.updated_at || task.deadline || task.created_at;
-    if (!rawDate) return true; // Se não tem data gravada, mantém no mês corrente para não perder visualização
+    if (!rawDate) return true;
     try {
       const d = new Date(rawDate);
       if (isNaN(d.getTime())) return true;
@@ -95,8 +126,8 @@ export default function JTBDMobileView({
     }
   };
 
-  // 3. Demandas Urgentes
-  const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+  // 3. Demandas Urgentes (ORDENADAS DO MENOR PRAZO AO MAIOR)
+  const next24h = new Date(nowState + 24 * 60 * 60 * 1000);
   const urgentTasks = activeTasks.filter(t => {
     if (selectedClient) {
       const matchesClient = selectedClient.type === 'project' ? t.project_id === selectedClient.id : t.subclient_id === selectedClient.id;
@@ -106,7 +137,44 @@ export default function JTBDMobileView({
     if (!t.deadline) return false;
     const d = new Date(t.deadline);
     return !isNaN(d.getTime()) && d <= next24h;
+  }).sort((a, b) => {
+    const timeA = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+    const timeB = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+    return timeA - timeB;
   });
+
+  const getRemainingTimeFormatted = (deadlineStr: string | null) => {
+    if (!deadlineStr) return { text: "Sem Prazo", isOverdue: false };
+    const deadlineTime = new Date(deadlineStr).getTime();
+    if (isNaN(deadlineTime)) return { text: "Urgente", isOverdue: false };
+
+    const diffMs = deadlineTime - nowState;
+    if (diffMs <= 0) {
+      const absSecs = Math.floor(Math.abs(diffMs) / 1000);
+      const h = Math.floor(absSecs / 3600);
+      const m = Math.floor((absSecs % 3600) / 60);
+      return { 
+        text: h > 0 ? `+${h}h ${m}m atrasada` : `+${m}m atrasada`, 
+        isOverdue: true 
+      };
+    }
+
+    const totalSecs = Math.floor(diffMs / 1000);
+    const h = Math.floor(totalSecs / 3600);
+    const m = Math.floor((totalSecs % 3600) / 60);
+    const s = totalSecs % 60;
+
+    if (h >= 24) {
+      const days = Math.floor(h / 24);
+      const remH = h % 24;
+      return { text: `${days}d ${remH}h restantes`, isOverdue: false };
+    }
+
+    return { 
+      text: `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`, 
+      isOverdue: false 
+    };
+  };
 
   // 4. Tarefas em Revisão (APENAS DO MÊS CORRENTE)
   const isReviewStatus = (status: string) => {
@@ -125,16 +193,16 @@ export default function JTBDMobileView({
     return isFromCurrentMonth(t);
   });
 
-  // 5. Tarefas Concluídas (APENAS DO MÊS CORRENTE)
+  // 5. Tarefas Concluídas (EXIBE AS TAREFAS CONCLUÍDAS)
   const completedTasks = tasksPool.filter(t => {
-    if (!isCompletedStatus(t.status)) return false;
+    if (!isCompletedStatus(t.status, t.stage)) return false;
     const matchesUser = t.assigned_to === viewedUser?.id || t.assigned_to === currentUser?.id || isAdminOrManager;
     if (!matchesUser) return false;
     if (selectedClient) {
       const matchesClient = selectedClient.type === 'project' ? t.project_id === selectedClient.id : t.subclient_id === selectedClient.id;
       if (!matchesClient) return false;
     }
-    return isFromCurrentMonth(t);
+    return true;
   });
 
   // 6. Carteira do Designer (Unificação e Busca)
@@ -166,35 +234,31 @@ export default function JTBDMobileView({
     <div className="flex lg:hidden flex-col w-full h-full overflow-y-auto custom-scrollbar gap-5 pb-24">
       
       {/* ==========================================
-          HEADER DO COLABORADOR: RETÂNGULO COM FOTO E NÚMEROS
+          HEADER DO COLABORADOR: LAYOUT COMPACTO HORIZONTAL
           ========================================== */}
-      <div className="w-full bg-[var(--color-atelier-grafite)] p-4 rounded-[2rem] border border-white/10 shadow-sm relative overflow-hidden flex flex-col gap-3 shrink-0">
-        <div className="absolute right-[-10%] top-[-20%] w-[200px] h-[200px] bg-[var(--color-atelier-terracota)]/20 rounded-full blur-[40px] pointer-events-none"></div>
+      <div className="w-full bg-[var(--color-atelier-grafite)] p-4 rounded-[2rem] border border-white/10 shadow-sm relative overflow-hidden flex items-center justify-between gap-3 shrink-0">
+        <div className="absolute right-[-10%] top-[-20%] w-[200px] h-[200px] bg-[var(--color-atelier-terracota)]/20 rounded-full blur-[40px] pointer-events-none" />
         
-        <div className="flex items-center justify-between gap-3 relative z-10 w-full">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="w-12 h-12 rounded-full bg-white/10 overflow-hidden border border-white/20 flex items-center justify-center text-lg font-elegant text-white shrink-0 shadow-inner">
-              {viewedUser?.avatar_url 
-                ? <img src={viewedUser.avatar_url} className="w-full h-full object-cover" alt="Avatar"/> 
-                : viewedUser?.nome?.charAt(0)}
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-[8px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)] flex items-center gap-1">
-                {isViewingSelf ? 'Meu Espaço' : 'Gestão'} • {viewedUser?.role || 'Designer'}
-              </span>
-              <h2 className="font-elegant text-2xl text-white truncate leading-tight">{greeting}</h2>
-            </div>
+        <div className="flex items-center gap-3 min-w-0 relative z-10">
+          <div className="w-11 h-11 rounded-full bg-white/10 overflow-hidden border border-white/20 flex items-center justify-center text-lg font-elegant text-white shrink-0 shadow-inner">
+            {viewedUser?.avatar_url 
+              ? <img src={viewedUser.avatar_url} className="w-full h-full object-cover" alt="Avatar"/> 
+              : viewedUser?.nome?.charAt(0)}
           </div>
+          <div className="flex flex-col min-w-0">
+            <span className="text-[8px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)] block">
+              {viewedUser?.role || 'Designer'}
+            </span>
+            <h2 className="font-elegant text-2xl text-white truncate leading-tight">{greeting}</h2>
+          </div>
+        </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="bg-white/10 border border-white/10 px-3 py-1.5 rounded-xl flex flex-col items-center">
-              <span className="text-[7px] text-white/50 uppercase tracking-widest font-bold">Eficiência</span>
-              <span className="text-white font-bold text-[11px]">{eficiencia}%</span>
-            </div>
-            <div className="bg-white/10 border border-white/10 px-3 py-1.5 rounded-xl flex flex-col items-center">
-              <span className="text-[7px] text-white/50 uppercase tracking-widest font-bold">Horas</span>
-              <span className="text-[var(--color-atelier-terracota)] font-bold text-[11px]">{cargaFormatada}</span>
-            </div>
+        {/* MÉTRICA DE EFICIÊNCIA APENAS (DIREITA) */}
+        <div className="bg-white/10 border border-white/10 px-3 py-1.5 rounded-xl flex items-center gap-2 shrink-0 relative z-10 shadow-xs">
+          <Activity size={14} className="text-emerald-400" />
+          <div className="flex flex-col items-end">
+            <span className="text-[7px] text-white/50 uppercase tracking-widest font-bold">Eficiência</span>
+            <span className="text-white font-bold text-xs">{eficiencia}%</span>
           </div>
         </div>
       </div>
@@ -207,14 +271,10 @@ export default function JTBDMobileView({
           <h1 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
             Demandas <span className="text-[var(--color-atelier-terracota)] italic">Urgentes.</span>
           </h1>
-          {selectedClient ? (
+          {selectedClient && (
             <button onClick={() => onSelectClient(null)} className="text-[9px] font-bold text-[var(--color-atelier-terracota)] underline">
               Limpar Filtro
             </button>
-          ) : (
-            <span className="bg-orange-500/10 text-orange-600 border border-orange-200 text-[9px] font-bold uppercase tracking-widest px-2.5 py-1 rounded-full">
-              {urgentTasks.length} {urgentTasks.length === 1 ? 'Entrega' : 'Entregas'}
-            </span>
           )}
         </div>
 
@@ -223,51 +283,127 @@ export default function JTBDMobileView({
             {selectedClient ? `Sem entregas urgentes para ${selectedClient.name}` : "Sem demandas urgentes nas próximas 24h 🎉"}
           </div>
         ) : (
-          <div className="flex flex-row overflow-x-auto custom-scrollbar gap-3 pb-2 pt-1 snap-x snap-mandatory w-full">
-            {urgentTasks.map(task => {
-              const clientName = task.agency_subclients?.name || task.projects?.profiles?.nome || task.projects?.title || 'Cliente';
-              const isLive = task.status === 'in_progress';
-              const hasFeedback = Boolean(task.caption || task.status === 'review' || task.has_feedback);
+          <>
+            <div 
+              onScroll={handleUrgentScroll}
+              className="flex flex-row overflow-x-auto custom-scrollbar gap-3 pb-2 pt-1 snap-x snap-mandatory w-full"
+            >
+              {urgentTasks.map(task => {
+                const clientName = task.agency_subclients?.name || task.projects?.profiles?.nome || task.projects?.title || 'Cliente';
+                const isLive = task.status === 'in_progress';
+                const hasFeedback = Boolean(task.caption || task.status === 'review' || task.has_feedback);
+                const remainingInfo = getRemainingTimeFormatted(task.deadline);
 
-              return (
-                <div 
-                  key={task.id} 
-                  onClick={() => handleTaskClick(task, isLive, task.status === 'review', false)}
-                  className={`shrink-0 w-[82vw] max-w-[310px] snap-center rounded-[1.6rem] p-4 border flex flex-col justify-between gap-3 active:scale-[0.98] transition-all cursor-pointer shadow-xs ${
-                    hasFeedback 
-                      ? 'bg-orange-50/90 border-orange-500 shadow-md ring-2 ring-orange-400/30' 
-                      : 'bg-white/90 border-white'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2">
-                    <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] leading-snug line-clamp-2">
-                      {task.title}
-                    </span>
-                    {hasFeedback ? (
-                      <span className="bg-orange-500 text-white text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full shrink-0 shadow-xs flex items-center gap-1 animate-bounce">
-                        <MessageSquare size={10} /> Feedback
-                      </span>
-                    ) : isLive ? (
-                      <span className="bg-green-500 text-white text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full shrink-0 animate-pulse">
-                        Em Andamento
-                      </span>
-                    ) : (
-                      <span className="bg-amber-500/20 text-amber-700 text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full shrink-0">
-                        24h
-                      </span>
-                    )}
-                  </div>
+                return (
+                  <div 
+                    key={task.id} 
+                    onClick={() => handleTaskClick(task, isLive, task.status === 'review', false)}
+                    className={`shrink-0 w-[85vw] max-w-[320px] snap-center rounded-[1.6rem] p-4 border flex flex-col justify-between gap-3 active:scale-[0.98] transition-all cursor-pointer shadow-xs ${
+                      hasFeedback 
+                        ? 'bg-orange-50/90 border-orange-500 shadow-md ring-2 ring-orange-400/30' 
+                        : 'bg-white/90 border-white'
+                    }`}
+                  >
+                    {/* HEADER DO CARD */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex flex-col min-w-0 pr-1">
+                        <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)]/60 truncate mb-0.5" title={clientName}>
+                          {clientName}
+                        </span>
+                        <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] leading-snug line-clamp-2">
+                          {task.title}
+                        </span>
+                      </div>
 
-                  <div className="flex items-center justify-between border-t border-gray-100/80 pt-2.5">
-                    <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)]/70 truncate max-w-[150px]">{clientName}</span>
-                    <span className="text-[10px] font-bold text-[var(--color-atelier-terracota)]">
-                      {task.deadline ? new Date(task.deadline).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }) : 'Urgente'}
-                    </span>
+                      {hasFeedback && (
+                        <span className="bg-orange-500 text-white text-[8px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full shrink-0 shadow-xs flex items-center gap-1 animate-bounce">
+                          <MessageSquare size={10} /> Feedback
+                        </span>
+                      )}
+                    </div>
+
+                    {/* FOOTER DO CARD: TEMPO RESTANTE REAL NA ESQUERDA + BOTÃO QUADRADO NA EXTREMIDADE DIREITA */}
+                    <div className="flex items-center justify-between border-t border-gray-100/80 pt-2.5 mt-1">
+                      {/* CRONÔMETRO DE TEMPO RESTANTE REAL */}
+                      <div className={`flex items-center gap-1.5 text-[10px] sm:text-[11px] font-bold px-2.5 py-1 rounded-xl border shrink-0 ${
+                        remainingInfo.isOverdue 
+                          ? 'bg-red-50 text-red-600 border-red-200 animate-pulse' 
+                          : isLive 
+                          ? 'bg-green-50 text-green-700 border-green-200' 
+                          : 'bg-amber-50 text-amber-800 border-amber-200/80'
+                      }`}>
+                        <Clock size={12} className={remainingInfo.isOverdue ? "text-red-500" : isLive ? "text-green-600" : "text-amber-600"} />
+                        <span className="font-mono tracking-tight">{remainingInfo.text}</span>
+                      </div>
+
+                      {/* BOTÃO QUADRADO NA EXTREMIDADE DIREITA */}
+                      <div className="flex items-center gap-1.5 shrink-0" onClick={(e) => { e.preventDefault(); e.stopPropagation(); }}>
+                        {isLive ? (
+                          <>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                updateTaskStatus(task, 'pending');
+                              }}
+                              className="w-9 h-9 rounded-xl bg-gray-100 hover:bg-gray-200 active:scale-95 text-gray-700 flex items-center justify-center transition-all shadow-xs cursor-pointer touch-manipulation border border-gray-200/60"
+                              title="Pausar Tarefa"
+                            >
+                              <PauseCircle size={18} />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                updateTaskStatus(task, 'review');
+                              }}
+                              className="w-9 h-9 rounded-xl bg-green-500 hover:bg-green-600 active:scale-95 text-white flex items-center justify-center transition-all shadow-xs cursor-pointer touch-manipulation shadow-green-500/20"
+                              title="Finalizar (Enviar para Revisão)"
+                            >
+                              <CheckCircle2 size={18} />
+                            </button>
+                          </>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              updateTaskStatus(task, 'in_progress');
+                            }}
+                            className="w-9 h-9 rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-95 text-white flex items-center justify-center transition-all shadow-xs cursor-pointer touch-manipulation shadow-blue-600/20"
+                            title="Iniciar Tarefa"
+                          >
+                            <PlayCircle size={18} />
+                          </button>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+
+            {/* NAV BOTTOM: INDICADOR DE PASSAGEM ENTRE DEMANDAS URGENTES */}
+            {urgentTasks.length > 1 && (
+              <div className="flex items-center justify-center gap-1.5 pt-0.5">
+                {urgentTasks.map((_, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setActiveUrgentIndex(i)}
+                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                      i === Math.min(activeUrgentIndex, urgentTasks.length - 1) 
+                        ? 'w-5 bg-[var(--color-atelier-terracota)]' 
+                        : 'w-1.5 bg-[var(--color-atelier-grafite)]/20 hover:bg-[var(--color-atelier-grafite)]/40'
+                    }`}
+                  />
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -277,7 +413,7 @@ export default function JTBDMobileView({
       <div className="flex flex-col w-full shrink-0 gap-2.5">
         <div className="flex items-center justify-between px-1">
           <h1 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">
-            Seus <span className="text-[var(--color-atelier-terracota)] italic">Clientes.</span>
+            Meus <span className="text-[var(--color-atelier-terracota)] italic">Perfis.</span>
           </h1>
           {/* Search bar removida conforme solicitado */}
         </div>
@@ -430,36 +566,66 @@ export default function JTBDMobileView({
               {filteredWallet.length > 1 && (
                 <div className="flex items-center justify-center gap-4 mt-3 shrink-0 z-40">
                   <button 
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
-                      setActiveWalletIndex(prev => (prev > 0 ? prev - 1 : filteredWallet.length - 1));
+                      if (filteredWallet.length === 0) return;
+                      setActiveWalletIndex(prev => {
+                        const current = Math.min(Math.max(0, prev), filteredWallet.length - 1);
+                        return (current - 1 + filteredWallet.length) % filteredWallet.length;
+                      });
                     }}
-                    className="w-10 h-10 rounded-full bg-white/90 border border-white flex items-center justify-center text-[var(--color-atelier-grafite)] active:scale-90 transition-transform shadow-xs cursor-pointer"
+                    className="w-10 h-10 rounded-full bg-white/90 border border-white flex items-center justify-center text-[var(--color-atelier-grafite)] active:scale-90 transition-transform shadow-xs cursor-pointer touch-manipulation z-50 pointer-events-auto"
+                    title="Voltar Perfil"
                   >
                     <ChevronLeft size={18} />
                   </button>
 
                   <div className="flex items-center gap-1.5">
-                    {filteredWallet.map((_, i) => (
-                      <button
-                        key={i}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setActiveWalletIndex(i);
-                        }}
-                        className={`h-1.5 rounded-full transition-all duration-300 ${i === safeWalletIndex ? 'w-5 bg-[var(--color-atelier-terracota)]' : 'w-1.5 bg-[var(--color-atelier-grafite)]/20'}`} 
-                      />
-                    ))}
+                    {(() => {
+                      const total = filteredWallet.length;
+                      let indices: number[] = [];
+                      if (total <= 3) {
+                        indices = Array.from({ length: total }, (_, i) => i);
+                      } else if (safeWalletIndex <= 0) {
+                        indices = [0, 1, 2];
+                      } else if (safeWalletIndex >= total - 1) {
+                        indices = [total - 3, total - 2, total - 1];
+                      } else {
+                        indices = [safeWalletIndex - 1, safeWalletIndex, safeWalletIndex + 1];
+                      }
+                      return indices.map((i) => (
+                        <button
+                          key={i}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setActiveWalletIndex(i);
+                          }}
+                          className={`h-1.5 rounded-full transition-all duration-300 ${
+                            i === safeWalletIndex 
+                              ? 'w-6 bg-[var(--color-atelier-terracota)]' 
+                              : 'w-2 bg-[var(--color-atelier-grafite)]/20 hover:bg-[var(--color-atelier-grafite)]/40'
+                          }`} 
+                        />
+                      ));
+                    })()}
                   </div>
 
                   <button 
+                    type="button"
                     onClick={(e) => {
                       e.stopPropagation();
                       e.preventDefault();
-                      setActiveWalletIndex(prev => (prev < filteredWallet.length - 1 ? prev + 1 : 0));
+                      if (filteredWallet.length === 0) return;
+                      setActiveWalletIndex(prev => {
+                        const current = Math.min(Math.max(0, prev), filteredWallet.length - 1);
+                        return (current + 1) % filteredWallet.length;
+                      });
                     }}
-                    className="w-10 h-10 rounded-full bg-white/90 border border-white flex items-center justify-center text-[var(--color-atelier-grafite)] active:scale-90 transition-transform shadow-xs cursor-pointer"
+                    className="w-10 h-10 rounded-full bg-white/90 border border-white flex items-center justify-center text-[var(--color-atelier-grafite)] active:scale-90 transition-transform shadow-xs cursor-pointer touch-manipulation z-50 pointer-events-auto"
+                    title="Avançar Perfil"
                   >
                     <ChevronRight size={18} />
                   </button>
@@ -629,10 +795,10 @@ export default function JTBDMobileView({
         )}
       </AnimatePresence>
 
-      {/* MODAL FÉRTIL DO TASKCARD (DIRETO DENTRO DO MOBILE) */}
+      {/* MODAL FÉRTIL DO TASKCARD (APENAS FALLBACK SE NÃO HOUVER MANIPULADOR GLOBAL) */}
       <AnimatePresence>
-        {activeTaskModal && (
-          <div className="fixed inset-0 z-[100000] flex items-center justify-center px-4">
+        {!onOpenTaskModal && activeTaskModal && (
+          <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 sm:p-6">
             <motion.div 
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
@@ -642,11 +808,11 @@ export default function JTBDMobileView({
               onClick={() => setActiveTaskModal(null)}
             />
             <motion.div 
-              initial={{ scale: 0.9, opacity: 0, y: 40 }} 
+              initial={{ scale: 0.9, opacity: 0, y: 20 }} 
               animate={{ scale: 1, opacity: 1, y: 0 }} 
-              exit={{ scale: 0.9, opacity: 0, y: 40 }} 
+              exit={{ scale: 0.9, opacity: 0, y: 20 }} 
               transition={{ type: "spring", stiffness: 350, damping: 25 }}
-              className="relative z-10 w-full max-w-lg pointer-events-auto shadow-[0_30px_60px_rgba(0,0,0,0.4)] rounded-[2.5rem]"
+              className="relative z-10 w-full max-w-lg pointer-events-auto shadow-[0_30px_60px_rgba(0,0,0,0.4)] rounded-[2rem] sm:rounded-[2.5rem] overflow-hidden my-auto max-h-[85vh] flex flex-col"
             >
               <TaskCard 
                 task={activeTaskModal.task} 

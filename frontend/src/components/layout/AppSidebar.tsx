@@ -27,10 +27,10 @@ interface AppSidebarProps {
 // Dicionário de Rotas para os Títulos das Abas do Navegador
 const ROUTE_NAMES: Record<string, string> = {
   '/admin': 'Tela da Dona',
-  '/cockpit': 'Cockpit',
+  '/cockpit': 'Inicial',
   '/brandbook': 'Brandbook',
   '/curadoria': 'Curadoria',
-  '/': 'Cockpit',
+  '/': 'Inicial',
   '/cofre': 'O Cofre',
   '/referencias': 'Referências',
   '/canais': 'Canais',
@@ -49,6 +49,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   const [clientServiceType, setClientServiceType] = useState<string>("Identidade Visual");
   const [isProjectArchived, setIsProjectArchived] = useState(false);
   const [isReady, setIsReady] = useState(false);
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
   
   // Estado para capturar o nome do cliente logado
   const [clientName, setClientName] = useState<string>("");
@@ -94,15 +95,16 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
 
     const fetchSidebarData = async () => {
       if (isClient) {
-        // Obter o projeto mais recente a partir da cache
-        const project = projects?.[0];
+        // Obter o projeto correspondente ao cliente (por client_id ou primeiro projeto)
+        const project = projects?.find(p => p.client_id === session?.user?.id) || projects?.[0];
         let shouldArchive = false;
-        let service = "Identidade Visual";
+
+        const rawService = project?.service_type || project?.type || project?.service || "";
+        const isInstagram = rawService === "Gestão de Instagram" || rawService.toLowerCase().includes("instagram");
+        const service = isInstagram ? "Gestão de Instagram" : "Identidade Visual";
+        setClientServiceType(service);
 
         if (project) {
-          service = project.service_type || "Identidade Visual";
-          setClientServiceType(service);
-
           if (project.status === 'archived') {
             shouldArchive = true;
           } else if (project.status === 'delivered' && project.delivered_at) {
@@ -110,24 +112,24 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
             const diffDays = Math.ceil(Math.abs(new Date().getTime() - deliveredDate.getTime()) / (1000 * 60 * 60 * 24));
             if (diffDays >= 15) {
               shouldArchive = true;
-              await supabase.from('projects').update({ status: 'archived' }).eq('client_id', session.user.id);
+              await supabase.from('projects').update({ status: 'archived' }).eq('id', project.id);
             }
           }
         } else {
-          shouldArchive = true;
+          shouldArchive = false;
         }
 
         setIsProjectArchived(shouldArchive);
         onHideSidebar(shouldArchive);
 
-        const isInstagram = service === "Gestão de Instagram";
-
         // BLINDAGEM DE ROTAS PARA CLIENTES
         if (shouldArchive) {
-          const lockedRoutes = ['/', '/cofre', '/referencias', '/cockpit', '/curadoria', '/cofre-missoes'];
+          const lockedRoutes = ['/', '/cofre', '/referencias', '/cockpit', '/curadoria', '/cofre-missoes', '/brandbook'];
           if (lockedRoutes.includes(pathname)) router.replace('/comunidade');
         } else {
-          if (isInstagram && (pathname === '/' || pathname === '/cofre' || pathname === '/referencias')) {
+          if (pathname === '/brandbook') {
+            router.replace(isInstagram ? '/cockpit' : '/');
+          } else if (isInstagram && (pathname === '/' || pathname === '/cofre' || pathname === '/referencias')) {
             router.replace('/cockpit');
           } else if (!isInstagram && (pathname === '/cockpit' || pathname === '/curadoria' || pathname === '/cofre-missoes')) {
             router.replace('/');
@@ -158,24 +160,30 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
 
     const fetchGlobalUnread = async () => {
       const { data, error } = await supabase.rpc('get_unread_message_count');
-      if (!error && data !== null) {
+      if (!error && typeof data === 'number') {
         setGlobalUnreadCount(data);
       }
     };
 
     fetchGlobalUnread();
 
-    const sub = supabase.channel('sidebar_unread_messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, (payload) => {
-         if (payload.new.sender_id !== sessionUserId) {
-           fetchGlobalUnread();
-         }
-      }).subscribe();
+    const channelSub = supabase
+      .channel('global-messages-sidebar')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        () => {
+          fetchGlobalUnread();
+        }
+      )
+      .subscribe();
 
-    return () => { supabase.removeChannel(sub); };
+    return () => {
+      supabase.removeChannel(channelSub);
+    };
   }, [sessionUserId]);
 
-  if (isClient && (isProjectArchived || !isReady)) return null;
+  if (isClient && isProjectArchived) return null;
   if (isContador && !isReady) return null;
 
   // 🟢 Definição inteligente da rota Home (Logo) com base na patente
@@ -188,29 +196,31 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   // ====================================================
   // 🟢 MOBILE BOTTOM NAVIGATION CONFIGURATION
   // ====================================================
-  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
 
   const mobileMainItems: Array<{ href: string; icon: React.ReactNode; label: string; badge?: number }> = isContador ? [
     { href: '/admin/financeiro', icon: <DollarSign size={20} strokeWidth={1.5} />, label: 'Finanças' },
     { href: '/admin/inbox', icon: <Inbox size={20} strokeWidth={1.5} />, label: 'Inbox', badge: globalUnreadCount },
-    { href: '/comunidade', icon: <Users size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : isTeamMember ? [
+    { href: '/admin/analytics', icon: <Activity size={20} strokeWidth={1.5} />, label: 'Analytics' },
     { href: '/admin/jtbd', icon: <Crosshair size={20} strokeWidth={1.5} />, label: 'Focus' },
+    { href: '/admin/clientes', icon: <Users size={20} strokeWidth={1.5} />, label: 'Clientes' },
     { href: '/admin/inbox', icon: <Inbox size={20} strokeWidth={1.5} />, label: 'Inbox', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+  ] : clientServiceType === "Gestão de Instagram" ? [
+    { href: '/cockpit', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
+    { href: '/simulador-feed', icon: <Grid size={20} strokeWidth={1.5} />, label: 'Feed' },
+    { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : [
-    { href: clientServiceType === "Gestão de Instagram" ? '/cockpit' : '/', icon: <Home size={20} strokeWidth={1.5} />, label: 'Início' },
-    { href: '/brandbook', icon: <Sparkles size={20} strokeWidth={1.5} />, label: 'Marca' },
-    { href: '/comunidade', icon: <Users size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
+    { href: '/cofre', icon: <Lock size={20} strokeWidth={1.5} />, label: 'Cofre' },
+    { href: '/referencias', icon: <Compass size={20} strokeWidth={1.5} />, label: 'Inspiração' },
+    { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ];
 
-  const mobileDrawerItems: Array<{ href: string; icon: React.ReactNode; label: string; badge?: number }> = isContador ? [] : isManagerOrAdmin ? [
-    { href: '/admin/analytics', icon: <Activity size={20} strokeWidth={1.5} />, label: 'Analytics' },
-    { href: '/admin/clientes', icon: <Users size={20} strokeWidth={1.5} />, label: 'Clientes' }
-  ] : [
-    { href: '/cofre', icon: <Lock size={20} strokeWidth={1.5} />, label: 'Cofre' },
-    { href: '/referencias', icon: <Compass size={20} strokeWidth={1.5} />, label: 'Inspiração' }
-  ];
+  const mobileDrawerItems: Array<{ href: string; icon: React.ReactNode; label: string; badge?: number }> = [];
 
   return (
     <>
@@ -279,13 +289,12 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
             <>
               {clientServiceType === "Gestão de Instagram" ? (
                 <>
-                  <NavItem href="/cockpit" icon={<LayoutDashboard size={18} strokeWidth={1.5} />} label="Cockpit" collapsed={isCollapsed} active={pathname === '/cockpit'} />
-                  <NavItem href="/brandbook" icon={<Sparkles size={18} strokeWidth={1.5} />} label="Brandbook" collapsed={isCollapsed} active={pathname === '/brandbook'} />
+                  <NavItem href="/cockpit" icon={<Home size={18} strokeWidth={1.5} />} label="Inicial" collapsed={isCollapsed} active={pathname === '/cockpit'} />
                   <NavItem href="/simulador-feed" icon={<Grid size={18} strokeWidth={1.5} />} label="Feed" collapsed={isCollapsed} active={pathname === '/simulador-feed'} />
                 </>
               ) : (
                 <>
-                  <NavItem href="/" icon={<Home size={18} strokeWidth={1.5} />} label="Cockpit" collapsed={isCollapsed} active={pathname === '/'} />
+                  <NavItem href="/" icon={<Home size={18} strokeWidth={1.5} />} label="Inicial" collapsed={isCollapsed} active={pathname === '/'} />
                   <NavItem href="/cofre" icon={<Lock size={18} strokeWidth={1.5} />} label="O Cofre" collapsed={isCollapsed} active={pathname === '/cofre'} />
                   <NavItem href="/referencias" icon={<Compass size={18} strokeWidth={1.5} />} label="Referências" collapsed={isCollapsed} active={pathname === '/referencias'} />
                 </>
@@ -379,7 +388,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     {/* ==================================================== */}
     {/* MOBILE BOTTOM NAVIGATION BAR (FLOATING PILL) */}
     {/* ==================================================== */}
-    <div className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[99999] px-1.5 py-1.5 bg-white/60 backdrop-blur-3xl border border-white/60 rounded-[2rem] flex items-center justify-between w-auto min-w-[280px] max-w-[340px]">
+    <div className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[99999] px-2 py-1.5 bg-white/70 backdrop-blur-3xl border border-white/80 rounded-[2rem] flex items-center justify-around w-[92vw] max-w-[420px] shadow-lg">
       {mobileMainItems.map((item) => (
          <Link 
             key={item.href} 
