@@ -63,12 +63,8 @@ export default function Home() {
       
       if (project) {
         
-        // REDIRECIONAMENTO DE SEGURANÇA: Se o cliente é de Instagram, redireciona para o Cockpit (/cockpit).
-        const rawType = project.service_type || project.type || "";
-        if (rawType === 'Gestão de Instagram' || rawType.toLowerCase().includes('instagram')) {
-          router.replace('/cockpit');
-          return;
-        }
+        // REDIRECIONAMENTO DE SEGURANÇA: 
+        // Movido integralmente para AppSidebar.tsx para evitar loops infinitos de redirecionamento devido ao cache do React Query.
 
         setActiveProject(project);
         

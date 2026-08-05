@@ -101,6 +101,14 @@ export class NotificationService {
         buttonText = "Ver Detalhes";
         break;
 
+      case 'contract_ending':
+        subject = `[CONTRATO] Vencimento Próximo - ${clientName}`;
+        icon = "⚠️";
+        title = "Aviso de Fim de Contrato";
+        message = `O contrato do cliente <strong>${clientName}</strong> vence em breve (Data Final: <strong>${extraInfo}</strong>). Verifique a necessidade de renovação ou encerramento.`;
+        buttonText = "Acessar Visão de Projetos";
+        break;
+
       case 'deadline_24h':
         subject = `[URGENTE - 24H] Faltam 24h para entregar: ${taskName}`;
         icon = "⏳";
@@ -125,6 +133,15 @@ export class NotificationService {
         title = customSubject || "Notificação";
         message = customBody || "Existem novas métricas ou alertas a necessitar da sua atenção.";
         buttonText = "Acessar Sistema";
+        break;
+
+      case 'new_demand':
+        subject = `[NOVA DEMANDA] ${clientName || 'Cliente'}`;
+        icon = "📥";
+        title = "Nova Demanda do Trello";
+        message = `O Trello sincronizou uma nova demanda: <strong>${taskName}</strong> para <strong>${clientName || 'o projeto'}</strong>. Por favor, acesse o sistema para atribuir o colaborador e definir o prazo.`;
+        if (extraInfo) message += `<br/><br/>${extraInfo}`;
+        buttonText = "Atribuir Demanda";
         break;
 
       default:

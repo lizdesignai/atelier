@@ -127,11 +127,13 @@ export default function JTBDPage() {
 
       let teamData = [];
       if (profile.role === 'admin' || profile.role === 'gestor') {
-        const { data: tData } = await supabase.from('profiles').select('*').in('role', ['admin', 'gestor', 'colaborador']).order('nome');
-        if (tData) teamData = tData.filter((t: any) => t.status !== 'paused' && !t.is_paused);
+        const [tDataRes, pDataRes] = await Promise.all([
+          supabase.from('profiles').select('*').in('role', ['admin', 'gestor', 'colaborador']).order('nome'),
+          supabase.from('projects').select('id, profiles(nome), type, client_id').eq('status', 'active')
+        ]);
         
-        const { data: pData } = await supabase.from('projects').select('id, profiles(nome), type, client_id').eq('status', 'active');
-        if (pData) setProjects(pData);
+        if (tDataRes.data) teamData = tDataRes.data.filter((t: any) => t.status !== 'paused' && !t.is_paused);
+        if (pDataRes.data) setProjects(pDataRes.data);
       } else {
         teamData = [profile];
       }
@@ -141,7 +143,7 @@ export default function JTBDPage() {
       
       const { data: tasksData } = await supabase
         .from('tasks')
-        .select('*, projects(profiles(nome), type, client_id), agency_subclients(id, name, trello_url)')
+        .select('*, projects(profiles(nome), type, client_id), agency_subclients(id, name, trello_url), social_posts(image_url, status, created_at)')
         .in('assigned_to', teamIds)
         .order('priority_score', { ascending: false }) 
         .order('deadline', { ascending: true });
@@ -435,7 +437,7 @@ export default function JTBDPage() {
         currentUser={currentUser}
         viewedUser={viewedUser}
         isViewingSelf={isViewingSelf}
-        allUserTasks={userAllAssignedTasks}
+        allUserTasks={allUserTasks}
         allTasks={allTasks}
         assignedClients={assignedClients}
         selectedClient={selectedClient}
@@ -446,6 +448,7 @@ export default function JTBDPage() {
           } else {
             setSelectedClient(client);
             setFocusMode('monthly');
+            setSelectedDate(null);
           }
         }}
         isAdminOrManager={isAdminOrManager}
@@ -496,6 +499,7 @@ export default function JTBDPage() {
             handleDrop={handleDrop}
             teamData={team}
             currentUser={currentUser}
+            selectedClient={selectedClient}
           />
         </div>
       </div>
@@ -515,6 +519,7 @@ export default function JTBDPage() {
         onSelectClient={(client) => {
           setSelectedClient(client);
           setFocusMode('monthly');
+          setSelectedDate(null);
         }}
         onSelectTeamMember={(userId) => {
           setViewingUserId(userId);

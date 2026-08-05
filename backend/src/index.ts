@@ -65,6 +65,7 @@ import notificationsRoutes from './routes/notifications';
 import focusRoutes from './routes/focus';
 import assignmentRoutes from './routes/assignments';
 import { ReminderSchedulerService } from './services/ReminderSchedulerService';
+import { TrelloWorkerService } from './services/TrelloWorkerService';
 
 // Rotas Base da API v1
 app.use('/api/v1/projects', projectRoutes);
@@ -81,4 +82,5 @@ app.use('/api/v1/assignments', assignmentRoutes);
 app.listen(port, () => {
   console.log(`[Backend] Atelier API rodando na porta ${port}`);
   ReminderSchedulerService.start();
+  TrelloWorkerService.start(300000); // 5 minutos
 });

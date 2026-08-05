@@ -7,7 +7,7 @@ import {
   X, User, Mail, Phone, Instagram, Briefcase, 
   Target, Sparkles, Save, Loader2, LineChart, 
   BrainCircuit, CheckCircle2, DollarSign, Activity,
-  Clock, CheckSquare, UploadCloud, FileText, Camera, FolderOpen, Link, Trello, FileUp
+  Clock, CheckSquare, UploadCloud, FileText, Camera, FolderOpen, Link, Trello, FileUp, Search
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 
@@ -36,8 +36,11 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
 
   // 🟢 INJEÇÃO: Adicionado trello_url ao estado
   const [formData, setFormData] = useState({
-    nome: "", email: "", telefone: "", empresa: "", instagram: "", nicho: "", avatar_url: "", contract_url: "", trello_url: ""
+    nome: "", email: "", telefone: "", empresa: "", instagram: "", nicho: "", avatar_url: "", contract_url: "", trello_url: "", trello_sync_list_ids: [] as string[]
   });
+  
+  const [trelloLists, setTrelloLists] = useState<{ id: string, name: string }[]>([]);
+  const [isLoadingTrelloLists, setIsLoadingTrelloLists] = useState(false);
 
   const [clientStats, setClientStats] = useState({
     totalLTV: 0, activeMRR: 0, totalTasks: 0, completedTasks: 0,
@@ -123,7 +126,8 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
           setFormData(prev => ({ 
             ...prev, 
             contract_url: activeProjData.contract_url || "",
-            trello_url: activeProjData.trello_url || "" 
+            trello_url: activeProjData.trello_url || "",
+            trello_sync_list_ids: activeProjData.trello_sync_list_ids || []
           }));
         }
 
@@ -225,7 +229,10 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
       if (activeProjectId) {
         const { error: projError } = await supabase
           .from('projects')
-          .update({ trello_url: formData.trello_url })
+          .update({ 
+            trello_url: formData.trello_url,
+            trello_sync_list_ids: formData.trello_sync_list_ids
+          })
           .eq('id', activeProjectId);
           
         if (projError) console.error("Erro ao salvar Trello URL:", projError);
@@ -401,6 +408,72 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
                         </h4>
                         <div className="grid grid-cols-1 gap-6">
                           <InputGroup label="Link do Quadro do Trello" icon={Trello} value={formData.trello_url} onChange={(e:any)=>setFormData({...formData, trello_url: e.target.value})} placeholder="https://trello.com/b/..." />
+                          
+                          {formData.trello_url && (
+                            <div className="flex flex-col gap-3">
+                              <div className="flex items-center justify-between">
+                                <span className="font-roboto text-[11px] font-bold text-[var(--color-atelier-grafite)]">Listas Monitoradas para Automação (Demandas)</span>
+                                <button 
+                                  onClick={async () => {
+                                    if (!formData.trello_url) return;
+                                    setIsLoadingTrelloLists(true);
+                                    try {
+                                      const match = formData.trello_url.match(/trello\.com\/b\/([a-zA-Z0-9]+)/);
+                                      const boardId = match ? match[1] : null;
+                                      if (!boardId) throw new Error("URL inválida");
+                                      
+                                      const res = await fetch(`https://api.trello.com/1/boards/${boardId}/lists?key=${process.env.NEXT_PUBLIC_TRELLO_API_KEY}&token=${process.env.NEXT_PUBLIC_TRELLO_TOKEN}`);
+                                      if (!res.ok) throw new Error("Erro na API Trello");
+                                      const lists = await res.json();
+                                      setTrelloLists(lists);
+                                    } catch (err) {
+                                      showToast("Falha ao buscar listas do Trello. Verifique o URL.");
+                                    } finally {
+                                      setIsLoadingTrelloLists(false);
+                                    }
+                                  }}
+                                  className="text-[10px] font-bold uppercase tracking-widest text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg hover:bg-blue-100 flex items-center gap-2"
+                                  type="button"
+                                >
+                                  {isLoadingTrelloLists ? <Loader2 size={12} className="animate-spin"/> : <Search size={12}/>}
+                                  Buscar Listas
+                                </button>
+                              </div>
+
+                              {trelloLists.length > 0 && (
+                                <div className="flex flex-col gap-2 p-3 bg-gray-50 border border-gray-100 rounded-xl max-h-[200px] overflow-y-auto">
+                                  {trelloLists.map(list => {
+                                    const isSelected = formData.trello_sync_list_ids.includes(list.id);
+                                    return (
+                                      <label key={list.id} className="flex items-center gap-3 cursor-pointer p-2 hover:bg-white rounded-lg border border-transparent hover:border-gray-200 transition-colors">
+                                        <div className={`w-5 h-5 rounded border flex items-center justify-center shrink-0 ${isSelected ? 'bg-[#0079BF] border-[#0079BF]' : 'bg-white border-gray-300'}`}>
+                                          {isSelected && <CheckCircle2 size={14} className="text-white"/>}
+                                        </div>
+                                        <span className="text-xs font-medium text-[var(--color-atelier-grafite)]">{list.name}</span>
+                                        <input 
+                                          type="checkbox" 
+                                          className="hidden" 
+                                          checked={isSelected}
+                                          onChange={() => {
+                                            const newIds = isSelected 
+                                              ? formData.trello_sync_list_ids.filter(id => id !== list.id)
+                                              : [...formData.trello_sync_list_ids, list.id];
+                                            setFormData(prev => ({ ...prev, trello_sync_list_ids: newIds }));
+                                          }}
+                                        />
+                                      </label>
+                                    );
+                                  })}
+                                </div>
+                              )}
+                              
+                              {formData.trello_sync_list_ids.length > 0 && (
+                                <span className="text-[10px] text-gray-500 font-medium bg-gray-100 px-3 py-1.5 rounded-lg inline-block w-fit">
+                                  {formData.trello_sync_list_ids.length} lista(s) em monitoramento. As tarefas nestas listas vão criar demandas.
+                                </span>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
                     </motion.div>

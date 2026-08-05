@@ -22,6 +22,7 @@ interface DailyKanbanProps {
   handleFileUpload?: (taskId: string, files: File[]) => Promise<void>; 
   teamData?: any[];
   currentUser?: any;
+  selectedClient?: any;
 }
 
 export default function DailyKanban({
@@ -37,7 +38,8 @@ export default function DailyKanban({
   handleDrop,
   handleFileUpload,
   teamData = [],
-  currentUser
+  currentUser,
+  selectedClient
 }: DailyKanbanProps) {
 
   // ==========================================================================
@@ -395,7 +397,7 @@ export default function DailyKanban({
             <div className="relative z-10 flex flex-col h-full p-6">
               <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
-                  <PlayCircle size={20} className="text-[var(--color-atelier-grafite)]/50"/> Fila de Trabalho
+                  <PlayCircle size={20} className="text-[var(--color-atelier-grafite)]/50"/> {selectedClient ? 'Fila do Cliente' : 'Fila de Trabalho'}
                 </h3>
                 <span className="bg-white px-3 py-1 rounded-lg text-[11px] font-bold text-[var(--color-atelier-grafite)]/60 shadow-sm border border-[var(--color-atelier-grafite)]/5">
                   {activeQueueTasks.length}

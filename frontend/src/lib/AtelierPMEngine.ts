@@ -115,24 +115,47 @@ export class AtelierPMEngine {
         });
 
       } else {
-        const match = safePillar.match(/\d+/); 
-        const qty = match ? parseInt(match[0], 10) : 8; 
-        
-        const taskType = 'design'; 
-        const defaultAssigneeId = rulesMap[taskType] || null;
-        
-        for (let i = 1; i <= qty; i++) {
-          const optimalAssignee = await this.getOptimalAssignee(taskType, projectId, defaultAssigneeId, 60);
+        const { data: project } = await supabase
+          .from('projects')
+          .select('posts_quantity, videos_quantity')
+          .eq('id', projectId)
+          .single();
+
+        const postsQty = project?.posts_quantity || 0;
+        const videosQty = project?.videos_quantity || 0;
+
+        // Criar tarefas de design (posts)
+        const designAssignee = await this.getOptimalAssignee('design', projectId, rulesMap['design'] || null, 60);
+        for (let i = 1; i <= postsQty; i++) {
           const deadline = addBusinessDays(now, 2 + i).toISOString();
           const initialStatus = deadline <= endOfToday ? 'pending' : 'draft';
 
           newTasks.push({
             project_id: projectId,
-            assigned_to: optimalAssignee,
+            assigned_to: designAssignee,
             title: `Post Mensal #${i} - ${planning.month_year || 'Atual'}`,
             description: `**Objetivo da Campanha:** ${safePillar}\n**Tema/Linha:** ${planning.hook || 'Geral'}\n\n**Anotações do Planejamento:**\n${planning.briefing || ''}`,
             stage: 'Produção Ativa',
-            task_type: taskType,
+            task_type: 'design',
+            estimated_time: 60,
+            deadline: deadline,
+            status: initialStatus
+          });
+        }
+
+        // Criar tarefas de video
+        const videoAssignee = await this.getOptimalAssignee('video', projectId, rulesMap['video'] || null, 60);
+        for (let i = 1; i <= videosQty; i++) {
+          const deadline = addBusinessDays(now, 4 + i).toISOString();
+          const initialStatus = deadline <= endOfToday ? 'pending' : 'draft';
+
+          newTasks.push({
+            project_id: projectId,
+            assigned_to: videoAssignee,
+            title: `Vídeo Mensal #${i} - ${planning.month_year || 'Atual'}`,
+            description: `**Objetivo da Campanha:** ${safePillar}\n**Tema/Linha:** ${planning.hook || 'Geral'}\n\n**Anotações do Planejamento:**\n${planning.briefing || ''}`,
+            stage: 'Produção Ativa',
+            task_type: 'video',
             estimated_time: 60,
             deadline: deadline,
             status: initialStatus

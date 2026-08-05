@@ -13,7 +13,7 @@ export class TaskController {
 
       const { data, error } = await supabase
         .from('tasks')
-        .select('id, project_id, assigned_to, title, status, deadline, created_at, completed_at, actual_time, estimated_time, stage, task_type, attachment_url')
+        .select('id, project_id, assigned_to, title, description, caption, external_links, media_assets, status, deadline, created_at, completed_at, actual_time, estimated_time, stage, task_type, attachment_url')
         .gte('created_at', fifteenDaysAgo.toISOString())
         .order('deadline', { ascending: true })
         .limit(300); // Evita unbounded result sets

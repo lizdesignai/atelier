@@ -32,6 +32,7 @@ export function useInboxEngine() {
   // 4. Estados de UI do Motor
   const [isDrawerOpen, setIsDrawerOpen] = useState(true); 
   const [isSending, setIsSending] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<any | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   // ============================================================================
@@ -180,7 +181,7 @@ export function useInboxEngine() {
     try {
       let { data, error } = await supabase
         .from('messages')
-        .select('*, profiles(id, nome, avatar_url, role)')
+        .select('*, profiles(id, nome, avatar_url, role), parent:messages!parent_id(id, text_content, sender_id)')
         .eq('channel_id', activeChannelId)
         .order('created_at', { ascending: true });
 
@@ -244,7 +245,7 @@ export function useInboxEngine() {
   // ============================================================================
   // AÇÕES DE TRANSMISSÃO
   // ============================================================================
-  const sendMessage = async (text: string, attachmentUrl: string | null = null) => {
+  const sendMessage = async (text: string, attachmentUrl: string | null = null, parentId: string | null = null) => {
     if ((!text.trim() && !attachmentUrl) || !activeChannelId || !currentUser) return false;
 
     setIsSending(true);
@@ -257,7 +258,9 @@ export function useInboxEngine() {
       text_content: text.trim() ? text : null,
       attachment_url: attachmentUrl,
       created_at: new Date().toISOString(),
-      profiles: currentUser
+      profiles: currentUser,
+      parent_id: parentId,
+      parent: replyingTo
     };
     
     setMessages(prev => [...prev, optimisticMessage]);
@@ -267,10 +270,12 @@ export function useInboxEngine() {
       channel_id: activeChannelId,
       sender_id: currentUser.id,
       text_content: text.trim() ? text : null,
-      attachment_url: attachmentUrl
+      attachment_url: attachmentUrl,
+      parent_id: parentId
     });
 
     setIsSending(false);
+    setReplyingTo(null);
 
     if (error) {
       console.error("[InboxEngine] Falha ao enviar pacote:", error);
@@ -312,12 +317,14 @@ export function useInboxEngine() {
     activeDMUserId,
     isDrawerOpen,
     isSending,
+    replyingTo,
     messagesEndRef,
     setActiveSpace,
     setActiveProjectId,
     setActiveChannelId,
     setActiveDMUserId,
     setIsDrawerOpen,
+    setReplyingTo,
     sendMessage,
   };
 }

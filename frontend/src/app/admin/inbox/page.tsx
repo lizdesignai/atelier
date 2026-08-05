@@ -12,6 +12,7 @@ import {
 import { supabase } from "../../../lib/supabase";
 import { NotificationEngine } from "../../../lib/NotificationEngine";
 import InboxMobileView from "./views/InboxMobileView";
+import UserAvatar from "../../../components/global/UserAvatar";
 
 // ============================================================================
 // TIPAGEM ESTRITA (Arquitetura Zero 'any')
@@ -52,6 +53,8 @@ interface MessageData {
   attachment_url: string | null;
   created_at: string;
   profiles?: ProfileData;
+  parent_id?: string | null;
+  parent?: { id: string; text_content: string | null; sender_id: string; profiles?: ProfileData } | any;
 }
 
 // ============================================================================
@@ -103,6 +106,7 @@ export default function AdminInboxPage() {
   const mobileMessagesEndRef = useRef<HTMLDivElement>(null);
   const [isUploadingAttachment, setIsUploadingAttachment] = useState(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<MessageData | null>(null);
   
   // 🟢 NOVO: Estados para Notificações de Chat
   const [unreadCounts, setUnreadCounts] = useState<Record<string, number>>({});
@@ -269,7 +273,7 @@ export default function AdminInboxPage() {
       // 1. Tentar busca principal com join de perfis
       let { data, error } = await supabase
         .from('messages')
-        .select('*, profiles(id, nome, avatar_url, role)')
+        .select('*, profiles(id, nome, avatar_url, role), parent:messages!parent_id(id, text_content, sender_id)')
         .eq('channel_id', activeChannelId)
         .order('created_at', { ascending: true });
 
@@ -381,14 +385,18 @@ export default function AdminInboxPage() {
     const optimisticMsg: MessageData = {
       id: tempId, channel_id: activeChannelId, sender_id: currentUser.id,
       text_content: textToPush, attachment_url: null, created_at: new Date().toISOString(),
-      profiles: currentUser
+      profiles: currentUser,
+      parent_id: replyingTo?.id || null,
+      parent: replyingTo || undefined
     };
     
     setMessages(prev => [...prev, optimisticMsg]);
     scrollToBottom();
+    const currentReplyingToId = replyingTo?.id || null;
+    setReplyingTo(null);
 
     const { error } = await supabase.from('messages').insert({
-      channel_id: activeChannelId, sender_id: currentUser.id, text_content: textToPush
+      channel_id: activeChannelId, sender_id: currentUser.id, text_content: textToPush, parent_id: currentReplyingToId
     });
 
     if (error) {
@@ -430,10 +438,14 @@ export default function AdminInboxPage() {
 
       const { data: publicUrlData } = supabase.storage.from('chat_attachments').getPublicUrl(filePath);
 
+      const currentReplyingToId = replyingTo?.id || null;
+      setReplyingTo(null);
+
       await supabase.from('messages').insert({
         channel_id: activeChannelId, sender_id: currentUser.id, 
         text_content: messageText.trim() !== "" ? messageText : " ", 
-        attachment_url: publicUrlData.publicUrl
+        attachment_url: publicUrlData.publicUrl,
+        parent_id: currentReplyingToId
       });
       
       setMessageText("");
@@ -499,11 +511,7 @@ export default function AdminInboxPage() {
       placeholderText = `Mensagem para ${headerTitle}...`;
       headerSubtitle = dmUser?.role ? `Comunicação Criptografada • ${dmUser.role}` : "Comunicação Criptografada (End-to-End)";
       
-      HeaderIcon = dmUser?.avatar_url ? (
-        <img src={dmUser.avatar_url} alt={dmUser.nome} className="w-full h-full object-cover" />
-      ) : (
-        <span className="font-elegant font-bold text-lg text-[var(--color-atelier-grafite)]">{dmUser?.nome?.charAt(0) || "U"}</span>
-      );
+      HeaderIcon = <UserAvatar profile={dmUser} size="md" />;
     } else if (activeChannel.type === 'corporate_global') {
       headerTitle = "Equipe LizDesign";
       placeholderText = `Mensagem para a Equipe LizDesign...`;
@@ -515,8 +523,8 @@ export default function AdminInboxPage() {
         <div className="flex items-center gap-2 mt-0.5">
           <div className="flex -space-x-2">
             {allTeam.slice(0, 5).map((u, i) => (
-              <div key={i} className="w-5 h-5 rounded-full border border-white bg-gray-100 flex items-center justify-center overflow-hidden shadow-sm">
-                {u.avatar_url ? <img src={u.avatar_url} className="w-full h-full object-cover" /> : <span className="text-[8px] font-bold text-gray-500">{u.nome.charAt(0)}</span>}
+              <div key={u.id} className="w-6 h-6 -ml-2 rounded-full border-2 border-white bg-gray-100 flex items-center justify-center overflow-hidden shrink-0 shadow-sm" title={u.nome}>
+                <UserAvatar profile={u} size="sm" className="!w-full !h-full border-none" />
               </div>
             ))}
             {allTeam.length > 5 && (
@@ -562,6 +570,8 @@ export default function AdminInboxPage() {
         isSending={isSending}
         isUploadingAttachment={isUploadingAttachment}
         messagesEndRef={mobileMessagesEndRef}
+        replyingTo={replyingTo}
+        setReplyingTo={setReplyingTo}
       />
 
       {/* DESKTOP INBOX (HIDDEN LG:FLEX - 100% INTOCADO) */}
@@ -631,7 +641,7 @@ export default function AdminInboxPage() {
                       const isActive = activeProjectId === client.id;
                       return (
                         <button key={client.id} onClick={() => { setActiveProjectId(client.id); setActiveChannelId(null); }} className={`relative shrink-0 w-12 h-12 rounded-[1rem] flex items-center justify-center font-elegant text-lg shadow-sm border transition-all duration-300 ${isActive ? 'bg-[var(--color-atelier-terracota)] text-white border-[var(--color-atelier-terracota)] scale-110 z-10' : 'bg-white border-white text-[var(--color-atelier-grafite)] hover:scale-105'}`} title={client.profiles?.nome}>
-                          {client.profiles?.avatar_url ? <img src={client.profiles.avatar_url} className="w-full h-full object-cover rounded-[1rem]" alt="" /> : client.profiles?.nome?.charAt(0)}
+                          <UserAvatar profile={client.profiles} size="lg" className={`!w-full !h-full !rounded-[1rem] ${isActive ? '!bg-transparent border-none' : ''}`} />
                           {isActive && <motion.div layoutId="active-client-ring" className="absolute inset-0 rounded-[1rem] ring-2 ring-[var(--color-atelier-terracota)]/30 ring-offset-2"></motion.div>}
                         </button>
                       );
@@ -751,7 +761,7 @@ export default function AdminInboxPage() {
                       return (
                         <button key={user.id} onClick={() => { setActiveDMUserId(user.id); setMobileView('chat'); }} className={`w-full text-left p-3 rounded-[1.2rem] flex items-center gap-3 transition-all border ${isActive ? 'bg-white border-[var(--color-atelier-terracota)]/30 shadow-md scale-[1.02]' : 'bg-transparent border-transparent hover:bg-white/70'}`}>
                           <div className="relative shrink-0">
-                            <div className="w-11 h-11 rounded-[0.8rem] bg-gray-50 flex items-center justify-center overflow-hidden border border-white shadow-sm">{user.avatar_url ? <img src={user.avatar_url} className="w-full h-full object-cover"/> : <span className="font-elegant text-base font-bold text-[var(--color-atelier-grafite)]">{user.nome.charAt(0)}</span>}</div>
+                            <UserAvatar profile={user} size="md" className="!w-11 !h-11 !rounded-[0.8rem] !border-white !bg-gray-50 !shadow-sm" />
                             <div className={`absolute -bottom-1 -right-1 w-3.5 h-3.5 border-2 border-white rounded-full flex items-center justify-center ${isOnline ? 'bg-green-500' : 'bg-gray-300'}`}>{isOnline && <div className="absolute w-full h-full bg-green-500 rounded-full animate-ping opacity-60"></div>}</div>
                           </div>
                           <div className="flex flex-col overflow-hidden flex-1">
@@ -844,9 +854,7 @@ export default function AdminInboxPage() {
                 const isMe = msg.sender_id === currentUser?.id;
                 return (
                   <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} key={msg.id} className={`flex gap-4 max-w-[85%] shrink-0 ${isMe ? 'self-end flex-row-reverse' : 'self-start'}`}>
-                    <div className={`w-10 h-10 rounded-[0.8rem] shrink-0 flex items-center justify-center overflow-hidden border shadow-sm mt-1 ${isMe ? 'border-white bg-[var(--color-atelier-grafite)] text-white' : 'border-[var(--color-atelier-terracota)]/20 bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)]'}`}>
-                      {msg.profiles?.avatar_url ? <img src={msg.profiles.avatar_url} alt="Avatar" className="w-full h-full object-cover" /> : <span className="font-elegant font-bold text-lg">{msg.profiles?.nome?.charAt(0) || "U"}</span>}
-                    </div>
+                    <UserAvatar profile={msg.profiles || null} size="md" className={`mt-1 !w-10 !h-10 !rounded-[0.8rem] ${isMe ? '!bg-[var(--color-atelier-grafite)] !border-white !text-white' : '!border-[var(--color-atelier-terracota)]/20 !bg-[var(--color-atelier-creme)] !text-[var(--color-atelier-terracota)]'}`} />
                     <div className={`flex flex-col ${isMe ? 'items-end' : 'items-start'}`}>
                       <div className="flex items-center gap-2 mb-1.5 px-1">
                         <span className={`font-roboto text-[11px] font-bold ${isMe ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]'}`}>{msg.profiles?.nome}</span>
@@ -859,8 +867,19 @@ export default function AdminInboxPage() {
                         </div>
                       )}
                       {msg.text_content && msg.text_content !== " " && (
-                        <div className={`px-6 py-4 rounded-[1.5rem] shadow-sm font-roboto text-[14px] leading-relaxed font-medium border ${isMe ? 'bg-[var(--color-atelier-terracota)] text-white rounded-tr-sm border-[var(--color-atelier-terracota)]' : 'bg-white border-gray-100 text-[var(--color-atelier-grafite)] rounded-tl-sm'}`}>
+                        <div className={`px-6 py-4 rounded-[1.5rem] shadow-sm font-roboto text-[14px] leading-relaxed font-medium border relative group/msg ${isMe ? 'bg-[var(--color-atelier-terracota)] text-white rounded-tr-sm border-[var(--color-atelier-terracota)]' : 'bg-white border-gray-100 text-[var(--color-atelier-grafite)] rounded-tl-sm'}`}>
+                          {msg.parent && (
+                            <div className={`mb-2 pl-3 border-l-2 text-[11px] opacity-80 ${isMe ? 'border-white/50' : 'border-[var(--color-atelier-terracota)]/50'}`}>
+                              <span className="font-bold opacity-100 block">{msg.parent.sender_id === currentUser?.id ? 'Você' : (msg.parent.profiles?.nome || 'Mensagem anterior')}</span>
+                              <span className="line-clamp-1">{msg.parent.text_content || 'Anexo'}</span>
+                            </div>
+                          )}
                           {msg.text_content}
+                          
+                          {/* Botão Responder */}
+                          <button onClick={() => setReplyingTo(msg)} className={`absolute top-1/2 -translate-y-1/2 opacity-0 group-hover/msg:opacity-100 p-1.5 rounded-full bg-white shadow-sm border border-gray-100 text-[var(--color-atelier-grafite)] hover:text-[var(--color-atelier-terracota)] transition-all ${isMe ? '-left-10' : '-right-10'}`}>
+                            <MessageSquare size={14} />
+                          </button>
                         </div>
                       )}
                     </div>
@@ -871,7 +890,20 @@ export default function AdminInboxPage() {
             </div>
 
             {/* CHAT COMPOSER (Input) */}
-            <form onSubmit={handleSendMessage} className="p-6 bg-white/90 backdrop-blur-2xl border-t border-gray-100 z-20 shrink-0">
+            <form onSubmit={handleSendMessage} className="p-6 bg-white/90 backdrop-blur-2xl border-t border-gray-100 z-20 shrink-0 flex flex-col gap-2">
+              <AnimatePresence>
+                {replyingTo && (
+                  <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 10 }} className="bg-gray-50 border border-gray-100 rounded-xl px-4 py-3 flex justify-between items-center shadow-sm">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] font-bold text-[var(--color-atelier-terracota)] uppercase tracking-wider mb-0.5">Respondendo a {replyingTo.profiles?.nome || 'Usuário'}</span>
+                      <span className="text-xs text-[var(--color-atelier-grafite)] line-clamp-1">{replyingTo.text_content || 'Anexo'}</span>
+                    </div>
+                    <button type="button" onClick={() => setReplyingTo(null)} className="p-1 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors">
+                      <X size={16} />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
               <div className={`bg-white border border-gray-200 p-2 rounded-[2rem] shadow-sm flex items-end gap-3 transition-all ${isComposerDisabled ? 'opacity-80' : 'focus-within:border-[var(--color-atelier-terracota)]/50 focus-within:shadow-md'}`}>
                 <div className="flex items-center gap-1 pb-1 pl-2">
                   <label className={`w-10 h-10 flex items-center justify-center rounded-full shrink-0 transition-colors ${isComposerDisabled ? 'opacity-50 cursor-not-allowed text-gray-400' : 'cursor-pointer text-gray-400 hover:bg-gray-100 hover:text-[var(--color-atelier-terracota)]'}`}>

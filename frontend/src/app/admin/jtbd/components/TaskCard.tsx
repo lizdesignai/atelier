@@ -140,9 +140,15 @@ export default function TaskCard({
   const isEffectivelyModalOpen = isModalOpen || forceOpenModal;
   const isDelayed = !isCompleted && localDeadline && new Date(localDeadline) < new Date();
 
-  // Busca a imagem do social_post se o Kanban ainda não a tiver nativamente
+  // Verifica se a query pai já trouxe o social_post, senão busca
   useEffect(() => {
     if (task.id && !task.attachment_url) {
+      if (task.social_posts && Array.isArray(task.social_posts) && task.social_posts.length > 0) {
+        const sorted = [...task.social_posts].sort((a, b) => new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime());
+        setRelatedPost(sorted[0]);
+        return;
+      }
+
       const fetchRelatedPost = async () => {
         try {
           const { data } = await supabase
@@ -159,7 +165,7 @@ export default function TaskCard({
       };
       fetchRelatedPost();
     }
-  }, [task.id, task.attachment_url]);
+  }, [task.id, task.attachment_url, task.social_posts]);
 
   // 🟢 MOTOR DE CÁLCULO AO VIVO (CRONÓMETRO)
   useEffect(() => {

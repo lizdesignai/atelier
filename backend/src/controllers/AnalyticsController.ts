@@ -31,7 +31,7 @@ export class AnalyticsController {
         supabase.from('profiles').select('id, nome, role, avatar_url, skills, team_performance(exp_points, level_name)').in('role', ['admin', 'gestor', 'colaborador']),
         supabase.from('routing_rules').select('id, project_id, task_type, assignee_id, created_at'),
         supabase.from('tasks')
-          .select('id, project_id, assigned_to, title, status, deadline, created_at, completed_at, actual_time, estimated_time, stage, task_type, attachment_url, subclient_id, agency_id, projects(type, service_type, profiles(nome, avatar_url)), agency_subclients(name)')
+          .select('id, project_id, assigned_to, title, description, caption, external_links, media_assets, status, deadline, created_at, completed_at, actual_time, estimated_time, stage, task_type, attachment_url, subclient_id, agency_id, projects(type, service_type, profiles(nome, avatar_url)), agency_subclients(name)')
           .or(`status.neq.completed,completed_at.gte.${fifteenDaysAgo.toISOString()}`)
           .order('deadline', { ascending: true }),
         supabase.from('agencies').select('id, name, status, financial_value, billing_date, created_at, trello_url').eq('status', 'active'),

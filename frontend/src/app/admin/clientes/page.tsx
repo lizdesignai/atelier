@@ -67,7 +67,10 @@ export default function BaseClientesPage() {
   const [paymentRecurrence, setPaymentRecurrence] = useState("Único");
   const [paymentSplit, setPaymentSplit] = useState("50/50");
   const [billingDate, setBillingDate] = useState("");
-
+  const [contractStart, setContractStart] = useState("");
+  const [contractEnd, setContractEnd] = useState("");
+  const [postsQty, setPostsQty] = useState("0");
+  const [videosQty, setVideosQty] = useState("0");
   const [isAgencyModalOpen, setIsAgencyModalOpen] = useState(false);
   const [agencyName, setAgencyName] = useState("");
   const [agencyFinancialValue, setAgencyFinancialValue] = useState("");
@@ -142,7 +145,11 @@ export default function BaseClientesPage() {
           payment_method: paymentMethod,
           payment_recurrence: paymentRecurrence,
           payment_split: paymentSplit,
-          billing_date: billingDate
+          billing_date: billingDate,
+          contract_start: contractStart,
+          contract_end: contractEnd,
+          posts_quantity: postsQty,
+          videos_quantity: videosQty
         })
       });
 
@@ -1003,29 +1010,39 @@ export default function BaseClientesPage() {
                         </div>
                       </div>
 
-                      <div className="flex flex-col gap-2">
-                        <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 pl-1">Pacote Específico</label>
-                        <select 
-                          value={projectPackage}
-                          onChange={(e) => setProjectPackage(e.target.value)}
-                          className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-4 py-3 text-[13px] outline-none shadow-sm font-bold text-[var(--color-atelier-terracota)] cursor-pointer h-full"
-                        >
-                          {serviceType === "Identidade Visual" ? (
-                            <>
-                              <option>Identidade Visual</option>
-                              <option>Rebranding Pleno</option>
-                              <option>Identidade + Web Design</option>
-                            </>
-                          ) : (
-                            <>
-                              <option>Pacote 1</option>
-                              <option>Pacote 2</option>
-                              <option>Pacote 3</option>
-                              <option>Pacote 4</option>
-                            </>
-                          )}
-                        </select>
-                      </div>
+                      {serviceType === "Identidade Visual" ? (
+                        <div className="flex flex-col gap-2">
+                          <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 pl-1">Pacote Específico</label>
+                          <select 
+                            value={projectPackage}
+                            onChange={(e) => setProjectPackage(e.target.value)}
+                            className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-4 py-3 text-[13px] outline-none shadow-sm font-bold text-[var(--color-atelier-terracota)] cursor-pointer h-full"
+                          >
+                            <option>Identidade Visual</option>
+                            <option>Rebranding Pleno</option>
+                            <option>Identidade + Web Design</option>
+                          </select>
+                        </div>
+                      ) : (
+                        <div className="col-span-2 grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 p-4 bg-white/50 rounded-2xl border border-gray-100">
+                           <div className="flex flex-col gap-2">
+                              <label className="font-roboto text-[9px] font-bold uppercase tracking-widest text-gray-500 pl-1">Início Contrato</label>
+                              <input type="date" value={contractStart} onChange={(e) => setContractStart(e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-[12px] outline-none text-gray-700" />
+                           </div>
+                           <div className="flex flex-col gap-2">
+                              <label className="font-roboto text-[9px] font-bold uppercase tracking-widest text-gray-500 pl-1">Fim Contrato</label>
+                              <input type="date" value={contractEnd} onChange={(e) => setContractEnd(e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-[12px] outline-none text-gray-700" />
+                           </div>
+                           <div className="flex flex-col gap-2">
+                              <label className="font-roboto text-[9px] font-bold uppercase tracking-widest text-gray-500 pl-1">Qtd Posts</label>
+                              <input type="number" min="0" value={postsQty} onChange={(e) => setPostsQty(e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-[12px] outline-none text-gray-700" placeholder="Ex: 12" />
+                           </div>
+                           <div className="flex flex-col gap-2">
+                              <label className="font-roboto text-[9px] font-bold uppercase tracking-widest text-gray-500 pl-1">Qtd Vídeos</label>
+                              <input type="number" min="0" value={videosQty} onChange={(e) => setVideosQty(e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl px-3 py-2.5 text-[12px] outline-none text-gray-700" placeholder="Ex: 4" />
+                           </div>
+                        </div>
+                      )}
                     </div>
                   </div>
 

@@ -12,7 +12,7 @@ import {
   ChevronRight, ChevronLeft, CalendarDays, MessageSquare, 
   XCircle, Star, Zap, FileText, Download, X, AlignLeft, 
   RotateCcw, Send, PlayCircle, ImageIcon, LayoutDashboard, TrendingUp,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Calendar, Video
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useProfile } from "../../hooks/useProfile";
@@ -100,26 +100,31 @@ export default function CockpitPage() {
           setAllPosts(sortedPosts);
           setPendingCount(sortedPosts.filter(p => p.status === 'pending_approval').length);
 
-          // Puxa as tarefas EXATAMENTE do mês atual, sem puxar meses passados.
-          const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1, 0, 0, 0);
-          const endOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0, 23, 59, 59);
-          
-          const startRange = startOfMonth.toISOString();
-          const endRange = endOfMonth.toISOString();
+          const year = new Date().getFullYear();
+          const month = new Date().getMonth();
+          const startRange = new Date(Date.UTC(year, month, 1, 0, 0, 0)).toISOString();
+          const endRange = new Date(Date.UTC(year, month + 1, 0, 23, 59, 59)).toISOString();
 
-          // Puxa as tarefas do mês para o projeto via Server Action (bypass RLS e cache seguro)
-          const fetchedTasks = await fetchCockpitTasks(proj.id, proj.client_id, startRange, endRange, Date.now());
-          let tasksData = fetchedTasks || [];
+          // 🟢 WORKER REALTIME: Volta a usar a Server Action para bypass RLS, resolvendo a lista vazia
+          const rawTasks = await fetchCockpitTasks(proj.id, session.user.id, startRange, endRange, Date.now());
+            
+          let tasksData = rawTasks || [];
 
-          const sortedTasks = (tasksData || []).sort((a, b) => {
+          // 🟢 Filtro de Transparência: Oculta etapas puramente internas da agência (Setup, Risco, Gestão Interna).
+          const blockedTerms = ['setup', 'onboarding', 'mitigação', 'mitigacao', 'risco', 'gestão contínua', 'gestao continua', 'interno', 'gargalo', 'admin'];
+          tasksData = tasksData.filter((t: any) => {
+            const stage = (t.stage || '').toLowerCase();
+            const title = (t.title || '').toLowerCase();
+            return !blockedTerms.some(term => stage.includes(term) || title.includes(term));
+          });
+
+          const sortedTasks = tasksData.sort((a, b) => {
             if (a.status === 'pending_client_approval' && b.status !== 'pending_client_approval') return -1;
             if (a.status !== 'pending_client_approval' && b.status === 'pending_client_approval') return 1;
             return 0;
           });
           
           setMonthTasks(sortedTasks);
-          // Soma contagens de aprovações pendentes se necessário
-          // setPendingCount(prev => prev + sortedTasks.filter(t => t.status === 'pending_client_approval').length);
 
           const { data: brief } = await supabase.from('instagram_briefings').select('*').eq('project_id', proj.id).or('status.neq.returned,status.is.null').order('created_at', { ascending: false }).limit(1).maybeSingle(); 
           setBriefing(brief);
@@ -138,6 +143,10 @@ export default function CockpitPage() {
     };
 
     fetchCockpitData();
+    
+    // 🟢 INITIALIZE POLL WORKER (30 segundos)
+    const workerInterval = setInterval(fetchCockpitData, 30000);
+    return () => clearInterval(workerInterval);
   }, []);
 
   // ==========================================
@@ -382,41 +391,13 @@ export default function CockpitPage() {
     }
   };
 
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? "Bom dia" : hour < 19 ? "Boa tarde" : "Boa noite";
+  const [greeting, setGreeting] = useState("Olá");
 
-  const getWeeksInMonth = () => {
-    const now = new Date();
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-    const weeks = [];
-    
-    let current = new Date(start);
-    current.setDate(current.getDate() - current.getDay() + 1); // Ajusta para Segunda
-
-    while (current <= end) {
-      const weekStart = new Date(current);
-      const weekEnd = new Date(current);
-      weekEnd.setDate(current.getDate() + 6);
-      weekEnd.setHours(23, 59, 59, 999);
-      
-      const adjustedStart = weekStart < start ? start : weekStart;
-      const adjustedEnd = weekEnd > end ? end : weekEnd;
-      
-      weeks.push({
-        start: adjustedStart,
-        end: adjustedEnd,
-        label: `${adjustedStart.getDate().toString().padStart(2, '0')} a ${adjustedEnd.getDate().toString().padStart(2, '0')} de ${adjustedStart.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '')}`
-      });
-      
-      current.setDate(current.getDate() + 7);
-    }
-    
-    // Filtra semanas que já passaram para focar no presente e futuro
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return weeks.filter(w => w.end >= today);
-  };
+  useEffect(() => {
+    const hour = new Date().getHours();
+    setGreeting(hour < 12 ? "Bom dia" : hour < 19 ? "Boa tarde" : "Boa noite");
+  }, []);
+  // Semanas removidas para focar em uma fila única
 
   if (isLoading) return <div className="flex h-[calc(100vh-100px)] w-full items-center justify-center"><Loader2 className="animate-spin text-[var(--color-atelier-terracota)]" size={32} /></div>;
 
@@ -432,7 +413,10 @@ export default function CockpitPage() {
   // ==========================================================================
   // RENDERIZAÇÃO CONDICIONAL: INSTAGRAM OS
   // ==========================================================================
-  if (project.type === 'Gestão de Instagram' || project.service_type === 'Gestão de Instagram') {
+  const rawType = project.service_type || project.type || project.service || "";
+  const isInstagram = rawType === 'Gestão de Instagram' || rawType.toLowerCase().includes('instagram');
+
+  if (isInstagram) {
     
     return (
       <div className="flex flex-col h-auto min-h-[calc(100dvh-60px)] md:h-[calc(100vh-60px)] max-w-[1500px] w-full mx-auto relative z-10 p-4 md:p-8 overflow-x-hidden md:overflow-hidden gap-6">
@@ -540,70 +524,152 @@ export default function CockpitPage() {
           </h1>
         </header>
 
-          {/* 🟢 NOVO WIDGET: CALENDÁRIO SEMANAL DE ATIVIDADES (ROLA LATERALMENTE) */}
-        <div className="w-full flex gap-4 overflow-x-auto custom-scrollbar pb-4 animate-[fadeInUp_0.6s_ease-out]">
-            {getWeeksInMonth().map((week, idx) => {
-              const weeklyTasks = monthTasks.filter(t => {
-                const dStr = t.deadline.split('T')[0];
-                const [year, month, day] = dStr.split('-');
-                const d = new Date(Number(year), Number(month) - 1, Number(day));
-                return d >= week.start && d <= week.end;
-              });
-              
-              // Verifica se esta é a semana atual
-              const now = new Date();
-              const isCurrentWeek = now >= week.start && now <= week.end;
-              
+        {/* 🟢 INFORMAÇÕES DE CONTRATO */}
+        {(project.contract_end || project.posts_quantity > 0 || project.videos_quantity > 0) && (
+           <div className="animate-[fadeInUp_0.6s_ease-out] flex flex-wrap items-center gap-2 -mt-3 mb-2">
+             {project.contract_end && (
+               <span className="px-3 py-1.5 bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 shadow-sm flex items-center gap-1.5">
+                 <Calendar size={13} className="text-[var(--color-atelier-terracota)]" />
+                 Até {new Date(project.contract_end).toLocaleDateString('pt-BR')}
+               </span>
+             )}
+             {project.posts_quantity > 0 && (
+               <span className="px-3 py-1.5 bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 shadow-sm flex items-center gap-1.5">
+                 <LayoutDashboard size={13} className="text-[var(--color-atelier-terracota)]" />
+                 {project.posts_quantity} Posts/Mês
+               </span>
+             )}
+             {project.videos_quantity > 0 && (
+               <span className="px-3 py-1.5 bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 shadow-sm flex items-center gap-1.5">
+                 <Video size={13} className="text-[var(--color-atelier-terracota)]" />
+                 {project.videos_quantity} Vídeos/Mês
+               </span>
+             )}
+           </div>
+        )}
+
+          {/* 🟢 NOVO WIDGET: FILA ÚNICA DE DEMANDAS (SLIDER HORIZONTAL ESTILO JTBD) */}
+        <div className="w-full flex flex-col gap-3 animate-[fadeInUp_0.6s_ease-out]">
+          <div className="flex justify-between items-end mb-1">
+             <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] capitalize">
+               {new Date().toLocaleString('pt-BR', { month: 'long' })}
+             </h2>
+          </div>
+
+          <div className="w-full flex gap-4 overflow-x-auto overflow-y-hidden custom-scrollbar pb-6 px-1 pt-1 h-auto items-stretch">
+            {monthTasks.length > 0 ? monthTasks.map((task, absoluteIndex) => {
+              const post = allPosts.find(p => p.task_id === task.id);
+              const coverUrl = post?.media_assets?.[0]?.url || task.attachment_url;
+              const isVideo = isVideoUrl(coverUrl);
+              const caption = post?.caption || task.description;
+
+              // Color-coding dinâmico via JTBD
+              // in_progress = Azul
+              // review / pending_client_approval = Laranja
+              // completed = Verde
+              // Outros = Cinza Neutro
+              let borderColor = 'border-gray-100';
+              let ringColor = 'hover:ring-1 hover:ring-gray-200';
+              let badgeColor = 'bg-gray-100 text-gray-500';
+              let badgeText = 'Na Fila';
+              let Icon = Target;
+
+              if (task.status === 'in_progress') {
+                borderColor = 'border-blue-400 ring-1 ring-blue-400/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]';
+                badgeColor = 'bg-blue-500 text-white';
+                badgeText = 'Em Execução';
+                Icon = PlayCircle;
+              } else if (task.status === 'review' || task.status === 'pending_client_approval') {
+                borderColor = 'border-orange-400 ring-1 ring-orange-400/50 shadow-[0_0_15px_rgba(251,146,60,0.2)]';
+                badgeColor = 'bg-orange-500 text-white';
+                badgeText = 'Revisão / Aprovação';
+                Icon = AlertCircle;
+              } else if (task.status === 'completed') {
+                borderColor = 'border-green-400 ring-1 ring-green-400/50 shadow-[0_0_15px_rgba(74,222,128,0.2)]';
+                badgeColor = 'bg-green-500 text-white';
+                badgeText = 'Concluída';
+                Icon = CheckCircle2;
+              }
+
               return (
-                <div key={idx} className={`min-w-[300px] w-[300px] bg-white rounded-[2rem] p-5 shadow-sm border flex flex-col gap-4 ${isCurrentWeek ? 'border-[var(--color-atelier-terracota)] ring-1 ring-[var(--color-atelier-terracota)]/20' : 'border-gray-100'}`}>
-                  <div className="flex items-center gap-2 border-b border-gray-100 pb-3 shrink-0">
-                     <CalendarDays size={16} className={isCurrentWeek ? "text-[var(--color-atelier-terracota)]" : "text-gray-400"} />
-                     <span className={`font-roboto text-[11px] font-bold uppercase tracking-widest ${isCurrentWeek ? 'text-[var(--color-atelier-terracota)]' : 'text-gray-500'}`}>Semana {idx + 1}</span>
-                     {isCurrentWeek && <span className="ml-2 text-[9px] bg-orange-100 text-orange-600 px-2 py-0.5 rounded-full font-bold uppercase tracking-wider">Atual</span>}
-                     <span className="font-roboto text-[10px] ml-auto bg-gray-50 text-gray-400 px-2 py-1 rounded-md uppercase tracking-wider">{week.label}</span>
+                <div 
+                  key={task.id} 
+                  onClick={() => { setActiveTaskIndex(absoluteIndex); setTaskDetailOpen(true); }}
+                  className={`min-w-[280px] w-[280px] sm:min-w-[320px] sm:w-[320px] bg-white rounded-[2rem] p-5 cursor-pointer hover:-translate-y-1 transition-all group flex flex-col gap-4 relative overflow-hidden shadow-sm border ${borderColor} shrink-0`}
+                >
+                  {/* Data e Status */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-[12px] font-bold text-[var(--color-atelier-terracota)] uppercase tracking-widest bg-[var(--color-atelier-creme)]/50 px-2.5 py-1 rounded-md">
+                      {new Date(task.deadline).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' }).replace('.', '')}
+                    </span>
+                    <div className={`px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest flex items-center gap-1.5 shadow-sm ${badgeColor}`}>
+                       <Icon size={12}/> {badgeText}
+                    </div>
                   </div>
-                  
-                  <div className="flex flex-col gap-3 flex-1 overflow-y-auto max-h-[300px] custom-scrollbar pr-1">
-                    {weeklyTasks.length > 0 ? weeklyTasks.map((task) => {
-                      const absoluteIndex = monthTasks.findIndex(mt => mt.id === task.id);
-                      return (
-                        <div 
-                          key={task.id} 
-                          onClick={() => { setActiveTaskIndex(absoluteIndex); setTaskDetailOpen(true); }}
-                          className={`bg-gray-50 rounded-xl p-3 border cursor-pointer hover:shadow-md transition-all group flex flex-col gap-2 relative overflow-hidden ${task.status === 'pending_client_approval' ? 'border-orange-300' : 'border-gray-200 hover:border-gray-300'}`}
-                        >
-                          {task.status === 'pending_client_approval' && (
-                            <div className="absolute top-0 right-0 left-0 h-0.5 bg-gradient-to-r from-orange-400 to-[var(--color-atelier-terracota)]"></div>
-                          )}
-                          <div className="flex justify-between items-start">
-                             <h3 className="font-elegant text-sm text-[var(--color-atelier-grafite)] leading-tight group-hover:text-[var(--color-atelier-terracota)] transition-colors line-clamp-2 pr-2">{task.title}</h3>
-                             <div className={`w-6 h-6 rounded-lg flex items-center justify-center shrink-0 ${task.status === 'pending_client_approval' ? 'bg-orange-100 text-orange-500' : task.status === 'completed' ? 'bg-green-100 text-green-500' : 'bg-white border border-gray-200 text-gray-400'}`}>
-                                {task.status === 'pending_client_approval' ? <AlertCircle size={12}/> : task.status === 'completed' ? <CheckCircle2 size={12}/> : <Target size={12}/>}
-                             </div>
-                          </div>
-                          <div className="flex justify-between items-center mt-2 border-t border-gray-100 pt-2">
-                             <div className="flex items-center gap-1.5 overflow-hidden">
-                                {task.profiles?.avatar_url ? (
-                                  <img src={task.profiles.avatar_url} alt="Avatar" className="w-4 h-4 rounded-full object-cover shrink-0" />
-                                ) : (
-                                  <div className="w-4 h-4 rounded-full bg-gray-200 shrink-0" />
-                                )}
-                                <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 truncate">{task.profiles?.nome?.split(' ')[0] || 'Atelier'}</span>
-                             </div>
-                             <span className="text-[9px] font-bold text-gray-500">{new Date(task.deadline).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
-                          </div>
-                        </div>
-                      );
-                    }) : (
-                       <div className="flex flex-col items-center justify-center py-8 text-gray-300 opacity-60 m-auto">
-                          <CheckCircle2 size={24} className="mb-2 text-gray-200" />
-                          <span className="text-[10px] font-bold uppercase tracking-widest">Sem tarefas agendadas</span>
+
+                  {/* Titulo */}
+                  <h3 className="font-elegant text-xl text-[var(--color-atelier-grafite)] leading-tight">{task.title}</h3>
+
+                  {/* Mídia Cover */}
+                  {coverUrl ? (
+                    <div className="w-full h-36 rounded-xl overflow-hidden relative bg-gray-100 border border-gray-100 shrink-0">
+                       {isVideo ? (
+                         <video src={coverUrl} className="w-full h-full object-cover" />
+                       ) : coverUrl.toLowerCase().endsWith('.pdf') ? (
+                         <div className="w-full h-full flex flex-col items-center justify-center text-[var(--color-atelier-terracota)] opacity-80">
+                            <FileText size={32} className="mb-2"/>
+                            <span className="text-[10px] font-bold uppercase tracking-widest">Documento PDF</span>
+                         </div>
+                       ) : (
+                         <img src={coverUrl} alt="Cover" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                       )}
+                       <div className="absolute top-2 right-2 w-7 h-7 rounded-full bg-white/90 backdrop-blur-md flex items-center justify-center text-[var(--color-atelier-grafite)] shadow-sm">
+                         {isVideo ? <PlayCircle size={14}/> : coverUrl.toLowerCase().endsWith('.pdf') ? <FileText size={14}/> : <ImageIcon size={14}/>}
                        </div>
-                    )}
+                    </div>
+                  ) : (
+                    <div className="w-full h-12 rounded-xl bg-gray-50 border border-gray-100 border-dashed flex items-center justify-center shrink-0">
+                       <span className="text-[9px] uppercase tracking-widest font-bold text-gray-400">Em Desenvolvimento</span>
+                    </div>
+                  )}
+
+                  {/* Legenda (Trunca em 3 linhas) */}
+                  {caption && (
+                    <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/70 line-clamp-3 leading-relaxed bg-gray-50/80 p-3 rounded-xl border border-gray-100 flex-1">
+                      {caption}
+                    </p>
+                  )}
+
+                  {/* Ações Inferiores (Copiar / Baixar) */}
+                  <div className="flex items-center gap-2 mt-auto border-t border-gray-50 pt-4">
+                     <button 
+                       onClick={(e) => { 
+                         e.stopPropagation(); 
+                         if (caption) { navigator.clipboard.writeText(caption); showToast("Legenda copiada!"); }
+                       }}
+                       className={`flex-1 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors border shadow-sm ${caption ? 'bg-indigo-50 border-indigo-100 text-indigo-600 hover:bg-indigo-100' : 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed shadow-none'}`}
+                     >
+                       <AlignLeft size={14} /> Copiar
+                     </button>
+
+                     <a 
+                       href={coverUrl || "#"} 
+                       download 
+                       target="_blank" 
+                       rel="noreferrer"
+                       onClick={(e) => {
+                         e.stopPropagation();
+                         if (!coverUrl) e.preventDefault();
+                       }}
+                       className={`flex-1 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest flex items-center justify-center gap-1.5 transition-colors border shadow-sm ${coverUrl ? 'bg-[var(--color-atelier-grafite)] border-[var(--color-atelier-grafite)] text-white hover:bg-gray-800' : 'bg-gray-50 border-gray-100 text-gray-300 cursor-not-allowed shadow-none'}`}
+                     >
+                       <Download size={14} /> Baixar
+                     </a>
                   </div>
                 </div>
               );
-            })}
+            }) : null}
+          </div>
         </div>
 
         {/* 🟢 O CORE DA PLATAFORMA: GRID PRINCIPAL E CARROSSEL */}
@@ -1228,7 +1294,32 @@ export default function CockpitPage() {
             <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/60">Resumo Executivo</span>
           </div>
           <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] leading-tight tracking-tight">{greeting}, <span className="text-[var(--color-atelier-terracota)] italic">{clientName}.</span></h1>
-          <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-3 max-w-md font-medium leading-relaxed">O seu painel de acompanhamento diário. Acompanhe a evolução do projeto e faça a gestão das entregas com eficiência.</p>
+          
+          {/* 🟢 INFORMAÇÕES DE CONTRATO (GERAL) */}
+          {(project.contract_end || project.posts_quantity > 0 || project.videos_quantity > 0) && (
+             <div className="flex flex-wrap items-center gap-2 mt-4">
+               {project.contract_end && (
+                 <span className="px-3 py-1.5 bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 shadow-sm flex items-center gap-1.5">
+                   <Calendar size={13} className="text-[var(--color-atelier-terracota)]" />
+                   Até {new Date(project.contract_end).toLocaleDateString('pt-BR')}
+                 </span>
+               )}
+               {project.posts_quantity > 0 && (
+                 <span className="px-3 py-1.5 bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 shadow-sm flex items-center gap-1.5">
+                   <LayoutDashboard size={13} className="text-[var(--color-atelier-terracota)]" />
+                   {project.posts_quantity} Posts/Mês
+                 </span>
+               )}
+               {project.videos_quantity > 0 && (
+                 <span className="px-3 py-1.5 bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 shadow-sm flex items-center gap-1.5">
+                   <Video size={13} className="text-[var(--color-atelier-terracota)]" />
+                   {project.videos_quantity} Vídeos/Mês
+                 </span>
+               )}
+             </div>
+          )}
+
+          <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-4 max-w-md font-medium leading-relaxed">O seu painel de acompanhamento diário. Acompanhe a evolução do projeto e faça a gestão das entregas com eficiência.</p>
         </div>
       </header>
       

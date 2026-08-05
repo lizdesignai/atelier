@@ -56,7 +56,7 @@ export class ClientsController {
         supabase.from('tasks').select('project_id, status'),
         supabase.from('profiles').select('id, nome, avatar_url, role, created_at, empresa').in('role', ['client', 'lead']),
         supabase.from('agencies').select('id, name, status, financial_value, billing_date, created_at, trello_url'),
-        supabase.from('projects').select('id, client_id, service_type, type, status, phase, fase, progress, financial_value, billing_date, created_at, profiles(nome, avatar_url, empresa)').in('status', ['active', 'delivered'])
+        supabase.from('projects').select('id, client_id, service_type, type, status, phase, fase, progress, financial_value, billing_date, contract_start, contract_end, posts_quantity, videos_quantity, created_at, profiles(nome, avatar_url, empresa)').in('status', ['active', 'delivered'])
       ]);
 
       if (tasksRes.error) throw tasksRes.error;
@@ -125,7 +125,8 @@ export class ClientsController {
       const { 
         client_id, service_type, project_package, 
         financial_value, payment_method, payment_recurrence, 
-        payment_split, billing_date 
+        payment_split, billing_date,
+        contract_start, contract_end, posts_quantity, videos_quantity
       } = req.body;
 
       if (!client_id) {
@@ -145,7 +146,11 @@ export class ClientsController {
         payment_recurrence,
         payment_split,
         billing_date: billing_date || null,
-        data_limite: billing_date || null 
+        data_limite: billing_date || null,
+        contract_start: contract_start || null,
+        contract_end: contract_end || null,
+        posts_quantity: posts_quantity ? parseInt(posts_quantity) : 0,
+        videos_quantity: videos_quantity ? parseInt(videos_quantity) : 0
       };
 
       const { data: newProject, error: projError } = await supabase.from('projects').insert(projectPayload).select().single();
@@ -155,7 +160,35 @@ export class ClientsController {
       if (service_type === 'Identidade Visual') {
         pipeline = IDV_PIPELINE;
       } else {
-        pipeline = [...IG_SETUP, ...(IG_PACKAGES[project_package] || [])];
+        // Pipeline Dinâmico Baseado no Contrato
+        pipeline = [...IG_SETUP];
+        
+        const v_qty = projectPayload.videos_quantity;
+        const p_qty = projectPayload.posts_quantity;
+
+        // Estratégia Inicial se tiver posts ou videos
+        if (p_qty > 0 || v_qty > 0) {
+            pipeline.push({ stage: "Estratégia", type: "copy", title: "Calendário Editorial de Conteúdos", daysOffset: 5, estTime: 90 });
+        }
+
+        // Criar tarefas de Vídeo
+        if (v_qty > 0) {
+           pipeline.push({ stage: "Copywriting", type: "copy", title: `Roteirização de ${v_qty} Vídeos`, daysOffset: 7, estTime: 60 });
+           for (let i = 0; i < v_qty; i++) {
+               pipeline.push({ stage: "Produção de Vídeo", type: "video", title: `Edição de Vídeo ${i+1} + Capa`, daysOffset: 10 + (i * 0.5), estTime: 60 });
+           }
+        }
+
+        // Criar tarefas de Posts
+        if (p_qty > 0) {
+           for (let i = 0; i < p_qty; i++) {
+               pipeline.push({ stage: "Produção de Arte", type: "design", title: `Design & Copy: Post ${i+1}`, daysOffset: 11 + (i * 0.5), estTime: 60 });
+           }
+        }
+
+        // Aprovação e Relatório final
+        pipeline.push({ stage: "Aprovação", type: "setup", title: "Agendamento Sistêmico & Aprovação do Cliente", daysOffset: 15, estTime: 60 });
+        pipeline.push({ stage: "Relatório", type: "setup", title: "Geração de Relatório Mensal", daysOffset: 25, estTime: 60 });
       }
 
       const baseDate = billing_date ? new Date(billing_date) : new Date();

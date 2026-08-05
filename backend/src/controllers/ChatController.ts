@@ -20,7 +20,7 @@ export class ChatController {
 
       const { data, error } = await supabase
         .from('messages')
-        .select('id, channel_id, sender_id, text_content, attachment_url, created_at, profiles(id, nome, avatar_url, role)')
+        .select('id, channel_id, sender_id, text_content, attachment_url, created_at, parent_id, profiles(id, nome, avatar_url, role), parent:messages!parent_id(id, text_content, sender_id)')
         .eq('channel_id', channelId)
         .order('created_at', { ascending: false })
         .range(offsetVal, offsetVal + limitVal - 1);

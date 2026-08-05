@@ -1,7 +1,7 @@
 // src/app/admin/jtbd/views/JTBDMobileView.tsx
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Flame, Briefcase, FolderKanban, CheckCircle2, Clock, Activity,
@@ -94,7 +94,7 @@ export default function JTBDMobileView({
     );
   };
 
-  const completedTasksCount = allUserTasks.filter(t => isCompletedStatus(t.status)).length;
+  const completedTasksCount = allUserTasks.filter(t => isCompletedStatus(t.status, t.stage)).length;
   const totalTasksCount = allUserTasks.length;
   const eficiencia = totalTasksCount === 0 ? 0 : Math.round((completedTasksCount / totalTasksCount) * 100);
 
@@ -106,7 +106,7 @@ export default function JTBDMobileView({
   const [nowState, setNowState] = useState(Date.now());
   
   useEffect(() => {
-    const timer = setInterval(() => setNowState(Date.now()), 1000);
+    const timer = setInterval(() => setNowState(Date.now()), 30000);
     return () => clearInterval(timer);
   }, []);
 
@@ -126,12 +126,13 @@ export default function JTBDMobileView({
     }
   };
 
-  // 3. Demandas Urgentes (ORDENADAS DO MENOR PRAZO AO MAIOR)
+  // 3. Demandas Urgentes (ORDENADAS DO MENOR PRAZO AO MAIOR) — MEMOIZADO
   const next24h = new Date(nowState + 24 * 60 * 60 * 1000);
-  const urgentTasks = activeTasks.filter(t => {
+  const urgentTasks = useMemo(() => activeTasks.filter(t => {
     if (selectedClient) {
       const matchesClient = selectedClient.type === 'project' ? t.project_id === selectedClient.id : t.subclient_id === selectedClient.id;
       if (!matchesClient) return false;
+      return true;
     }
     if (t.urgency || t.status === 'in_progress') return true;
     if (!t.deadline) return false;
@@ -141,7 +142,7 @@ export default function JTBDMobileView({
     const timeA = a.deadline ? new Date(a.deadline).getTime() : Infinity;
     const timeB = b.deadline ? new Date(b.deadline).getTime() : Infinity;
     return timeA - timeB;
-  });
+  }), [activeTasks, selectedClient, nowState]);
 
   const getRemainingTimeFormatted = (deadlineStr: string | null) => {
     if (!deadlineStr) return { text: "Sem Prazo", isOverdue: false };
@@ -176,37 +177,41 @@ export default function JTBDMobileView({
     };
   };
 
-  // 4. Tarefas em Revisão (APENAS DO MÊS CORRENTE)
+  // 4. Tarefas em Revisão (APENAS DO MÊS CORRENTE) — MEMOIZADO
   const isReviewStatus = (status: string) => {
     const s = (status || "").toLowerCase();
-    return s === 'review' || s === 'revisão' || s === 'pending_client_approval' || s === 'pending_approval';
+    return s === 'review' || s === 'revisão' || s === 'pending_approval';
   };
 
-  const reviewTasks = tasksPool.filter(t => {
+  const reviewTasks = useMemo(() => tasksPool.filter(t => {
     if (!isReviewStatus(t.status)) return false;
-    const matchesUser = t.assigned_to === viewedUser?.id || t.assigned_to === currentUser?.id || isAdminOrManager;
+    const matchesUser = t.assigned_to === viewedUser?.id;
     if (!matchesUser) return false;
     if (selectedClient) {
       const matchesClient = selectedClient.type === 'project' ? t.project_id === selectedClient.id : t.subclient_id === selectedClient.id;
       if (!matchesClient) return false;
     }
     return isFromCurrentMonth(t);
-  });
+  }), [tasksPool, viewedUser?.id, selectedClient, currentMonth, currentYear]);
 
-  // 5. Tarefas Concluídas (EXIBE AS TAREFAS CONCLUÍDAS)
-  const completedTasks = tasksPool.filter(t => {
+  // 5. Tarefas Concluídas (EXIBE AS TAREFAS CONCLUÍDAS DO MÊS) — MEMOIZADO
+  const completedTasks = useMemo(() => tasksPool.filter(t => {
     if (!isCompletedStatus(t.status, t.stage)) return false;
-    const matchesUser = t.assigned_to === viewedUser?.id || t.assigned_to === currentUser?.id || isAdminOrManager;
+    // pending_client_approval conta como concluída (alinhado com desktop)
+    if (t.status === 'pending_client_approval') {
+      // incluir como concluída
+    }
+    const matchesUser = t.assigned_to === viewedUser?.id;
     if (!matchesUser) return false;
     if (selectedClient) {
       const matchesClient = selectedClient.type === 'project' ? t.project_id === selectedClient.id : t.subclient_id === selectedClient.id;
       if (!matchesClient) return false;
     }
-    return true;
-  });
+    return isFromCurrentMonth(t);
+  }), [tasksPool, viewedUser?.id, selectedClient, currentMonth, currentYear]);
 
-  // 6. Carteira do Designer (Unificação e Busca)
-  const unifiedWallet = (() => {
+  // 6. Carteira do Designer (Unificação e Busca) — MEMOIZADO
+  const unifiedWallet = useMemo(() => {
     const map = new Map();
     allUserTasks.forEach(t => {
       const id = t.subclient_id || t.project_id || t.projects?.id;
@@ -218,15 +223,17 @@ export default function JTBDMobileView({
       }
     });
     return Array.from(map.values());
-  })();
+  }, [allUserTasks]);
 
-  const searchLower = walletSearch.trim().toLowerCase();
-  const filteredWallet = unifiedWallet.filter(entity => {
-    if (!searchLower) return true;
-    const name = (entity.name || "").toLowerCase();
-    const label = (entity.label || "").toLowerCase();
-    return name.includes(searchLower) || label.includes(searchLower);
-  });
+  const filteredWallet = useMemo(() => {
+    const searchLower = walletSearch.trim().toLowerCase();
+    return unifiedWallet.filter(entity => {
+      if (!searchLower) return true;
+      const name = (entity.name || "").toLowerCase();
+      const label = (entity.label || "").toLowerCase();
+      return name.includes(searchLower) || label.includes(searchLower);
+    });
+  }, [unifiedWallet, walletSearch]);
 
   const safeWalletIndex = Math.min(activeWalletIndex, Math.max(0, filteredWallet.length - 1));
 
@@ -269,7 +276,7 @@ export default function JTBDMobileView({
       <div className="flex flex-col w-full shrink-0 gap-2.5">
         <div className="flex items-center justify-between px-1">
           <h1 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
-            Demandas <span className="text-[var(--color-atelier-terracota)] italic">Urgentes.</span>
+            Demandas <span className="text-[var(--color-atelier-terracota)] italic">{selectedClient ? 'do Cliente.' : 'Urgentes.'}</span>
           </h1>
           {selectedClient && (
             <button onClick={() => onSelectClient(null)} className="text-[9px] font-bold text-[var(--color-atelier-terracota)] underline">

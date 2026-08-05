@@ -5,8 +5,9 @@ import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Search, Users, Briefcase, Hash, Lock, Globe, ArrowLeft, 
-  Send, Paperclip, Loader2, MessageSquare, Plus, Check, CheckCheck
+  Send, Paperclip, Loader2, MessageSquare, Plus, Check, CheckCheck, X
 } from "lucide-react";
+import UserAvatar from "../../../../components/global/UserAvatar";
 
 interface ProfileData {
   id: string;
@@ -44,6 +45,8 @@ interface MessageData {
   attachment_url: string | null;
   created_at: string;
   profiles?: ProfileData;
+  parent_id?: string | null;
+  parent?: { id: string; text_content: string | null; sender_id: string; profiles?: ProfileData } | any;
 }
 
 interface InboxMobileViewProps {
@@ -70,6 +73,8 @@ interface InboxMobileViewProps {
   isSending: boolean;
   isUploadingAttachment: boolean;
   messagesEndRef: React.RefObject<HTMLDivElement | null>;
+  replyingTo?: MessageData | null;
+  setReplyingTo?: (msg: MessageData | null) => void;
 }
 
 export default function InboxMobileView({
@@ -95,7 +100,9 @@ export default function InboxMobileView({
   handleFileUpload,
   isSending,
   isUploadingAttachment,
-  messagesEndRef
+  messagesEndRef,
+  replyingTo,
+  setReplyingTo
 }: InboxMobileViewProps) {
   
   const [searchTerm, setSearchTerm] = useState("");
@@ -110,24 +117,24 @@ export default function InboxMobileView({
   // Define o remetente / título da conversa ativa para o header do Chat
   let chatTitle = activeChannel?.name || "Conversa";
   let chatSubtitle = "Mensagens de texto e arquivos";
-  let chatAvatarUrl: string | null = null;
   let chatAvatarChar = "C";
+  let chatProfile: ProfileData | undefined | null = null;
 
   if (activeChannel?.type === 'dm') {
     const dmUser = activeCorporateUsers.find(u => u.id === activeDMUserId);
-    chatTitle = dmUser?.nome || "Mensagem Direta";
-    chatSubtitle = dmUser?.role ? `${dmUser.role} • Online` : "Mensagem Privada";
-    chatAvatarUrl = dmUser?.avatar_url || null;
+    chatTitle = dmUser?.nome || "Usuário";
+    chatSubtitle = dmUser?.role || "Comunicação Criptografada";
     chatAvatarChar = dmUser?.nome?.charAt(0) || "U";
+    chatProfile = dmUser;
   } else if (activeChannel?.type === 'corporate_global') {
     chatTitle = "Equipe LizDesign";
     chatSubtitle = `${activeCorporateUsers.length + 1} membros na equipe`;
     chatAvatarChar = "L";
   } else if (activeChannel) {
     chatTitle = `# ${activeChannel.name}`;
-    chatSubtitle = activeClient?.profiles?.nome || "Projeto Compartilhado";
-    chatAvatarUrl = activeClient?.profiles?.avatar_url || null;
-    chatAvatarChar = activeClient?.profiles?.nome?.charAt(0) || "P";
+    chatSubtitle = "Canal com Cliente";
+    chatAvatarChar = activeClient?.profiles?.nome?.charAt(0) || "C";
+    chatProfile = activeClient?.profiles;
   }
 
   const handleOpenConversation = (channelId: string | null, dmUserId: string | null = null) => {
@@ -147,9 +154,6 @@ export default function InboxMobileView({
       
       <AnimatePresence mode="wait">
         {mobileScreen === 'conversations' ? (
-          /* ======================================================================
-             TELA DE LISTA DE CONVERSAS (WhatsApp / Telegram Style)
-             ====================================================================== */
           <motion.div 
             key="mobile-conversations"
             initial={{ opacity: 0, x: -20 }}
@@ -158,22 +162,16 @@ export default function InboxMobileView({
             transition={{ duration: 0.2 }}
             className="flex flex-col w-full h-full overflow-hidden bg-transparent"
           >
-            {/* HEADER FIXO DO MESSENGER */}
             <div className="shrink-0 p-4 pb-2 bg-transparent flex flex-col gap-3 border-b border-gray-100/20 shadow-2xs">
               <div className="flex items-center justify-between pt-1">
                 <h1 className="font-elegant text-3xl font-bold text-[var(--color-atelier-grafite)] tracking-tight">
                   Conversas
                 </h1>
-                <div className="w-8 h-8 rounded-full bg-[var(--color-atelier-grafite)] text-white flex items-center justify-center overflow-hidden font-elegant font-bold text-sm shadow-xs border border-white">
-                  {currentUser?.avatar_url ? (
-                    <img src={currentUser.avatar_url} className="w-full h-full object-cover" alt="" />
-                  ) : (
-                    currentUser?.nome?.charAt(0) || "L"
-                  )}
+                <div className="w-10 h-10 rounded-2xl bg-white border border-[var(--color-atelier-grafite)]/10 flex items-center justify-center shadow-xs overflow-hidden">
+                  <UserAvatar profile={currentUser} size="md" className="!w-full !h-full border-none !rounded-2xl" />
                 </div>
               </div>
 
-              {/* BARRA DE PESQUISA */}
               <div className="relative w-full">
                 <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400" />
                 <input 
@@ -185,7 +183,6 @@ export default function InboxMobileView({
                 />
               </div>
 
-              {/* DUAS PÍLULAS INTERATIVAS: EQUIPE & PROJETOS (SIMPLES E ALINHADAS À ESQUERDA) */}
               <div className="flex items-center gap-2">
                 <button
                   type="button"
@@ -219,12 +216,9 @@ export default function InboxMobileView({
               </div>
             </div>
 
-            {/* LISTA SOLTA SOLTA EDGE-TO-EDGE */}
             <div className="flex-1 overflow-y-auto custom-scrollbar p-3 flex flex-col gap-2">
               {activeSpace === 'corporate' ? (
-                /* ================= PÍLULA 1: EQUIPE ================= */
                 <div className="flex flex-col gap-3">
-                  {/* CANAL GLOBAL DA EQUIPE */}
                   <div className="flex flex-col gap-1">
                     <span className="text-[9px] uppercase tracking-widest font-bold text-gray-400 px-2">Comunicação Geral</span>
                     {(() => {
@@ -257,7 +251,6 @@ export default function InboxMobileView({
                     })()}
                   </div>
 
-                  {/* DIRECT MESSAGES DA EQUIPE (EXCLUINDO USUÁRIOS PAUSADOS) */}
                   <div className="flex flex-col gap-1.5 mt-1">
                     <span className="text-[9px] uppercase tracking-widest font-bold text-gray-400 px-2">Mensagens Diretas</span>
                     {activeCorporateUsers
@@ -278,14 +271,10 @@ export default function InboxMobileView({
                             className="p-3.5 border-b border-gray-100/30 flex items-center gap-3.5 active:opacity-70 transition-colors cursor-pointer"
                           >
                             <div className="relative shrink-0">
-                              <div className="w-12 h-12 rounded-2xl bg-gray-100 flex items-center justify-center overflow-hidden border border-white shadow-xs">
-                                {user.avatar_url ? (
-                                  <img src={user.avatar_url} className="w-full h-full object-cover" alt={user.nome} />
-                                ) : (
-                                  <span className="font-elegant font-bold text-lg text-[var(--color-atelier-grafite)]">{user.nome.charAt(0)}</span>
-                                )}
+                              <UserAvatar profile={user} size="md" className="!w-11 !h-11 !rounded-2xl !bg-[var(--color-atelier-grafite)] !text-white" />
+                              <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-[var(--color-atelier-creme)] rounded-full flex items-center justify-center ${isOnline ? 'bg-green-500' : 'bg-gray-300'}`}>
+                                {isOnline && <div className="absolute w-full h-full bg-green-500 rounded-full animate-ping opacity-60"></div>}
                               </div>
-                              <div className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-white rounded-full ${isOnline ? 'bg-green-500' : 'bg-gray-300'}`} />
                             </div>
 
                             <div className="flex flex-col flex-1 min-w-0">
@@ -305,33 +294,21 @@ export default function InboxMobileView({
                   </div>
                 </div>
               ) : (
-                /* ================= PÍLULA 2: PROJETOS ================= */
                 <div className="flex flex-col gap-4">
-                  {/* SELETOR DE CLIENTES DO PROJETO (CARROSSEL) */}
                   <div className="flex flex-nowrap overflow-x-auto custom-scrollbar gap-3 pb-2 pt-1 px-1 touch-pan-x snap-x snap-mandatory">
                     {clients
                       .filter(c => !searchLower || c.profiles?.nome.toLowerCase().includes(searchLower))
                       .map(client => {
                         const isActive = activeProjectId === client.id;
                         return (
-                          <div 
+                          <button 
                             key={client.id} 
-                            onClick={() => {
-                              setActiveProjectId(client.id);
-                              setActiveChannelId(null);
-                            }}
-                            className={`shrink-0 snap-center w-14 h-14 rounded-2xl flex items-center justify-center font-elegant text-xl border transition-all cursor-pointer shadow-xs ${
-                              isActive 
-                                ? 'bg-[var(--color-atelier-terracota)] text-white border-[var(--color-atelier-terracota)] scale-105 shadow-md' 
-                                : 'bg-white border-gray-200/80 text-[var(--color-atelier-grafite)]'
-                            }`}
+                            onClick={() => { setActiveProjectId(client.id); setActiveChannelId(null); }}
+                            className={`relative shrink-0 w-12 h-12 rounded-2xl flex items-center justify-center font-elegant text-lg transition-transform ${isActive ? 'scale-110 shadow-sm z-10' : 'scale-100 opacity-70 border border-gray-200'}`}
                           >
-                            {client.profiles?.avatar_url ? (
-                              <img src={client.profiles.avatar_url} className="w-full h-full object-cover rounded-2xl" alt="" />
-                            ) : (
-                              client.profiles?.nome?.charAt(0)
-                            )}
-                          </div>
+                            <UserAvatar profile={client.profiles} size="lg" className="!w-full !h-full !rounded-2xl !bg-[var(--color-atelier-grafite)] !text-white" />
+                            {isActive && <motion.div layoutId="mobile-active-client" className="absolute inset-0 rounded-2xl border-[3px] border-[var(--color-atelier-terracota)] pointer-events-none" />}
+                          </button>
                         );
                       })}
                   </div>
@@ -440,8 +417,8 @@ export default function InboxMobileView({
                 </button>
 
                 <div className="w-10 h-10 rounded-2xl bg-gray-100 overflow-hidden flex items-center justify-center shrink-0 border border-gray-200/60">
-                  {chatAvatarUrl ? (
-                    <img src={chatAvatarUrl} className="w-full h-full object-cover" alt="" />
+                  {chatProfile ? (
+                    <UserAvatar profile={chatProfile} size="md" className="!w-full !h-full !rounded-2xl border-none" />
                   ) : (
                     <span className="font-elegant font-bold text-base text-[var(--color-atelier-grafite)]">{chatAvatarChar}</span>
                   )}
@@ -475,11 +452,17 @@ export default function InboxMobileView({
                         <span className="text-[9px] font-bold text-gray-400 mb-1 ml-1">{senderName}</span>
                       )}
                       
-                      <div className={`p-4 rounded-[2rem] shadow-sm flex flex-col gap-2 relative z-10 ${
+                      <div className={`p-4 rounded-[2rem] shadow-sm flex flex-col gap-2 relative z-10 w-full group/msg ${
                         isMe 
                           ? 'bg-[var(--color-atelier-grafite)] text-white rounded-tr-sm' 
                           : 'bg-white text-gray-800 border border-gray-100 rounded-tl-sm'
                       }`}>
+                        {msg.parent && (
+                          <div className={`mb-1 pl-3 border-l-2 text-[11px] opacity-80 ${isMe ? 'border-white/50' : 'border-[var(--color-atelier-terracota)]/50'}`}>
+                            <span className="font-bold opacity-100 block">{msg.parent.sender_id === currentUser?.id ? 'Você' : (msg.parent.profiles?.nome || 'Mensagem anterior')}</span>
+                            <span className="line-clamp-1">{msg.parent.text_content || 'Anexo'}</span>
+                          </div>
+                        )}
                         {msg.attachment_url && (
                           <div className="rounded-xl overflow-hidden max-h-[220px] max-w-full">
                             <img src={msg.attachment_url} alt="Anexo" className="w-full h-full object-cover" />
@@ -488,9 +471,16 @@ export default function InboxMobileView({
                         {msg.text_content && (
                           <p className="text-xs leading-relaxed font-roboto">{msg.text_content}</p>
                         )}
-                        <span className={`text-[8px] font-bold self-end ${isMe ? 'text-white/60' : 'text-gray-400'}`}>
-                          {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        </span>
+                        <div className="flex items-center justify-between w-full mt-1">
+                          <span className={`text-[8px] font-bold ${isMe ? 'text-white/60' : 'text-gray-400'}`}>
+                            {new Date(msg.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                          </span>
+                          {setReplyingTo && (
+                            <button onClick={() => setReplyingTo(msg)} className={`p-1 rounded-full bg-white/20 hover:bg-white/40 transition-colors ${isMe ? 'text-white' : 'text-gray-500'}`}>
+                              <MessageSquare size={12} />
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   );
@@ -500,7 +490,21 @@ export default function InboxMobileView({
             </div>
 
             {/* BARRA FIXA DE ENVIO DE MENSAGEM */}
-            <form onSubmit={handleSendMessage} className="shrink-0 p-3 bg-white/60 backdrop-blur-xl border-t border-gray-200/50 flex items-center gap-2 z-10">
+            <form onSubmit={handleSendMessage} className="shrink-0 p-3 bg-white/60 backdrop-blur-xl border-t border-gray-200/50 flex flex-col gap-2 z-10">
+              <AnimatePresence>
+                {replyingTo && (
+                  <motion.div initial={{ opacity: 0, y: 10, height: 0 }} animate={{ opacity: 1, y: 0, height: 'auto' }} exit={{ opacity: 0, height: 0 }} className="bg-gray-50 border border-gray-100 rounded-xl px-3 py-2 flex justify-between items-center shadow-sm w-full mx-auto overflow-hidden">
+                    <div className="flex flex-col flex-1 min-w-0 pr-2">
+                      <span className="text-[10px] font-bold text-[var(--color-atelier-terracota)] uppercase tracking-wider mb-0.5">Respondendo a {replyingTo.profiles?.nome || 'Usuário'}</span>
+                      <span className="text-xs text-[var(--color-atelier-grafite)] line-clamp-1">{replyingTo.text_content || 'Anexo'}</span>
+                    </div>
+                    <button type="button" onClick={() => setReplyingTo && setReplyingTo(null)} className="p-1 rounded-full text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors shrink-0">
+                      <X size={16} />
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+              <div className="flex items-center gap-2 w-full">
               <label className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 cursor-pointer active:scale-95 transition-transform shrink-0">
                 <Paperclip size={18} />
                 <input type="file" onChange={handleFileUpload} className="hidden" accept="image/*,video/*,application/pdf" />
@@ -521,6 +525,7 @@ export default function InboxMobileView({
               >
                 {isSending ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
               </button>
+              </div>
             </form>
             </div>
           </motion.div>

@@ -933,6 +933,31 @@ function PainelIdentidade() {
                 {currentProject.status === 'archived' ? 'Arquivado (Sem Acesso)' : currentProject.status === 'delivered' ? 'Entregue (Aviso 15 Dias)' : 'Ativo'}
               </span>
               <span className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">{currentProject.type}</span>
+              
+              {/* Badge de Contrato Vencendo */}
+              {(() => {
+                if (currentProject.contract_end) {
+                  const endDate = new Date(currentProject.contract_end);
+                  const today = new Date();
+                  const diffDays = Math.ceil((endDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
+                  
+                  if (diffDays <= 30 && diffDays >= 0) {
+                    return (
+                      <span className="px-3 py-1 rounded-lg text-[9px] uppercase tracking-widest font-bold border shadow-inner bg-red-500/10 text-red-600 border-red-500/20 animate-pulse">
+                        Vence em {diffDays} dias
+                      </span>
+                    );
+                  }
+                  if (diffDays < 0) {
+                     return (
+                      <span className="px-3 py-1 rounded-lg text-[9px] uppercase tracking-widest font-bold border shadow-inner bg-red-600 text-white border-red-700">
+                        Contrato Vencido
+                      </span>
+                    );
+                  }
+                }
+                return null;
+              })()}
             </div>
             <div className="flex items-center gap-2 cursor-pointer group" onClick={() => setIsClientMenuOpen(!isClientMenuOpen)}>
               <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] leading-none flex items-center gap-2 group-hover:text-[var(--color-atelier-terracota)] transition-colors truncate max-w-[300px] md:max-w-md">

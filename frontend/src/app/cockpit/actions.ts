@@ -14,31 +14,29 @@ export async function fetchCockpitTasks(projectId: string, clientId: string | un
     
     const supabaseAdmin = createClient(supabaseUrl, supabaseKey);
 
-    const { data, error } = await supabaseAdmin
+    let query = supabaseAdmin
       .from('tasks')
-      .select('*, profiles:assigned_to(nome, avatar_url), projects(id, client_id)')
-      .gte('deadline', startRange)
-      .lte('deadline', endRange)
-      .order('deadline', { ascending: true });
+      .select('*, profiles:assigned_to(nome, avatar_url)')
+      .or(`and(deadline.gte.${startRange},deadline.lte.${endRange}),and(created_at.gte.${startRange},created_at.lte.${endRange}),deadline.is.null`)
+      .not('status', 'eq', 'archived')
+      .order('deadline', { ascending: true, nullsFirst: false });
+
+    if (projectId && clientId) {
+      query = query.or(`project_id.eq.${projectId},client_id.eq.${clientId}`);
+    } else if (projectId) {
+      query = query.eq('project_id', projectId);
+    } else if (clientId) {
+      query = query.eq('client_id', clientId);
+    }
+
+    const { data, error } = await query;
       
     if (error) {
       console.error("Error fetching tasks in server action:", error);
       return [];
     }
 
-    if (!data) return [];
-
-    // Filtrar tarefas pertencentes ao projeto ou cliente, ou tarefas globais
-    const filtered = data.filter((t: any) => {
-      if (t.project_id && t.project_id === projectId) return true;
-      if (t.client_id && clientId && t.client_id === clientId) return true;
-      if (t.projects && clientId && t.projects.client_id === clientId) return true;
-      // Se a tarefa não tem project_id nem client_id atrelado explicitamente, incluir também
-      if (!t.project_id && !t.client_id) return true;
-      return false;
-    });
-    
-    return filtered;
+    return data || [];
   } catch (err) {
     console.error("Exception in server action:", err);
     return [];
