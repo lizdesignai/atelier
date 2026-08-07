@@ -27,6 +27,7 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
 
   const [subclientDetails, setSubclientDetails] = useState<any>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const isAdminOrManager = userRole === 'admin' || userRole === 'gestor';
 
   // Edit / Delete states
   const [editingAssetId, setEditingAssetId] = useState<string | null>(null);
@@ -262,15 +263,19 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
                   <X size={18} />
               </button>
               <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto">
-                <input 
-                  type="file" 
-                  ref={fileInputRef} 
-                  onChange={handleFileUpload} 
-                  className="hidden" 
-                />
-                <button onClick={() => fileInputRef.current?.click()} disabled={isUploadingFile} className="flex-1 md:flex-none justify-center bg-[var(--color-atelier-terracota)] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-3 md:py-2.5 rounded-full hover:bg-[#9b836b] transition-colors flex items-center gap-2 disabled:opacity-50">
-                  {isUploadingFile ? <Loader2 size={14} className="animate-spin" /> : <FolderUp size={14} />} Add Material
-                </button>
+                {isAdminOrManager && (
+                  <>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      onChange={handleFileUpload} 
+                      className="hidden" 
+                    />
+                    <button onClick={() => fileInputRef.current?.click()} disabled={isUploadingFile} className="flex-1 md:flex-none justify-center bg-[var(--color-atelier-terracota)] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-3 md:py-2.5 rounded-full hover:bg-[#9b836b] transition-colors flex items-center gap-2 disabled:opacity-50">
+                      {isUploadingFile ? <Loader2 size={14} className="animate-spin" /> : <FolderUp size={14} />} Add Material
+                    </button>
+                  </>
+                )}
                 {subclientDetails?.trello_url && (
                   <a 
                     href={subclientDetails.trello_url} 
@@ -281,9 +286,11 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
                     <ExternalLink size={14} /> Trello
                   </a>
                 )}
-                <button onClick={() => setIsAddingLink(!isAddingLink)} className="flex-1 md:flex-none justify-center bg-[var(--color-atelier-grafite)] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-3 md:py-2.5 rounded-full hover:bg-gray-700 transition-colors flex items-center gap-2">
-                  <ExternalLink size={14} /> Add Link
-                </button>
+                {isAdminOrManager && (
+                  <button onClick={() => setIsAddingLink(!isAddingLink)} className="flex-1 md:flex-none justify-center bg-[var(--color-atelier-grafite)] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-3 md:py-2.5 rounded-full hover:bg-gray-700 transition-colors flex items-center gap-2">
+                    <ExternalLink size={14} /> Add Link
+                  </button>
+                )}
               </div>
             </div>
 
@@ -323,7 +330,6 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
                   {assets.map((asset) => {
-                    const isAdminOrManager = userRole === 'admin' || userRole === 'gestor';
                     const isEditing = editingAssetId === asset.id;
 
                     if (isEditing) {
