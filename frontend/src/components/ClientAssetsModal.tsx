@@ -84,21 +84,21 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
   const fetchAssets = async () => {
     setIsLoading(true);
     try {
-      let query = supabase.from('project_assets').select('*').order('created_at', { ascending: false });
+      const searchParams = new URLSearchParams();
+      if (projectId) searchParams.append('projectId', projectId);
+      if (subclientId) searchParams.append('subclientId', subclientId);
       
-      if (subclientId) {
-        query = query.eq('subclient_id', subclientId);
-      } else if (projectId) {
+      if (projectId && !subclientId) {
         const validProjId = await resolveProjectId(projectId);
-        if (validProjId) {
-          query = query.or(`project_id.eq.${validProjId},project_id.eq.${projectId}`);
-        } else {
-          query = query.eq('project_id', projectId);
-        }
+        if (validProjId) searchParams.append('validProjId', validProjId);
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
+      const res = await fetch(`/api/assets?${searchParams.toString()}`);
+      if (!res.ok) {
+        throw new Error(`Erro ao buscar assets: ${res.statusText}`);
+      }
+      
+      const data = await res.json();
       setAssets(data || []);
     } catch (err) {
       console.error("Erro ao buscar assets do cliente:", err);
