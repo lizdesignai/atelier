@@ -55,6 +55,16 @@ export class AtelierPMEngine {
     }
   };
 
+  static async getBufferDays(userId: string | null): Promise<number> {
+    if (!userId) return 0;
+    try {
+      const { data } = await supabase.from('profiles').select('deadline_buffer_days').eq('id', userId).single();
+      return data?.deadline_buffer_days || 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
   /**
    * ============================================================================
    * 0.0 PONTE DE PRODUÇÃO (Approved Planning -> JTBD Tasks)
@@ -95,11 +105,13 @@ export class AtelierPMEngine {
         
         const defaultAssigneeId = rulesMap[taskType] || null;
         const optimalAssignee = await this.getOptimalAssignee(taskType, projectId, defaultAssigneeId, 60);
+        const bufferDays = await this.getBufferDays(optimalAssignee);
 
         const deadline = planning.publish_date ? new Date(planning.publish_date).toISOString() : addBusinessDays(now, 2).toISOString();
+        const internalDeadline = addDays(new Date(deadline), -bufferDays).toISOString();
         
         // 🟢 Foco Diário: Se a deadline for para o futuro, entra como rascunho (draft) para não poluir o Kanban de hoje.
-        const initialStatus = deadline <= endOfToday ? 'pending' : 'draft';
+        const initialStatus = internalDeadline <= endOfToday ? 'pending' : 'draft';
 
         newTasks.push({
           project_id: projectId,
@@ -110,6 +122,7 @@ export class AtelierPMEngine {
           task_type: taskType,
           estimated_time: 60,
           deadline: deadline,
+          internal_deadline: internalDeadline,
           status: initialStatus,
           urgency: true 
         });
@@ -126,9 +139,11 @@ export class AtelierPMEngine {
 
         // Criar tarefas de design (posts)
         const designAssignee = await this.getOptimalAssignee('design', projectId, rulesMap['design'] || null, 60);
+        const designBuffer = await this.getBufferDays(designAssignee);
         for (let i = 1; i <= postsQty; i++) {
           const deadline = addBusinessDays(now, 2 + i).toISOString();
-          const initialStatus = deadline <= endOfToday ? 'pending' : 'draft';
+          const internalDeadline = addDays(new Date(deadline), -designBuffer).toISOString();
+          const initialStatus = internalDeadline <= endOfToday ? 'pending' : 'draft';
 
           newTasks.push({
             project_id: projectId,
@@ -139,15 +154,18 @@ export class AtelierPMEngine {
             task_type: 'design',
             estimated_time: 60,
             deadline: deadline,
+            internal_deadline: internalDeadline,
             status: initialStatus
           });
         }
 
         // Criar tarefas de video
         const videoAssignee = await this.getOptimalAssignee('video', projectId, rulesMap['video'] || null, 60);
+        const videoBuffer = await this.getBufferDays(videoAssignee);
         for (let i = 1; i <= videosQty; i++) {
           const deadline = addBusinessDays(now, 4 + i).toISOString();
-          const initialStatus = deadline <= endOfToday ? 'pending' : 'draft';
+          const internalDeadline = addDays(new Date(deadline), -videoBuffer).toISOString();
+          const initialStatus = internalDeadline <= endOfToday ? 'pending' : 'draft';
 
           newTasks.push({
             project_id: projectId,
@@ -158,6 +176,7 @@ export class AtelierPMEngine {
             task_type: 'video',
             estimated_time: 60,
             deadline: deadline,
+            internal_deadline: internalDeadline,
             status: initialStatus
           });
         }
@@ -266,11 +285,146 @@ export class AtelierPMEngine {
         status: 'pending',
         stage: 'Planeamento Estratégico',
         task_type: 'management',
-        deadline: addBusinessDays(now, 2).toISOString() 
+        deadline: addBusinessDays(now, 2).toISOString(),
+        internal_deadline: addBusinessDays(now, 2).toISOString()
       });
 
     } catch (error) {
       console.error("[PM Engine - HotCheck] Erro na virada automática de ciclo:", error);
+    }
+  }
+
+  /**
+   * ============================================================================
+   * 0.2 MANUAL START NEW MONTH (Studio Config Modal)
+   * ============================================================================
+   */
+  static async startNewMonth(projectId: string, postsQty: number, videosQty: number, cofreDate?: string) {
+    try {
+      console.log(`[PM Engine] Iniciando Novo Mês Manualmente para o Projeto: ${projectId}`);
+      const now = new Date();
+      const currentMonthLabel = format(now, "MMMM 'de' yyyy", { locale: ptBR });
+
+      // 1. Arquivar tarefas antigas do projeto (tudo que não estiver arquivado ou concluído)
+      await supabase
+        .from('tasks')
+        .update({ status: 'archived' })
+        .eq('project_id', projectId)
+        .in('status', ['pending', 'in_progress', 'review', 'draft', 'approved']);
+        
+      // 2. Arquivar content_planning anterior se existir
+      await supabase
+        .from('content_planning')
+        .update({ status: 'archived' })
+        .eq('project_id', projectId)
+        .neq('status', 'archived');
+
+      // 3. Resgatar as regras de roteamento (Assignees)
+      const { data: routingRules } = await supabase
+        .from('routing_rules')
+        .select('task_type, assignee_id')
+        .eq('project_id', projectId);
+
+      const rulesMap: Record<string, string> = {};
+      if (routingRules) {
+        routingRules.forEach(r => {
+          if (r.assignee_id) rulesMap[r.task_type] = r.assignee_id;
+        });
+      }
+
+      // 4. Preparar novas tarefas
+      const newTasks = [];
+
+      // 4.1 Tarefa Mandatória de Planejamento Mensal
+      const adminAssignee = await this.getOptimalAssignee('management', projectId, rulesMap['management'] || null, 60);
+      newTasks.push({
+        project_id: projectId,
+        assigned_to: adminAssignee,
+        title: `Planejamento Mensal - ${currentMonthLabel}`,
+        description: `Esta é a etapa obrigatória do mês.\nElabore o planejamento e aprove com o cliente antes de iniciar a produção das peças.`,
+        urgency: true,
+        status: 'pending',
+        stage: 'Planeamento Estratégico',
+        task_type: 'management',
+        estimated_time: 60,
+        deadline: addBusinessDays(now, 2).toISOString(),
+        internal_deadline: addBusinessDays(now, 2).toISOString()
+      });
+
+      // 4.2 Tarefas de Posts (Design)
+      if (postsQty > 0) {
+        const designAssignee = await this.getOptimalAssignee('design', projectId, rulesMap['design'] || null, 60);
+        const designBuffer = await this.getBufferDays(designAssignee);
+        for (let i = 1; i <= postsQty; i++) {
+          const deadline = addBusinessDays(now, 5 + i).toISOString();
+          const internalDeadline = addDays(new Date(deadline), -designBuffer).toISOString();
+          
+          newTasks.push({
+            project_id: projectId,
+            assigned_to: designAssignee,
+            title: `Post Mensal #${i} - ${currentMonthLabel}`,
+            description: `Aguardando a conclusão e aprovação do Planejamento Mensal.`,
+            stage: 'Produção Ativa',
+            task_type: 'design',
+            estimated_time: 60,
+            deadline: deadline,
+            internal_deadline: internalDeadline,
+            status: 'draft' // Ficam em draft até o planejamento ser aprovado
+          });
+        }
+      }
+
+      // 4.3 Tarefas de Vídeos (Reels)
+      if (videosQty > 0) {
+        const videoAssignee = await this.getOptimalAssignee('video', projectId, rulesMap['video'] || null, 60);
+        const videoBuffer = await this.getBufferDays(videoAssignee);
+        for (let i = 1; i <= videosQty; i++) {
+          const deadline = addBusinessDays(now, 5 + i).toISOString();
+          const internalDeadline = addDays(new Date(deadline), -videoBuffer).toISOString();
+          
+          newTasks.push({
+            project_id: projectId,
+            assigned_to: videoAssignee,
+            title: `Vídeo (Reels) #${i} - ${currentMonthLabel}`,
+            description: `Aguardando a conclusão e aprovação do Planejamento Mensal.`,
+            stage: 'Produção Ativa',
+            task_type: 'video',
+            estimated_time: 60,
+            deadline: deadline,
+            internal_deadline: internalDeadline,
+            status: 'draft'
+          });
+        }
+      }
+
+      // 4.4 Tarefa de Liberação do Cofre (Se existir data)
+      if (cofreDate) {
+         newTasks.push({
+            project_id: projectId,
+            assigned_to: adminAssignee,
+            title: `Liberação do Cofre - ${currentMonthLabel}`,
+            description: `Liberar os conteúdos e senhas no cofre do cliente.`,
+            stage: 'Finalização & Entrega',
+            task_type: 'management',
+            estimated_time: 30,
+            deadline: new Date(cofreDate).toISOString(),
+            internal_deadline: new Date(cofreDate).toISOString(),
+            status: 'draft'
+         });
+      }
+
+      // 5. Inserir tarefas no banco
+      if (newTasks.length > 0) {
+        const { error: insertError } = await supabase.from('tasks').insert(newTasks);
+        if (insertError) {
+           console.error("[PM Engine] Erro ao inserir novas tarefas:", insertError);
+           throw insertError;
+        }
+      }
+
+    } catch (error) {
+      console.error("[PM Engine - Manual] Erro ao iniciar novo mês:", error);
+      throw error;
     }
   }
 
@@ -387,9 +541,14 @@ export class AtelierPMEngine {
       let memberIndex = 0;
 
       for (const task of unassignedTasks) {
+        const assignee = teamMembers[memberIndex].id;
+        const buffer = await this.getBufferDays(assignee);
+        const internal = task.deadline ? addDays(new Date(task.deadline), -buffer).toISOString() : null;
+
         updates.push({
           id: task.id,
-          assigned_to: teamMembers[memberIndex].id,
+          assigned_to: assignee,
+          internal_deadline: internal,
           status: 'pending' 
         });
         memberIndex = (memberIndex + 1) % teamMembers.length;
@@ -463,7 +622,8 @@ export class AtelierPMEngine {
         if (task.urgency) costOfDelay += this.CONFIG.WSJF.BASE_URGENCY;
         costOfDelay += (ltvValue * this.CONFIG.WSJF.LTV_WEIGHT); 
 
-        const hoursLeft = differenceInHours(new Date(task.deadline), now);
+        const effectiveDeadline = task.internal_deadline || task.deadline;
+        const hoursLeft = differenceInHours(new Date(effectiveDeadline), now);
         if (hoursLeft <= 0) costOfDelay += this.CONFIG.WSJF.LATE_PENALTY;       
         else if (hoursLeft <= 24) costOfDelay += this.CONFIG.WSJF.TODAY_PENALTY; 
         else if (hoursLeft <= 72) costOfDelay += this.CONFIG.WSJF.SHORT_TERM_PENALTY; 

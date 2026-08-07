@@ -1,5 +1,4 @@
-// src/app/admin/jtbd/views/PersonalDesk.tsx
-import { Target, Activity, Clock, CheckCircle2, Eye } from "lucide-react";
+import { Target, Activity, Clock, CheckCircle2, Eye } from 'lucide-react';
 
 interface PersonalDeskProps {
   viewedUser: any;
@@ -7,75 +6,127 @@ interface PersonalDeskProps {
   allUserTasks: any[];
 }
 
+function getRoleLabel(role?: string): string {
+  if (!role) return 'Designer';
+  switch (role.toLowerCase()) {
+    case 'admin':
+      return 'Diretor Criativo';
+    case 'gestor':
+      return 'Gestor de Projetos';
+    case 'colaborador':
+      return 'Designer';
+    default:
+      return role;
+  }
+}
+
 export default function PersonalDesk({
   viewedUser,
   isViewingSelf,
-  allUserTasks
+  allUserTasks = []
 }: PersonalDeskProps) {
-  
-  // 1. Foco Atual
-  const currentTask = allUserTasks.find(t => t.status === 'in_progress');
-  const currentFocus = currentTask ? currentTask.title : "Livre no momento";
+  // Current playing task (in_progress)
+  const currentTask = allUserTasks.find((t) => t.status === 'in_progress');
 
-  // 2. Carga Visível
-  const activeTasks = allUserTasks.filter(t => ['pending', 'in_progress', 'review'].includes(t.status));
-  const totalEstMinutes = activeTasks.reduce((acc, t) => acc + (t.estimated_time || 0), 0);
+  // Pending hours calculation
+  const activeTasks = allUserTasks.filter((t) =>
+    ['pending', 'in_progress', 'review'].includes(t.status)
+  );
+  const totalEstMinutes = activeTasks.reduce(
+    (acc, t) => acc + (t.estimated_time || 0),
+    0
+  );
   const cargaHoras = Math.floor(totalEstMinutes / 60);
   const cargaMin = totalEstMinutes % 60;
-  const cargaFormatada = cargaMin > 0 ? `${cargaHoras}h ${cargaMin}m` : `${cargaHoras}h`;
+  const cargaFormatada =
+    cargaMin > 0 ? `${cargaHoras}h ${cargaMin}m` : `${cargaHoras}h`;
 
-  // 3. Eficiência
-  const completedTasksCount = allUserTasks.filter(t => t.status === 'completed').length;
+  // Efficiency calculation
+  const completedTasksCount = allUserTasks.filter(
+    (t) => t.status === 'completed'
+  ).length;
   const totalTasksCount = allUserTasks.length;
-  const eficiencia = totalTasksCount === 0 ? 0 : Math.round((completedTasksCount / totalTasksCount) * 100);
+  const eficiencia =
+    totalTasksCount === 0
+      ? 0
+      : Math.round((completedTasksCount / totalTasksCount) * 100);
 
-  const greeting = isViewingSelf 
-    ? `Olá, ${viewedUser?.nome?.split(" ")[0] || ""}` 
-    : `Espaço de ${viewedUser?.nome?.split(" ")[0] || ""}`;
+  const userName = viewedUser?.nome || viewedUser?.name || 'Membro da Equipe';
+  const userRole = getRoleLabel(viewedUser?.role);
 
   return (
     <div className="shrink-0 flex flex-col w-full animate-[fadeInUp_0.5s_ease-out]">
-      <div className="w-full glass-panel bg-[var(--color-atelier-grafite)] p-6 md:p-8 rounded-[2.5rem] relative overflow-hidden flex flex-col justify-center min-h-[300px]">
-        {/* Efeito de Fundo */}
-        <div className="absolute right-[-10%] top-[-20%] w-[300px] h-[300px] bg-[var(--color-atelier-terracota)]/20 rounded-full blur-[60px] pointer-events-none"></div>
-        
-        <div className="flex flex-col items-center text-center relative z-10 w-full">
-          {/* Avatar */}
-          <div className="relative mb-4">
-            <div className="w-20 h-20 rounded-full bg-white/10 overflow-hidden border border-white/20 flex items-center justify-center text-3xl font-elegant text-white shadow-inner">
-              {viewedUser?.avatar_url 
-                ? <img src={viewedUser.avatar_url} className="w-full h-full object-cover" alt="Avatar"/> 
-                : viewedUser?.nome?.charAt(0)}
-            </div>
-          </div>
-          
-          <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)] mb-1 flex items-center justify-center gap-1">
-            {isViewingSelf ? <CheckCircle2 size={12}/> : <Eye size={12}/>} 
-            {isViewingSelf ? 'Meu Espaço' : 'Visão de Gestão'}
-          </span>
-          
-          <h2 className="font-elegant text-3xl md:text-4xl text-white tracking-wide leading-none mb-6">{greeting}</h2>
-          
-          {/* Métricas Operacionais */}
-          <div className="w-full grid grid-cols-3 gap-3">
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center text-center hover:bg-white/10 transition-colors">
-              <Target size={16} className="text-[var(--color-atelier-terracota)] mb-1"/>
-              <span className="text-[9px] text-white/50 uppercase tracking-widest mb-1">Tarefa em Andamento</span>
-              <span className="text-white font-bold text-[11px] truncate w-full px-2">{currentFocus}</span>
-            </div>
+      <div className="w-full relative overflow-hidden rounded-[2.5rem] min-h-[370px] p-6 md:p-8 flex flex-col justify-between border border-white/10">
+        {/* Full Card Background: Avatar or Rich Terracotta/Charcoal Gradient */}
+        {viewedUser?.avatar_url ? (
+          <>
+            <img
+              src={viewedUser.avatar_url}
+              alt={userName}
+              className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+            />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/60 to-black/95 pointer-events-none" />
+          </>
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-gradient-to-br from-[#17171a] via-[var(--color-atelier-grafite)] to-[#4a2420] pointer-events-none" />
+            <div className="absolute right-[-10%] top-[-10%] w-[300px] h-[300px] bg-[var(--color-atelier-terracota)]/25 rounded-full blur-[70px] pointer-events-none" />
+          </>
+        )}
 
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center text-center hover:bg-white/10 transition-colors">
-              <Activity size={16} className="text-[var(--color-atelier-terracota)] mb-1"/>
-              <span className="text-[9px] text-white/50 uppercase tracking-widest mb-1">Eficiência</span>
-              <span className="text-white font-bold text-sm">{eficiencia}%</span>
-            </div>
-
-            <div className="bg-white/5 border border-white/10 rounded-2xl p-3 flex flex-col items-center justify-center text-center hover:bg-white/10 transition-colors">
-              <Clock size={16} className="text-[var(--color-atelier-terracota)] mb-1"/>
-              <span className="text-[9px] text-white/50 uppercase tracking-widest mb-1">Horas Pendentes</span>
-              <span className="text-white font-bold text-sm">{cargaFormatada}</span>
-            </div>
+        {/* Content Overlay */}
+        <div className="relative z-10 flex flex-col justify-between h-full space-y-6">
+          {/* TOP Section: Mode Label */}
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)] bg-black/40 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10 flex items-center gap-1.5">
+              {isViewingSelf ? (
+                <CheckCircle2 size={12} className="text-[var(--color-atelier-terracota)]" />
+              ) : (
+                <Eye size={12} className="text-[var(--color-atelier-terracota)]" />
+              )}
+              {isViewingSelf ? 'Meu Espaço' : 'Visão de Gestão'}
+            </span>
           </div>
+
+          {/* MIDDLE Section: Role Badge & Name (Ocupação acima do nome) */}
+          <div>
+            <div className="mb-2 inline-flex items-center px-3 py-1 rounded-full text-[11px] font-medium bg-white/10 text-[var(--color-atelier-creme)] backdrop-blur-md border border-white/15">
+              {userRole}
+            </div>
+            <h2 className="font-elegant text-3xl md:text-4xl text-white tracking-wide leading-tight">
+              {userName}
+            </h2>
+          </div>
+
+          {/* BOTTOM Section: Only rendered when there is an active task running */}
+          {currentTask && (
+            <div className="bg-black/50 backdrop-blur-md border border-white/10 rounded-2xl p-4 space-y-3.5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                    </span>
+                    <span className="text-[10px] uppercase font-bold tracking-wider text-emerald-400">
+                      Executando agora
+                    </span>
+                  </div>
+                  <p className="text-sm font-semibold text-white truncate">
+                    {currentTask.title}
+                  </p>
+                </div>
+              </div>
+
+              {/* Decorative Progress Bar */}
+              <div className="w-full bg-white/10 h-1.5 rounded-full overflow-hidden">
+                <div
+                  className="bg-gradient-to-r from-[var(--color-atelier-terracota)] to-emerald-400 h-full rounded-full transition-all duration-500"
+                  style={{ width: '60%' }}
+                />
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

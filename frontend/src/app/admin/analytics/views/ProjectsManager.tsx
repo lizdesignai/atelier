@@ -45,9 +45,10 @@ interface ProjectsManagerProps {
   team: any[];
   handleAddAdHocDemand: (payload?: any) => void;
   agencySubclients: any[];
-  handleDeleteSubclient: (id: string) => void;
+  handleDeleteSubclient?: (id: string) => void;
   handleUpdateSubclientDemand: (id: string, count: number) => void;
-  handleEditSubclient?: (id: string, updates: { name: string; deliverables_count: number; trello_url?: string }) => void;
+  handleEditSubclient?: (id: string, updates: { name: string; deliverables_count: number; trello_url?: string; trello_sync_list_ids?: string[] }) => void;
+  handleUpdateContentReleaseDay?: (projectId: string, dayStr: string) => void;
   groupTasksByStage: (tasks: any[]) => Record<string, any[]>;
   isBulkMode: boolean;
   toggleTaskSelection: (id: string) => void;
@@ -338,6 +339,7 @@ export default function ProjectsManager({
   handleDeleteSubclient,
   handleUpdateSubclientDemand,
   handleEditSubclient,
+  handleUpdateContentReleaseDay,
   groupTasksByStage,
   isBulkMode,
   toggleTaskSelection,
@@ -349,7 +351,6 @@ export default function ProjectsManager({
   handleStartTask,
   routingRules = [],
   mobileWidgetView = 'carteira',
-  setMobileWidgetView
 }: ProjectsManagerProps) {
 
   const [isAdHocModalOpen, setIsAdHocModalOpen] = useState(false);
@@ -357,8 +358,21 @@ export default function ProjectsManager({
   const [isCreatingSubclient, setIsCreatingSubclient] = useState(false);
   const [subclientForm, setSubclientForm] = useState({ name: "", count: 0, trello_url: "" });
 
+  // When opening new subclient modal, prefill with agency trello_url if available
+  const openNewSubclientModal = () => {
+    setSubclientForm({
+      name: "",
+      count: 0,
+      trello_url: (selectedEntityData?.type === 'agency' && selectedEntityData.trello_url) ? selectedEntityData.trello_url : ""
+    });
+    setIsSubclientModalOpen(true);
+  };
+
   const [editingSubclient, setEditingSubclient] = useState<any | null>(null);
-  const [editSubclientForm, setEditSubclientForm] = useState({ name: "", count: 1, trello_url: "" });
+  const [editSubclientForm, setEditSubclientForm] = useState({ name: "", count: 1, trello_url: "", trello_sync_list_ids: [] as string[] });
+  
+  const [trelloLists, setTrelloLists] = useState<any[]>([]);
+  const [isLoadingTrelloLists, setIsLoadingTrelloLists] = useState(false);
 
   // Mobile Stacked Cards State
   const [mobileExpandedClient, setMobileExpandedClient] = useState<any>(null);
@@ -376,12 +390,13 @@ export default function ProjectsManager({
 
 
   const openEditSubclientModal = (sub: any) => {
-    setEditingSubclient(sub);
     setEditSubclientForm({
-      name: sub.name || "",
+      name: sub.name,
       count: sub.deliverables_count || 1,
-      trello_url: sub.trello_url || ""
+      trello_url: sub.trello_url || ((selectedEntityData?.type === 'agency' && selectedEntityData.trello_url) ? selectedEntityData.trello_url : ""),
+      trello_sync_list_ids: sub.trello_sync_list_ids || []
     });
+    setEditingSubclient(sub);
   };
 
   const submitEditSubclient = async () => {
@@ -390,13 +405,14 @@ export default function ProjectsManager({
       return;
     }
     if (handleEditSubclient) {
-      await handleEditSubclient(editingSubclient.id, {
+      handleEditSubclient(editingSubclient.id, {
         name: editSubclientForm.name,
         deliverables_count: editSubclientForm.count,
-        trello_url: editSubclientForm.trello_url
+        trello_url: editSubclientForm.trello_url,
+        trello_sync_list_ids: editSubclientForm.trello_sync_list_ids
       });
+      setEditingSubclient(null);
     }
-    setEditingSubclient(null);
   };
 
   const [isTrelloModalOpen, setIsTrelloModalOpen] = useState(false);
@@ -678,78 +694,10 @@ export default function ProjectsManager({
       {/* ==================================================== */}
       {/* DESKTOP VIEW */}
       {/* ==================================================== */}
-      <motion.div key="projects-desktop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="hidden lg:flex flex-col lg:flex-row gap-6 h-auto md:h-full overflow-y-auto md:overflow-hidden relative">
+      <motion.div key="projects-desktop" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="hidden lg:flex h-auto md:h-full relative min-w-0">
       
-      {/* SIDEBAR UNIFICADA (Filtro Horizontal no Mobile) */}
-      <div className="w-[100vw] -ml-4 px-4 lg:w-[320px] lg:ml-0 lg:px-0 lg:glass-panel lg:bg-white/40 lg:p-5 lg:rounded-[2.5rem] lg:border lg:border-white lg:shadow-sm flex flex-col h-auto lg:h-full shrink-0 transition-all lg:hover:bg-white/50 z-10">
-        <div className="hidden lg:block mb-4 pb-4 border-b border-[var(--color-atelier-grafite)]/10">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 block mb-3">Carteira Unificada</span>
-          
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1">
-              <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none">
-                <svg className="w-3.5 h-3.5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-              </div>
-              <input 
-                type="text" 
-                placeholder="Pesquisar..." 
-                value={walletSearch}
-                onChange={(e) => setWalletSearch(e.target.value)}
-                className="w-full bg-white/70 border border-white focus:outline-none focus:ring-2 focus:ring-[var(--color-atelier-terracota)]/30 rounded-xl py-1.5 pl-8 pr-3 text-xs text-[var(--color-atelier-grafite)] placeholder-gray-400"
-              />
-            </div>
-            
-            <div className="relative group/filter">
-               <button className="w-8 h-8 rounded-xl bg-white/70 border border-white flex items-center justify-center text-gray-500 hover:text-[var(--color-atelier-terracota)] transition-colors shadow-sm">
-                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" /></svg>
-               </button>
-               <div className="absolute top-full right-0 mt-1 bg-white border border-gray-100 shadow-xl rounded-xl p-1.5 flex flex-col gap-1 w-32 opacity-0 pointer-events-none group-hover/filter:opacity-100 group-hover/filter:pointer-events-auto transition-all z-50">
-                  <button onClick={() => setWalletFilter('all')} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors ${walletFilter === 'all' ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-gray-600'}`}>Todos</button>
-                  <button onClick={() => setWalletFilter('agency')} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors ${walletFilter === 'agency' ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-gray-600'}`}>Agências</button>
-                  <button onClick={() => setWalletFilter('studio')} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors ${walletFilter === 'studio' ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-gray-600'}`}>Studio</button>
-               </div>
-             </div>
-          </div>
-        </div>
-        
-        <div className="flex overflow-x-auto lg:overflow-y-auto custom-scrollbar flex-row lg:flex-col gap-3 pb-4 lg:pb-0 snap-x snap-mandatory lg:snap-none -mx-4 px-4 lg:mx-0 lg:px-0 pr-8 lg:pr-1 flex-1 lg:flex-auto min-h-0">
-          {unifiedWallet.filter(item => {
-             const matchesSearch = item.name?.toLowerCase().includes(walletSearch.toLowerCase());
-             const matchesFilter = walletFilter === 'all' || 
-                                   (walletFilter === 'agency' && item.type === 'agency') || 
-                                   (walletFilter === 'studio' && item.type === 'project');
-             return matchesSearch && matchesFilter;
-          }).map(item => {
-            const avatarUrl = item.avatar_url || item.profiles?.avatar_url || item.logo_url;
-            return (
-              <button 
-                  key={`${item.type}-${item.id}`} 
-                  onClick={() => { setSelectedEntityId(item.id); setSelectedEntityType(item.type as any); setIsTrelloInputOpen(false); }} 
-                  className={`shrink-0 snap-center lg:snap-align-none flex items-center gap-3 px-5 py-3 lg:p-5 rounded-full lg:rounded-[2rem] text-left transition-all duration-300 border ${selectedEntityId === item.id ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md lg:scale-[1.02]' : 'bg-white/80 lg:bg-transparent border-white/50 lg:border-transparent hover:bg-white hover:shadow-sm'}`}
-              >
-                <div className="flex items-center gap-3">
-                  <div className={`w-8 h-8 rounded-full lg:rounded-xl flex items-center justify-center shadow-inner border border-white/50 overflow-hidden shrink-0 ${item.type === 'agency' ? 'bg-blue-50 text-blue-600' : 'bg-gray-50 text-[var(--color-atelier-terracota)]'}`}>
-                    {avatarUrl ? (
-                      <img src={avatarUrl} alt={item.name} className="w-full h-full object-cover" />
-                    ) : item.type === 'agency' ? (
-                      <Briefcase size={14}/>
-                    ) : (
-                      <span className="font-elegant text-[14px] leading-none uppercase">{item.name?.charAt(0) || "U"}</span>
-                    )}
-                  </div>
-                  <div className="flex flex-col truncate pr-2">
-                    <span className={`font-roboto font-bold text-[12px] lg:text-[13px] truncate transition-colors ${selectedEntityId === item.id ? 'text-white' : 'text-[var(--color-atelier-grafite)]'}`}>{item.name}</span>
-                    <span className={`hidden lg:inline-block text-[9px] uppercase font-bold tracking-widest ${selectedEntityId === item.id ? 'text-white/80' : (item.type === 'agency' ? 'text-blue-500' : 'text-[var(--color-atelier-terracota)]/80')}`}>{item.label}</span>
-                  </div>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-      </div>
-
       {/* PAINEL DINÂMICO DE GESTÃO */}
-      <div className={`flex-1 glass-panel bg-white/80 p-8 flex-col rounded-[2.5rem] shadow-sm overflow-hidden h-full relative ${mobileWidgetView === 'cliente' ? 'flex' : 'hidden lg:flex'}`}>
+      <div className={`flex-1 glass-panel bg-white/80 p-8 flex flex-col rounded-[2.5rem] shadow-sm overflow-hidden h-full relative`}>
         {!selectedEntityId ? (
           <div className="flex-1 flex flex-col items-center justify-center opacity-40"><FolderKanban size={48} className="mb-4 text-[var(--color-atelier-terracota)]"/><p className="font-elegant text-3xl">Selecione um Cliente ou Agência</p></div>
         ) : (
@@ -819,9 +767,38 @@ export default function ProjectsManager({
                     {selectedEntityType === 'agency' || isSubclientView ? displayData?.name : displayData?.profiles?.nome}
                     <FolderUp size={24} className="text-gray-300 group-hover:text-[var(--color-atelier-terracota)] transition-colors" />
                   </h2>
-                  <p className="text-[11px] font-bold text-[var(--color-atelier-grafite)]/40 uppercase tracking-widest mt-1">
-                    {selectedEntityType === 'agency' ? 'Operação White-Label (Agência)' : isSubclientView ? 'Subcliente Delegado (White-Label)' : displayData?.service_type}
-                  </p>
+                  <div className="flex items-center gap-3 mt-1">
+                    <p className="text-[11px] font-bold text-[var(--color-atelier-grafite)]/40 uppercase tracking-widest">
+                      {selectedEntityType === 'agency' ? 'Operação White-Label (Agência)' : isSubclientView ? 'Subcliente Delegado (White-Label)' : displayData?.service_type}
+                    </p>
+                    {selectedEntityType === 'project' && handleUpdateContentReleaseDay && (
+                      <div className="flex items-center gap-2 bg-gray-50/80 px-2 py-1 rounded-md border border-gray-200" title="Define o dia do mês a partir do qual o conteúdo entra no Cockpit.">
+                        <Calendar size={10} className="text-[var(--color-atelier-terracota)]" />
+                        <input 
+                          type="number" 
+                          min="1" 
+                          max="31" 
+                          defaultValue={displayData?.content_release_day || ''}
+                          onBlur={(e) => handleUpdateContentReleaseDay(displayData.id, e.target.value)}
+                          className="bg-transparent text-[11px] font-bold text-[var(--color-atelier-grafite)] w-6 text-center outline-none focus:border-b focus:border-[var(--color-atelier-terracota)] hide-arrows"
+                          placeholder="Dia"
+                        />
+                        {(() => {
+                          const releaseDay = parseInt(displayData?.content_release_day);
+                          if (!isNaN(releaseDay) && releaseDay >= 1 && releaseDay <= 31) {
+                            const today = new Date();
+                            let releaseDate = new Date(today.getFullYear(), today.getMonth(), releaseDay);
+                            if (today > releaseDate) {
+                               releaseDate.setMonth(releaseDate.getMonth() + 1);
+                            }
+                            const diffDays = Math.ceil((releaseDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
+                            return <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] shrink-0 opacity-80">({diffDays} {diffDays === 1 ? 'dia' : 'dias'} restantes)</span>;
+                          }
+                          return null;
+                        })()}
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
               
@@ -887,9 +864,7 @@ export default function ProjectsManager({
                    )
                  )}
 
-                 <button onClick={() => setIsCaptacaoModalOpen(true)} className="bg-[var(--color-atelier-grafite)] text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-black transition-all flex items-center gap-2 shadow-sm hover:-translate-y-0.5">
-                   <MapPin size={14} className="text-[var(--color-atelier-terracota)]"/> Agendar Captação
-                 </button>
+
                  {isSubclientView && displayData && (
                     <>
                       <button 
@@ -912,19 +887,6 @@ export default function ProjectsManager({
                       </button>
                     </>
                   )}
-                 {(selectedEntityType === 'project' || isSubclientView) && (
-                   <button 
-                     onClick={() => {
-                       const projectToDeploy = isSubclientView ? { id: displayData.agency_id } : displayData;
-                       handleAutoDeploy(projectToDeploy, isSubclientView ? displayData.id : undefined);
-                     }} 
-                     disabled={isProcessing} 
-                     className="bg-[var(--color-atelier-terracota)] text-white px-5 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest hover:bg-[#8c562e] transition-all flex items-center gap-2 shadow-sm hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0"
-                   >
-                     {isProcessing ? <Loader2 size={14} className="animate-spin"/> : <Sparkles size={14}/>} 
-                     {visibleTasks.length > 0 ? "Renovar Ciclo Mensal" : "Iniciar Produção"}
-                   </button>
-                 )}
               </div>
             </div>
 
@@ -933,7 +895,7 @@ export default function ProjectsManager({
                  <div className="flex flex-col gap-6 animate-[fadeIn_0.4s_ease-out]">
                     <div className="flex justify-between items-center border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                       <h4 className="font-roboto font-bold text-[12px] uppercase tracking-widest text-gray-500">Perfis Sob Demanda</h4>
-                      <button onClick={() => setIsSubclientModalOpen(true)} className="text-[10px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-blue-100 transition-colors shadow-sm border border-blue-100">
+                      <button onClick={openNewSubclientModal} className="text-[10px] font-bold text-blue-600 bg-blue-50 px-3 py-1.5 rounded-lg flex items-center gap-1 hover:bg-blue-100 transition-colors shadow-sm border border-blue-100">
                         <PlusCircle size={14}/> Novo Perfil
                       </button>
                     </div>
@@ -982,11 +944,11 @@ export default function ProjectsManager({
                     </div>
                  </div>
                ) : (
-                 Object.keys(groupTasksByStage(visibleTasks)).map(stage => (
+                 Object.entries(groupTasksByStage(visibleTasks)).map(([stage, stageTasks]) => (
                     <div key={stage} className="mb-6 animate-[fadeIn_0.4s_ease-out]">
                       <h4 className="font-roboto font-bold text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-3 flex items-center gap-2 border-b border-[var(--color-atelier-grafite)]/5 pb-2"><Layers size={12}/> {stage}</h4>
                       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                        {visibleTasks.filter(t => t.stage === stage).map(task => {
+                        {stageTasks.map(task => {
                           const isSelected = selectedTaskIds.includes(task.id);
                           const executorName = task.profiles?.nome ? task.profiles.nome.split(" ")[0] : "Aguardando Responsável";
 
@@ -996,16 +958,23 @@ export default function ProjectsManager({
                               onClick={() => isBulkMode ? toggleTaskSelection(task.id) : null}
                               className={`p-5 rounded-[1.2rem] border flex flex-col gap-3 transition-all group ${isBulkMode ? 'cursor-pointer hover:scale-[1.02]' : ''} ${isSelected ? 'bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)] shadow-sm' : 'bg-white/80 border-[var(--color-atelier-grafite)]/5 hover:border-[var(--color-atelier-terracota)]/30 hover:bg-white shadow-sm'}`}
                             >
-                              <div className="flex justify-between items-start">
-                                 <div className="flex gap-3">
-                                   {isBulkMode && (
-                                     <div className="shrink-0 text-[var(--color-atelier-terracota)] mt-0.5">
-                                       {isSelected ? <CheckSquare size={16} /> : <Square size={16} className="text-gray-300"/>}
-                                     </div>
-                                   )}
-                                   <span className={`text-[13px] font-bold leading-tight pr-4 transition-colors group-hover:text-[var(--color-atelier-terracota)] ${task.status === 'completed' ? 'text-gray-400 line-through' : 'text-[var(--color-atelier-grafite)]'}`}>{task.title}</span>
-                                 </div>
-                                 {!isBulkMode && <button onClick={() => setEditingTask(task)} className="opacity-0 group-hover:opacity-100 text-[var(--color-atelier-grafite)]/30 hover:text-[var(--color-atelier-terracota)] transition-opacity"><Edit3 size={14}/></button>}
+                              <div className="flex flex-col w-full" onClick={(e) => { if (isBulkMode) return; setEditingTask(task); }}>
+                                {/* Cabeçalho: Client name */}
+                                <div className="flex items-center justify-between w-full mb-1">
+                                  <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 truncate" title={task.projects?.profiles?.nome}>
+                                    {task.projects?.profiles?.nome || "White-Label"}
+                                  </span>
+                                  <div className="flex items-center gap-2">
+                                    {task.urgency && <Flame size={12} className="text-orange-500 shrink-0"/>}
+                                    {isBulkMode && (
+                                      <div className="shrink-0 text-[var(--color-atelier-terracota)]" onClick={(e) => { e.stopPropagation(); toggleTaskSelection(task.id); }}>
+                                        {isSelected ? <CheckSquare size={16} /> : <Square size={16} className="text-gray-300"/>}
+                                      </div>
+                                    )}
+                                  </div>
+                                </div>
+                                {/* Title */}
+                                <span className="font-roboto font-bold text-[15px] text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors leading-tight line-clamp-2 mt-1" title={task.title}>{task.title}</span>
                               </div>
                               <div className="flex justify-between items-end border-t border-[var(--color-atelier-grafite)]/5 pt-3 mt-1">
                                  <div className="flex items-center gap-2">
@@ -1037,7 +1006,7 @@ export default function ProjectsManager({
         onClose={() => setIsAssetsModalOpen(false)}
         projectId={isSubclientView ? displayData?.agency_id : (selectedEntityType === 'project' || selectedEntityType === 'agency' ? displayData?.id : null)}
         subclientId={isSubclientView ? displayData?.id : null}
-clientName={selectedEntityType === 'agency' || isSubclientView ? displayData?.name : displayData?.profiles?.nome}
+        clientName={selectedEntityType === 'agency' || isSubclientView ? displayData?.name : displayData?.profiles?.nome}
       />
 
       {/* Botão Mobile: Adicionar Demanda (Estilo Start Now da Imagem) */}
@@ -1642,15 +1611,16 @@ clientName={selectedEntityType === 'agency' || isSubclientView ? displayData?.na
 
                 <div className="flex flex-col gap-1.5">
                   <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1.5">
-                    <Trello size={12}/> Link do Quadro Trello (Opcional)
+                    <Trello size={12}/> Link do Quadro Trello (Agência)
                   </span>
-                  <input 
-                    type="url" 
-                    placeholder="https://trello.com/b/..." 
-                    value={subclientForm.trello_url} 
-                    onChange={(e) => setSubclientForm({...subclientForm, trello_url: e.target.value})} 
-                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[#0079BF] focus:bg-[#0079BF]/5 text-[#0079BF] font-medium transition-colors placeholder:text-gray-400" 
-                  />
+                  <div className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] text-gray-500 font-medium truncate flex items-center justify-between">
+                     <span>{subclientForm.trello_url || "Nenhum link configurado"}</span>
+                     {subclientForm.trello_url && (
+                       <button onClick={() => window.open(subclientForm.trello_url, '_blank')} className="text-blue-500 hover:text-blue-700 ml-2 shrink-0">
+                         Ver Quadro
+                       </button>
+                     )}
+                  </div>
                 </div>
               </div>
 
@@ -1703,16 +1673,76 @@ clientName={selectedEntityType === 'agency' || isSubclientView ? displayData?.na
 
                 <div className="flex flex-col gap-1.5">
                   <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1.5">
-                    <Trello size={12}/> Link do Quadro Trello (Opcional)
+                    <Trello size={12}/> Link do Quadro Trello (Agência)
                   </span>
-                  <input 
-                    type="url" 
-                    placeholder="https://trello.com/b/..." 
-                    value={editSubclientForm.trello_url} 
-                    onChange={(e) => setEditSubclientForm({...editSubclientForm, trello_url: e.target.value})} 
-                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[#0079BF] focus:bg-[#0079BF]/5 text-[#0079BF] font-medium transition-colors placeholder:text-gray-400" 
-                  />
+                  <div className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] text-gray-500 font-medium truncate flex items-center justify-between">
+                     <span>{editSubclientForm.trello_url || "Nenhum link configurado"}</span>
+                     {editSubclientForm.trello_url && (
+                       <button onClick={() => window.open(editSubclientForm.trello_url, '_blank')} className="text-blue-500 hover:text-blue-700 ml-2 shrink-0">
+                         Ver Quadro
+                       </button>
+                     )}
+                  </div>
                 </div>
+                
+                {editSubclientForm.trello_url && (
+                  <div className="flex flex-col gap-3 mt-2 bg-blue-50/50 p-4 rounded-xl border border-blue-100">
+                    <div className="flex items-center justify-between">
+                      <span className="font-roboto text-[10px] font-bold text-[var(--color-atelier-grafite)] uppercase tracking-widest">Listas Monitoradas para Automação</span>
+                      <button 
+                        onClick={async () => {
+                          if (!editSubclientForm.trello_url) return;
+                          setIsLoadingTrelloLists(true);
+                          try {
+                            const match = editSubclientForm.trello_url.match(/trello\.com\/b\/([a-zA-Z0-9]+)/);
+                            const boardId = match ? match[1] : null;
+                            if (!boardId) throw new Error("URL inválida");
+                            const res = await fetch(`https://api.trello.com/1/boards/${boardId}/lists?key=${process.env.NEXT_PUBLIC_TRELLO_API_KEY}&token=${process.env.NEXT_PUBLIC_TRELLO_TOKEN}`);
+                            if (!res.ok) throw new Error("Erro na API Trello");
+                            const lists = await res.json();
+                            setTrelloLists(lists);
+                          } catch (err) {
+                            showToast("Falha ao buscar listas. Verifique o URL.");
+                          } finally {
+                            setIsLoadingTrelloLists(false);
+                          }
+                        }}
+                        className="text-[10px] font-bold uppercase tracking-widest text-blue-600 bg-white shadow-sm border border-blue-100 px-3 py-1.5 rounded-lg hover:bg-blue-50 flex items-center gap-2"
+                        type="button"
+                      >
+                        {isLoadingTrelloLists ? <Loader2 size={12} className="animate-spin"/> : <Search size={12}/>}
+                        Buscar Listas
+                      </button>
+                    </div>
+
+                    {trelloLists.length > 0 && (
+                      <div className="flex flex-col gap-2 max-h-32 overflow-y-auto custom-scrollbar pr-2 mt-2">
+                        {trelloLists.map((list: any) => {
+                          const isSelected = editSubclientForm.trello_sync_list_ids.includes(list.id);
+                          return (
+                            <label key={list.id} className={`flex items-center gap-3 p-2.5 rounded-xl border cursor-pointer transition-all ${isSelected ? 'border-blue-500 bg-blue-50' : 'border-gray-200 bg-white hover:border-blue-300'}`}>
+                              <input 
+                                type="checkbox" 
+                                className="hidden" 
+                                checked={isSelected}
+                                onChange={(e) => {
+                                  const updated = e.target.checked 
+                                    ? [...editSubclientForm.trello_sync_list_ids, list.id]
+                                    : editSubclientForm.trello_sync_list_ids.filter(id => id !== list.id);
+                                  setEditSubclientForm({...editSubclientForm, trello_sync_list_ids: updated});
+                                }}
+                              />
+                              <div className={`w-5 h-5 rounded-md flex items-center justify-center shrink-0 transition-colors ${isSelected ? 'bg-blue-600 text-white' : 'bg-gray-100 border border-gray-300'}`}>
+                                {isSelected && <Check size={12} />}
+                              </div>
+                              <span className={`text-[12px] font-medium truncate ${isSelected ? 'text-blue-900 font-bold' : 'text-gray-700'}`}>{list.name}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
 
               <div className="flex gap-3">

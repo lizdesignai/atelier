@@ -48,6 +48,13 @@ interface AnalyticsModalsProps {
   setCaptacaoForm: (form: any) => void;
   handleAddCaptacao: () => void;
 
+  // Reunião
+  isReuniaoModalOpen?: boolean;
+  setIsReuniaoModalOpen?: (val: boolean) => void;
+  reuniaoForm?: any;
+  setReuniaoForm?: (form: any) => void;
+  handleAddReuniao?: () => void;
+
   // Globais
   isProcessing: boolean;
   team: any[];
@@ -61,6 +68,7 @@ export default function AnalyticsModals({
   editingTask, setEditingTask, handleUpdateTask,
   selectedCollab, setSelectedCollab, activeTasksForQueue, toggleTaskSelection, handleToggleSkill,
   isCaptacaoModalOpen, setIsCaptacaoModalOpen, captacaoForm, setCaptacaoForm, handleAddCaptacao,
+  isReuniaoModalOpen, setIsReuniaoModalOpen, reuniaoForm, setReuniaoForm, handleAddReuniao,
   isProcessing, team
 }: AnalyticsModalsProps) {
 
@@ -576,6 +584,56 @@ export default function AnalyticsModals({
 
               <button onClick={handleAddCaptacao} disabled={isProcessing || !captacaoForm.title || !captacaoForm.assigneeId || !captacaoForm.date} className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[12px] shadow-md hover:bg-[var(--color-atelier-terracota)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 hover:-translate-y-0.5 disabled:hover:translate-y-0">
                 {isProcessing ? <Loader2 className="animate-spin" size={16}/> : <Save size={16}/>} Confirmar Agendamento
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* MODAL: AGENDAR REUNIÃO */}
+      <AnimatePresence>
+        {isReuniaoModalOpen && reuniaoForm && setIsReuniaoModalOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center px-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsReuniaoModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-white/20 flex flex-col gap-6">
+              <div className="flex justify-between items-start">
+                <div>
+                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><MessageSquare size={24} className="text-[var(--color-atelier-terracota)]"/> Agendar Reunião</h3>
+                  <p className="font-roboto text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Alinhamento / Apresentação</p>
+                </div>
+                <button onClick={() => setIsReuniaoModalOpen(false)} className="text-gray-400 hover:text-black transition-colors"><X size={20}/></button>
+              </div>
+              
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1">
+                   <span className="text-[9px] font-bold uppercase text-gray-400 ml-1">Assunto / Pauta</span>
+                   <input type="text" placeholder="Ex: Apresentação de Planejamento..." value={reuniaoForm.title} onChange={(e)=>setReuniaoForm?.({...reuniaoForm, title: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-[14px] outline-none focus:border-[var(--color-atelier-terracota)]/30" />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                   <span className="text-[9px] font-bold uppercase text-gray-400 ml-1">Participante Responsável</span>
+                   <select value={reuniaoForm.assigneeId} onChange={(e)=>setReuniaoForm?.({...reuniaoForm, assigneeId: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-[13px] outline-none cursor-pointer">
+                     <option value="" disabled>Selecione um profissional...</option>
+                     {team.map(t => <option key={t.id} value={t.id}>{t.nome}</option>)}
+                   </select>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                   <div className="flex flex-col gap-1">
+                      <span className="text-[9px] font-bold uppercase text-gray-400 ml-1">Data e Hora</span>
+                      <input type="datetime-local" value={formatForDateTimeLocal(reuniaoForm.date)} onChange={(e)=>setReuniaoForm?.({...reuniaoForm, date: e.target.value ? parseFromDateTimeLocal(e.target.value) : ""})} className="bg-gray-50 border border-gray-100 rounded-xl p-3 text-[12px] outline-none" />
+                   </div>
+                   <div className="flex flex-col gap-1">
+                      <span className="text-[9px] font-bold uppercase text-gray-400 ml-1">Link ou Local</span>
+                      <input type="text" placeholder="Ex: Meet ou Zoom..." value={reuniaoForm.link} onChange={(e)=>setReuniaoForm?.({...reuniaoForm, link: e.target.value})} className="bg-gray-50 border border-gray-100 rounded-xl p-3 text-[12px] outline-none" />
+                   </div>
+                </div>
+
+                <textarea placeholder="Pauta detalhada ou informações extras..." value={reuniaoForm.notes} onChange={(e)=>setReuniaoForm?.({...reuniaoForm, notes: e.target.value})} className="w-full bg-gray-50 border border-gray-100 rounded-xl p-4 text-[12px] h-24 resize-none outline-none focus:border-[var(--color-atelier-terracota)]/30 custom-scrollbar" />
+              </div>
+
+              <button onClick={handleAddReuniao} disabled={isProcessing || !reuniaoForm.title || !reuniaoForm.assigneeId || !reuniaoForm.date} className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[12px] shadow-md hover:bg-[var(--color-atelier-terracota)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 hover:-translate-y-0.5 disabled:hover:translate-y-0">
+                {isProcessing ? <Loader2 className="animate-spin" size={16}/> : <Save size={16}/>} Confirmar Reunião
               </button>
             </motion.div>
           </div>

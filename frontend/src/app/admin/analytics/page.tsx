@@ -7,7 +7,7 @@ import { supabase } from "../../../lib/supabase";
 import { AtelierPMEngine } from "../../../lib/AtelierPMEngine"; 
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
 import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
-import { BrainCircuit, Loader2, X, Cpu, Play, CheckSquare, Check, Activity, FolderKanban, GitMerge, Crown, DollarSign, Users, SlidersHorizontal } from "lucide-react";
+import { BrainCircuit, Loader2, X, Cpu, Play, CheckSquare, Check, Activity, FolderKanban, GitMerge, Crown, DollarSign, Users, SlidersHorizontal, LayoutDashboard } from "lucide-react";
 import Link from "next/link";
 import { useProfile } from "../../../hooks/useProfile";
 // Importações do Núcleo Estático
@@ -35,12 +35,28 @@ const showToast = (message: string) => {
 };
 
 const groupTasksByStage = (projectTasks: any[]) => {
-  const stages: Record<string, any[]> = {};
+  const stages: Record<string, any[]> = {
+     "Planejamento/Copywriting": [],
+     "Captação": [],
+     "Reunião": [],
+     "Posts e Reels": []
+  };
+
   projectTasks.forEach(t => {
-    const stageName = t.stage || 'Geral';
-    if (!stages[stageName]) stages[stageName] = [];
+    let stageName = "Posts e Reels";
+    
+    if (t.task_type === 'meeting' || t.title?.includes('REUNIÃO')) stageName = "Reunião";
+    else if (t.task_type === 'captacao' || t.title?.includes('CAPTAÇÃO') || t.stage === 'Logística Externa' || t.stage === 'Logística') stageName = "Captação";
+    else if (t.stage === 'Planejamento' || t.stage === 'Copywriting' || t.task_type === 'planning') stageName = "Planejamento/Copywriting";
+    
     stages[stageName].push(t);
   });
+
+  // Remover estágios vazios para não poluir a tela
+  Object.keys(stages).forEach(key => {
+    if (stages[key].length === 0) delete stages[key];
+  });
+
   return stages;
 };
 
@@ -109,6 +125,9 @@ export default function AnalyticsPage() {
   const [isCaptacaoModalOpen, setIsCaptacaoModalOpen] = useState(false);
   const [captacaoForm, setCaptacaoForm] = useState({ title: "", assigneeId: "", date: "", location: "", notes: "" });
 
+  const [isReuniaoModalOpen, setIsReuniaoModalOpen] = useState(false);
+  const [reuniaoForm, setReuniaoForm] = useState({ title: "", assigneeId: "", date: "", link: "", notes: "" });
+
   // 🟢 Proteção contra Loop Infinito
   const validProjects = useMemo(() => {
     return activeProjects.filter(p => p.status === 'active' || p.status === 'delivered');
@@ -175,8 +194,8 @@ export default function AnalyticsPage() {
           };
         });
 
-        const standardTasks = mappedTasks.filter((t: any) => t.project_id !== null || t.agency_id !== null);
-        const engineAlerts = mappedTasks.filter((t: any) => t.project_id === null && t.agency_id === null);
+        const standardTasks = mappedTasks.filter((t: any) => (t.project_id !== null || t.agency_id !== null) && t.status !== 'archived');
+        const engineAlerts = mappedTasks.filter((t: any) => t.project_id === null && t.agency_id === null && t.status !== 'archived');
 
         setTasks(standardTasks);
         setSystemAlerts(engineAlerts);
@@ -233,8 +252,8 @@ export default function AnalyticsPage() {
             };
           });
 
-          const standardTasks = mappedTasks.filter((t: any) => t.project_id !== null || t.agency_id !== null);
-          const engineAlerts = mappedTasks.filter((t: any) => t.project_id === null && t.agency_id === null);
+          const standardTasks = mappedTasks.filter((t: any) => (t.project_id !== null || t.agency_id !== null) && t.status !== 'archived');
+          const engineAlerts = mappedTasks.filter((t: any) => t.project_id === null && t.agency_id === null && t.status !== 'archived');
 
           setTasks(standardTasks);
           setSystemAlerts(engineAlerts);
@@ -643,6 +662,62 @@ export default function AnalyticsPage() {
     finally { setIsProcessing(false); }
   };
 
+  const handleAddReuniao = async () => {
+    if (!reuniaoForm.title || !reuniaoForm.assigneeId || !reuniaoForm.date) return;
+    setIsProcessing(true);
+    try {
+      const { error } = await supabase.from('tasks').insert({
+        project_id: selectedEntityType === 'project' ? selectedEntityId : null,
+        agency_id: selectedEntityType === 'agency' ? selectedEntityId : null,
+        assigned_to: reuniaoForm.assigneeId,
+        title: `🤝 REUNIÃO: ${reuniaoForm.title}`,
+        description: `📍 Link/Local: ${reuniaoForm.link}\n📝 Notas: ${reuniaoForm.notes}`,
+        task_type: 'meeting',
+        stage: 'Logística Externa',
+        deadline: new Date(reuniaoForm.date).toISOString(),
+        status: 'pending',
+        estimated_time: 60
+      });
+      if (error) throw error;
+      
+      await NotificationEngine.notifyUser(
+        reuniaoForm.assigneeId,
+        "🤝 Nova Reunião Agendada",
+        `Data: ${new Date(reuniaoForm.date).toLocaleDateString('pt-PT')}. Link/Local: ${reuniaoForm.link}`,
+        "action",
+        "/admin/jtbd"
+      );
+
+      // Disparar e-mail no backend em background se possível
+      (async () => {
+        try {
+          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+          const { data: collab } = await supabase.from('profiles').select('email').eq('id', reuniaoForm.assigneeId).single();
+          if (collab?.email) {
+            await fetch(`${backendUrl}/api/v1/notifications/email`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                to: collab.email,
+                type: 'task_assigned',
+                taskName: `🤝 REUNIÃO: ${reuniaoForm.title}`,
+                projectName: 'Alinhamento / Reunião',
+                extraInfo: `Data: ${new Date(reuniaoForm.date).toLocaleDateString('pt-BR')}. Link/Local: ${reuniaoForm.link}`,
+                link: `${process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin/jtbd`
+              })
+            }).catch(() => {});
+          }
+        } catch (e) {}
+      })();
+
+      showToast("🤝 Reunião agendada com sucesso!");
+      setIsReuniaoModalOpen(false);
+      setReuniaoForm({ title: "", assigneeId: "", date: "", link: "", notes: "" });
+      await fetchOperationalData();
+    } catch (e) { showToast("Erro ao agendar reunião."); }
+    finally { setIsProcessing(false); }
+  };
+
   const handleUpdateSubclientDemand = async (subId: string, demand: number) => {
     try {
       await supabase.from('agency_subclients').update({ deliverables_count: demand }).eq('id', subId);
@@ -652,18 +727,36 @@ export default function AnalyticsPage() {
     } catch (e) { showToast("Erro ao atualizar demanda."); }
   };
 
-  const handleEditSubclient = async (subId: string, updates: { name: string; deliverables_count: number; trello_url?: string }) => {
+  const handleEditSubclient = async (subId: string, updates: { name: string; deliverables_count: number; trello_url?: string; trello_sync_list_ids?: string[] }) => {
     try {
       const { error } = await supabase
         .from('agency_subclients')
         .update({
           name: updates.name,
           deliverables_count: updates.deliverables_count,
-          trello_url: updates.trello_url || null
+          trello_url: updates.trello_url || null,
+          trello_sync_list_ids: updates.trello_sync_list_ids || []
         })
         .eq('id', subId);
 
       if (error) throw error;
+      
+      // Attempt to register Trello webhook if lists are selected
+      if (updates.trello_url && updates.trello_sync_list_ids && updates.trello_sync_list_ids.length > 0) {
+        try {
+          const match = updates.trello_url.match(/trello\.com\/b\/([a-zA-Z0-9]+)/);
+          const boardId = match ? match[1] : null;
+          if (boardId) {
+            const callbackUrl = `${window.location.origin}/api/trello-webhook`;
+            await fetch(`https://api.trello.com/1/webhooks/?key=${process.env.NEXT_PUBLIC_TRELLO_API_KEY}&token=${process.env.NEXT_PUBLIC_TRELLO_TOKEN}&callbackURL=${encodeURIComponent(callbackUrl)}&idModel=${boardId}`, {
+              method: 'POST'
+            }).catch(e => console.log('Trello webhook sync warning:', e));
+          }
+        } catch (e) {
+          console.log("Erro ao registrar webhook no Trello", e);
+        }
+      }
+
       showToast("Perfil de subcliente atualizado com sucesso!");
       window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
       await fetchOperationalData(true, true);
@@ -682,6 +775,20 @@ export default function AnalyticsPage() {
       window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
       await fetchOperationalData(true, true);
     } catch (e) { showToast("Erro ao remover perfil."); }
+  };
+
+  const handleUpdateContentReleaseDay = async (projectId: string, dayStr: string) => {
+    try {
+      const parsedDay = parseInt(dayStr, 10);
+      const validDay = (isNaN(parsedDay) || parsedDay < 1 || parsedDay > 31) ? null : parsedDay;
+      const { error } = await supabase.from('projects').update({ content_release_day: validDay }).eq('id', projectId);
+      if (error) throw error;
+      showToast("Dia de liberação atualizado!");
+      refreshGlobalData();
+      await fetchOperationalData(true, true);
+    } catch (e) {
+      showToast("Erro ao atualizar dia de liberação.");
+    }
   };
 
   // ============================================================================
@@ -874,7 +981,7 @@ export default function AnalyticsPage() {
     }
   };
 
-  const activeTasksForQueue = tasks.filter(t => t.status !== 'completed');
+  const activeTasksForQueue = tasks.filter(t => t.status !== 'completed' && t.status !== 'archived');
   const activeProjectsList = validProjects.filter(p => p.status === 'active');
   const liveTasks = tasks.filter(t => t.status === 'in_progress');
 
@@ -886,8 +993,8 @@ export default function AnalyticsPage() {
   const currentTaskTypes = isIdvService(routeProjObj) ? TASK_TYPES_IDV : TASK_TYPES_IG;
 
   const unifiedWallet = [
-    ...validProjects.filter(p => p.status === 'active').map(p => ({ id: p.id, name: p.profiles?.nome, type: 'project', label: isIdvService(p) ? 'IDV' : 'Instagram', avatar_url: p.profiles?.avatar_url })),
-    ...agencies.map(a => ({ id: a.id, name: a.name, type: 'agency', label: 'White-Label', avatar_url: null }))
+    ...validProjects.filter(p => p.status === 'active').map(p => ({ id: p.id, name: p.profiles?.nome, type: 'project', label: isIdvService(p) ? 'IDV' : 'Instagram', avatar_url: p.profiles?.avatar_url, trello_url: p.trello_url, trello_sync_list_ids: p.trello_sync_list_ids })),
+    ...agencies.map(a => ({ id: a.id, name: a.name, type: 'agency', label: 'White-Label', avatar_url: null, trello_url: a.trello_url }))
   ].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
   if (isGlobalLoading || isLocalLoading) return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
@@ -958,15 +1065,14 @@ export default function AnalyticsPage() {
         {/* HEADER CONTROLS (AVATAR & COMPACT VERTICAL MENU) */}
         <div className="flex items-center gap-3 shrink-0">
           
-          {/* BOTÃO DO MENU VERTICAL DE TELAS E AÇÕES */}
-          <div className="relative">
-            <button
+          {/* PÍLULA: MENU DE TELAS E AVATAR FUNDIDOS */}
+          <div className="relative flex items-center bg-white/60 border border-white/50 rounded-full shadow-sm p-1">
+            <button 
               onClick={() => setIsNavMenuOpen(!isNavMenuOpen)}
-              className="flex items-center gap-2 px-3.5 py-2.5 rounded-2xl bg-white/80 border border-white shadow-sm hover:bg-white text-[var(--color-atelier-grafite)] transition-all active:scale-95 cursor-pointer"
-              title="Menu de Telas & Ações"
+              className={`flex items-center justify-center w-8 h-8 rounded-full transition-all ${isNavMenuOpen ? 'bg-white shadow-sm' : 'hover:bg-white/80'}`}
+              title="Menu de Telas"
             >
-              <SlidersHorizontal size={16} className="text-[var(--color-atelier-terracota)]" />
-              <span className="text-[10px] font-bold uppercase tracking-widest hidden sm:inline">Telas</span>
+              <LayoutDashboard size={14} className="text-[var(--color-atelier-terracota)]" />
             </button>
 
             {/* DROPDOWN VERTICAL */}
@@ -978,7 +1084,7 @@ export default function AnalyticsPage() {
                     initial={{ opacity: 0, y: -10, scale: 0.95 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    className="absolute right-0 top-full mt-2 w-64 bg-white/95 backdrop-blur-2xl border border-white rounded-3xl p-3 shadow-2xl z-50 flex flex-col gap-1.5"
+                    className="absolute right-0 top-full mt-3 w-64 bg-white/95 backdrop-blur-2xl border border-white rounded-3xl p-3 shadow-2xl z-50 flex flex-col gap-1.5"
                   >
                     <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 px-3 pt-1 block">
                       Alternar Visualização
@@ -1050,21 +1156,20 @@ export default function AnalyticsPage() {
                         />
                       </button>
                     </div>
-
                   </motion.div>
                 </>
               )}
             </AnimatePresence>
-          </div>
 
-          {/* AVATAR DO PERFIL AO LADO DO MENU */}
-          <Link href="/perfil" className="w-10 h-10 rounded-[1.2rem] bg-gray-100 border border-white/60 shadow-sm flex items-center justify-center overflow-hidden active:scale-95 transition-transform shrink-0">
-            {profile?.avatar_url ? (
-              <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-            ) : (
-              <span className="font-elegant text-xl text-[var(--color-atelier-terracota)] uppercase">{profile?.nome?.charAt(0) || "U"}</span>
-            )}
-          </Link>
+            {/* AVATAR DO PERFIL (DENTRO DA PÍLULA) */}
+            <Link href="/perfil" className="w-8 h-8 rounded-full bg-gray-100 border border-white/60 shadow-[0_2px_10px_rgba(0,0,0,0.05)] flex items-center justify-center overflow-hidden active:scale-95 transition-transform shrink-0 ml-1">
+              {profile?.avatar_url ? (
+                <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+              ) : (
+                <span className="font-elegant text-sm text-[var(--color-atelier-terracota)] uppercase">{profile?.nome?.charAt(0) || "U"}</span>
+              )}
+            </Link>
+          </div>
 
         </div>
       </header>
@@ -1095,6 +1200,16 @@ export default function AnalyticsPage() {
                 isIdvService={isIdvService}
                 isQueueMinimized={isQueueMinimized}
                 setIsQueueMinimized={setIsQueueMinimized}
+                unifiedWallet={unifiedWallet}
+                selectedEntityId={selectedEntityId}
+                setSelectedEntityId={setSelectedEntityId}
+                setSelectedEntityType={setSelectedEntityType}
+                setIsCaptacaoModalOpen={setIsCaptacaoModalOpen}
+                isReuniaoModalOpen={isReuniaoModalOpen}
+                setIsReuniaoModalOpen={setIsReuniaoModalOpen}
+                reuniaoForm={reuniaoForm}
+                setReuniaoForm={setReuniaoForm}
+                handleAddReuniao={handleAddReuniao}
               />
 
               <div className="flex-1 min-w-0 h-full">
@@ -1117,6 +1232,7 @@ export default function AnalyticsPage() {
                   handleDeleteSubclient={handleDeleteSubclient}
                   handleUpdateSubclientDemand={handleUpdateSubclientDemand}
                   handleEditSubclient={handleEditSubclient}
+                  handleUpdateContentReleaseDay={handleUpdateContentReleaseDay}
                   groupTasksByStage={groupTasksByStage}
                   isBulkMode={isBulkMode}
                   toggleTaskSelection={toggleTaskSelection}
@@ -1257,6 +1373,11 @@ export default function AnalyticsPage() {
         captacaoForm={captacaoForm}
         setCaptacaoForm={setCaptacaoForm}
         handleAddCaptacao={handleAddCaptacao}
+        isReuniaoModalOpen={isReuniaoModalOpen}
+        setIsReuniaoModalOpen={setIsReuniaoModalOpen}
+        reuniaoForm={reuniaoForm}
+        setReuniaoForm={setReuniaoForm}
+        handleAddReuniao={handleAddReuniao}
         isProcessing={isProcessing}
         team={team}
       />

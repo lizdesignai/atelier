@@ -145,10 +145,21 @@ export default function JTBDPage() {
         .from('tasks')
         .select('*, projects(profiles(nome), type, client_id), agency_subclients(id, name, trello_url), social_posts(image_url, status, created_at)')
         .in('assigned_to', teamIds)
-        .order('priority_score', { ascending: false }) 
+        .order('priority_score', { ascending: false, nullsFirst: false }) 
         .order('deadline', { ascending: true });
       
       if (tasksData) {
+        // Ordenação rigorosa em memória pelo prazo mais apertado (considerando a brevidade)
+        tasksData.sort((a, b) => {
+          const dateA = new Date(a.internal_deadline || a.deadline).getTime();
+          const dateB = new Date(b.internal_deadline || b.deadline).getTime();
+          if (dateA !== dateB) return dateA - dateB;
+          // Desempate por priority_score
+          const scoreA = a.priority_score || 0;
+          const scoreB = b.priority_score || 0;
+          return scoreB - scoreA;
+        });
+
         const optimizedTasks = await CalendarEngine.optimizeSchedule(tasksData);
         setAllTasks(optimizedTasks || tasksData);
       }
@@ -285,7 +296,7 @@ export default function JTBDPage() {
   const handleReschedule = async (task: any) => {
     setIsRescheduling(task.id);
     try {
-      const currentDeadline = new Date(task.deadline);
+      const currentDeadline = new Date(task.internal_deadline || task.deadline);
       let nextDay = new Date(currentDeadline);
       
       do {
@@ -373,29 +384,27 @@ export default function JTBDPage() {
   // 🟢 INVARIÁVEL: Tarefas do colaborador ativo para métricas precisas (Eficiência % e Horas)
   const userAllAssignedTasks = allTasks.filter(t => t.assigned_to === viewingUserId);
 
-  // Tasks assigned to viewed user or all tasks of selected client in monthly view
+  // Tasks assigned to viewed user or filtered by selected client (still scoped to viewed user)
   const allUserTasks = (focusMode === 'monthly' && selectedClient)
-    ? allTasks.filter(t => (selectedClient.type === 'project' ? t.project_id === selectedClient.id : t.subclient_id === selectedClient.id))
+    ? allTasks.filter(t => t.assigned_to === viewingUserId && (selectedClient.type === 'project' ? t.project_id === selectedClient.id : t.subclient_id === selectedClient.id))
     : userAllAssignedTasks;
   
   const now = new Date();
-  const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
-
   const displayedTasks = focusMode === 'urgent'
     ? allUserTasks.filter(t => {
         if (selectedDate) {
-          if (!t.deadline) return false;
+          const effectiveDeadline = t.internal_deadline || t.deadline;
+          if (!effectiveDeadline) return false;
           try {
-            const d = new Date(t.deadline);
+            const d = new Date(effectiveDeadline);
             return !isNaN(d.getTime()) && d.toISOString().split('T')[0] === selectedDate;
           } catch {
             return false;
           }
         }
-        if (!t.deadline) return true; // Show un-deadlined tasks in urgent focus too
-        const deadlineDate = new Date(t.deadline);
-        return deadlineDate <= next24h || t.status === 'in_progress';
-      })
+        // Se for a tela inicial sem filtro de data, exibimos as próximas demandas em aberto
+        return t.status !== 'completed' && t.status !== 'pending_client_approval';
+      }).slice(0, selectedDate ? undefined : 10) // Limitadas a 10 prioridades
     : allUserTasks.filter(t => {
         if (selectedClient) {
           if (selectedClient.type === 'project') return t.project_id === selectedClient.id;
@@ -405,7 +414,7 @@ export default function JTBDPage() {
       });
 
   // 🟢 FILTROS DE COLUNAS
-  const pendingTasks = displayedTasks.filter(t => t.status === 'pending');
+  const pendingTasks = displayedTasks.filter(t => t.status === 'pending' || t.status === 'draft');
   const inProgressTasks = displayedTasks.filter(t => t.status === 'in_progress');
   
   // 🟢 MÁGICA VISUAL: Tarefas 'pending_client_approval' ficam ancoradas na coluna de revisão

@@ -29,6 +29,10 @@ export default function WorkforceDashboard({ currentUser, activeTab = 'workforce
   const [salaryInput, setSalaryInput] = useState<string>("");
   const [editingSalaryId, setEditingSalaryId] = useState<string | null>(null);
 
+  const [isUpdatingBuffer, setIsUpdatingBuffer] = useState(false);
+  const [bufferInput, setBufferInput] = useState<string>("");
+  const [editingBufferId, setEditingBufferId] = useState<string | null>(null);
+
   // Modal de Atribuição de Clientes/Subclientes
   const [isAssignmentModalOpen, setIsAssignmentModalOpen] = useState(false);
 
@@ -50,13 +54,13 @@ export default function WorkforceDashboard({ currentUser, activeTab = 'workforce
       let teamData: any[] = [];
       const { data: mainData, error: profileErr } = await supabase
         .from('profiles')
-        .select('id, nome, role, avatar_url, current_status, last_seen, base_salary, contract_status')
+        .select('id, nome, role, avatar_url, current_status, last_seen, base_salary, contract_status, deadline_buffer_days')
         .in('role', ['colaborador', 'gestor', 'admin']);
 
       if (profileErr) {
         const fallbackRes = await supabase
           .from('profiles')
-          .select('id, nome, role, avatar_url, current_status, last_seen, base_salary')
+          .select('id, nome, role, avatar_url, current_status, last_seen, base_salary, deadline_buffer_days')
           .in('role', ['colaborador', 'gestor', 'admin']);
         teamData = (fallbackRes.data || []).map((m: any) => ({ ...m, contract_status: 'active' }));
       } else {
@@ -140,6 +144,7 @@ export default function WorkforceDashboard({ currentUser, activeTab = 'workforce
           avgLeadTime,
           baseSalary: member.base_salary || 0,
           contractStatus: member.contract_status || 'active',
+          deadlineBufferDays: member.deadline_buffer_days || 0,
           activityBreakdown: sortedBreakdown
         };
       });
@@ -190,6 +195,45 @@ export default function WorkforceDashboard({ currentUser, activeTab = 'workforce
       console.error("Erro ao atualizar salário:", error);
     } finally {
       setIsUpdatingSalary(false);
+    }
+  };
+
+  const handleUpdateBuffer = async (memberId: string) => {
+    setIsUpdatingBuffer(true);
+    const numericValue = parseInt(bufferInput, 10) || 0;
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ deadline_buffer_days: numericValue })
+        .eq('id', memberId);
+      if (error) throw error;
+      
+      // Atualizar retroativamente o prazo interno das tarefas ativas deste colaborador
+      const { data: tasksToUpdate } = await supabase
+        .from('tasks')
+        .select('id, deadline')
+        .eq('assigned_to', memberId)
+        .in('status', ['pending', 'draft', 'in_progress', 'review']);
+
+      if (tasksToUpdate && tasksToUpdate.length > 0) {
+        const updatePromises = tasksToUpdate.map(task => {
+          if (task.deadline) {
+             const dateObj = new Date(task.deadline);
+             dateObj.setDate(dateObj.getDate() - numericValue);
+             return supabase.from('tasks').update({ internal_deadline: dateObj.toISOString() }).eq('id', task.id);
+          }
+          return Promise.resolve();
+        });
+        await Promise.all(updatePromises);
+        window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
+      }
+
+      setTeamStats(prev => prev.map(m => m.id === memberId ? { ...m, deadlineBufferDays: numericValue } : m));
+      setEditingBufferId(null);
+    } catch (error) {
+      console.error("Erro ao atualizar buffer:", error);
+    } finally {
+      setIsUpdatingBuffer(false);
     }
   };
 
@@ -434,6 +478,33 @@ ${qualidadeText}
                         )}
                       </div>
                     </div>
+                    
+                    {/* NOVO CARTÃO: BUFFER DE BREVIDADE */}
+                    <div className="bg-orange-50/50 border border-orange-100 p-4 rounded-[1.5rem] flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-full bg-orange-100 text-orange-600 flex items-center justify-center shrink-0"><Clock size={18}/></div>
+                      <div className="flex flex-col">
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-orange-600/60 mb-0.5">Brevidade (Dias)</span>
+                        {editingBufferId === selectedMember.id ? (
+                          <div className="flex items-center gap-2">
+                            <input 
+                              type="number" 
+                              autoFocus
+                              value={bufferInput} 
+                              onChange={(e) => setBufferInput(e.target.value)}
+                              className="w-16 bg-white border border-orange-200 rounded p-1 text-[14px] font-bold text-orange-700 outline-none"
+                            />
+                            <button onClick={() => handleUpdateBuffer(selectedMember.id)} disabled={isUpdatingBuffer} className="text-orange-600 hover:text-orange-800"><Save size={16}/></button>
+                            <button onClick={() => setEditingBufferId(null)} className="text-gray-400 hover:text-red-500"><X size={16}/></button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center gap-2 group">
+                            <span className="font-elegant text-2xl text-orange-700 leading-none">{selectedMember.deadlineBufferDays}</span>
+                            <button onClick={() => { setBufferInput(selectedMember.deadlineBufferDays.toString()); setEditingBufferId(selectedMember.id); }} className="opacity-0 group-hover:opacity-100 text-orange-600/50 hover:text-orange-600 transition-opacity"><Edit3 size={14}/></button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
                   </div>
                 </div>
 

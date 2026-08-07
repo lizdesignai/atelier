@@ -81,9 +81,10 @@ export class CalendarEngine {
       
       // Agrupar cronologicamente por dia (YYYY-MM-DD)
       const scheduleMap = userTasks.reduce((acc, t) => {
-        if (!t.deadline) return acc; // Segurança extra
+        const effectiveDeadline = t.internal_deadline || t.deadline;
+        if (!effectiveDeadline) return acc; // Segurança extra
         try {
-          const dateObj = new Date(t.deadline);
+          const dateObj = new Date(effectiveDeadline);
           if (isNaN(dateObj.getTime())) return acc; // Ignorar datas inválidas silenciosamente
           
           const dateStr = dateObj.toISOString().split('T')[0];

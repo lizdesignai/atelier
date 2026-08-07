@@ -382,13 +382,13 @@ export default function DailyKanban({
   return (
     <>
       <div className="flex-1 w-full flex relative z-10 h-full overflow-hidden animate-[fadeIn_0.5s_ease-out]">
-        <div className="flex-1 flex gap-6 overflow-x-auto overflow-y-hidden custom-scrollbar pb-2 px-1 h-full items-stretch">
+        <div className="flex-1 flex gap-6 overflow-x-auto overflow-y-hidden custom-scrollbar pb-2 pl-1 pr-12 h-full items-stretch">
           
           {/* =========================================
               COLUNA 1: FILA DE TRABALHO (Pending + Live)
               ========================================= */}
           <div 
-            className="flex flex-col min-w-[360px] w-[360px] shrink-0 h-full max-h-full relative group/col"
+            className="flex flex-col min-w-[348px] flex-1 max-w-[450px] shrink-0 h-full max-h-full relative group/col"
             onDragOver={handleDragOver}
             onDrop={(e) => handleDropIntercept(e, 'pending')}
           >
@@ -430,7 +430,7 @@ export default function DailyKanban({
               COLUNA 2: REVISÃO INTERNA (Aprovação)
               ========================================= */}
           <div 
-            className="flex flex-col min-w-[360px] w-[360px] shrink-0 h-full max-h-full relative group/col"
+            className="flex flex-col min-w-[348px] flex-1 max-w-[450px] shrink-0 h-full max-h-full relative group/col"
             onDragOver={handleDragOver}
             onDrop={(e) => handleDropIntercept(e, 'review')}
           >
@@ -471,7 +471,7 @@ export default function DailyKanban({
               COLUNA 3: CONCLUÍDAS (Feitos)
               ========================================= */}
           <div 
-            className="flex flex-col min-w-[360px] w-[360px] shrink-0 h-full max-h-full relative group/col opacity-90 hover:opacity-100 transition-opacity duration-300"
+            className="flex flex-col min-w-[348px] flex-1 max-w-[450px] shrink-0 h-full max-h-full relative group/col opacity-90 hover:opacity-100 transition-opacity duration-300"
             onDragOver={handleDragOver}
             onDrop={(e) => handleDropIntercept(e, 'completed')}
           >
@@ -504,7 +504,7 @@ export default function DailyKanban({
             </div>
           </div>
 
-          <div className="min-w-[12px] shrink-0 pointer-events-none"></div>
+          <div className="min-w-[120px] w-[120px] shrink-0 pointer-events-none"></div>
         </div>
       </div>
 

@@ -71,7 +71,7 @@ export default function JTBDMobileView({
   const tasksPool = (allTasks && allTasks.length > 0) ? allTasks : allUserTasks;
 
   // 1. Cálculos de Métricas do Colaborador
-  const activeTasks = allUserTasks.filter(t => ['pending', 'in_progress', 'review'].includes(t.status));
+  const activeTasks = allUserTasks.filter(t => ['pending', 'in_progress', 'review', 'draft'].includes(t.status));
   const totalEstMinutes = activeTasks.reduce((acc, t) => acc + (t.estimated_time || 0), 0);
   const cargaHoras = Math.floor(totalEstMinutes / 60);
   const cargaMin = totalEstMinutes % 60;
@@ -127,22 +127,23 @@ export default function JTBDMobileView({
   };
 
   // 3. Demandas Urgentes (ORDENADAS DO MENOR PRAZO AO MAIOR) — MEMOIZADO
-  const next24h = new Date(nowState + 24 * 60 * 60 * 1000);
-  const urgentTasks = useMemo(() => activeTasks.filter(t => {
-    if (selectedClient) {
-      const matchesClient = selectedClient.type === 'project' ? t.project_id === selectedClient.id : t.subclient_id === selectedClient.id;
-      if (!matchesClient) return false;
+  const urgentTasks = useMemo(() => {
+    const filtered = activeTasks.filter(t => {
+      if (selectedClient) {
+        const matchesClient = selectedClient.type === 'project' ? t.project_id === selectedClient.id : t.subclient_id === selectedClient.id;
+        if (!matchesClient) return false;
+        return true;
+      }
       return true;
-    }
-    if (t.urgency || t.status === 'in_progress') return true;
-    if (!t.deadline) return false;
-    const d = new Date(t.deadline);
-    return !isNaN(d.getTime()) && d <= next24h;
-  }).sort((a, b) => {
-    const timeA = a.deadline ? new Date(a.deadline).getTime() : Infinity;
-    const timeB = b.deadline ? new Date(b.deadline).getTime() : Infinity;
-    return timeA - timeB;
-  }), [activeTasks, selectedClient, nowState]);
+    }).sort((a, b) => {
+      const effectiveDeadlineA = a.internal_deadline || a.deadline;
+      const effectiveDeadlineB = b.internal_deadline || b.deadline;
+      const timeA = effectiveDeadlineA ? new Date(effectiveDeadlineA).getTime() : Infinity;
+      const timeB = effectiveDeadlineB ? new Date(effectiveDeadlineB).getTime() : Infinity;
+      return timeA - timeB;
+    });
+    return selectedClient ? filtered : filtered.slice(0, 10);
+  }, [activeTasks, selectedClient, nowState]);
 
   const getRemainingTimeFormatted = (deadlineStr: string | null) => {
     if (!deadlineStr) return { text: "Sem Prazo", isOverdue: false };
@@ -299,7 +300,8 @@ export default function JTBDMobileView({
                 const clientName = task.agency_subclients?.name || task.projects?.profiles?.nome || task.projects?.title || 'Cliente';
                 const isLive = task.status === 'in_progress';
                 const hasFeedback = Boolean(task.caption || task.status === 'review' || task.has_feedback);
-                const remainingInfo = getRemainingTimeFormatted(task.deadline);
+                const effectiveDeadline = task.internal_deadline || task.deadline;
+                const remainingInfo = getRemainingTimeFormatted(effectiveDeadline);
 
                 return (
                   <div 
@@ -468,7 +470,7 @@ export default function JTBDMobileView({
                         </span>
                       </div>
                       <div className="flex items-center justify-between pt-1.5 border-t border-gray-50">
-                        <span className="text-[9px] font-bold text-[var(--color-atelier-terracota)]">{task.deadline ? new Date(task.deadline).toLocaleDateString('pt-BR') : 'Sem Prazo'}</span>
+                        <span className="text-[9px] font-bold text-[var(--color-atelier-terracota)]">{(task.internal_deadline || task.deadline) ? new Date(task.internal_deadline || task.deadline).toLocaleDateString('pt-BR') : 'Sem Prazo'}</span>
                         <span className="text-[9px] font-bold text-gray-400">Ver Taskcard</span>
                       </div>
                     </div>

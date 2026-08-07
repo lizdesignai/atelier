@@ -52,7 +52,7 @@ export default function TaskCard({
   // ESTADOS LOCAIS
   // ==========================================
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [localDeadline, setLocalDeadline] = useState(task.deadline);
+  const [localDeadline, setLocalDeadline] = useState(task.internal_deadline || task.deadline);
   const [isSavingDeadline, setIsSavingDeadline] = useState(false);
   const [isUploading, setIsUploading] = useState(false); 
   const [relatedPost, setRelatedPost] = useState<any>(null); 
@@ -243,7 +243,7 @@ export default function TaskCard({
     if (!isAdmin) return;
     setIsSavingDeadline(true);
     try {
-      const { error } = await supabase.from('tasks').update({ deadline: localDeadline }).eq('id', task.id);
+      const { error } = await supabase.from('tasks').update({ deadline: localDeadline, internal_deadline: localDeadline }).eq('id', task.id);
       if (error) throw error;
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Prazo atualizado com sucesso!" }));
       handleCloseModal(); 
@@ -465,8 +465,8 @@ export default function TaskCard({
           {!isCompleted && (
             <div className="flex items-center justify-between border-t border-[var(--color-atelier-grafite)]/5 pt-4 mt-1">
               <div className="flex flex-col gap-1">
-                <span className={`text-[10px] uppercase font-bold tracking-widest flex items-center gap-1 ${isDelayed ? 'text-red-500' : 'text-[var(--color-atelier-grafite)]/50'}`}>
-                  <Clock size={12}/> {task.deadline ? new Date(localDeadline).toLocaleDateString('pt-BR') : 'Sem Prazo'}
+                            <span className={`text-[10px] uppercase font-bold tracking-widest flex items-center gap-1 ${isDelayed ? 'text-red-500' : 'text-[var(--color-atelier-grafite)]/50'}`}>
+                  <Clock size={12}/> {(task.internal_deadline || task.deadline) ? new Date(localDeadline).toLocaleDateString('pt-BR') : 'Sem Prazo'}
                 </span>
                 
                 {/* 🟢 BLABLA DE TEMPO (ESTIMADO vs INVESTIDO) */}

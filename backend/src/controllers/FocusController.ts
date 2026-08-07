@@ -97,7 +97,7 @@ export class FocusController {
     try {
       const { collaboratorId } = req.params;
 
-      const { data: assignments, error } = await supabase
+      const { data: assignments, error: assignmentsError } = await supabase
         .from('collaborator_assignments')
         .select(`
           id,
@@ -108,8 +108,10 @@ export class FocusController {
         `)
         .eq('collaborator_id', collaboratorId);
 
-      if (!error && assignments && assignments.length > 0) {
-        const assignedList = assignments.map((a: any) => {
+      let assignedList: any[] = [];
+
+      if (!assignmentsError && assignments && assignments.length > 0) {
+        assignedList = assignments.map((a: any) => {
           if (a.project_id && a.projects) {
             return {
               id: a.projects.id,
@@ -129,7 +131,74 @@ export class FocusController {
           }
           return null;
         }).filter(Boolean);
+      }
 
+      // Track existing project and subclient IDs to avoid duplicates
+      const existingProjectIds = new Set(
+        assignedList.filter(item => item.type === 'project').map(item => item.id)
+      );
+      const existingSubclientIds = new Set(
+        assignedList.filter(item => item.type === 'subclient').map(item => item.id)
+      );
+
+      // Check tasks table for active tasks assigned to this collaborator
+      const { data: activeTasks } = await supabase
+        .from('tasks')
+        .select('project_id, subclient_id')
+        .eq('assigned_to', collaboratorId)
+        .neq('status', 'completed');
+
+      if (activeTasks && activeTasks.length > 0) {
+        const taskProjectIds = Array.from(new Set(
+          activeTasks
+            .map((t: any) => t.project_id)
+            .filter((id: string | null): id is string => Boolean(id) && !existingProjectIds.has(id!))
+        ));
+
+        const taskSubclientIds = Array.from(new Set(
+          activeTasks
+            .map((t: any) => t.subclient_id)
+            .filter((id: string | null): id is string => Boolean(id) && !existingSubclientIds.has(id!))
+        ));
+
+        if (taskProjectIds.length > 0) {
+          const { data: missingProjects } = await supabase
+            .from('projects')
+            .select('id, type, service_type, profiles(nome, avatar_url)')
+            .in('id', taskProjectIds);
+
+          if (missingProjects) {
+            for (const p of missingProjects as any[]) {
+              assignedList.push({
+                id: p.id,
+                name: p.profiles?.nome ? `${p.profiles.nome} (${p.type || p.service_type})` : (p.type || 'Projeto'),
+                avatarUrl: p.profiles?.avatar_url || null,
+                type: 'project'
+              });
+            }
+          }
+        }
+
+        if (taskSubclientIds.length > 0) {
+          const { data: missingSubclients } = await supabase
+            .from('agency_subclients')
+            .select('id, name')
+            .in('id', taskSubclientIds);
+
+          if (missingSubclients) {
+            for (const s of missingSubclients as any[]) {
+              assignedList.push({
+                id: s.id,
+                name: s.name,
+                avatarUrl: null,
+                type: 'subclient'
+              });
+            }
+          }
+        }
+      }
+
+      if (assignedList.length > 0) {
         return res.status(200).json({ data: assignedList });
       }
 

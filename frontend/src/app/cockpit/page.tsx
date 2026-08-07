@@ -84,22 +84,7 @@ export default function CockpitPage() {
         if (proj) {
           setCurrentFocus(proj.current_focus || "A equipe está analisando o seu projeto...");
           
-          const { data: postsData } = await supabase
-            .from('social_posts')
-            .select('*')
-            .eq('project_id', proj.id)
-            .in('status', ['pending_approval', 'approved'])
-            .order('created_at', { ascending: false });
-            
-          const sortedPosts = (postsData || []).sort((a, b) => {
-            if (a.status === 'pending_approval' && b.status !== 'pending_approval') return -1;
-            if (a.status !== 'pending_approval' && b.status === 'pending_approval') return 1;
-            return 0;
-          });
-
-          setAllPosts(sortedPosts);
-          setPendingCount(sortedPosts.filter(p => p.status === 'pending_approval').length);
-
+          // 1. Buscamos e preparamos as TASKS primeiro
           const year = new Date().getFullYear();
           const month = new Date().getMonth();
           const startRange = new Date(Date.UTC(year, month, 1, 0, 0, 0)).toISOString();
@@ -125,6 +110,44 @@ export default function CockpitPage() {
           });
           
           setMonthTasks(sortedTasks);
+
+          // 2. Lógica de Bloqueio (Release Day)
+          const releaseDay = proj.content_release_day;
+          const today = new Date();
+          const isTaskLocked = (taskId: string) => {
+            if (!releaseDay || today.getDate() >= releaseDay) return false;
+            const task = tasksData.find((t: any) => t.id === taskId);
+            if (!task) return false;
+            const taskDate = new Date(task.deadline);
+            if (taskDate.getMonth() === today.getMonth() && taskDate.getFullYear() === today.getFullYear()) {
+              return taskDate.getDate() > releaseDay;
+            }
+            return false;
+          };
+
+          // 3. Buscamos e filtramos os POSTS
+          const { data: postsData } = await supabase
+            .from('social_posts')
+            .select('*')
+            .eq('project_id', proj.id)
+            .in('status', ['pending_approval', 'approved'])
+            .order('created_at', { ascending: false });
+            
+          const visiblePosts = (postsData || []).filter((p: any) => {
+             if (p.status === 'approved') return true;
+             // Se estiver pendente, mas a tarefa associada está bloqueada pelo Release Day, ocultamos da galeria de aprovação
+             if (p.task_id && isTaskLocked(p.task_id)) return false;
+             return true;
+          });
+
+          const sortedPosts = visiblePosts.sort((a: any, b: any) => {
+            if (a.status === 'pending_approval' && b.status !== 'pending_approval') return -1;
+            if (a.status !== 'pending_approval' && b.status === 'pending_approval') return 1;
+            return 0;
+          });
+
+          setAllPosts(sortedPosts);
+          setPendingCount(sortedPosts.filter((p: any) => p.status === 'pending_approval').length);
 
           const { data: brief } = await supabase.from('instagram_briefings').select('*').eq('project_id', proj.id).or('status.neq.returned,status.is.null').order('created_at', { ascending: false }).limit(1).maybeSingle(); 
           setBriefing(brief);
@@ -573,8 +596,28 @@ export default function CockpitPage() {
               let badgeColor = 'bg-gray-100 text-gray-500';
               let badgeText = 'Na Fila';
               let Icon = Target;
+              
+              const releaseDay = project?.content_release_day;
+              const today = new Date();
+              let isLocked = false;
+              let daysUntilRelease = 0;
+              
+              if (releaseDay && today.getDate() < releaseDay) {
+                const taskDate = new Date(task.deadline);
+                if (taskDate.getMonth() === today.getMonth() && taskDate.getFullYear() === today.getFullYear()) {
+                  if (taskDate.getDate() > releaseDay) {
+                     isLocked = true;
+                     daysUntilRelease = releaseDay - today.getDate();
+                  }
+                }
+              }
 
-              if (task.status === 'in_progress') {
+              if (isLocked) {
+                borderColor = 'border-gray-200';
+                badgeColor = 'bg-gray-200 text-gray-500';
+                badgeText = `Liberação em ${daysUntilRelease} dia${daysUntilRelease > 1 ? 's' : ''}`;
+                Icon = Clock; // Importado lucide-react Lock ou Clock
+              } else if (task.status === 'in_progress') {
                 borderColor = 'border-blue-400 ring-1 ring-blue-400/50 shadow-[0_0_15px_rgba(59,130,246,0.2)]';
                 badgeColor = 'bg-blue-500 text-white';
                 badgeText = 'Em Execução';
@@ -594,8 +637,15 @@ export default function CockpitPage() {
               return (
                 <div 
                   key={task.id} 
-                  onClick={() => { setActiveTaskIndex(absoluteIndex); setTaskDetailOpen(true); }}
-                  className={`min-w-[280px] w-[280px] sm:min-w-[320px] sm:w-[320px] bg-white rounded-[2rem] p-5 cursor-pointer hover:-translate-y-1 transition-all group flex flex-col gap-4 relative overflow-hidden shadow-sm border ${borderColor} shrink-0`}
+                  onClick={() => { 
+                    if (isLocked) {
+                      showToast(`Esta demanda será liberada para avaliação em ${daysUntilRelease} dia${daysUntilRelease > 1 ? 's' : ''}.`);
+                      return;
+                    }
+                    setActiveTaskIndex(absoluteIndex); 
+                    setTaskDetailOpen(true); 
+                  }}
+                  className={`min-w-[280px] w-[280px] sm:min-w-[320px] sm:w-[320px] bg-white rounded-[2rem] p-5 ${isLocked ? 'cursor-not-allowed opacity-60' : 'cursor-pointer hover:-translate-y-1'} transition-all group flex flex-col gap-4 relative overflow-hidden shadow-sm border ${borderColor} shrink-0`}
                 >
                   {/* Data e Status */}
                   <div className="flex justify-between items-center">
