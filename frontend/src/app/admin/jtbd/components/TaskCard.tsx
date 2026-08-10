@@ -138,7 +138,8 @@ export default function TaskCard({
   const [liveSeconds, setLiveSeconds] = useState(0);
 
   const isEffectivelyModalOpen = isModalOpen || forceOpenModal;
-  const isDelayed = !isCompleted && localDeadline && new Date(localDeadline) < new Date();
+  const effectiveDisplayDate = task.productivity_deadline || localDeadline;
+  const isDelayed = !isCompleted && effectiveDisplayDate && new Date(effectiveDisplayDate) < new Date();
 
   // Verifica se a query pai já trouxe o social_post, senão busca
   useEffect(() => {
@@ -251,6 +252,34 @@ export default function TaskCard({
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao atualizar prazo." }));
     } finally {
       setIsSavingDeadline(false);
+    }
+  };
+
+  const handleForceToday = async () => {
+    if (!isAdmin) return;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Start of today to ensure it shows as delayed/urgent if needed
+    const formattedToday = today.toISOString();
+    
+    try {
+      const { error } = await supabase.from('tasks').update({ 
+        deadline: formattedToday, 
+        internal_deadline: formattedToday,
+        productivity_deadline: formattedToday,
+        urgency: true 
+      }).eq('id', task.id);
+      if (error) throw error;
+      
+      task.deadline = formattedToday;
+      task.internal_deadline = formattedToday;
+      task.productivity_deadline = formattedToday;
+      task.urgency = true;
+      setLocalDeadline(formattedToday);
+      
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Data forçada para hoje com urgência!" }));
+      window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao forçar data." }));
     }
   };
 
@@ -465,8 +494,20 @@ export default function TaskCard({
           {!isCompleted && (
             <div className="flex items-center justify-between border-t border-[var(--color-atelier-grafite)]/5 pt-4 mt-1">
               <div className="flex flex-col gap-1">
-                            <span className={`text-[10px] uppercase font-bold tracking-widest flex items-center gap-1 ${isDelayed ? 'text-red-500' : 'text-[var(--color-atelier-grafite)]/50'}`}>
-                  <Clock size={12}/> {(task.internal_deadline || task.deadline) ? new Date(localDeadline).toLocaleDateString('pt-BR') : 'Sem Prazo'}
+                <span className={`text-[10px] uppercase font-bold tracking-widest flex items-center gap-1 ${isDelayed ? 'text-red-500' : 'text-[var(--color-atelier-grafite)]/50'}`}>
+                  {task.productivity_deadline ? (
+                    <>
+                      <Zap size={12} className="text-purple-600"/> 
+                      <span className="text-purple-600">
+                        {task.productivity_label || "HOJE"}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <Clock size={12}/> 
+                      {effectiveDisplayDate ? new Date(effectiveDisplayDate).toLocaleDateString('pt-BR') : 'Sem Prazo'}
+                    </>
+                  )}
                 </span>
                 
                 {/* 🟢 BLABLA DE TEMPO (ESTIMADO vs INVESTIDO) */}
@@ -510,6 +551,16 @@ export default function TaskCard({
                           title="Enviar aviso de cobrança"
                         >
                           Cobrar
+                        </button>
+                      )}
+                      
+                      {isAdmin && (
+                        <button 
+                          onClick={(e) => { e.stopPropagation(); handleForceToday(); }}
+                          className="text-[9px] uppercase font-bold tracking-widest px-2 py-0.5 rounded transition-colors flex items-center gap-1 text-red-500 hover:bg-red-50 cursor-pointer pointer-events-auto border border-red-200 shadow-sm"
+                          title="Forçar data para hoje (Urgente)"
+                        >
+                          <Clock size={10}/> Forçar Hoje
                         </button>
                       )}
                     </>

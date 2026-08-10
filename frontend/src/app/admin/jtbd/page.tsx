@@ -161,7 +161,63 @@ export default function JTBDPage() {
         });
 
         const optimizedTasks = await CalendarEngine.optimizeSchedule(tasksData);
-        setAllTasks(optimizedTasks || tasksData);
+        const finalTasks = optimizedTasks || tasksData;
+
+        // ==========================================
+        // COTA DE PRODUTIVIDADE (FOCO DIÁRIO) EM LOTES DE 5
+        // ==========================================
+        const byAssignee: Record<string, any[]> = {};
+        finalTasks.forEach(t => {
+          if (t.status === 'pending' || t.status === 'in_progress') {
+            if (!byAssignee[t.assigned_to]) byAssignee[t.assigned_to] = [];
+            byAssignee[t.assigned_to].push(t);
+          }
+        });
+
+        const now = new Date();
+        let startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        
+        // Se hoje for fim de semana ou já passou do horário comercial (18h),
+        // a esteira de produtividade já foca automaticamente no próximo dia útil.
+        if (isWeekend(startOfToday) || now.getHours() >= 18) {
+          startOfToday = addBusinessDays(startOfToday, 1);
+        }
+
+        Object.values(byAssignee).forEach(assigneeTasks => {
+          // Espelhar exatamente a ordem visual do DailyKanban:
+          // 1º in_progress, 2º pending (mantendo a ordenação por urgência/valor original)
+          const inProgress = assigneeTasks.filter(t => t.status === 'in_progress');
+          const pending = assigneeTasks.filter(t => t.status === 'pending');
+          const sortedAssigneeTasks = [...inProgress, ...pending];
+          
+          for (let i = 0; i < sortedAssigneeTasks.length; i++) {
+             const task = sortedAssigneeTasks[i];
+             const batchIndex = Math.floor(i / 5);
+             const rawTargetDate = addBusinessDays(startOfToday, batchIndex);
+             
+             // Forçamos a esteira diária ignorando o prazo real
+             task.productivity_deadline = rawTargetDate.toISOString();
+             
+             // Lógica inteligente de Label
+             const targetTime = rawTargetDate.getTime();
+             const realTodayTime = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+             const diffDays = Math.round((targetTime - realTodayTime) / (1000 * 60 * 60 * 24));
+             
+             if (diffDays === 0) {
+               task.productivity_label = "HOJE";
+             } else if (diffDays === 1) {
+               task.productivity_label = "AMANHÃ";
+             } else {
+               task.productivity_label = rawTargetDate.toLocaleDateString('pt-BR');
+             }
+             
+             // O usuário solicitou explicitamente: "iremos conservar a data abreviada"
+             // Portanto, NÃO substituímos o internal_deadline (data abreviada).
+             // A view (TaskCard) usará o productivity_deadline para exibição.
+          }
+        });
+
+        setAllTasks([...finalTasks]);
       }
 
       AtelierPMEngine.prioritizeDailyTriage(profile.id);
