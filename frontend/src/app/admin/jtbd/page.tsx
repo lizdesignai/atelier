@@ -203,9 +203,9 @@ export default function JTBDPage() {
              const realTodayTime = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
              const diffDays = Math.round((targetTime - realTodayTime) / (1000 * 60 * 60 * 24));
              
-             if (diffDays === 0) {
+             if (batchIndex === 0) {
                task.productivity_label = "HOJE";
-             } else if (diffDays === 1) {
+             } else if (batchIndex === 1) {
                task.productivity_label = "AMANHÃ";
              } else {
                task.productivity_label = rawTargetDate.toLocaleDateString('pt-BR');

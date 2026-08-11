@@ -4,7 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
-import { X, FolderUp, Loader2, File, ExternalLink, Image as ImageIcon, Download, CheckCircle, Trash2, Calendar, Pencil } from "lucide-react";
+import { X, FolderUp, Loader2, File, ExternalLink, Image as ImageIcon, Download, CheckCircle, Trash2, Calendar, Pencil, Grid } from "lucide-react";
 
 interface ClientAssetsModalProps {
   isOpen: boolean;
@@ -35,6 +35,36 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
   const [editUrl, setEditUrl] = useState("");
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
+
+  const [activeTab, setActiveTab] = useState<'vault' | 'feed'>('vault');
+  const [feedPosts, setFeedPosts] = useState<Array<{ image: string; caption: string }>>([]);
+  const [instagramData, setInstagramData] = useState<any>(null);
+
+  const fetchFeedData = async (validProjId: string) => {
+    if (!validProjId) return;
+    try {
+      const { data: igProfile } = await supabase.from('instagram_profiles').select('*').eq('project_id', validProjId).maybeSingle();
+      if (igProfile) setInstagramData(igProfile);
+
+      const { data: dbPosts } = await supabase.from('instagram_feed_posts').select('*').eq('project_id', validProjId).order('display_order', { ascending: true });
+      
+      const { data: atelierPosts } = await supabase.from('social_posts').select('*').eq('project_id', validProjId).eq('status', 'approved').order('created_at', { ascending: false });
+      
+      let combinedPosts: Array<{image: string, caption: string}> = [];
+      
+      if (atelierPosts && atelierPosts.length > 0) {
+        combinedPosts = [...combinedPosts, ...atelierPosts.map((p: any) => ({ image: p.image_url, caption: p.caption || "" }))];
+      }
+      
+      if (dbPosts && dbPosts.length > 0) {
+        combinedPosts = [...combinedPosts, ...dbPosts.map((p: any) => ({ image: p.image_url, caption: p.caption || "" }))];
+      }
+      
+      setFeedPosts(combinedPosts);
+    } catch (e) {
+      console.warn("Erro ao buscar feed data", e);
+    }
+  };
 
   useEffect(() => {
     setMounted(true);
@@ -90,7 +120,12 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
       
       if (projectId && !subclientId) {
         const validProjId = await resolveProjectId(projectId);
-        if (validProjId) searchParams.append('validProjId', validProjId);
+        if (validProjId) {
+          searchParams.append('validProjId', validProjId);
+          fetchFeedData(validProjId);
+        }
+      } else if (subclientId) {
+        fetchFeedData(projectId || "");
       }
 
       const res = await fetch(`/api/assets?${searchParams.toString()}`);
@@ -262,6 +297,23 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
               <button onClick={onClose} className="absolute right-0 top-0 text-gray-400 hover:text-red-500 bg-gray-50 p-2.5 rounded-full transition-colors w-10 h-10 md:w-9 md:h-9 flex items-center justify-center">
                   <X size={18} />
               </button>
+              
+              {/* TAB SWITCHER */}
+              <div className="absolute left-1/2 -translate-x-1/2 top-4 hidden md:flex bg-gray-100 p-1 rounded-full items-center gap-1">
+                <button 
+                  onClick={() => setActiveTab('vault')} 
+                  className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'vault' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  <FolderUp size={12} className="inline-block mr-1" /> Arquivos
+                </button>
+                <button 
+                  onClick={() => setActiveTab('feed')} 
+                  className={`px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all ${activeTab === 'feed' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  <Grid size={12} className="inline-block mr-1" /> Feed
+                </button>
+              </div>
+
               <div className="flex flex-wrap items-center gap-2 md:gap-3 w-full md:w-auto">
                 {isAdminOrManager && (
                   <>
@@ -314,6 +366,22 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
                 </motion.div>
               )}
             </AnimatePresence>
+
+            {/* TAB MOBILE SWITCHER */}
+            <div className="flex md:hidden bg-gray-100 p-1 rounded-xl items-center gap-1 mb-4 w-full">
+                <button 
+                  onClick={() => setActiveTab('vault')} 
+                  className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === 'vault' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  <FolderUp size={14} /> Arquivos
+                </button>
+                <button 
+                  onClick={() => setActiveTab('feed')} 
+                  className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${activeTab === 'feed' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                  <Grid size={14} /> Simulador Feed
+                </button>
+            </div>
 
             {/* Body */}
             <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col relative">
@@ -421,6 +489,47 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
                       </div>
                     );
                   })}
+                </div>
+              )}
+              
+              {activeTab === 'feed' && (
+                <div className="flex-1 flex flex-col items-center pb-8 animate-[fadeIn_0.3s_ease-out]">
+                  <div className="w-full max-w-sm bg-white border border-gray-200 rounded-3xl overflow-hidden shadow-sm mt-4 flex flex-col">
+                    {/* Header do Perfil Instagram (Simulado) */}
+                    <div className="p-5 flex items-center gap-4 border-b border-gray-100 bg-gray-50/50">
+                      <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 p-0.5 shrink-0">
+                        <img 
+                          src={instagramData?.avatar_url || "https://ui-avatars.com/api/?name=Client&background=random"} 
+                          className="w-full h-full rounded-full object-cover border-2 border-white"
+                        />
+                      </div>
+                      <div className="flex flex-col">
+                        <h4 className="font-bold text-sm text-gray-900">{instagramData?.username || "instagram_client"}</h4>
+                        <p className="text-[11px] text-gray-500 mt-0.5 whitespace-pre-line line-clamp-2" title={instagramData?.biography}>
+                          {instagramData?.biography || "Perfil não sincronizado ou sem bio."}
+                        </p>
+                      </div>
+                    </div>
+                    
+                    {/* Grid do Feed */}
+                    <div className="grid grid-cols-3 gap-0.5 bg-white">
+                      {feedPosts.length === 0 ? (
+                        <div className="col-span-3 py-16 text-center flex flex-col items-center justify-center text-gray-400">
+                          <Grid size={32} className="mb-2 opacity-50" />
+                          <span className="text-[11px] font-bold uppercase tracking-widest">Nenhum post no feed</span>
+                        </div>
+                      ) : (
+                        feedPosts.map((post, i) => (
+                          <div key={i} className="aspect-square bg-gray-100 relative group overflow-hidden cursor-pointer" title={post.caption}>
+                            <img src={post.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                            <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
+                               <span className="text-white text-[8px] line-clamp-3 text-center">{post.caption || "Sem legenda"}</span>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
               )}
             </div>

@@ -265,7 +265,6 @@ export default function TaskCard({
       const { error } = await supabase.from('tasks').update({ 
         deadline: formattedToday, 
         internal_deadline: formattedToday,
-        productivity_deadline: formattedToday,
         urgency: true 
       }).eq('id', task.id);
       if (error) throw error;
@@ -557,10 +556,10 @@ export default function TaskCard({
                       {isAdmin && (
                         <button 
                           onClick={(e) => { e.stopPropagation(); handleForceToday(); }}
-                          className="text-[9px] uppercase font-bold tracking-widest px-2 py-0.5 rounded transition-colors flex items-center gap-1 text-red-500 hover:bg-red-50 cursor-pointer pointer-events-auto border border-red-200 shadow-sm"
+                          className="w-7 h-7 flex items-center justify-center rounded transition-colors text-red-500 hover:bg-red-50 cursor-pointer pointer-events-auto border border-red-200 shadow-sm ml-1"
                           title="Forçar data para hoje (Urgente)"
                         >
-                          <Clock size={10}/> Forçar Hoje
+                          <Clock size={12}/>
                         </button>
                       )}
                     </>
@@ -674,7 +673,36 @@ export default function TaskCard({
                     {task.title}
                   </h3>
                 </div>
-                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleCloseModal(); }} className="w-10 h-10 rounded-full bg-gray-100/80 active:bg-gray-200 active:scale-95 text-gray-500 hover:text-[var(--color-atelier-terracota)] transition-all flex items-center justify-center shrink-0 cursor-pointer touch-manipulation z-20" title="Fechar"><X size={20}/></button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    type="button" 
+                    onClick={(e) => { 
+                      e.preventDefault(); 
+                      e.stopPropagation(); 
+                      navigator.clipboard.writeText(`${window.location.origin}/admin/task/${task.id}`);
+                      window.dispatchEvent(new CustomEvent("showToast", { detail: "Link copiado!" }));
+                    }} 
+                    className="w-10 h-10 rounded-full bg-gray-100/80 active:bg-gray-200 active:scale-95 text-gray-500 hover:text-green-500 transition-all flex items-center justify-center shrink-0 cursor-pointer touch-manipulation z-20" 
+                    title="Copiar Link da Tarefa"
+                  >
+                    <Paperclip size={16}/>
+                  </button>
+                  
+                  {typeof window !== 'undefined' && !window.location.pathname.includes(`/admin/task/${task.id}`) && (
+                    <button 
+                      type="button" 
+                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(`/admin/task/${task.id}`, '_blank'); }} 
+                      className="w-10 h-10 rounded-full bg-gray-100/80 active:bg-gray-200 active:scale-95 text-gray-500 hover:text-blue-500 transition-all flex items-center justify-center shrink-0 cursor-pointer touch-manipulation z-20" 
+                      title="Abrir em Nova Aba (Tela Cheia)"
+                    >
+                      <ExternalLink size={16}/>
+                    </button>
+                  )}
+                  
+                  <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleCloseModal(); }} className="w-10 h-10 rounded-full bg-gray-100/80 active:bg-gray-200 active:scale-95 text-gray-500 hover:text-[var(--color-atelier-terracota)] transition-all flex items-center justify-center shrink-0 cursor-pointer touch-manipulation z-20" title="Fechar">
+                    <X size={20}/>
+                  </button>
+                </div>
               </div>
 
               {/* SCROLLABLE BODY */}
