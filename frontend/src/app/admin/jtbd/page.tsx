@@ -218,6 +218,25 @@ export default function JTBDPage() {
         });
 
         setAllTasks([...finalTasks]);
+
+        // ==========================================
+        // URL DINÂMICA: Abrir tarefa se estiver na URL
+        // ==========================================
+        if (typeof window !== "undefined") {
+          const params = new URLSearchParams(window.location.search);
+          const taskIdFromUrl = params.get("task");
+          if (taskIdFromUrl) {
+            const taskToOpen = finalTasks.find(t => t.id === taskIdFromUrl);
+            if (taskToOpen) {
+              setActiveTaskModal({
+                task: taskToOpen,
+                isFocus: true, // Ou poderíamos calcular com base em focusMode
+                isReview: taskToOpen.status === 'review',
+                isCompleted: taskToOpen.status === 'completed' || taskToOpen.status === 'pending_client_approval'
+              });
+            }
+          }
+        }
       }
 
       AtelierPMEngine.prioritizeDailyTriage(profile.id);
@@ -332,7 +351,7 @@ export default function JTBDPage() {
            
            // 🟢 SINCRONIZAÇÃO TRELLO NATIVA
            try {
-             await syncTaskCompletionToTrello(task.id);
+             await syncTaskCompletionToTrello(task);
            } catch(e) {
              console.error("Trello Sync Erro:", e);
            }
@@ -432,6 +451,16 @@ export default function JTBDPage() {
   };
 
   const [activeTaskModal, setActiveTaskModal] = useState<{task: any, isFocus: boolean, isReview: boolean, isCompleted: boolean} | null>(null);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      if (activeTaskModal?.task?.id) {
+        window.history.replaceState({}, '', `?task=${activeTaskModal.task.id}`);
+      } else {
+        window.history.replaceState({}, '', window.location.pathname);
+      }
+    }
+  }, [activeTaskModal]);
 
   if (isLoading) return <div className="flex h-full min-h-[400px] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 

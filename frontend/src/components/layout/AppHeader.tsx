@@ -7,9 +7,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
 import { 
   Bell, CheckCircle2, 
-  Circle, Info, AlertTriangle, ShieldCheck 
+  Circle, Info, AlertTriangle, ShieldCheck, Music, Settings
 } from "lucide-react";
 import { useProfile } from "../../hooks/useProfile";
+import DailyJamDropdown from "./DailyJamDropdown";
+import UserAvatar from "../global/UserAvatar";
 
 interface AppHeaderProps {
   handleLogout: () => void;
@@ -23,6 +25,8 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
   // Estados do Sistema de Notificações
   const [notifications, setNotifications] = useState<any[]>([]);
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isJamOpen, setIsJamOpen] = useState(false);
+  const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -32,6 +36,8 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
     const handleClickOutside = (event: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
+        setIsJamOpen(false);
+        setIsProfileDropdownOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -146,7 +152,7 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
             
             {/* SINO DE NOTIFICAÇÕES */}
             <button 
-              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              onClick={() => { setIsDropdownOpen(!isDropdownOpen); setIsJamOpen(false); }}
               className="relative w-8 h-8 rounded-full bg-white border border-[var(--color-atelier-grafite)]/5 flex items-center justify-center text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-terracota)] hover:shadow-sm transition-all"
             >
               <Bell size={16} className={unreadCount > 0 ? "animate-[wiggle_1.5s_ease-in-out_infinite]" : ""} />
@@ -164,17 +170,51 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
 
             <div className="w-px h-4 bg-[var(--color-atelier-grafite)]/10"></div>
 
-            {/* FOTO DE PERFIL */}
-            <div 
-              onClick={() => router.push('/configuracoes')}
-              className="w-8 h-8 rounded-full overflow-hidden shadow-sm border border-white flex items-center justify-center bg-[var(--color-atelier-grafite)] text-white cursor-pointer hover:scale-105 transition-transform"
-              title="Configurações"
-            >
-              {userProfile?.avatar_url ? (
-                <img src={userProfile.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
-              ) : (
-                <span className="font-elegant text-sm">{userProfile?.nome?.charAt(0) || "U"}</span>
-              )}
+            {/* FOTO DE PERFIL COM DROPDOWN */}
+            <div className="relative">
+              <div 
+                onClick={() => {
+                  setIsProfileDropdownOpen(!isProfileDropdownOpen);
+                  setIsDropdownOpen(false);
+                  setIsJamOpen(false);
+                }}
+                className="cursor-pointer hover:scale-105 transition-transform"
+                title="Meu Perfil"
+              >
+                <UserAvatar profile={userProfile} size="sm" className="!w-8 !h-8 border border-white shadow-sm" />
+              </div>
+
+              {/* DROPDOWN DO PERFIL */}
+              <AnimatePresence>
+                {isProfileDropdownOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.98 }} 
+                    animate={{ opacity: 1, y: 8, scale: 1 }} 
+                    exit={{ opacity: 0, y: -5, scale: 0.98 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    className="absolute right-0 top-full w-[200px] bg-white/90 backdrop-blur-2xl border border-white/40 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col z-50 pointer-events-auto"
+                  >
+                    <button 
+                      onClick={() => {
+                        setIsProfileDropdownOpen(false);
+                        router.push('/configuracoes');
+                      }}
+                      className="w-full text-left px-4 py-3 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2 border-b border-[var(--color-atelier-grafite)]/5"
+                    >
+                      <Settings size={14} /> Configurações
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setIsProfileDropdownOpen(false);
+                        setIsJamOpen(true);
+                      }}
+                      className="w-full text-left px-4 py-3 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2 border-b border-[var(--color-atelier-grafite)]/5"
+                    >
+                      <Music size={14} /> Trilha & Humor
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
           </motion.div>
 
@@ -230,6 +270,16 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                   )}
                 </div>
               </motion.div>
+            )}
+          </AnimatePresence>
+
+          {/* DROPDOWN DAILY JAM */}
+          <AnimatePresence>
+            {isJamOpen && (
+              <DailyJamDropdown 
+                userProfile={userProfile}
+                onClose={() => setIsJamOpen(false)}
+              />
             )}
           </AnimatePresence>
 

@@ -165,11 +165,11 @@ export default function ClientShell({ children }: { children: React.ReactNode })
         setUserRole(role);
 
         if (isLoginPage) {
-          router.replace(role === "client" ? "/" : role === "contador" ? "/admin/financeiro" : "/admin/analytics");
+          router.replace(role === "client" ? "/" : role === "contador" ? "/admin/financeiro" : "/admin/fio");
         } else if (role === "client" && pathname.startsWith("/admin")) {
           router.replace("/");
         } else if ((role === "admin" || role === "gestor") && pathname === "/") {
-          router.replace("/admin/analytics");
+          router.replace("/admin/fio");
         } else if (role === "contador" && pathname === "/") {
           router.replace("/admin/financeiro");
         }

@@ -110,9 +110,9 @@ export class NotificationEngine {
   }
 
   /**
-   * Dispara uma notificação para um Colaborador específico (In-App e E-mail)
+   * Dispara uma notificação para um Usuário específico (In-App e E-mail)
    */
-  static async notifyCollaboratorWithEmail(
+  static async notifyUserWithEmail(
     userId: string,
     title: string,
     message: string,
@@ -126,7 +126,7 @@ export class NotificationEngine {
         title,
         message,
         type: 'action',
-        action_url: extraData.link || '/admin/jtbd',
+        action_url: extraData.link || '/canais',
         is_read: false
       });
 
@@ -148,15 +148,15 @@ export class NotificationEngine {
             type: emailTemplateType, 
             subject: title,
             body: message,
-            link: extraData.link || '/admin/jtbd',
+            link: extraData.link || '/canais',
             taskName: extraData.taskName,
             projectName: extraData.projectName,
             extraInfo: extraData.extraInfo
           })
-        }).catch(err => console.log("Aviso silencioso: Falha no disparo de e-mail para colaborador", err));
+        }).catch(err => console.log("Aviso silencioso: Falha no disparo de e-mail para usuário", err));
       }
     } catch (error) {
-      console.error('❌ Erro no NotificationEngine (notifyCollaboratorWithEmail):', error);
+      console.error('❌ Erro no NotificationEngine (notifyUserWithEmail):', error);
     }
   }
 

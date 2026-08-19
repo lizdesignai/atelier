@@ -7,7 +7,7 @@ import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Home, Lock, MessageSquare, ChevronLeft, ChevronRight, 
-  Compass, LayoutDashboard, FolderKanban, Users, Inbox, 
+  Compass, LayoutDashboard, FolderKanban, Users, MessageCircle, 
   Globe2, CheckCircle2, DollarSign, Sparkles, Briefcase, 
   Crosshair, LogOut, Activity, Crown, Grid, Menu, X
 } from "lucide-react";
@@ -38,7 +38,7 @@ const ROUTE_NAMES: Record<string, string> = {
   '/admin/jtbd': 'Focus',
   '/admin/gestao': 'Produtividade',
   '/admin/projetos': 'Estúdio',
-  '/admin/inbox': 'Inbox',
+  '/admin/fio': 'Sintonia',
   '/admin/clientes': 'Clientes',
   '/admin/analytics': 'Analytics',
   '/admin/financeiro': 'Financeiro'
@@ -137,7 +137,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
         }
       } else if (isContador) {
         // 🟢 BLINDAGEM DE ROTAS PARA O CONTADOR
-        const allowedContadorRoutes = ['/admin/inbox', '/comunidade', '/admin/financeiro'];
+        const allowedContadorRoutes = ['/admin/fio', '/comunidade', '/admin/financeiro'];
         if (!allowedContadorRoutes.includes(pathname)) {
           router.replace('/admin/financeiro');
         }
@@ -199,13 +199,13 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
 
   const mobileMainItems: Array<{ href: string; icon: React.ReactNode; label: string; badge?: number }> = isContador ? [
     { href: '/admin/financeiro', icon: <DollarSign size={20} strokeWidth={1.5} />, label: 'Finanças' },
-    { href: '/admin/inbox', icon: <Inbox size={20} strokeWidth={1.5} />, label: 'Inbox', badge: globalUnreadCount },
+    { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : isTeamMember ? [
     { href: '/admin/analytics', icon: <Activity size={20} strokeWidth={1.5} />, label: 'Analytics' },
     { href: '/admin/jtbd', icon: <Crosshair size={20} strokeWidth={1.5} />, label: 'Focus' },
     { href: '/admin/clientes', icon: <Users size={20} strokeWidth={1.5} />, label: 'Clientes' },
-    { href: '/admin/inbox', icon: <Inbox size={20} strokeWidth={1.5} />, label: 'Inbox', badge: globalUnreadCount },
+    { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : clientServiceType === "Gestão de Instagram" ? [
     { href: '/cockpit', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
@@ -313,7 +313,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
           {isContador && (
             <>
               <NavItem href="/admin/financeiro" icon={<DollarSign size={18} strokeWidth={1.5} />} label="Financeiro" collapsed={isCollapsed} active={pathname === '/admin/financeiro'} />
-              <NavItem href="/admin/inbox" icon={<Inbox size={18} strokeWidth={1.5} />} label="Inbox" collapsed={isCollapsed} active={pathname === '/admin/inbox'} badge={globalUnreadCount} />
+              <NavItem href="/admin/fio" icon={<MessageCircle size={18} strokeWidth={1.5} />} label="Sintonia" collapsed={isCollapsed} active={pathname === '/admin/fio'} badge={globalUnreadCount} />
               
               <div className="flex items-center justify-center my-3 opacity-20">
                 <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
@@ -336,7 +336,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               </div>
 
               <NavItem href="/admin/projetos" icon={<FolderKanban size={18} strokeWidth={1.5} />} label="Estúdio" collapsed={isCollapsed} active={pathname === '/admin/projetos'} />
-              <NavItem href="/admin/inbox" icon={<Inbox size={18} strokeWidth={1.5} />} label="Inbox" collapsed={isCollapsed} active={pathname === '/admin/inbox'} badge={globalUnreadCount} />
+              <NavItem href="/admin/fio" icon={<MessageCircle size={18} strokeWidth={1.5} />} label="Sintonia" collapsed={isCollapsed} active={pathname === '/admin/fio'} badge={globalUnreadCount} />
               <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
               
               <div className="flex items-center justify-center my-3 opacity-20">

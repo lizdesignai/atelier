@@ -43,20 +43,7 @@ export default function ViewTaskPage() {
       // Fetch task with full relations exactly like JTBDPage
       const { data, error } = await supabase
         .from('tasks')
-        .select(`
-          *,
-          projects (
-            id,
-            title,
-            client_id,
-            type,
-            profiles:client_id (
-              id,
-              nome,
-              avatar_url
-            )
-          )
-        `)
+        .select('*, projects(type, client_id, profiles(id, nome, avatar_url)), agency_subclients(id, name, trello_url), social_posts(image_url, status, created_at)')
         .eq('id', taskId)
         .single();
 
@@ -127,30 +114,23 @@ export default function ViewTaskPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-atelier-bg)] flex justify-center pb-20">
-      <div className="w-full max-w-md p-4">
-        <button onClick={() => router.push("/admin/jtbd")} className="flex items-center gap-2 text-[var(--color-atelier-grafite)]/60 font-bold mb-6 mt-4 uppercase text-[10px] tracking-widest hover:text-black transition-colors">
+    <div className="min-h-screen bg-[var(--color-atelier-bg)] flex justify-center pb-20 px-4 sm:px-8">
+      <div className="w-full max-w-5xl py-4 flex flex-col mt-4">
+        <button onClick={() => router.push("/admin/jtbd")} className="flex items-center gap-2 text-[var(--color-atelier-grafite)]/60 font-bold mb-6 w-max uppercase text-[10px] tracking-widest hover:text-black transition-colors">
           <ArrowLeft size={14} /> Voltar ao Cockpit
         </button>
-
-        <div className="bg-white rounded-2xl shadow-sm border border-[var(--color-atelier-grafite)]/10 overflow-hidden">
-          <div className="p-4 border-b border-gray-100 bg-gray-50/50">
-            <h1 className="text-sm font-bold text-gray-800">Visualização de Tarefa</h1>
-            <p className="text-[10px] text-gray-500 mt-1">Detalhes e ações da tarefa atribuída.</p>
-          </div>
-          
-          <div className="p-4">
-            <TaskCard
-              task={task}
-              isAdmin={currentUser?.role === 'admin' || currentUser?.role === 'gestor'}
-              isReview={false}
-              onAction={(newStatus) => handleTaskStatusUpdate(task.id, newStatus, task)}
-              onReschedule={() => {}}
-              isRescheduling={false}
-              forceStaticMode={false}
-              forceOpenModal={true}
-            />
-          </div>
+        <div className="w-full">
+          <TaskCard
+            task={task}
+            isAdmin={currentUser?.role === 'admin' || currentUser?.role === 'gestor'}
+            isReview={false}
+            onAction={(newStatus) => handleTaskStatusUpdate(task.id, newStatus, task)}
+            onReschedule={() => {}}
+            isRescheduling={false}
+            forceStaticMode={true} 
+            forceOpenModal={false}
+            inlineExpanded={true}
+          />
         </div>
       </div>
     </div>

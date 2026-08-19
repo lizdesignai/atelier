@@ -188,7 +188,7 @@ export default function LoginPage() {
           if (!hasSeenOnboarding) {
             router.push("/onboarding");
           } else {
-            router.push(role === 'client' ? "/" : "/admin/analytics");
+            router.push(role === 'client' ? "/" : "/admin/fio");
           }
         }, 1800);
 

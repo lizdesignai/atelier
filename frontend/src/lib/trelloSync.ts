@@ -15,25 +15,11 @@ function extractBoardId(url: string): string | null {
 /**
  * Tenta encontrar um card no Trello pelo nome e sincronizar a conclusão e o anexo.
  */
-export async function syncTaskCompletionToTrello(taskId: string) {
+export async function syncTaskCompletionToTrello(task: any) {
   if (!TRELLO_API_KEY || !TRELLO_TOKEN) return;
+  if (!task) return;
 
   try {
-    // 1. Obter detalhes da tarefa e seu projeto/subcliente
-    const { data: task, error } = await supabase
-      .from('tasks')
-      .select(`
-        id, title, attachment_url,
-        projects ( trello_url ),
-        agency_subclients ( trello_url )
-      `)
-      .eq('id', taskId)
-      .single();
-
-    if (error || !task) {
-      console.error("[TrelloSync] Tarefa não encontrada", error);
-      return;
-    }
 
     // A URL do Trello pode estar no subcliente ou no projeto
     const trelloUrl = (task.agency_subclients as any)?.trello_url || (task.projects as any)?.trello_url;

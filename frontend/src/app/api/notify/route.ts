@@ -153,11 +153,11 @@ function getEmailTemplate(type: string, data: any) {
       break;
 
     case 'chat_activity':
-      subject = `[INBOX] Mensagem de ${clientName}`;
-      icon = "📨";
+      subject = `[Sintonia] Mensagem de ${clientName || "Colaborador"}`;
+      icon = "💬";
       title = "Nova Mensagem";
-      message = `Há uma nova comunicação no chat do projeto.`;
-      buttonText = "Abrir Inbox";
+      message = `Há uma nova comunicação na Sintonia aguardando sua resposta.`;
+      buttonText = "Abrir Sintonia";
       break;
 
     case 'fever_chart_alert':

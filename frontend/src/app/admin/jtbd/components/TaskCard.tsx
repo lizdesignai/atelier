@@ -29,6 +29,7 @@ interface TaskCardProps {
   onCloseModal?: () => void;
   onRevert?: (taskId: string) => void; 
   currentUser?: any;
+  inlineExpanded?: boolean;
 }
 
 export default function TaskCard({ 
@@ -45,7 +46,8 @@ export default function TaskCard({
   forceOpenModal,  
   onCloseModal,
   onRevert,
-  currentUser
+  currentUser,
+  inlineExpanded
 }: TaskCardProps) {
   
   // ==========================================
@@ -62,6 +64,7 @@ export default function TaskCard({
   const [isAdminReviewing, setIsAdminReviewing] = useState(false);
   const [adminFeedback, setAdminFeedback] = useState("");
   const [isProcessingFeedback, setIsProcessingFeedback] = useState(false);
+  const [replyingTo, setReplyingTo] = useState<any>(null);
 
   const [isAssetsModalOpen, setIsAssetsModalOpen] = useState(false);
 
@@ -257,25 +260,39 @@ export default function TaskCard({
 
   const handleForceToday = async () => {
     if (!isAdmin) return;
-    const today = new Date();
-    today.setHours(0, 0, 0, 0); // Start of today to ensure it shows as delayed/urgent if needed
-    const formattedToday = today.toISOString();
     
     try {
-      const { error } = await supabase.from('tasks').update({ 
-        deadline: formattedToday, 
-        internal_deadline: formattedToday,
-        urgency: true 
-      }).eq('id', task.id);
-      if (error) throw error;
+      if (task.urgency) {
+        // Toggle OFF urgency
+        const { error } = await supabase.from('tasks').update({ 
+          urgency: false 
+        }).eq('id', task.id);
+        if (error) throw error;
+        
+        task.urgency = false;
+        window.dispatchEvent(new CustomEvent("showToast", { detail: "Urgência removida." }));
+      } else {
+        // Toggle ON urgency and force today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // Start of today
+        const formattedToday = today.toISOString();
+
+        const { error } = await supabase.from('tasks').update({ 
+          deadline: formattedToday, 
+          internal_deadline: formattedToday,
+          urgency: true 
+        }).eq('id', task.id);
+        if (error) throw error;
+        
+        task.deadline = formattedToday;
+        task.internal_deadline = formattedToday;
+        task.productivity_deadline = formattedToday;
+        task.urgency = true;
+        setLocalDeadline(formattedToday);
+        
+        window.dispatchEvent(new CustomEvent("showToast", { detail: "Data forçada para hoje com urgência!" }));
+      }
       
-      task.deadline = formattedToday;
-      task.internal_deadline = formattedToday;
-      task.productivity_deadline = formattedToday;
-      task.urgency = true;
-      setLocalDeadline(formattedToday);
-      
-      window.dispatchEvent(new CustomEvent("showToast", { detail: "Data forçada para hoje com urgência!" }));
       window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
     } catch (e) {
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao forçar data." }));
@@ -333,6 +350,7 @@ export default function TaskCard({
         authorAvatar: currentUser?.avatar_url || null,
         role: isAdmin ? 'admin' : 'collab',
         content: adminFeedback,
+        replyTo: replyingTo ? { id: replyingTo.id, authorName: replyingTo.authorName, content: replyingTo.content } : null,
         createdAt: new Date().toISOString()
       };
 
@@ -355,7 +373,7 @@ export default function TaskCard({
 
       // Notifications
       if (isAdmin && task.assigned_to) {
-        await NotificationEngine.notifyCollaboratorWithEmail(
+        await NotificationEngine.notifyUserWithEmail(
           task.assigned_to,
           "💬 Novo Feedback Recebido",
           `A gestão enviou um novo feedback na tarefa "${task.title}".`,
@@ -376,6 +394,7 @@ export default function TaskCard({
       }
 
       setAdminFeedback("");
+      setReplyingTo(null);
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Feedback adicionado à thread com sucesso!" }));
       
       if (isAdmin && isReview) {
@@ -394,6 +413,7 @@ export default function TaskCard({
 
   return (
     <>
+      {!inlineExpanded && (
       <motion.div 
         draggable={!isCompleted && !forceStaticMode}
         onDragStart={(e: any) => {
@@ -411,13 +431,13 @@ export default function TaskCard({
         className={`w-full rounded-[1.4rem] flex flex-col group transition-all relative overflow-hidden
           ${forceStaticMode ? 'cursor-pointer hover:shadow-md' : "cursor-grab active:cursor-grabbing"}
           ${isCompleted ? 'bg-white/40 border border-[var(--color-atelier-grafite)]/10' : 'bg-white border border-[var(--color-atelier-grafite)]/5 shadow-[0_4px_12px_rgba(122,116,112,0.05)]'}
-          ${task.urgency && !isCompleted ? 'border-orange-300 ring-1 ring-orange-500/20' : ''}
-          ${isDelayed && !isCompleted ? 'border-red-300' : ''}
+          ${task.urgency && !isCompleted ? 'border-red-300 ring-1 ring-red-500/20' : ''}
+          ${isDelayed && !isCompleted && !task.urgency ? 'border-red-300' : ''}
           ${isFocus ? 'gemini-gradient-bg border-transparent' : ''}
         `}
       >
         {isFocus && <div className="absolute top-0 left-0 w-1.5 h-full gemini-gradient-border z-20"></div>}
-        {task.urgency && !isCompleted && !isFocus && <div className="absolute top-0 left-0 w-1.5 h-full bg-orange-500 z-20"></div>}
+        {task.urgency && !isCompleted && !isFocus && <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500 z-20"></div>}
 
         {/* COVER VISUAL (Oculta se forceStaticMode para evitar duplicação no Kanban) */}
         {displayImageUrl && !forceStaticMode && (
@@ -537,7 +557,7 @@ export default function TaskCard({
                         <button 
                           onClick={(e) => {
                             e.stopPropagation();
-                            NotificationEngine.notifyCollaboratorWithEmail(
+                            NotificationEngine.notifyUserWithEmail(
                               task.assigned_to,
                               "⏰ Atraso Identificado",
                               `A tarefa "${task.title}" encontra-se atrasada. A gestão solicita atualização.`,
@@ -556,8 +576,10 @@ export default function TaskCard({
                       {isAdmin && (
                         <button 
                           onClick={(e) => { e.stopPropagation(); handleForceToday(); }}
-                          className="w-7 h-7 flex items-center justify-center rounded transition-colors text-red-500 hover:bg-red-50 cursor-pointer pointer-events-auto border border-red-200 shadow-sm ml-1"
-                          title="Forçar data para hoje (Urgente)"
+                          className={`w-7 h-7 flex items-center justify-center rounded transition-colors cursor-pointer pointer-events-auto border shadow-sm ml-1 ${
+                            task.urgency ? 'text-white bg-red-500 border-red-600 hover:bg-red-600' : 'text-red-500 hover:bg-red-50 border-red-200'
+                          }`}
+                          title={task.urgency ? "Remover Urgência" : "Forçar data para hoje (Urgente)"}
                         >
                           <Clock size={12}/>
                         </button>
@@ -635,6 +657,7 @@ export default function TaskCard({
           )}
         </div>
       </motion.div>
+      )}
 
       <ClientAssetsModal 
         isOpen={isAssetsModalOpen}
@@ -648,20 +671,22 @@ export default function TaskCard({
           MODAL DE DETALHES RÁPIDOS DA TAREFA E VISUALIZADOR DE ARTE/PDF
           ===================================================================== */}
       <AnimatePresence>
-        {isEffectivelyModalOpen && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6">
+        {(isEffectivelyModalOpen || inlineExpanded) && (
+          <div className={inlineExpanded ? "w-full h-full flex flex-col" : "fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6"}>
+            {!inlineExpanded && (
+              <motion.div 
+                initial={{ opacity: 0 }} 
+                animate={{ opacity: 1 }} 
+                exit={{ opacity: 0 }} 
+                onClick={handleCloseModal} 
+                className="absolute inset-0 bg-black/60 backdrop-blur-md" 
+              />
+            )}
             <motion.div 
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }} 
-              onClick={handleCloseModal} 
-              className="absolute inset-0 bg-black/60 backdrop-blur-md" 
-            />
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 20 }} 
-              animate={{ scale: 1, opacity: 1, y: 0 }} 
-              exit={{ scale: 0.95, opacity: 0, y: 20 }} 
-              className="bg-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-lg border border-white/20 flex flex-col max-h-[85vh] sm:max-h-[90vh] h-auto overflow-hidden my-auto"
+              initial={inlineExpanded ? {} : { scale: 0.95, opacity: 0, y: 20 }} 
+              animate={inlineExpanded ? {} : { scale: 1, opacity: 1, y: 0 }} 
+              exit={inlineExpanded ? {} : { scale: 0.95, opacity: 0, y: 20 }} 
+              className={`bg-white relative z-10 w-full flex flex-col overflow-hidden ${inlineExpanded ? 'rounded-[2rem] shadow-sm border border-gray-100 min-h-[70vh] h-full' : 'rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl max-w-lg border border-white/20 max-h-[85vh] sm:max-h-[90vh] h-auto my-auto'}`}
             >
               {/* FIXED HEADER */}
               <div className="p-5 sm:p-8 pb-3 sm:pb-5 flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 shrink-0 bg-white z-20">
@@ -676,11 +701,25 @@ export default function TaskCard({
                 <div className="flex items-center gap-2">
                   <button 
                     type="button" 
-                    onClick={(e) => { 
+                    onClick={async (e) => { 
                       e.preventDefault(); 
                       e.stopPropagation(); 
-                      navigator.clipboard.writeText(`${window.location.origin}/admin/task/${task.id}`);
-                      window.dispatchEvent(new CustomEvent("showToast", { detail: "Link copiado!" }));
+                      const link = `${window.location.origin}/admin/task/${task.id}`;
+                      try {
+                        if (navigator.clipboard && navigator.clipboard.writeText) {
+                          await navigator.clipboard.writeText(link);
+                        } else {
+                          const textArea = document.createElement("textarea");
+                          textArea.value = link;
+                          document.body.appendChild(textArea);
+                          textArea.select();
+                          document.execCommand("copy");
+                          document.body.removeChild(textArea);
+                        }
+                        window.dispatchEvent(new CustomEvent("showToast", { detail: "Link copiado!" }));
+                      } catch (err) {
+                        window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao copiar link." }));
+                      }
                     }} 
                     className="w-10 h-10 rounded-full bg-gray-100/80 active:bg-gray-200 active:scale-95 text-gray-500 hover:text-green-500 transition-all flex items-center justify-center shrink-0 cursor-pointer touch-manipulation z-20" 
                     title="Copiar Link da Tarefa"
@@ -689,14 +728,16 @@ export default function TaskCard({
                   </button>
                   
                   {typeof window !== 'undefined' && !window.location.pathname.includes(`/admin/task/${task.id}`) && (
-                    <button 
-                      type="button" 
-                      onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.open(`/admin/task/${task.id}`, '_blank'); }} 
+                    <a 
+                      href={`/admin/task/${task.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => { e.stopPropagation(); }} 
                       className="w-10 h-10 rounded-full bg-gray-100/80 active:bg-gray-200 active:scale-95 text-gray-500 hover:text-blue-500 transition-all flex items-center justify-center shrink-0 cursor-pointer touch-manipulation z-20" 
                       title="Abrir em Nova Aba (Tela Cheia)"
                     >
                       <ExternalLink size={16}/>
-                    </button>
+                    </a>
                   )}
                   
                   <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleCloseModal(); }} className="w-10 h-10 rounded-full bg-gray-100/80 active:bg-gray-200 active:scale-95 text-gray-500 hover:text-[var(--color-atelier-terracota)] transition-all flex items-center justify-center shrink-0 cursor-pointer touch-manipulation z-20" title="Fechar">
@@ -782,17 +823,31 @@ export default function TaskCard({
                     {feedbackThread.length > 0 ? (
                       <div className="flex flex-col gap-3 mb-3 max-h-60 overflow-y-auto custom-scrollbar pr-2">
                         {feedbackThread.map((msg: any) => (
-                          <div key={msg.id} className={`flex flex-col gap-1 w-full max-w-[85%] ${msg.role === 'admin' ? 'mr-auto' : 'ml-auto items-end'}`}>
-                            <div className="flex items-center gap-2">
+                          <div key={msg.id} className={`flex flex-col gap-1 w-full max-w-[85%] ${msg.role === 'admin' ? 'mr-auto' : 'ml-auto items-end'} group`}>
+                            <div className="flex items-center gap-2 w-full">
                               {msg.authorAvatar ? (
-                                <img src={msg.authorAvatar} alt={msg.authorName} className="w-5 h-5 rounded-full object-cover" />
+                                <img src={msg.authorAvatar} alt={msg.authorName} className="w-5 h-5 rounded-full object-cover shrink-0" />
                               ) : (
-                                <UserCircle2 size={14} className="text-gray-400" />
+                                <UserCircle2 size={14} className="text-gray-400 shrink-0" />
                               )}
-                              <span className={`text-[10px] font-bold uppercase tracking-widest ${msg.role === 'admin' ? 'text-[var(--color-atelier-terracota)]' : 'text-blue-500'}`}>{msg.authorName}</span>
-                              <span className="text-[9px] text-gray-400">{new Date(msg.createdAt).toLocaleDateString('pt-BR')} {new Date(msg.createdAt).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span>
+                              <span className={`text-[10px] font-bold uppercase tracking-widest truncate ${msg.role === 'admin' ? 'text-[var(--color-atelier-terracota)]' : 'text-blue-500'}`}>{msg.authorName}</span>
+                              <span className="text-[9px] text-gray-400 shrink-0">{new Date(msg.createdAt).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span>
+                              
+                              <button 
+                                onClick={() => setReplyingTo(msg)} 
+                                className={`text-[9px] font-bold uppercase tracking-widest opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 ${msg.role === 'admin' ? 'ml-auto text-[var(--color-atelier-terracota)]/70 hover:text-[var(--color-atelier-terracota)]' : 'mr-auto text-blue-500/70 hover:text-blue-500 order-first'}`}
+                                title="Responder a este feedback"
+                              >
+                                <RotateCcw size={10} className={msg.role === 'collab' ? 'rotate-180' : ''}/> Responder
+                              </button>
                             </div>
                             <div className={`p-3 rounded-2xl text-[13px] font-medium shadow-sm whitespace-pre-wrap ${msg.role === 'admin' ? 'bg-orange-50 border border-orange-100/50 text-orange-900 rounded-tl-sm' : 'bg-blue-50 border border-blue-100/50 text-blue-900 rounded-tr-sm'}`}>
+                              {msg.replyTo && (
+                                <div className="mb-2 p-2 rounded-lg bg-black/5 border-l-2 border-black/20 text-[11px] opacity-70 flex flex-col gap-0.5 max-w-full">
+                                  <span className="font-bold truncate">{msg.replyTo.authorName}</span>
+                                  <span className="truncate">{msg.replyTo.content}</span>
+                                </div>
+                              )}
                               {msg.content}
                             </div>
                           </div>
@@ -804,12 +859,23 @@ export default function TaskCard({
 
                     {/* Área de Resposta */}
                     {!isCompleted && task.status !== 'pending_client_approval' && (
-                      <div className="mt-2 flex flex-col gap-2">
+                      <div className="mt-2 flex flex-col gap-2 relative">
+                        {replyingTo && (
+                          <div className="flex items-start justify-between p-2 rounded-t-xl bg-gray-50 border border-b-0 border-gray-200">
+                            <div className="flex flex-col min-w-0 pr-2">
+                              <span className="text-[9px] font-bold uppercase tracking-widest text-gray-500 flex items-center gap-1">
+                                <RotateCcw size={10} /> Respondendo a {replyingTo.authorName}
+                              </span>
+                              <span className="text-[11px] text-gray-400 line-clamp-1 italic">"{replyingTo.content}"</span>
+                            </div>
+                            <button onClick={() => setReplyingTo(null)} className="p-1 text-gray-400 hover:text-red-500 rounded-md transition-colors shrink-0"><X size={14}/></button>
+                          </div>
+                        )}
                         <textarea 
                           placeholder={isAdmin ? "Detalhe o que precisa ser alterado..." : "Responda à gestão ou tire uma dúvida..."}
                           value={adminFeedback}
                           onChange={(e) => setAdminFeedback(e.target.value)}
-                          className={`w-full bg-white border ${isAdmin ? 'border-orange-200 focus:border-orange-400' : 'border-blue-200 focus:border-blue-400'} rounded-xl p-3 text-[13px] font-medium outline-none resize-none h-20 shadow-sm custom-scrollbar transition-colors`}
+                          className={`w-full bg-white border ${isAdmin ? 'border-orange-200 focus:border-orange-400' : 'border-blue-200 focus:border-blue-400'} ${replyingTo ? 'rounded-b-xl rounded-t-none border-t-0' : 'rounded-xl'} p-3 text-[13px] font-medium outline-none resize-none h-20 shadow-sm custom-scrollbar transition-colors`}
                         />
                         <div className="flex justify-end gap-2">
                           {isAdmin && isReview && (
@@ -869,18 +935,18 @@ export default function TaskCard({
                                   ) : (
                                      <img src={asset.url} alt="Arte" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                                   )}
-                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2">
-                                    <a href={asset.url} target="_blank" rel="noreferrer" className="bg-white/95 backdrop-blur-md p-2 rounded-full text-[var(--color-atelier-grafite)] opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl transform translate-y-2 group-hover:translate-y-0" title="Visualizar">
+                                  <div className="absolute inset-0 bg-black/20 md:bg-black/0 md:group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 pointer-events-auto">
+                                    <a href={asset.url} target="_blank" rel="noreferrer" className="bg-white/95 backdrop-blur-md p-2 rounded-full text-[var(--color-atelier-grafite)] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 shadow-xl" title="Visualizar">
                                        <Eye size={14} />
                                     </a>
-                                    <button 
-                                      onClick={(e) => { e.stopPropagation(); handleDeleteAsset(idx); }}
-                                      className="bg-red-500/90 hover:bg-red-600 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl transform translate-y-2 group-hover:translate-y-0"
-                                      title="Apagar Anexo"
-                                    >
-                                      <Trash2 size={14} />
-                                    </button>
                                   </div>
+                                  <button 
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteAsset(idx); }}
+                                    className="absolute top-2 right-2 bg-red-500/90 hover:bg-red-600 text-white p-1.5 sm:p-2 rounded-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 shadow-xl z-10 pointer-events-auto"
+                                    title="Apagar Anexo"
+                                  >
+                                    <Trash2 size={14} />
+                                  </button>
                                 </div>
                               ))}
                             </div>
@@ -908,18 +974,18 @@ export default function TaskCard({
                               ) : (
                                 <div className={`w-full h-48 sm:h-56 rounded-[1.5rem] overflow-hidden border border-gray-200 shadow-sm relative group cursor-pointer bg-gray-100 ${isRejectedByClient ? 'border-red-300 ring-2 ring-red-500/20' : ''}`} onClick={() => setIsLightboxOpen(true)}>
                                   <img src={displayImageUrl!} alt="Arte Anexada" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
-                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2">
+                                  <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center pointer-events-none md:group-hover:pointer-events-auto">
                                     <div className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-full text-[var(--color-atelier-grafite)] opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl transform translate-y-4 group-hover:translate-y-0 flex items-center gap-2">
                                        <ZoomIn size={16} /> <span className="text-[10px] font-bold uppercase tracking-widest">Expandir</span>
                                     </div>
-                                    <button 
-                                      onClick={(e) => { e.stopPropagation(); handleDeleteAsset(0); }}
-                                      className="bg-red-500/90 hover:bg-red-600 text-white p-2.5 rounded-full opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl transform translate-y-4 group-hover:translate-y-0"
-                                      title="Apagar Anexo"
-                                    >
-                                      <Trash2 size={16} />
-                                    </button>
                                   </div>
+                                  <button 
+                                    onClick={(e) => { e.stopPropagation(); handleDeleteAsset(0); }}
+                                    className="absolute top-3 right-3 bg-red-500/90 hover:bg-red-600 text-white p-2.5 rounded-full opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 shadow-xl z-10 pointer-events-auto"
+                                    title="Apagar Anexo"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
                                 </div>
                               )}
                             </>
