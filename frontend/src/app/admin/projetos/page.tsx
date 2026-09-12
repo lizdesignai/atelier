@@ -11,6 +11,7 @@ import {
   LayoutDashboard, Target, CalendarDays, MapPin, Camera, AlertCircle
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
+import { updateProjectAction } from "../../actions/projects";
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
 import DiaryModule from "../../../components/admin/DiaryModule";
 import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
@@ -217,7 +218,7 @@ function PainelIdentidade() {
           .order('created_at', { ascending: false });
 
         const { data: briefingData, error: briefingError } = await supabase
-          .from('briefings')
+          .from('client_briefings')
           .select('*')
           .eq('project_id', activeProjectId)
           .single();
@@ -312,7 +313,7 @@ function PainelIdentidade() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      await supabase.from('projects').update({ briefing_ai_insight: data.insight }).eq('id', activeProjectId);
+      await updateProjectAction(activeProjectId, { briefing_ai_insight: data.insight });
       setBriefingAiInsight(data.insight);
       refreshGlobalData();
       
@@ -348,7 +349,7 @@ function PainelIdentidade() {
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      await supabase.from('projects').update({ curadoria_ai_insight: data.insight }).eq('id', activeProjectId);
+      await updateProjectAction(activeProjectId, { curadoria_ai_insight: data.insight });
       setCuradoriaAiInsight(data.insight);
       refreshGlobalData(); 
       
@@ -501,7 +502,7 @@ function PainelIdentidade() {
       
       const { data } = supabase.storage.from('vault_assets').getPublicUrl(fileName);
       
-      const { error: dbError } = await supabase.from('projects').update({ contract_url: data.publicUrl }).eq('id', activeProjectId);
+      const { error: dbError } = await updateProjectAction(activeProjectId, { contract_url: data.publicUrl });
       if (dbError) throw dbError;
       
       setContractUrl(data.publicUrl);
@@ -548,7 +549,7 @@ function PainelIdentidade() {
     setDeadlineDate(newDate);
     setIsForceUnlocked(false);
     if (activeProjectId) {
-      await supabase.from('projects').update({ data_limite: newDate }).eq('id', activeProjectId);
+      await updateProjectAction(activeProjectId, { data_limite: newDate });
       showToast(`Prazo atualizado: ${newDate.split('-').reverse().join('/')}`);
       refreshGlobalData();
     }
@@ -557,7 +558,7 @@ function PainelIdentidade() {
   const handleStageChange = async (e: React.ChangeEvent<HTMLSelectElement>) => {
     const novaFase = e.target.value;
     if (activeProjectId) {
-      await supabase.from('projects').update({ fase: novaFase }).eq('id', activeProjectId);
+      await updateProjectAction(activeProjectId, { fase: novaFase });
       showToast("Fase do projeto atualizada com sucesso!");
       refreshGlobalData();
     }
@@ -568,7 +569,7 @@ function PainelIdentidade() {
     if (!window.confirm("Deseja marcar este projeto como ENTREGUE? O cliente terá 15 dias de acesso ao painel antes do arquivamento.")) return;
 
     try {
-      await supabase.from('projects').update({ status: 'delivered', delivered_at: new Date().toISOString() }).eq('id', activeProjectId);
+      await updateProjectAction(activeProjectId, { status: 'delivered', delivered_at: new Date().toISOString() });
       if (currentProject?.client_id) {
         await NotificationEngine.notifyUser(currentProject.client_id, "🎉 Projeto Entregue!", "Você terá 15 dias de acesso ao Meu Espaço para fazer o download final dos seus materiais.", "success", "/meu-espaco");
       }
@@ -582,7 +583,7 @@ function PainelIdentidade() {
     if (!window.confirm("ATENÇÃO: O cliente perderá acesso IMEDIATO ao painel e canais deste projeto. Deseja prosseguir?")) return;
 
     try {
-      await supabase.from('projects').update({ status: 'archived' }).eq('id', activeProjectId);
+      await updateProjectAction(activeProjectId, { status: 'archived' });
       if (currentProject?.client_id) {
         await NotificationEngine.notifyUser(currentProject.client_id, "🔒 Acesso Fechado", "O seu projeto foi arquivado. O seu acesso ao painel foi encerrado. Obrigado por confiar na Liz Design.", "info");
       }
@@ -596,7 +597,7 @@ function PainelIdentidade() {
     if (!window.confirm("Deseja REATIVAR este projeto? O cliente voltará a ter acesso total ao painel.")) return;
 
     try {
-      await supabase.from('projects').update({ status: 'active', delivered_at: null }).eq('id', activeProjectId);
+      await updateProjectAction(activeProjectId, { status: 'active', delivered_at: null });
       if (currentProject?.client_id) {
         await NotificationEngine.notifyUser(currentProject.client_id, "🔓 Operação Reativada", "O seu projeto voltou a ficar ativo. Você tem acesso total restaurado ao seu espaço.", "success", "/meu-espaco");
       }

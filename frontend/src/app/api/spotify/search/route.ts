@@ -68,3 +68,4 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'Erro interno no servidor' }, { status: 500 });
   }
 }
+

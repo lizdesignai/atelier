@@ -1,36 +1,18 @@
 // src/app/api/public-onboarding/route.ts
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getDb } from '@/lib/db';
 
-// 🛡️ CABEÇALHOS CORS OBRIGATÓRIOS E AGRESSIVOS
-// Atenção: Use "*" apenas para testar se funciona. Se funcionar, troque pelo seu domínio real 'https://www.lizdesign.com.br'
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*', 
   'Access-Control-Allow-Methods': 'GET, POST, PUT, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-client-info, apikey, X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Date, X-Api-Version',
-  'Access-Control-Max-Age': '86400', // Faz cache do Preflight por 24h
+  'Access-Control-Max-Age': '86400',
 };
 
-// 1. O GUARDA PREFLIGHT (Trata o OPTIONS obrigatoriamente)
 export async function OPTIONS() {
   return NextResponse.json({}, { status: 200, headers: corsHeaders });
 }
 
-// 2. INICIALIZAÇÃO SEGURA DO SUPABASE ADMIN E BLINDAGEM VERCEL
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-if (!supabaseUrl || !supabaseServiceKey) {
-  console.error("ERRO CRÍTICO: Variáveis de ambiente Supabase ausentes no public-onboarding!");
-}
-
-// O fallback 'dummy' impede que a Vercel interrompa a compilação estática durante o Build
-const supabaseAdmin = createClient(
-  supabaseUrl || 'https://dummy.supabase.co',
-  supabaseServiceKey || 'dummy-secret-key-para-enganar-a-vercel-no-build'
-);
-
-// 3. O PROCESSADOR POST
 export async function POST(request: Request) {
   try {
     const data = await request.json();
@@ -41,7 +23,6 @@ export async function POST(request: Request) {
       tilt_technical, tilt_culture, tilt_status, tilt_community, semiotics_choices, voice_scenarios 
     } = data;
 
-    // Validação Mínima
     if (!email || !instagram) {
       return NextResponse.json(
         { error: 'Email e Instagram são obrigatórios.' }, 
@@ -52,29 +33,32 @@ export async function POST(request: Request) {
     let clientId = null;
     let projectId = null;
 
-    // Busca o Cliente
-    const { data: profile } = await supabaseAdmin
-      .from('profiles')
-      .select('id')
-      .or(`email.eq.${email},instagram.eq.${instagram}`)
-      .limit(1)
-      .maybeSingle();
+    const sql = getDb();
 
-    if (profile?.id) {
-      clientId = profile.id;
-      
-      const { data: project } = await supabaseAdmin
-        .from('projects')
-        .select('id')
-        .eq('client_id', clientId)
-        .in('status', ['active', 'delivered'])
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      
-      if (project?.id) {
-        projectId = project.id;
+    // Busca o Cliente
+    try {
+      const profile = await (sql as any).query(`
+        SELECT id FROM profiles 
+        WHERE email = $1 OR instagram = $2
+        LIMIT 1
+      `, [email, instagram]);
+
+      if (profile && profile.length > 0) {
+        clientId = profile[0].id;
+        
+        const project = await (sql as any).query(`
+          SELECT id FROM projects
+          WHERE client_id = $1 AND status IN ('active', 'delivered')
+          ORDER BY created_at DESC
+          LIMIT 1
+        `, [clientId]);
+        
+        if (project && project.length > 0) {
+          projectId = project[0].id;
+        }
       }
+    } catch (err) {
+      console.error("[API Onboarding] Erro ao buscar perfil/projeto:", err);
     }
 
     const briefingAnswers = {
@@ -85,35 +69,28 @@ export async function POST(request: Request) {
     };
 
     // Inserção Dupla
-    const [briefingRes, labRes] = await Promise.all([
-      supabaseAdmin.from('instagram_briefings').insert({
-        client_id: clientId, 
-        project_id: projectId,
-        answers: briefingAnswers,
-        status: 'submitted',
-        created_by_email: email 
-      }),
-      supabaseAdmin.from('brandbook_laboratory').insert({
-        client_id: clientId,
-        project_id: projectId,
-        tilt_technical, tilt_culture, tilt_status, tilt_community,
-        semiotics_choices,
-        voice_scenarios,
-        created_by_email: email
-      })
-    ]);
-
-    if (briefingRes.error) {
-      console.error("[API Onboarding] Erro Briefing:", briefingRes.error);
-      throw new Error(`Falha ao gravar núcleo do negócio: ${briefingRes.error.message}`);
-    }
-    
-    if (labRes.error) {
-      console.error("[API Onboarding] Erro Brandbook:", labRes.error);
-      throw new Error(`Falha ao gravar escolhas visuais: ${labRes.error.message}`);
+    try {
+      await (sql as any).query(`
+        INSERT INTO instagram_briefings (client_id, project_id, answers, status, created_by_email)
+        VALUES ($1, $2, $3, $4, $5)
+      `, [clientId, projectId, briefingAnswers, 'submitted', email]);
+    } catch (err: any) {
+      console.error("[API Onboarding] Erro Briefing:", err);
+      throw new Error(`Falha ao gravar núcleo do negócio: ${err.message}`);
     }
 
-    // SUCESSO!
+    try {
+      await (sql as any).query(`
+        INSERT INTO brandbook_laboratory (
+          client_id, project_id, tilt_technical, tilt_culture, tilt_status, tilt_community,
+          semiotics_choices, voice_scenarios, created_by_email
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `, [clientId, projectId, tilt_technical, tilt_culture, tilt_status, tilt_community, semiotics_choices, voice_scenarios, email]);
+    } catch (err: any) {
+      console.error("[API Onboarding] Erro Brandbook:", err);
+      throw new Error(`Falha ao gravar escolhas visuais: ${err.message}`);
+    }
+
     return NextResponse.json(
       { success: true, message: 'Dossiê processado com segurança.' }, 
       { status: 200, headers: corsHeaders }
@@ -122,7 +99,6 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error("[Public Onboarding API Error]:", error);
     
-    // ERRO! Garante que os cabeçalhos CORS vão junto com a mensagem de falha
     return NextResponse.json(
       { error: error.message || 'Erro interno do servidor ao processar o Dossiê.' }, 
       { status: 500, headers: corsHeaders }

@@ -2,14 +2,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Lock, ShieldCheck, Mail, KeyRound, 
-  UserPlus, User, Building2, Package, Instagram, 
-  Loader2, ArrowLeft, RefreshCw, Fingerprint, ScanFace
+  Loader2, ArrowLeft, RefreshCw, Smartphone
 } from "lucide-react";
-import { supabase } from "../../lib/supabase"; 
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -110,7 +108,7 @@ function LogoMosaic({ isSuccess }: { isSuccess: boolean }) {
                 <motion.img
                   layout
                   key={item}
-                  src={`/images/login/${item.replace('_dup', '')}.png`}
+                  src={`/images/login/${item.replace('_dup', '')}.svg`}
                   onError={handleImageError}
                   initial={{ opacity: 0, filter: 'blur(20px) grayscale(100%)', scale: 0.2, y: 20 }}
                   animate={{ 
@@ -143,82 +141,136 @@ function LogoMosaic({ isSuccess }: { isSuccess: boolean }) {
 // ==========================================
 export default function LoginPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   
-  const [authMode, setAuthMode] = useState<'login' | 'register' | 'forgot_password'>('login');
-  const [showEmailLogin, setShowEmailLogin] = useState(false);
-  const [nome, setNome] = useState("");
-  const [empresa, setEmpresa] = useState("");
-  const [servico, setServico] = useState("");
-  const [instagram, setInstagram] = useState(""); 
+  const [authMode, setAuthMode] = useState<'login' | 'forgot_password' | 'reset_confirm'>('login');
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  
+  // MFA
+  const [mfaStep, setMfaStep] = useState(false);
+  const [mfaToken, setMfaToken] = useState("");
+  const [mfaCode, setMfaCode] = useState("");
+  
+  // Reset password
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [resetToken, setResetToken] = useState("");
   
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [isSuccessState, setIsSuccessState] = useState(false);
 
-  const handleAuth = async (e: React.FormEvent) => {
+  // Verificar se veio com token de reset na URL
+  useEffect(() => {
+    const token = searchParams.get('reset');
+    if (token) {
+      setResetToken(token);
+      setAuthMode('reset_confirm');
+    }
+  }, [searchParams]);
+
+  // ==========================================
+  // HANDLER: LOGIN COM EMAIL/SENHA
+  // ==========================================
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!email) return;
+    if (!email || !password) return;
     
     setIsAuthenticating(true);
-    const cleanEmail = email.trim();
-    
-    let cleanInstagram = instagram.trim();
-    if (cleanInstagram && !cleanInstagram.startsWith('@') && !cleanInstagram.includes('instagram.com/')) {
-      cleanInstagram = `@${cleanInstagram}`;
-    }
     
     try {
-      try { await supabase.auth.signOut(); } catch (e) {}
+      const response = await fetch("/api/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ 
+          email: email.trim(), 
+          password 
+        }),
+      });
 
-      if (authMode === 'login') {
-        const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email: cleanEmail, password });
-        if (authError) throw authError;
+      const data = await response.json();
 
-        const { data: profile, error: profileError } = await supabase.from('profiles').select('role').eq('id', authData.user.id).single();
-        if (profileError) throw profileError;
-
-        const role = profile?.role || 'client';
-        localStorage.setItem("atelier_token", authData.session.access_token);
-        localStorage.setItem("atelier_role", role);
-        
-        setIsSuccessState(true);
-        setTimeout(() => {
-          const hasSeenOnboarding = localStorage.getItem("has_seen_onboarding");
-          if (!hasSeenOnboarding) {
-            router.push("/onboarding");
-          } else {
-            router.push(role === 'client' ? "/" : "/admin/fio");
-          }
-        }, 1800);
-
-      } else if (authMode === 'register') {
-        if (!nome || !empresa || !servico || !password) {
-          showToast("Preencha todos os campos obrigatórios.");
-          setIsAuthenticating(false);
-          return;
-        }
-
-        const newRole = cleanEmail.includes('admin') ? 'admin' : cleanEmail.includes('gestor') ? 'gestor' : 'client';
-        const { data: authData, error: authError } = await supabase.auth.signUp({
-          email: cleanEmail, password,
-          options: { data: { nome, empresa, role: newRole, instagram: cleanInstagram } }
-        });
-
-        if (authError) throw authError;
-        if (newRole === 'client' && authData.user) {
-          await supabase.from('projects').insert({ client_id: authData.user.id, name: `Projeto ${empresa}`, type: servico, status: 'active' });
-        }
-        showToast("Conta criada com sucesso! Você já pode acessar.");
-        setAuthMode('login');
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao fazer login.");
       }
+
+      // Se MFA é necessário, mostrar campo de código
+      if (data.mfaRequired) {
+        setMfaToken(data.mfaToken);
+        setMfaStep(true);
+        setIsAuthenticating(false);
+        return;
+      }
+
+      // Login bem-sucedido (sem MFA)
+      const role = data.user?.role || 'client';
+      
+      setIsSuccessState(true);
+      setTimeout(() => {
+        const hasSeenOnboarding = localStorage.getItem("has_seen_onboarding");
+        if (!hasSeenOnboarding) {
+          router.push("/onboarding");
+        } else {
+          router.push(role === 'client' ? "/" : role === 'contador' ? "/admin/financeiro" : "/admin/fio");
+        }
+      }, 1800);
+
     } catch (error: any) {
-      showToast(error.message === "Invalid login credentials" ? "Credenciais inválidas. Tente novamente." : error.message);
+      showToast(error.message);
     } finally {
       if (!isSuccessState) setIsAuthenticating(false);
     }
   };
 
+  // ==========================================
+  // HANDLER: VERIFICAÇÃO MFA
+  // ==========================================
+  const handleMfaVerify = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!mfaCode || mfaCode.length < 6) {
+      showToast("Insira o código de 6 dígitos do Google Authenticator.");
+      return;
+    }
+    
+    setIsAuthenticating(true);
+
+    try {
+      const response = await fetch("/api/auth/login/mfa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ mfaToken, code: mfaCode }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Código inválido.");
+      }
+
+      const role = data.user?.role || 'client';
+      
+      setIsSuccessState(true);
+      setTimeout(() => {
+        const hasSeenOnboarding = localStorage.getItem("has_seen_onboarding");
+        if (!hasSeenOnboarding) {
+          router.push("/onboarding");
+        } else {
+          router.push(role === 'client' ? "/" : role === 'contador' ? "/admin/financeiro" : "/admin/fio");
+        }
+      }, 1800);
+
+    } catch (error: any) {
+      showToast(error.message);
+    } finally {
+      if (!isSuccessState) setIsAuthenticating(false);
+    }
+  };
+
+  // ==========================================
+  // HANDLER: SOLICITAR RESET DE SENHA
+  // ==========================================
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
@@ -227,8 +279,18 @@ export default function LoginPage() {
     }
     setIsAuthenticating(true);
     try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), { redirectTo: `${window.location.origin}/update-password` });
-      if (error) throw error;
+      const response = await fetch("/api/auth/reset-password", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim() }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao solicitar recuperação.");
+      }
+
       showToast("Link enviado para seu e-mail de forma segura.");
       setAuthMode('login');
     } catch (error: any) {
@@ -238,27 +300,56 @@ export default function LoginPage() {
     }
   };
 
-  const handleBiometricLogin = async () => {
+  // ==========================================
+  // HANDLER: CONFIRMAR NOVA SENHA (VIA TOKEN)
+  // ==========================================
+  const handleConfirmReset = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPassword || !confirmNewPassword) {
+      showToast("Preencha todos os campos.");
+      return;
+    }
+    if (newPassword !== confirmNewPassword) {
+      showToast("As senhas não coincidem.");
+      return;
+    }
+    if (newPassword.length < 6) {
+      showToast("A senha deve ter pelo menos 6 caracteres.");
+      return;
+    }
+
     setIsAuthenticating(true);
     try {
-      if (!window.PublicKeyCredential) {
-        throw new Error("Seu dispositivo não suporta autenticação biométrica (WebAuthn).");
+      const response = await fetch("/api/auth/reset-password/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token: resetToken, newPassword }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "Erro ao redefinir senha.");
       }
-      
-      // Simulação rápida para feedback visual
-      await new Promise(res => setTimeout(res, 1200));
-      
-      // Como o Supabase requer setup complexo para Passkeys, 
-      // este é o ponto onde signInWithWebAuthn seria chamado.
-      // Para o escopo atual, mostraremos o fallback ou sucesso dependendo da config.
-      throw new Error("Biometria não configurada para esta conta. Acesse via e-mail e ative a biometria nas configurações.");
-      
+
+      showToast("Senha redefinida com sucesso! Faça login.");
+      setAuthMode('login');
+      setResetToken("");
     } catch (error: any) {
       showToast(error.message);
-      setShowEmailLogin(true); // Fallback automático
     } finally {
       setIsAuthenticating(false);
     }
+  };
+
+  // ==========================================
+  // RENDER
+  // ==========================================
+  const getFormHandler = (): ((e: React.FormEvent) => void) => {
+    if (mfaStep) return handleMfaVerify;
+    if (authMode === 'forgot_password') return handleResetPassword;
+    if (authMode === 'reset_confirm') return handleConfirmReset;
+    return handleLogin;
   };
 
   return (
@@ -284,111 +375,124 @@ export default function LoginPage() {
 
               <div className="text-center mb-8 w-full">
                 <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-2 tracking-tight">
-                  {authMode === 'login' && <>Acesso ao <span className="text-[var(--color-atelier-terracota)] italic">Estúdio.</span></>}
-                  {authMode === 'register' && <>Nova <span className="text-[var(--color-atelier-terracota)] italic">Conta.</span></>}
+                  {authMode === 'login' && !mfaStep && <>Acesso ao <span className="text-[var(--color-atelier-terracota)] italic">Estúdio.</span></>}
+                  {authMode === 'login' && mfaStep && <>Verificação <span className="text-[var(--color-atelier-terracota)] italic">MFA.</span></>}
                   {authMode === 'forgot_password' && <>Recuperar <span className="text-[var(--color-atelier-terracota)] italic">Acesso.</span></>}
+                  {authMode === 'reset_confirm' && <>Nova <span className="text-[var(--color-atelier-terracota)] italic">Senha.</span></>}
                 </h1>
                 <p className="text-[13px] text-[var(--color-atelier-grafite)]/60 leading-relaxed font-medium">
-                  {authMode === 'login' && "Insira suas credenciais para acessar o espaço da sua marca."}
-                  {authMode === 'register' && "Crie um novo acesso para ingressar no ecossistema da Liz Design."}
+                  {authMode === 'login' && !mfaStep && "Insira suas credenciais para acessar o espaço da sua marca."}
+                  {authMode === 'login' && mfaStep && "Insira o código de 6 dígitos do Google Authenticator."}
                   {authMode === 'forgot_password' && "Enviaremos um protocolo seguro para o seu e-mail."}
+                  {authMode === 'reset_confirm' && "Defina a sua nova senha de acesso."}
                 </p>
               </div>
 
-              <form onSubmit={authMode === 'forgot_password' ? handleResetPassword : handleAuth} className="w-full flex flex-col gap-4">
+              <form onSubmit={getFormHandler()} className="w-full flex flex-col gap-4">
                 
-                {authMode === 'login' && !showEmailLogin && (
-                  <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-4 w-full items-center justify-center pt-2 pb-6">
-                    <div className="w-24 h-24 rounded-full bg-gray-50 flex items-center justify-center text-[var(--color-atelier-terracota)] shadow-inner mb-2 cursor-pointer hover:bg-gray-100 hover:scale-105 transition-all" onClick={handleBiometricLogin}>
-                      <ScanFace size={48} strokeWidth={1} />
-                    </div>
-                    
-                    <button type="button" onClick={handleBiometricLogin} className="w-full relative overflow-hidden rounded-[1.5rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] h-14 flex items-center justify-center gap-3 transition-all duration-500 shadow-md bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] hover:shadow-[0_15px_30px_rgba(173,111,64,0.3)] hover:-translate-y-1">
-                      {isAuthenticating ? <><Loader2 size={18} className="animate-spin" /><span>Verificando...</span></> : <><Fingerprint size={16} /> Autenticar com FaceID / TouchID</>}
-                    </button>
-                    
-                    <button type="button" onClick={() => setShowEmailLogin(true)} className="mt-2 text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors underline decoration-dotted underline-offset-4">
-                      Ou entrar com e-mail e senha
-                    </button>
-                  </motion.div>
-                )}
-
                 <AnimatePresence mode="popLayout">
-                  {(authMode !== 'login' || showEmailLogin) && (
+                  {/* ===== STEP MFA: CÓDIGO DE 6 DÍGITOS ===== */}
+                  {mfaStep && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="flex flex-col gap-4 w-full">
+                      <div className="flex justify-center mb-2">
+                        <div className="w-16 h-16 rounded-full bg-gray-50 flex items-center justify-center text-[var(--color-atelier-terracota)] shadow-inner">
+                          <Smartphone size={32} strokeWidth={1.5} />
+                        </div>
+                      </div>
+                      
+                      <div className="relative group/input">
+                        <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors z-10"><KeyRound size={18} strokeWidth={1.5} /></div>
+                        <input 
+                          type="text"
+                          inputMode="numeric"
+                          pattern="[0-9]*"
+                          maxLength={6}
+                          required
+                          autoFocus
+                          value={mfaCode} 
+                          onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))} 
+                          placeholder="000 000" 
+                          className="w-full bg-white/70 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] py-4 pl-14 pr-6 text-[20px] text-center tracking-[0.5em] text-[var(--color-atelier-grafite)] outline-none transition-all shadow-sm font-mono font-bold" 
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* ===== LOGIN: EMAIL + SENHA ===== */}
+                  {authMode === 'login' && !mfaStep && (
                     <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="flex flex-col gap-4 w-full">
                       
-                      <AnimatePresence mode="popLayout">
-                        {authMode === 'register' && (
-                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="flex flex-col gap-4">
-                            
-                            <div className="relative group/input">
-                              <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors z-10"><User size={18} strokeWidth={1.5} /></div>
-                              <input type="text" required value={nome} onChange={(e) => setNome(e.target.value)} placeholder="O seu Nome" className="w-full bg-white/70 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] outline-none transition-all shadow-sm" />
-                            </div>
-
-                            <div className="relative group/input">
-                              <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors z-10"><Building2 size={18} strokeWidth={1.5} /></div>
-                              <input type="text" required value={empresa} onChange={(e) => setEmpresa(e.target.value)} placeholder="Nome da Marca" className="w-full bg-white/70 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] outline-none transition-all shadow-sm" />
-                            </div>
-
-                            <div className="relative group/input">
-                              <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors z-10"><Instagram size={18} strokeWidth={1.5} /></div>
-                              <input type="text" value={instagram} onChange={(e) => setInstagram(e.target.value)} placeholder="Instagram" className="w-full bg-white/70 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] outline-none transition-all shadow-sm" />
-                            </div>
-
-                            <div className="relative group/input">
-                              <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors z-10"><Package size={18} strokeWidth={1.5} /></div>
-                              <select required value={servico} onChange={(e) => setServico(e.target.value)} className="w-full bg-white/70 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] outline-none transition-all shadow-sm appearance-none">
-                                <option value="" disabled>Qual serviço foi contratado?</option>
-                                <option value="Identidade Visual">Identidade Visual</option>
-                                <option value="Gestão de Instagram">Gestão de Instagram</option>
-                              </select>
-                            </div>
-
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-
                       <div className="relative group/input">
                         <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors z-10"><Mail size={18} strokeWidth={1.5} /></div>
                         <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mail de Acesso" className="w-full bg-white/70 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] outline-none transition-all shadow-sm" />
                       </div>
                       
-                      <AnimatePresence mode="popLayout">
-                        {authMode !== 'forgot_password' && (
-                          <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="relative group/input">
-                            <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors z-10"><KeyRound size={18} strokeWidth={1.5} /></div>
-                            <input 
-                              type="password" required value={password} onChange={(e) => setPassword(e.target.value)} 
-                              placeholder="Senha de Acesso" 
-                              className="w-full bg-white/70 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] outline-none transition-all shadow-sm" 
-                            />
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
+                      <div className="relative group/input">
+                        <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors z-10"><KeyRound size={18} strokeWidth={1.5} /></div>
+                        <input 
+                          type="password" required value={password} onChange={(e) => setPassword(e.target.value)} 
+                          placeholder="Senha de Acesso" 
+                          className="w-full bg-white/70 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] outline-none transition-all shadow-sm" 
+                        />
+                      </div>
 
+                    </motion.div>
+                  )}
+
+                  {/* ===== FORGOT PASSWORD: APENAS EMAIL ===== */}
+                  {authMode === 'forgot_password' && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="flex flex-col gap-4 w-full">
+                      <div className="relative group/input">
+                        <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors z-10"><Mail size={18} strokeWidth={1.5} /></div>
+                        <input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} placeholder="E-mail de Acesso" className="w-full bg-white/70 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] outline-none transition-all shadow-sm" />
+                      </div>
+                    </motion.div>
+                  )}
+
+                  {/* ===== RESET CONFIRM: NOVA SENHA ===== */}
+                  {authMode === 'reset_confirm' && (
+                    <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="flex flex-col gap-4 w-full">
+                      <div className="relative group/input">
+                        <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors z-10"><KeyRound size={18} strokeWidth={1.5} /></div>
+                        <input type="password" required value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="Nova Senha" className="w-full bg-white/70 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] outline-none transition-all shadow-sm" />
+                      </div>
+                      <div className="relative group/input">
+                        <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-[var(--color-atelier-grafite)]/40 group-focus-within/input:text-[var(--color-atelier-terracota)] transition-colors z-10"><KeyRound size={18} strokeWidth={1.5} /></div>
+                        <input type="password" required value={confirmNewPassword} onChange={(e) => setConfirmNewPassword(e.target.value)} placeholder="Confirmar Nova Senha" className="w-full bg-white/70 border border-white focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] py-4 pl-14 pr-6 text-[14px] text-[var(--color-atelier-grafite)] outline-none transition-all shadow-sm" />
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
 
+                {/* ===== LINKS DE NAVEGAÇÃO ===== */}
                 <div className="flex justify-between items-center px-2 mt-1 mb-2">
-                  {authMode === 'login' ? (
-                    <>
-                      <button type="button" onClick={() => setAuthMode('forgot_password')} className="text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors">Esqueci a senha</button>
-                      <button type="button" onClick={() => { setAuthMode('register'); setNome(""); setEmpresa(""); setServico(""); setInstagram(""); }} className="text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-grafite)] transition-colors bg-white/40 px-3 py-1.5 rounded-full border border-white shadow-sm">Criar Conta</button>
-                    </>
+                  {authMode === 'login' && !mfaStep ? (
+                    <button type="button" onClick={() => setAuthMode('forgot_password')} className="text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors m-auto">Esqueci a senha</button>
                   ) : (
-                    <button type="button" onClick={() => setAuthMode('login')} className="text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-terracota)] transition-colors flex items-center gap-1.5 m-auto bg-white/40 px-4 py-2 rounded-full border border-white shadow-sm"><ArrowLeft size={14} /> Voltar para o Login</button>
+                    <button type="button" onClick={() => { setAuthMode('login'); setMfaStep(false); setMfaCode(""); setMfaToken(""); }} className="text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-terracota)] transition-colors flex items-center gap-1.5 m-auto bg-white/40 px-4 py-2 rounded-full border border-white shadow-sm"><ArrowLeft size={14} /> Voltar para o Login</button>
                   )}
                 </div>
 
-                <AnimatePresence>
-                  {(authMode !== 'login' || showEmailLogin) && (
-                    <motion.button initial={{ opacity: 0 }} animate={{ opacity: 1 }} type="submit" disabled={isAuthenticating} className={`w-full relative overflow-hidden rounded-[1.5rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] h-14 flex items-center justify-center gap-3 transition-all duration-500 shadow-md mt-2 ${isAuthenticating ? 'bg-white border border-[var(--color-atelier-terracota)]/40 text-[var(--color-atelier-terracota)] shadow-none' : 'bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] hover:shadow-[0_15px_30px_rgba(173,111,64,0.3)] hover:-translate-y-1'}`}>
-                      {isAuthenticating ? <><Loader2 size={18} className="animate-spin" /><span>Processando...</span></> : authMode === 'login' ? <><Lock size={16} /> Acessar Plataforma</> : authMode === 'register' ? <><UserPlus size={16} /> Criar Conta</> : <><RefreshCw size={16} /> Enviar Protocolo</>}
-                    </motion.button>
+                {/* ===== BOTÃO DE SUBMIT ===== */}
+                <motion.button 
+                  initial={{ opacity: 0 }} 
+                  animate={{ opacity: 1 }} 
+                  type="submit" 
+                  disabled={isAuthenticating} 
+                  className={`w-full relative overflow-hidden rounded-[1.5rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] h-14 flex items-center justify-center gap-3 transition-all duration-500 shadow-md mt-2 ${isAuthenticating ? 'bg-white border border-[var(--color-atelier-terracota)]/40 text-[var(--color-atelier-terracota)] shadow-none' : 'bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] hover:shadow-[0_15px_30px_rgba(173,111,64,0.3)] hover:-translate-y-1'}`}
+                >
+                  {isAuthenticating ? (
+                    <><Loader2 size={18} className="animate-spin" /><span>Processando...</span></>
+                  ) : mfaStep ? (
+                    <><ShieldCheck size={16} /> Verificar Código</>
+                  ) : authMode === 'login' ? (
+                    <><Lock size={16} /> Acessar Plataforma</>
+                  ) : authMode === 'reset_confirm' ? (
+                    <><KeyRound size={16} /> Redefinir Senha</>
+                  ) : (
+                    <><RefreshCw size={16} /> Enviar Protocolo</>
                   )}
-                </AnimatePresence>
+                </motion.button>
               </form>
 
             </div>

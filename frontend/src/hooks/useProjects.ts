@@ -1,6 +1,5 @@
-// src/hooks/useProjects.ts
 import { useQuery } from "@tanstack/react-query";
-import { supabase } from "../lib/supabase";
+import { getProjectsAction } from "../app/actions/projects";
 import { useSession } from "./useSession";
 
 export function useProjects() {
@@ -11,14 +10,7 @@ export function useProjects() {
     queryKey: ["projects", userId],
     queryFn: async () => {
       if (!userId) return [];
-      const { data, error } = await supabase
-        .from("projects")
-        .select("*, profiles(nome, avatar_url, empresa)")
-        .in("status", ["active", "delivered", "archived"])
-        .order("created_at", { ascending: false });
-        
-      if (error) throw error;
-      return data || [];
+      return await getProjectsAction();
     },
     enabled: !!userId,
     staleTime: 1000 * 60 * 2, // Projetos mudam com mais frequência, cache de 2 min

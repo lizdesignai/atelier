@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { X, FolderUp, Loader2, File, ExternalLink, Image as ImageIcon, Download, CheckCircle, Trash2, Calendar, Pencil, Grid } from "lucide-react";
+import { useSession } from "../hooks/useSession";
 
 interface ClientAssetsModalProps {
   isOpen: boolean;
@@ -66,12 +67,14 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
     }
   };
 
+  const { data: session } = useSession();
+
   useEffect(() => {
     setMounted(true);
-    if (typeof window !== "undefined") {
-      setUserRole(localStorage.getItem("atelier_role"));
+    if (session?.user?.role) {
+      setUserRole(session.user.role);
     }
-  }, []);
+  }, [session]);
 
   useEffect(() => {
     if (isOpen && (projectId || subclientId)) {

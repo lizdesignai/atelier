@@ -80,7 +80,7 @@ export default function ReviewTaskPage() {
         collaboratorName: currentUser?.nome?.split(' ')[0] || 'Desconhecido'
       };
 
-      const response = await fetch(`${backendUrl}/api/v1/tasks/${taskId}/status`, {
+      const response = await fetch(`/api/tasks/${taskId}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)

@@ -35,24 +35,24 @@ export default function JTBDPage() {
   // Tasks Global State
   const [allTasks, setAllTasks] = useState<any[]>([]);
 
-  // 📅 Calendário States
+  // ðŸ“… CalendÃ¡rio States
   const [currentWeek, setCurrentWeek] = useState<Date[]>([]);
   const [weekOffset, setWeekOffset] = useState(0);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [isRescheduling, setIsRescheduling] = useState<string | null>(null);
   
-  // Atribuição de Tarefas Ad-Hoc
+  // AtribuiÃ§Ã£o de Tarefas Ad-Hoc
   const [projects, setProjects] = useState<any[]>([]);
   const [isAdHocModalOpen, setIsAdHocModalOpen] = useState(false);
   const [adHocProcessing, setAdHocProcessing] = useState(false);
   const [adHocForm, setAdHocForm] = useState({ title: "", projectId: "", assigneeId: "", estTime: 60, deadline: "", description: "" });
 
-  // ⚡ Focus Mode & Client Switching States
+  // âš¡ Focus Mode & Client Switching States
   const [focusMode, setFocusMode] = useState<'urgent' | 'monthly'>('urgent');
   const [selectedClient, setSelectedClient] = useState<any | null>(null);
   const [assignedClients, setAssignedClients] = useState<any[]>([]);
 
-  // Lógica de Paginação da Semana (Offset)
+  // LÃ³gica de PaginaÃ§Ã£o da Semana (Offset)
   useEffect(() => {
     const getOffsetWeek = (offset: number) => {
       const curr = new Date();
@@ -103,7 +103,7 @@ export default function JTBDPage() {
     const fetchAssigned = async () => {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
       try {
-        const resAssigned = await fetch(`${backendUrl}/api/v1/focus/assigned-clients/${viewingUserId}`);
+        const resAssigned = await fetch(`/api/focus/assigned-clients/${viewingUserId}`);
         if (resAssigned.ok) {
           const { data: clientsData } = await resAssigned.json();
           setAssignedClients(clientsData || []);
@@ -149,7 +149,7 @@ export default function JTBDPage() {
         .order('deadline', { ascending: true });
       
       if (tasksData) {
-        // Ordenação rigorosa em memória pelo prazo mais apertado (considerando a brevidade)
+        // OrdenaÃ§Ã£o rigorosa em memÃ³ria pelo prazo mais apertado (considerando a brevidade)
         tasksData.sort((a, b) => {
           const dateA = new Date(a.internal_deadline || a.deadline).getTime();
           const dateB = new Date(b.internal_deadline || b.deadline).getTime();
@@ -164,7 +164,7 @@ export default function JTBDPage() {
         const finalTasks = optimizedTasks || tasksData;
 
         // ==========================================
-        // COTA DE PRODUTIVIDADE (FOCO DIÁRIO) EM LOTES DE 5
+        // COTA DE PRODUTIVIDADE (FOCO DIÃRIO) EM LOTES DE 5
         // ==========================================
         const byAssignee: Record<string, any[]> = {};
         finalTasks.forEach(t => {
@@ -177,15 +177,15 @@ export default function JTBDPage() {
         const now = new Date();
         let startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         
-        // Se hoje for fim de semana ou já passou do horário comercial (18h),
-        // a esteira de produtividade já foca automaticamente no próximo dia útil.
+        // Se hoje for fim de semana ou jÃ¡ passou do horÃ¡rio comercial (18h),
+        // a esteira de produtividade jÃ¡ foca automaticamente no prÃ³ximo dia Ãºtil.
         if (isWeekend(startOfToday) || now.getHours() >= 18) {
           startOfToday = addBusinessDays(startOfToday, 1);
         }
 
         Object.values(byAssignee).forEach(assigneeTasks => {
           // Espelhar exatamente a ordem visual do DailyKanban:
-          // 1º in_progress, 2º pending (mantendo a ordenação por urgência/valor original)
+          // 1Âº in_progress, 2Âº pending (mantendo a ordenaÃ§Ã£o por urgÃªncia/valor original)
           const inProgress = assigneeTasks.filter(t => t.status === 'in_progress');
           const pending = assigneeTasks.filter(t => t.status === 'pending');
           const sortedAssigneeTasks = [...inProgress, ...pending];
@@ -195,10 +195,10 @@ export default function JTBDPage() {
              const batchIndex = Math.floor(i / 5);
              const rawTargetDate = addBusinessDays(startOfToday, batchIndex);
              
-             // Forçamos a esteira diária ignorando o prazo real
+             // ForÃ§amos a esteira diÃ¡ria ignorando o prazo real
              task.productivity_deadline = rawTargetDate.toISOString();
              
-             // Lógica inteligente de Label
+             // LÃ³gica inteligente de Label
              const targetTime = rawTargetDate.getTime();
              const realTodayTime = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
              const diffDays = Math.round((targetTime - realTodayTime) / (1000 * 60 * 60 * 24));
@@ -206,21 +206,21 @@ export default function JTBDPage() {
              if (batchIndex === 0) {
                task.productivity_label = "HOJE";
              } else if (batchIndex === 1) {
-               task.productivity_label = "AMANHÃ";
+               task.productivity_label = "AMANHÃƒ";
              } else {
                task.productivity_label = rawTargetDate.toLocaleDateString('pt-BR');
              }
              
-             // O usuário solicitou explicitamente: "iremos conservar a data abreviada"
-             // Portanto, NÃO substituímos o internal_deadline (data abreviada).
-             // A view (TaskCard) usará o productivity_deadline para exibição.
+             // O usuÃ¡rio solicitou explicitamente: "iremos conservar a data abreviada"
+             // Portanto, NÃƒO substituÃ­mos o internal_deadline (data abreviada).
+             // A view (TaskCard) usarÃ¡ o productivity_deadline para exibiÃ§Ã£o.
           }
         });
 
         setAllTasks([...finalTasks]);
 
         // ==========================================
-        // URL DINÂMICA: Abrir tarefa se estiver na URL
+        // URL DINÃ‚MICA: Abrir tarefa se estiver na URL
         // ==========================================
         if (typeof window !== "undefined") {
           const params = new URLSearchParams(window.location.search);
@@ -230,7 +230,7 @@ export default function JTBDPage() {
             if (taskToOpen) {
               setActiveTaskModal({
                 task: taskToOpen,
-                isFocus: true, // Ou poderíamos calcular com base em focusMode
+                isFocus: true, // Ou poderÃ­amos calcular com base em focusMode
                 isReview: taskToOpen.status === 'review',
                 isCompleted: taskToOpen.status === 'completed' || taskToOpen.status === 'pending_client_approval'
               });
@@ -248,21 +248,21 @@ export default function JTBDPage() {
   };
 
   // ==========================================================================
-  // 🚀 MOTORES DE ROTEAMENTO (FASE 2)
+  // ðŸš€ MOTORES DE ROTEAMENTO (FASE 2)
   // ==========================================================================
   const handleClientApprovalRouting = async (task: any) => {
     // 1. O Gestor tentou "Aprovar" (Concluir) uma tarefa que tem ficheiro anexado.
-    // Em vez de fechar, nós enviamos a bola para o Cockpit do Cliente.
+    // Em vez de fechar, nÃ³s enviamos a bola para o Cockpit do Cliente.
     try {
-      const isPlanning = task.title?.toLowerCase().includes('planejamento') || task.title?.toLowerCase().includes('estratégia');
+      const isPlanning = task.title?.toLowerCase().includes('planejamento') || task.title?.toLowerCase().includes('estratÃ©gia');
       const clientId = task.projects?.client_id;
       
       if (!clientId) {
-        showToast("Projeto sem cliente associado. Tarefa concluída internamente.");
-        return 'completed'; // Se não há cliente para aprovar, fecha a tarefa.
+        showToast("Projeto sem cliente associado. Tarefa concluÃ­da internamente.");
+        return 'completed'; // Se nÃ£o hÃ¡ cliente para aprovar, fecha a tarefa.
       }
 
-      showToast("Encaminhando para aprovação do cliente...");
+      showToast("Encaminhando para aprovaÃ§Ã£o do cliente...");
 
       if (isPlanning) {
         // Rota de Planejamento Mensal (PDF)
@@ -276,7 +276,7 @@ export default function JTBDPage() {
           created_at: new Date().toISOString()
         });
       } else {
-        // Rota de Post / Peça Gráfica ou Tarefa Genérica
+        // Rota de Post / PeÃ§a GrÃ¡fica ou Tarefa GenÃ©rica
         const { data: existingPost } = await supabase
           .from('social_posts')
           .select('id')
@@ -294,8 +294,8 @@ export default function JTBDPage() {
       // Notifica o cliente
       await NotificationEngine.notifyUser(
         clientId,
-        isPlanning ? "📅 Planejamento Disponível" : "🎨 Arte Aguardando Avaliação",
-        `Há material referente a "${task.title}" aguardando sua validação no painel.`,
+        isPlanning ? "ðŸ“… Planejamento DisponÃ­vel" : "ðŸŽ¨ Arte Aguardando AvaliaÃ§Ã£o",
+        `HÃ¡ material referente a "${task.title}" aguardando sua validaÃ§Ã£o no painel.`,
         "action",
         "/cockpit"
       );
@@ -303,7 +303,7 @@ export default function JTBDPage() {
       return 'pending_client_approval'; // Retorna o novo status real
     } catch (e) {
       console.error("Erro no roteamento para o cliente", e);
-      showToast("Erro ao enviar ao cliente. Mantida em revisão.");
+      showToast("Erro ao enviar ao cliente. Mantida em revisÃ£o.");
       return 'review';
     }
   };
@@ -313,17 +313,17 @@ export default function JTBDPage() {
     try {
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
       
-      // 🟢 O Roteador Interceptador Local (Se precisar, podemos passar isso pro backend no futuro)
+      // ðŸŸ¢ O Roteador Interceptador Local (Se precisar, podemos passar isso pro backend no futuro)
       let finalStatus = requestedStatus;
       if (requestedStatus === 'completed' && task.attachment_url && task.status !== 'pending_client_approval') {
         finalStatus = await handleClientApprovalRouting(task);
       }
 
-      // 🟢 Atualização Otimista na UI
+      // ðŸŸ¢ AtualizaÃ§Ã£o Otimista na UI
       setAllTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: finalStatus } : t));
 
-      // 🟢 Chamada ao nosso novo Backend Ultrarrápido
-      const response = await fetch(`${backendUrl}/api/v1/tasks/${task.id}/status`, {
+      // ðŸŸ¢ Chamada ao nosso novo Backend UltrarrÃ¡pido
+      const response = await fetch(`/api/tasks/${task.id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -349,7 +349,7 @@ export default function JTBDPage() {
          if (finalStatus === 'completed') {
            await AtelierPMEngine.unlockDependencies(task.id);
            
-           // 🟢 SINCRONIZAÇÃO TRELLO NATIVA
+           // ðŸŸ¢ SINCRONIZAÃ‡ÃƒO TRELLO NATIVA
            try {
              await syncTaskCompletionToTrello(task);
            } catch(e) {
@@ -359,7 +359,7 @@ export default function JTBDPage() {
          showToast("Tarefa Aprovada com sucesso!");
          window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
       } else if (finalStatus === 'review') {
-         showToast("Tarefa enviada para revisão interna!");
+         showToast("Tarefa enviada para revisÃ£o interna!");
          window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
       }
     } catch (error) {
@@ -383,7 +383,7 @@ export default function JTBDPage() {
       setAllTasks(prev => prev.map(t => t.id === task.id ? { ...t, deadline: newDateStr } : t));
       
       await CalendarEngine.rescheduleTask(task.id, newDateStr);
-      showToast("Tarefa adiada para o próximo dia útil.");
+      showToast("Tarefa adiada para o prÃ³ximo dia Ãºtil.");
     } catch (e) {
       showToast("Erro ao reagendar.");
       fetchJTBDData();
@@ -405,7 +405,7 @@ export default function JTBDPage() {
     if (task && !task.is_blocked) {
       updateTaskStatus(task, newStatus);
     } else if (task?.is_blocked) {
-      showToast("Operação bloqueada. Conclua as dependências primeiro.");
+      showToast("OperaÃ§Ã£o bloqueada. Conclua as dependÃªncias primeiro.");
     }
   };
 
@@ -424,7 +424,7 @@ export default function JTBDPage() {
         urgency: true, 
         status: 'pending',
         task_type: 'setup',
-        stage: 'Ad-Hoc (Urgência)'
+        stage: 'Ad-Hoc (UrgÃªncia)'
       });
 
       if (error) throw error;
@@ -432,14 +432,14 @@ export default function JTBDPage() {
       if (adHocForm.assigneeId !== currentUser.id) {
          await NotificationEngine.notifyUser(
            adHocForm.assigneeId,
-           "🔥 Nova Demanda Urgente",
-           `A gestão atribuiu-lhe a seguinte tarefa com prioridade máxima: ${adHocForm.title}`,
+           "ðŸ”¥ Nova Demanda Urgente",
+           `A gestÃ£o atribuiu-lhe a seguinte tarefa com prioridade mÃ¡xima: ${adHocForm.title}`,
            "warning",
            "/admin/jtbd"
          );
       }
 
-      showToast("🔥 Prioridade atribuída com sucesso!");
+      showToast("ðŸ”¥ Prioridade atribuÃ­da com sucesso!");
       setIsAdHocModalOpen(false);
       setAdHocForm({ title: "", projectId: "", assigneeId: "", estTime: 60, deadline: "", description: "" });
       fetchJTBDData();
@@ -466,7 +466,7 @@ export default function JTBDPage() {
 
   const viewedUser = team.find(t => t.id === viewingUserId) || currentUser;
   
-  // 🟢 INVARIÁVEL: Tarefas do colaborador ativo para métricas precisas (Eficiência % e Horas)
+  // ðŸŸ¢ INVARIÃVEL: Tarefas do colaborador ativo para mÃ©tricas precisas (EficiÃªncia % e Horas)
   const userAllAssignedTasks = allTasks.filter(t => t.assigned_to === viewingUserId);
 
   // Tasks assigned to viewed user or filtered by selected client (still scoped to viewed user)
@@ -487,7 +487,7 @@ export default function JTBDPage() {
             return false;
           }
         }
-        // Se for a tela inicial sem filtro de data, exibimos as próximas demandas em aberto
+        // Se for a tela inicial sem filtro de data, exibimos as prÃ³ximas demandas em aberto
         return t.status !== 'completed' && t.status !== 'pending_client_approval';
       }).slice(0, selectedDate ? undefined : 10) // Limitadas a 10 prioridades
     : allUserTasks.filter(t => {
@@ -498,11 +498,11 @@ export default function JTBDPage() {
         return true;
       });
 
-  // 🟢 FILTROS DE COLUNAS
+  // ðŸŸ¢ FILTROS DE COLUNAS
   const pendingTasks = displayedTasks.filter(t => t.status === 'pending' || t.status === 'draft');
   const inProgressTasks = displayedTasks.filter(t => t.status === 'in_progress');
   
-  // 🟢 MÁGICA VISUAL: Tarefas 'pending_client_approval' ficam ancoradas na coluna de revisão
+  // ðŸŸ¢ MÃGICA VISUAL: Tarefas 'pending_client_approval' ficam ancoradas na coluna de revisÃ£o
   const reviewTasks = displayedTasks.filter(t => t.status === 'review');
   
   const currentMonth = now.getMonth();

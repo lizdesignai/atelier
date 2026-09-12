@@ -1,7 +1,7 @@
 // src/app/api/webhooks/notifications/route.ts
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
-import { createClient } from '@supabase/supabase-js';
+import { getDb } from '@/lib/db';
 
 const ADMIN_EMAIL = 'lizbranddesign@gmail.com';
 const FROM_EMAIL = 'Liz Design <sistema@lizdesign.com.br>'; 
@@ -186,21 +186,12 @@ async function sendEmailSafely(resend: Resend, to: string, subject: string, html
 // ============================================================================
 export async function POST(request: Request) {
   console.log("=======================================================");
-  console.log("[WEBHOOK AUDIT] Operação recebida pelo Gateway do Supabase.");
+  console.log("[WEBHOOK AUDIT] Operação recebida pelo Gateway de Notificações.");
   
   try {
     const resend = new Resend(process.env.RESEND_API_KEY);
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-    
-    // 🟢 Chave Mestra para furar o RLS e acessar emails e metadados ocultos
-    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY || ''; 
-    
-    if (!supabaseUrl || !supabaseKey) {
-      console.error("[Webhook] Chaves do Supabase não encontradas.");
-      return NextResponse.json({ error: 'Erro de configuração' }, { status: 500 });
-    }
+    const sql = getDb();
 
-    const supabase = createClient(supabaseUrl, supabaseKey);
     const payload = await request.json();
     const { table, type, record, old_record, custom_event } = payload;
     
@@ -211,16 +202,32 @@ export async function POST(request: Request) {
     // Extratores Dinâmicos
     const getClientProfile = async (projectId: string): Promise<ProfileData | null> => {
       if (!projectId) return null;
-      const { data, error } = await supabase.from('projects').select('profiles(id, nome, email)').eq('id', projectId).single();
-      if (error) return null;
-      const profile = data?.profiles as unknown as ProfileData | ProfileData[];
-      return Array.isArray(profile) ? profile[0] : profile;
+      try {
+        const result = await (sql as any).query(`
+          SELECT pr.id, pr.nome, pr.email
+          FROM projects p
+          LEFT JOIN profiles pr ON p.client_id = pr.id
+          WHERE p.id = $1
+          LIMIT 1
+        `, [projectId]);
+        if (result && result.length > 0) return result[0] as ProfileData;
+      } catch (err) {
+        console.error('[Webhook] getClientProfile error:', err);
+      }
+      return null;
     };
 
     const getUserProfile = async (userId: string): Promise<ProfileData | null> => {
       if (!userId) return null;
-      const { data } = await supabase.from('profiles').select('id, nome, email, avatar_url, role').eq('id', userId).single();
-      return data as ProfileData;
+      try {
+        const result = await (sql as any).query(`
+          SELECT id, nome, email, avatar_url, role FROM profiles WHERE id = $1 LIMIT 1
+        `, [userId]);
+        if (result && result.length > 0) return result[0] as ProfileData;
+      } catch (err) {
+        console.error('[Webhook] getUserProfile error:', err);
+      }
+      return null;
     };
 
     // =========================================================================
@@ -247,7 +254,11 @@ export async function POST(request: Request) {
       const sender = await getUserProfile(record.sender_id);
       if (!sender) return NextResponse.json({ success: true });
 
-      const { data: channel } = await supabase.from('channels').select('project_id, is_private, type, name').eq('id', record.channel_id).single();
+      const channelResult = await (sql as any).query(
+        `SELECT project_id, is_private, type, name FROM channels WHERE id = $1 LIMIT 1`,
+        [record.channel_id]
+      );
+      const channel = channelResult?.[0] || null;
       if (!channel) return NextResponse.json({ success: true });
 
       const senderName = sender.nome.split(' ')[0];
@@ -361,9 +372,11 @@ export async function POST(request: Request) {
       }
 
       if (old_record.status !== 'needs_revision' && record.status === 'needs_revision') {
-        const { data: proj } = await supabase.from('projects').select('profiles(nome)').eq('id', record.project_id).single();
-        const rawProjProfile = proj?.profiles as unknown as ProfileData | ProfileData[];
-        const pName = Array.isArray(rawProjProfile) ? rawProjProfile[0]?.nome : rawProjProfile?.nome;
+        const projResult = await (sql as any).query(
+          `SELECT pr.nome FROM projects p LEFT JOIN profiles pr ON p.client_id = pr.id WHERE p.id = $1 LIMIT 1`,
+          [record.project_id]
+        );
+        const pName = projResult?.[0]?.nome || null;
         
         await sendEmailSafely(resend, ADMIN_EMAIL, `🔄 Ajuste Solicitado: ${pName}`, buildAppLikeEmail("📝", "Ajuste Solicitado", copyClientFeedback(pName || "Cliente"), "Ver Detalhes", `${portalUrl}/admin/jtbd`), "Post Rejected");
       }

@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence, Variants } from "framer-motion";
 import dynamic from "next/dynamic";
-import { supabase } from "../lib/supabase"; 
+
 import AppSidebar from "../components/layout/AppSidebar";
 import AppHeader from "../components/layout/AppHeader"; 
 import { GlobalStoreProvider } from "../contexts/GlobalStore";
@@ -146,36 +146,38 @@ export default function ClientShell({ children }: { children: React.ReactNode })
   useEffect(() => {
     let timer: NodeJS.Timeout;
     const checkAuth = async () => {
-      const token = typeof window !== "undefined" ? localStorage.getItem("atelier_token") : null;
-      const role = typeof window !== "undefined" ? localStorage.getItem("atelier_role") : null;
-      
       if (typeof document !== "undefined") {
         document.title = "Atelier";
       }
 
-      if ((!token || !role) && !isLoginPage) {
-        localStorage.removeItem("atelier_token");
-        localStorage.removeItem("atelier_role");
-        router.replace("/login");
-        setIsInitializing(false);
-        return;
-      }
+      // Verificar sessão via API (cookie HttpOnly JWT)
+      try {
+        const response = await fetch("/api/auth/me", { credentials: "include" });
+        const data = await response.json();
+        
+        if (!response.ok || data.authenticated === false) {
+          // Não autenticado
+          if (!isLoginPage) {
+            router.replace("/login");
+          }
+          setIsInitializing(false);
+          return;
+        }
 
-      if (token && role) {
+        const { user } = data;
+        const role = user?.role || 'client';
         setUserRole(role);
 
         if (isLoginPage) {
           router.replace(role === "client" ? "/" : role === "contador" ? "/admin/financeiro" : "/admin/fio");
-        } else if (role === "client" && pathname.startsWith("/admin")) {
-          router.replace("/");
-        } else if ((role === "admin" || role === "gestor") && pathname === "/") {
-          router.replace("/admin/fio");
-        } else if (role === "contador" && pathname === "/") {
-          router.replace("/admin/financeiro");
         }
 
         timer = setTimeout(() => setIsInitializing(false), 500);
-      } else {
+      } catch {
+        // Erro de rede — se não está na página de login, redirecionar
+        if (!isLoginPage) {
+          router.replace("/login");
+        }
         setIsInitializing(false);
       }
     };
@@ -186,12 +188,12 @@ export default function ClientShell({ children }: { children: React.ReactNode })
     };
   }, [pathname, router, isLoginPage]);
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     triggerToast("A encerrar sessão com segurança...");
-    setTimeout(() => {
-      localStorage.removeItem("atelier_token");
-      localStorage.removeItem("atelier_role");
-      supabase.auth.signOut(); 
+    setTimeout(async () => {
+      try {
+        await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
+      } catch {}
       router.replace("/login");
     }, 1000);
   };

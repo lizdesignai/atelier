@@ -60,7 +60,7 @@ const showToast = (msg: string) => window.dispatchEvent(new CustomEvent("showToa
 // ============================================================================
 function RichText({ text, isMe = false }: { text: string, isMe?: boolean }) {
   if (!text) return null;
-  const parts = text.split(/(@[a-zA-ZÀ-ÿ0-9_]+)/g);
+  const parts = text.split(/(@[a-zA-Z0-9_\u00C0-\u00FF]+)/g);
   return (
     <span>
       {parts.map((part, i) =>
@@ -124,10 +124,10 @@ function FioPost({
           {/* Header */}
           <div className={`flex items-baseline gap-1.5 mb-1 px-1 ${isMe ? 'flex-row-reverse' : 'flex-row'}`}>
             <span className="font-bold text-[12px] text-[var(--color-atelier-grafite)]/90 truncate">
-              {post.profiles?.nome?.split(' ')[0] || "Anônimo"}
+              {post.profiles?.nome?.split(' ')?.[0] || "Anônimo"}
             </span>
             <span className="text-[10px] text-[var(--color-atelier-grafite)]/40 lowercase truncate">
-              @{post.profiles?.nome?.split(' ')[0].toLowerCase() || "user"}
+              @{post.profiles?.nome?.split(' ')?.[0]?.toLowerCase() || "user"}
             </span>
             <span className="text-[9px] text-[var(--color-atelier-grafite)]/30 mx-1 shrink-0">
               {timeAgo(post.created_at)}
@@ -428,14 +428,27 @@ export default function FioPage() {
 
     const { data, error } = await supabase
       .from("messages")
-      .select("*, profiles(id, nome, avatar_url, role)")
+      .select("*")
       .eq("channel_id", activeFioId)
       .order("created_at", { ascending: false });
 
     if (!error && data) {
+      // Manually fetch profiles since custom Neon query builder strips joins
+      // Filter out non-UUIDs (like 'system') to prevent Postgres casting errors
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const senderIds = Array.from(new Set(data.map((m: any) => m.sender_id).filter((id: any) => id && uuidRegex.test(String(id)))));
+      let profilesMap: Record<string, any> = {};
+      
+      if (senderIds.length > 0) {
+        const { data: profs } = await supabase.from("profiles").select("*").in("id", senderIds);
+        if (profs) {
+          profs.forEach((p: any) => { profilesMap[p.id] = p; });
+        }
+      }
+
       const formatted = data.map((m: any) => ({
         ...m,
-        profiles: Array.isArray(m.profiles) ? m.profiles[0] : m.profiles,
+        profiles: profilesMap[m.sender_id] || m.profiles || null,
       })) as PostData[];
       setPosts(formatted);
     }
@@ -542,12 +555,12 @@ export default function FioPage() {
       fetchPosts();
 
       // Notify Mentions & General Channel Members
-      const mentions = text.match(/(@[a-zA-ZÀ-ÿ0-9_]+)/g);
+      const mentions = text.match(/(@[a-zA-Z0-9_\u00C0-\u00FF]+)/g);
       const mentionedIds = new Set<string>();
       if (mentions) {
         mentions.forEach(mention => {
           const name = mention.substring(1).trim().toLowerCase();
-          const user = allProfiles.find(p => p.nome.split(" ")[0].toLowerCase() === name);
+          const user = allProfiles.find(p => p.nome?.split(" ")?.[0]?.toLowerCase() === name);
           if (user && user.id !== currentUser.id) {
              mentionedIds.add(user.id);
              import("../../../lib/NotificationEngine").then(({ NotificationEngine }) => {
@@ -781,7 +794,8 @@ export default function FioPage() {
           <div className="relative z-10 flex flex-col gap-4 items-center text-center">
             <UserAvatar profile={currentUser} size="lg" className="!w-20 !h-20 !rounded-3xl shadow-md border-2 border-white" />
             <div className="flex flex-col min-w-0">
-               <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] truncate leading-none">{currentUser?.nome}</span>
+               <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] truncate leading-none">{currentUser?.nome || "Anônimo"}</span>
+               <span className="text-[12px] font-bold text-[var(--color-atelier-grafite)]/40 lowercase truncate mt-1">@{currentUser?.nome?.split(' ')?.[0]?.toLowerCase() || "user"}</span>
             </div>
           </div>
         </aside>

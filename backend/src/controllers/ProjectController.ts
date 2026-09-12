@@ -24,8 +24,8 @@ export class ProjectController {
 
       // Unificar carteira
       const unifiedWallet = [
-        ...(projectsRes.data || []).map(p => ({ ...p, entityType: 'project' })),
-        ...(agenciesRes.data || []).map(a => ({ ...a, entityType: 'agency' }))
+        ...(projectsRes.data || []).map((p: any) => ({ ...p, entityType: 'project' })),
+        ...(agenciesRes.data || []).map((a: any) => ({ ...a, entityType: 'agency' }))
       ];
 
       return res.status(200).json({ data: unifiedWallet });

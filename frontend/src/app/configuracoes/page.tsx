@@ -8,7 +8,9 @@ import {
   ShieldCheck, Save, Calendar, MapPin, Download, Loader2, Link as LinkIcon, KeyRound, CheckCircle2, Lock, Instagram, Clock
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
-import { NotificationEngine } from "../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
+import { NotificationEngine } from "../../lib/NotificationEngine"; 
+import { getProfileByIdAction, updateProfileAction } from "../actions/profiles";
+import { getProjectsAction } from "../actions/projects";
 
 // Função para disparar os Toasts Globais
 const showToast = (message: string) => {
@@ -22,10 +24,8 @@ export default function ConfiguracoesPage() {
   const [userId, setUserId] = useState<string | null>(null);
   const [userRole, setUserRole] = useState<string>("client");
   
-  // Estado para guardar a URL do contrato vinda do projeto
   const [contractUrl, setContractUrl] = useState<string | null>(null);
 
-  // Estados do Formulário de Perfil
   const [avatar, setAvatar] = useState<string>("https://ui-avatars.com/api/?name=User&background=ad6f40&color=fbf4e4");
   const [formData, setFormData] = useState({
     nome: "",
@@ -33,47 +33,42 @@ export default function ConfiguracoesPage() {
     aniversario: "",
     bio: "",
     empresa: "",
-    cargo: "", // Campo para a equipe
+    cargo: "", 
     nif: "",
     endereco: "",
-    instagram: "" // NOVO: Campo de Instagram
+    instagram: ""
   });
 
-  // Estados do Formulário de Senha
-  const [passwordData, setPasswordData] = useState({ newPassword: "", confirmPassword: "" });
+  const [passwordData, setPasswordData] = useState({ currentPassword: "", newPassword: "", confirmPassword: "" });
   const [isChangingPassword, setIsChangingPassword] = useState(false);
 
   // ==========================================
-  // BUSCA INICIAL DOS DADOS NO SUPABASE (READ)
+  // BUSCA INICIAL DOS DADOS NO NEON VIA ACTION
   // ==========================================
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const res = await fetch('/api/auth/me');
+        const data = await res.json();
+        if (!res.ok || data.authenticated === false) throw new Error('Não autenticado');
         
-        if (session?.user) {
-          setUserId(session.user.id);
+        if (data.user) {
+          setUserId(data.user.id);
           
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (error) throw error;
+          const profile = await getProfileByIdAction(data.user.id);
 
           if (profile) {
             setUserRole(profile.role);
             setFormData({
               nome: profile.nome || "",
-              email: profile.email || session.user.email || "",
+              email: profile.email || data.user.email || "",
               aniversario: profile.aniversario || "",
               bio: profile.bio || "",
               empresa: profile.empresa || "",
               cargo: profile.cargo || "",
               nif: profile.nif || "",
               endereco: profile.endereco || "",
-              instagram: profile.instagram || "" // Carrega o Instagram do DB
+              instagram: profile.instagram || ""
             });
             
             if (profile.avatar_url) {
@@ -82,11 +77,11 @@ export default function ConfiguracoesPage() {
               setAvatar(`https://ui-avatars.com/api/?name=${encodeURIComponent(profile.nome)}&background=ad6f40&color=fbf4e4`);
             }
 
-            // Se for cliente, busca o link do contrato na tabela projects
             if (profile.role === 'client') {
-              const { data: project } = await supabase.from('projects').select('contract_url').eq('client_id', session.user.id).eq('status', 'active').maybeSingle();
-              if (project?.contract_url) {
-                setContractUrl(project.contract_url);
+              const projects = await getProjectsAction();
+              const activeProj = projects.find((p: any) => p.status === 'active');
+              if (activeProj?.contract_url) {
+                setContractUrl(activeProj.contract_url);
               }
             }
           }
@@ -110,13 +105,11 @@ export default function ConfiguracoesPage() {
     
     try {
       const fileExt = file.name.split('.').pop();
-      // O nome do arquivo usa a data para forçar a renderização limpa e quebrar o cache, 
-      // mas o upsert garante que não há bugs de sobreposição.
       const fileName = `${userId}_avatar_${Date.now()}.${fileExt}`;
       
       const { error: uploadError } = await supabase.storage
         .from('avatars')
-        .upload(fileName, file, { upsert: true }); // UPSERT Sênior: Substitui se houver conflito
+        .upload(fileName, file, { upsert: true });
 
       if (uploadError) throw uploadError;
 
@@ -126,12 +119,12 @@ export default function ConfiguracoesPage() {
       showToast("Foto alterada! Clique em 'Salvar Configurações' para aplicar.");
     } catch (error) {
       console.error(error);
-      showToast("Erro ao fazer upload da imagem. Certifique-se que o Bucket existe.");
+      showToast("Erro ao fazer upload da imagem.");
     }
   };
 
   // ==========================================
-  // ATUALIZAÇÃO DOS DADOS NO SUPABASE (UPDATE)
+  // ATUALIZAÇÃO DOS DADOS NO NEON VIA ACTION
   // ==========================================
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -141,7 +134,6 @@ export default function ConfiguracoesPage() {
     showToast("Sincronizando dados com o sistema...");
     
     try {
-      // Formata o @ do instagram caso o cliente esqueça ou coloque a url inteira
       let cleanInstagram = formData.instagram.trim();
       if (cleanInstagram.includes('instagram.com/')) {
         cleanInstagram = cleanInstagram.split('instagram.com/')[1].split('/')[0];
@@ -159,7 +151,6 @@ export default function ConfiguracoesPage() {
         instagram: cleanInstagram
       };
 
-      // Grava o campo correto mediante o cargo
       if (userRole === 'client') {
         updateData.empresa = formData.empresa;
         updateData.nif = formData.nif;
@@ -167,13 +158,11 @@ export default function ConfiguracoesPage() {
         updateData.cargo = formData.cargo;
       }
 
-      const { error } = await supabase.from('profiles').update(updateData).eq('id', userId);
-      if (error) throw error;
+      await updateProfileAction(userId, updateData);
 
-      // 🔔 NOTIFICAÇÃO: Se for cliente, avisa a gestão da atualização de dados (CRM)
       if (userRole === 'client') {
         await NotificationEngine.notifyManagement(
-          "📝 CRM: Perfil Atualizado",
+          "🏢 CRM: Perfil Atualizado",
           `O cliente ${formData.nome} atualizou as suas informações de perfil/empresa.`,
           "info",
           "/admin/clientes"
@@ -181,7 +170,7 @@ export default function ConfiguracoesPage() {
       }
 
       setFormData(prev => ({ ...prev, instagram: cleanInstagram }));
-      showToast("✨ Configurações salvas e atualizadas no sistema.");
+      showToast("✅ Configurações salvas e atualizadas no sistema.");
     } catch (error: any) {
       console.error("Erro ao salvar:", error);
       showToast("Erro ao salvar: " + error.message);
@@ -191,11 +180,16 @@ export default function ConfiguracoesPage() {
   };
 
   // ==========================================
-  // REDEFINIÇÃO DE SENHA (GoTrue AUTH)
+  // REDEFINIÇÃO DE SENHA (Custom JWT Auth)
   // ==========================================
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     
+    if (!passwordData.currentPassword) {
+      showToast("Acesso Negado: A senha atual é obrigatória.");
+      return;
+    }
+
     if (passwordData.newPassword.length < 6) {
       showToast("Acesso Negado: A senha deve ter no mínimo 6 caracteres.");
       return;
@@ -210,14 +204,20 @@ export default function ConfiguracoesPage() {
     showToast("Atualizando segurança da conta...");
 
     try {
-      const { error } = await supabase.auth.updateUser({
-        password: passwordData.newPassword
+      const res = await fetch('/api/auth/change-password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword
+        })
       });
 
-      if (error) throw error;
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Erro ao alterar senha');
 
       showToast("✅ Credenciais de segurança atualizadas com sucesso!");
-      setPasswordData({ newPassword: "", confirmPassword: "" }); // Limpa o form
+      setPasswordData({ currentPassword: "", newPassword: "", confirmPassword: "" }); // Limpa o form
     } catch (error: any) {
       showToast(`Falha na segurança: ${error.message}`);
     } finally {
@@ -471,6 +471,18 @@ export default function ConfiguracoesPage() {
                   </div>
 
                   <div className="bg-white border border-white p-8 rounded-[2.5rem] shadow-sm flex flex-col gap-6 max-w-xl">
+                    <div className="flex flex-col gap-2 group/input">
+                      <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1 flex items-center gap-1.5 transition-colors">
+                        <Lock size={14}/> Senha Atual
+                      </label>
+                      <input 
+                        type="password" 
+                        required
+                        value={passwordData.currentPassword} 
+                        onChange={(e) => setPasswordData({...passwordData, currentPassword: e.target.value})} 
+                        className="bg-gray-50/50 border border-gray-100 focus:bg-white focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-5 py-4 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none shadow-inner transition-all" 
+                      />
+                    </div>
                     <div className="flex flex-col gap-2 group/input">
                       <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1 flex items-center gap-1.5 transition-colors">
                         <Lock size={14}/> Nova Senha

@@ -17,7 +17,6 @@ export default function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoCli
   const [servico, setServico] = useState("");
   const [instagram, setInstagram] = useState("");
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const showToast = (message: string) => {
@@ -26,7 +25,7 @@ export default function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoCli
 
   const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!nome || !empresa || !servico || !email || !password) {
+    if (!nome || !empresa || !servico || !email) {
       showToast("Preencha todos os campos obrigatórios.");
       return;
     }
@@ -40,30 +39,26 @@ export default function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoCli
     }
 
     try {
-      // Usando a lógica do login conforme solicitado
       const newRole = cleanEmail.includes('admin') ? 'admin' : cleanEmail.includes('gestor') ? 'gestor' : 'client';
-      const { data: authData, error: authError } = await supabase.auth.signUp({
-        email: cleanEmail, 
-        password,
-        options: { 
-          data: { 
-            nome, 
-            empresa, 
-            role: newRole, 
-            instagram: cleanInstagram 
-          } 
-        }
+      
+      const response = await fetch('/api/auth/invite', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: cleanEmail,
+          nome,
+          empresa,
+          role: newRole,
+          instagram: cleanInstagram,
+        }),
       });
 
-      if (authError) throw authError;
+      const data = await response.json();
 
-      if (newRole === 'client' && authData.user) {
-        await supabase.from('projects').insert({ 
-          client_id: authData.user.id, 
-          name: `Projeto ${empresa}`, 
-          type: servico, 
-          status: 'active' 
-        });
+      if (!response.ok) {
+        throw new Error(data.error || 'Erro ao criar cliente');
       }
 
       showToast("Cliente criado com sucesso!");
@@ -76,7 +71,6 @@ export default function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoCli
       setServico("");
       setInstagram("");
       setEmail("");
-      setPassword("");
 
     } catch (error: any) {
       showToast(error.message);
@@ -205,20 +199,7 @@ export default function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoCli
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <label className="text-[10px] uppercase tracking-widest font-bold text-gray-500 ml-1">Senha Provisória *</label>
-                  <div className="relative">
-                    <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
-                    <input 
-                      type="text" 
-                      required
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="w-full bg-white border border-gray-200 rounded-xl py-3 pl-10 pr-4 text-sm outline-none focus:border-[var(--color-atelier-terracota)] focus:ring-1 focus:ring-[var(--color-atelier-terracota)] transition-all"
-                      placeholder="Senha forte..."
-                    />
-                  </div>
-                </div>
+
 
               </form>
             </div>

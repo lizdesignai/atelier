@@ -4,17 +4,18 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { CheckCircle2, PlayCircle } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSession } from "../../hooks/useSession";
 
 export default function OnboardingPage() {
   const router = useRouter();
+  const { data: session } = useSession();
   const [role, setRole] = useState<string>("client");
 
   useEffect(() => {
-    const storedRole = localStorage.getItem("atelier_role");
-    if (storedRole) {
-      setRole(storedRole);
+    if (session?.user?.role) {
+      setRole(session.user.role);
     }
-  }, []);
+  }, [session]);
 
   const handleConfirm = () => {
     localStorage.setItem("has_seen_onboarding", "true");

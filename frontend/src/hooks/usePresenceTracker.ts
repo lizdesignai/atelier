@@ -2,14 +2,17 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 
-// Configurações do Motor (Ajustáveis)
+// ConfiguraÃ§Ãµes do Motor (AjustÃ¡veis)
 const IDLE_TIMEOUT_MS = 10 * 60 * 1000; // 10 minutos para ser considerado Inativo
 const HEARTBEAT_INTERVAL_MS = 60 * 1000; // Ping a cada 60 segundos no DB
-const THROTTLE_MS = 2000; // Limite de 2 segundos entre leituras de movimento (Proteção de CPU)
+const THROTTLE_MS = 2000; // Limite de 2 segundos entre leituras de movimento (ProteÃ§Ã£o de CPU)
 
 export type PresenceStatus = 'online' | 'idle' | 'offline';
 
 export function usePresenceTracker(userId: string | null | undefined) {
+  // BYPASS FASE 3: O Realtime Tracker foi desativado temporariamente
+  // para não causar erros wss:// e attendance_logs enquanto a Fase 4 não chega.
+  return { currentStatus: 'offline' };
   const [currentStatus, setCurrentStatus] = useState<PresenceStatus>('offline');
   
   const statusRef = useRef<PresenceStatus>('offline');
@@ -18,9 +21,9 @@ export function usePresenceTracker(userId: string | null | undefined) {
   
   const idleTimerRef = useRef<NodeJS.Timeout | null>(null);
   const heartbeatTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const presenceChannelRef = useRef<any>(null); // 🟢 Referência do WebSocket
+  const presenceChannelRef = useRef<any>(null); // ðŸŸ¢ ReferÃªncia do WebSocket
 
-  // 1. MOTOR DE COMUNICAÇÃO COM O BANCO E WEBSOCKET
+  // 1. MOTOR DE COMUNICAÃ‡ÃƒO COM O BANCO E WEBSOCKET
   const syncPresence = useCallback(async (newStatus: PresenceStatus) => {
     if (!userId) return;
 
@@ -42,7 +45,7 @@ export function usePresenceTracker(userId: string | null | undefined) {
         last_seen: nowIso 
       }).eq('id', userId);
 
-      // C. Registo Histórico de Mudança de Estado
+      // C. Registo HistÃ³rico de MudanÃ§a de Estado
       if (newStatus !== lastLoggedStatusRef.current) {
         await supabase.from('attendance_logs').insert({
           user_id: userId,
@@ -52,7 +55,7 @@ export function usePresenceTracker(userId: string | null | undefined) {
         lastLoggedStatusRef.current = newStatus;
       }
     } catch (error) {
-      console.error("[Telemetry Engine] Erro ao sincronizar presença:", error);
+      console.error("[Telemetry Engine] Erro ao sincronizar presenÃ§a:", error);
     }
   }, [userId]);
 
@@ -88,13 +91,13 @@ export function usePresenceTracker(userId: string | null | undefined) {
     resetIdleTimer();
   }, [resetIdleTimer, updateStatus]);
 
-  // 3. ORQUESTRAÇÃO DE CICLO DE VIDA (Mount / Unmount)
+  // 3. ORQUESTRAÃ‡ÃƒO DE CICLO DE VIDA (Mount / Unmount)
   useEffect(() => {
     if (!userId) return;
 
     console.log("[Telemetry Engine] Inicializando Presence e Banco de Dados...");
 
-    // 🟢 INICIALIZA O CANAL DE WEBSOCKET (Supabase Presence)
+    // ðŸŸ¢ INICIALIZA O CANAL DE WEBSOCKET (Supabase Presence)
     const channel = supabase.channel('atelier-presence', {
       config: {
         presence: { key: userId },
@@ -102,14 +105,14 @@ export function usePresenceTracker(userId: string | null | undefined) {
     });
 
     channel.on('presence', { event: 'sync' }, () => {
-      // Opcional: Aqui poderíamos ler o estado de todos os outros usuários conectados
+      // Opcional: Aqui poderÃ­amos ler o estado de todos os outros usuÃ¡rios conectados
       // const newState = channel.presenceState();
     });
 
     channel.subscribe(async (status) => {
       if (status === 'SUBSCRIBED') {
         presenceChannelRef.current = channel;
-        // Ao confirmar a conexão WebSocket, damos o Start Inicial
+        // Ao confirmar a conexÃ£o WebSocket, damos o Start Inicial
         updateStatus('online');
         resetIdleTimer();
       }

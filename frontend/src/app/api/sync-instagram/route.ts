@@ -1,14 +1,6 @@
 // src/app/api/sync-instagram/route.ts
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-
-const supabaseAdmin = createClient(
-  supabaseUrl || 'https://dummy.supabase.co',
-  supabaseServiceKey || 'dummy-secret-key-para-enganar-a-vercel-no-build'
-);
+import { getDb } from '@/lib/db';
 
 export async function POST(request: Request) {
   try {
@@ -93,44 +85,60 @@ export async function POST(request: Request) {
       console.warn('[Apify Sync] APIFY_API_TOKEN não configurada no servidor.');
     }
 
-    // Salvar/Atualizar no Supabase (instagram_profiles)
+    // Salvar/Atualizar no banco (instagram_profiles)
     let profileId: string | null = null;
+    const sql = getDb();
 
     if (projectId) {
-      const { data: upsertData, error: upsertErr } = await supabaseAdmin
-        .from('instagram_profiles')
-        .upsert({
-          project_id: projectId,
-          client_id: clientId || null,
-          username: profileData.username,
-          full_name: profileData.full_name,
-          biography: profileData.biography,
-          avatar_url: profileData.avatar_url,
-          followers_count: profileData.followers_count,
-          following_count: profileData.following_count,
-          posts_count: profileData.posts_count,
-          last_synced_at: profileData.last_synced_at,
-          updated_at: new Date().toISOString()
-        }, { onConflict: 'project_id' })
-        .select('id')
-        .single();
+      try {
+        const result = await (sql as any).query(`
+          INSERT INTO instagram_profiles (
+            project_id, client_id, username, full_name, biography, avatar_url, 
+            followers_count, following_count, posts_count, last_synced_at, updated_at
+          ) VALUES (
+            $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11
+          )
+          ON CONFLICT (project_id) DO UPDATE SET
+            username = EXCLUDED.username,
+            full_name = EXCLUDED.full_name,
+            biography = EXCLUDED.biography,
+            avatar_url = EXCLUDED.avatar_url,
+            followers_count = EXCLUDED.followers_count,
+            following_count = EXCLUDED.following_count,
+            posts_count = EXCLUDED.posts_count,
+            last_synced_at = EXCLUDED.last_synced_at,
+            updated_at = EXCLUDED.updated_at
+          RETURNING id
+        `, [
+          projectId, clientId || null, profileData.username, profileData.full_name, profileData.biography, profileData.avatar_url,
+          profileData.followers_count, profileData.following_count, profileData.posts_count, profileData.last_synced_at, new Date().toISOString()
+        ]);
 
-      if (!upsertErr && upsertData) {
-        profileId = upsertData.id;
+        if (result && result.length > 0) {
+          profileId = result[0].id;
+        }
+      } catch (err) {
+        console.error('[Sync Instagram] Erro no upsert instagram_profiles:', err);
       }
     }
 
     // Se temos posts sincronizados e profileId, salva nas tabelas do feed
     if (profileId && postsData.length > 0) {
-      await supabaseAdmin.from('instagram_feed_posts').delete().eq('instagram_profile_id', profileId);
-      
-      const postsToInsert = postsData.map(p => ({
-        ...p,
-        instagram_profile_id: profileId,
-        project_id: projectId
-      }));
-
-      await supabaseAdmin.from('instagram_feed_posts').insert(postsToInsert);
+      try {
+        await (sql as any).query(`DELETE FROM instagram_feed_posts WHERE instagram_profile_id = $1`, [profileId]);
+        
+        for (const p of postsData) {
+          await (sql as any).query(`
+            INSERT INTO instagram_feed_posts (
+              instagram_profile_id, project_id, post_id_external, image_url, caption, likes_count, comments_count, display_order
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          `, [
+            profileId, projectId, p.post_id_external, p.image_url, p.caption, p.likes_count, p.comments_count, p.display_order
+          ]);
+        }
+      } catch (err) {
+        console.error('[Sync Instagram] Erro ao inserir instagram_feed_posts:', err);
+      }
     }
 
     return NextResponse.json({

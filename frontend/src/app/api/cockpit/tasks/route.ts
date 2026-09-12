@@ -1,9 +1,5 @@
 import { NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
-const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || '';
-const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+import { getDb } from '@/lib/db';
 
 export async function GET(request: Request) {
   try {
@@ -16,18 +12,19 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
     }
 
-    const { data, error } = await supabaseAdmin
-      .from('tasks')
-      .select('*, profiles:assigned_to(nome, avatar_url)')
-      .eq('project_id', projectId)
-      .gte('deadline', startOfMonth)
-      .lte('deadline', endOfMonth)
-      .order('deadline', { ascending: true });
-
-    if (error) {
-      console.error("Supabase Admin Error fetching tasks:", error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    const sql = getDb();
+    
+    const query = `
+      SELECT t.*, json_build_object('nome', p.nome, 'avatar_url', p.avatar_url) as profiles
+      FROM tasks t
+      LEFT JOIN profiles p ON t.assigned_to = p.id
+      WHERE t.project_id = $1
+      AND t.deadline >= $2
+      AND t.deadline <= $3
+      ORDER BY t.deadline ASC
+    `;
+    
+    const data = await (sql as any).query(query, [projectId, startOfMonth, endOfMonth]);
 
     return NextResponse.json({ tasks: data || [] }, { status: 200 });
   } catch (error: any) {

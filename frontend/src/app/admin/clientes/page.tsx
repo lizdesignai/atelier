@@ -59,6 +59,11 @@ export default function BaseClientesPage() {
   const [isClientSettingsModalOpen, setIsClientSettingsModalOpen] = useState(false);
   const [clientToEdit, setClientToEdit] = useState<any>(null);
 
+  const [isCreatingNewClient, setIsCreatingNewClient] = useState(false);
+  const [newClientNome, setNewClientNome] = useState("");
+  const [newClientEmail, setNewClientEmail] = useState("");
+  const [newClientEmpresa, setNewClientEmpresa] = useState("");
+
   const [selectedClientId, setSelectedClientId] = useState("");
   const [serviceType, setServiceType] = useState<"Identidade Visual" | "Gestão de Instagram">("Identidade Visual");
   const [projectPackage, setProjectPackage] = useState("Identidade Visual Premium");
@@ -101,8 +106,28 @@ export default function BaseClientesPage() {
         if (!response.ok) throw new Error('Falha ao buscar dados do CRM');
         
         const { data } = await response.json();
-        setAvailableClients(data.availableClients || []);
-        setEnrichedProjects(data.enrichedProjects || []);
+
+        // Buscar leads via Supabase (Neon Proxy)
+        const { data: leads } = await supabase.from('leads').select('*').eq('status', 'prospect');
+        
+        const formattedLeads = (leads || []).map((l: any) => ({
+           id: l.id,
+           client_id: l.id,
+           isLead: true,
+           profiles: { nome: l.nome, email: l.email, empresa: l.nicho || "Lead", avatar_url: "" },
+           created_at: l.created_at,
+           status: 'prospect',
+           financial_value: 0
+        }));
+
+        setAvailableClients([...(data.availableClients || []), ...formattedLeads.map((l: any) => ({ 
+          id: l.client_id, 
+          nome: l.profiles.nome,
+          email: l.profiles.email,
+          empresa: l.profiles.empresa,
+          isLead: true 
+        }))]);
+        setEnrichedProjects([...(data.enrichedProjects || []), ...formattedLeads]);
       } catch (error) {
         console.error("Erro ao buscar dados do CRM:", error);
       } finally {
@@ -126,19 +151,63 @@ export default function BaseClientesPage() {
 
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedClientId) {
-      showToast("Selecione um cliente válido da lista.");
-      return;
-    }
-
+    
     setIsSubmitting(true);
+    let finalClientId = selectedClientId;
+
     try {
+      let isConvertingLead = false;
+      const selectedClientData = availableClients.find(c => c.id === selectedClientId);
+      
+      if (!isCreatingNewClient && selectedClientData?.isLead) {
+        isConvertingLead = true;
+      }
+
+      if (isCreatingNewClient || isConvertingLead) {
+        const nomeParaCriar = isConvertingLead ? selectedClientData.nome : newClientNome;
+        const emailParaCriar = isConvertingLead ? selectedClientData.email : newClientEmail;
+        const empresaParaCriar = isConvertingLead ? selectedClientData.empresa : newClientEmpresa;
+
+        if (!nomeParaCriar || !emailParaCriar || !empresaParaCriar) {
+          showToast(isConvertingLead ? "Faltam dados essenciais no Lead para conversão." : "Preencha todos os dados do novo cliente.");
+          setIsSubmitting(false);
+          return;
+        }
+
+        const inviteRes = await fetch('/api/auth/invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nome: nomeParaCriar,
+            email: emailParaCriar,
+            empresa: empresaParaCriar,
+            role: 'client',
+            skipProjectCreation: true
+          })
+        });
+
+        const inviteData = await inviteRes.json();
+        if (!inviteRes.ok) {
+          throw new Error(inviteData.error || 'Falha ao criar o usuário do cliente.');
+        }
+
+        finalClientId = inviteData.user.id;
+
+        if (isConvertingLead) {
+          await supabase.from('leads').delete().eq('id', selectedClientId);
+        }
+      } else if (!finalClientId) {
+        showToast("Selecione um cliente válido da lista.");
+        setIsSubmitting(false);
+        return;
+      }
+
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
       const response = await fetch(`${backendUrl}/api/v1/clients/projects`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          client_id: selectedClientId,
+          client_id: finalClientId,
           service_type: serviceType,
           project_package: projectPackage,
           financial_value: financialValue,
@@ -156,7 +225,7 @@ export default function BaseClientesPage() {
       if (!response.ok) throw new Error('Falha ao criar projeto');
 
       await NotificationEngine.notifyUser(
-        selectedClientId,
+        finalClientId,
         "🎉 Bem-vindo ao Atelier",
         "A sua mesa de trabalho foi ativada. Pode agora aceder ao seu Cockpit executivo.",
         "success",
@@ -409,103 +478,28 @@ export default function BaseClientesPage() {
   return (
     <div className="flex flex-col h-[calc(100dvh-100px)] md:h-full max-w-[1400px] mx-auto relative z-10 pb-4 gap-4 md:gap-6 overflow-hidden">
       
-      <header className="shrink-0 flex flex-col gap-6 animate-[fadeInUp_0.5s_ease-out]">
-        {/* DESKTOP HEADER (INTOCADO) */}
-        <div className="hidden md:flex justify-end items-end mt-6">
-          <div className="flex items-center gap-3">
-            <button 
-              onClick={() => setIsConsultoriaModalOpen(true)}
-              className="bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] px-6 py-3.5 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)] transition-all shadow-sm flex items-center gap-2"
-            >
-              <FileSearch size={16} className="text-[var(--color-atelier-terracota)]" /> Análise Estratégica
-            </button>
-
-            <button 
-              onClick={() => setIsAgencyModalOpen(true)}
-              className="bg-white/40 border border-white text-[var(--color-atelier-grafite)] px-6 py-3.5 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] hover:bg-white transition-all shadow-sm flex items-center gap-2"
-            >
-              <Briefcase size={16} /> Nova Agência Parceira
-            </button>
-            <button 
-              onClick={() => setIsNewClientModalOpen(true)}
-              className="bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] px-6 py-3.5 rounded-[1.2rem] font-roboto font-bold uppercase tracking-widest text-[11px] hover:bg-[var(--color-atelier-terracota)] transition-all shadow-md hover:-translate-y-0.5 flex items-center gap-2"
-            >
-              <Plus size={16} /> Novo Contrato
-            </button>
-          </div>
-        </div>
-
-        {/* MOBILE HEADER (NOVO) */}
-        <div className="md:hidden flex flex-col gap-4 mt-2">
-          {/* H1 e Options */}
-          <div className="flex items-center justify-between">
-            <h1 className="font-elegant text-3xl font-bold text-[var(--color-atelier-grafite)] tracking-tight">Clientes</h1>
-            <div className="relative">
-              <button 
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className="w-10 h-10 rounded-full bg-white/60 border border-white flex items-center justify-center text-[var(--color-atelier-grafite)] shadow-sm active:scale-95 transition-transform"
-              >
-                <MoreVertical size={20} />
-              </button>
-
-              <AnimatePresence>
-                {isMobileMenuOpen && (
-                  <>
-                    <motion.div 
-                      initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      className="fixed inset-0 z-40 bg-black/10"
-                      onClick={() => setIsMobileMenuOpen(false)}
-                    />
-                    <motion.div 
-                      initial={{ opacity: 0, scale: 0.95, y: -10 }}
-                      animate={{ opacity: 1, scale: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                      className="absolute right-0 top-12 w-56 bg-white/90 backdrop-blur-xl border border-white shadow-xl rounded-2xl overflow-hidden z-50 flex flex-col"
-                    >
-                      <button 
-                        onClick={() => { setIsNewClientModalOpen(true); setIsMobileMenuOpen(false); }}
-                        className="flex items-center gap-3 px-4 py-3.5 text-xs font-bold text-[var(--color-atelier-grafite)] hover:bg-white text-left border-b border-gray-100/50 transition-colors"
-                      >
-                        <Plus size={16} className="text-[var(--color-atelier-terracota)]" /> Novo Contrato
-                      </button>
-                      <button 
-                        onClick={() => { setIsAgencyModalOpen(true); setIsMobileMenuOpen(false); }}
-                        className="flex items-center gap-3 px-4 py-3.5 text-xs font-bold text-[var(--color-atelier-grafite)] hover:bg-white text-left border-b border-gray-100/50 transition-colors"
-                      >
-                        <Briefcase size={16} className="text-gray-400" /> Nova Agência Parceira
-                      </button>
-                      <button 
-                        onClick={() => { setIsNovoClienteModalOpen(true); setIsMobileMenuOpen(false); }}
-                        className="flex items-center gap-3 px-4 py-3.5 text-xs font-bold text-[var(--color-atelier-grafite)] hover:bg-white text-left transition-colors"
-                      >
-                        <User size={16} className="text-gray-400" /> Novo Cliente
-                      </button>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
-            </div>
-          </div>
-
-          {/* Search e Filtro Mobile */}
-          <div className="flex items-center gap-2">
-            <div className="relative flex-1 group/search">
-              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within/search:text-[var(--color-atelier-terracota)] transition-colors" />
+      <header className="shrink-0 flex flex-col gap-6 animate-[fadeInUp_0.5s_ease-out] relative z-[100]">
+        {/* DESKTOP HEADER UNIFICADO (NOVO) */}
+        <div className="hidden md:flex flex-row justify-between items-center gap-4 mt-6">
+          <div className="flex items-center gap-4 flex-1">
+            <div className="relative w-[350px] group/search">
+              <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-atelier-grafite)]/40 group-focus-within/search:text-[var(--color-atelier-terracota)] transition-colors" />
               <input 
                 type="text" 
-                placeholder="Pesquisar cliente..." 
+                placeholder="Pesquisar por nome ou empresa..." 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full bg-white/60 border border-transparent focus:bg-white focus:border-[var(--color-atelier-terracota)]/30 rounded-2xl py-3 pl-11 pr-4 text-xs font-bold text-[var(--color-atelier-grafite)] outline-none transition-all shadow-sm placeholder:text-gray-400"
+                className="w-full bg-white/60 border border-transparent focus:bg-white focus:border-[var(--color-atelier-terracota)]/30 rounded-[1rem] py-2.5 pl-11 pr-4 text-[13px] text-[var(--color-atelier-grafite)] outline-none transition-all shadow-sm"
               />
             </div>
             
             <div className="relative">
               <button 
                 onClick={() => setIsMobileFilterOpen(!isMobileFilterOpen)}
-                className={`w-11 h-11 rounded-2xl border flex items-center justify-center shadow-sm active:scale-95 transition-all ${filterStatus !== 'all' ? 'bg-[var(--color-atelier-grafite)] text-white border-[var(--color-atelier-grafite)]' : 'bg-white/60 text-[var(--color-atelier-grafite)] border-white'}`}
+                className={`w-10 h-10 rounded-xl border flex items-center justify-center shadow-sm active:scale-95 transition-all ${filterStatus !== 'all' ? 'bg-[var(--color-atelier-grafite)] text-white border-[var(--color-atelier-grafite)]' : 'bg-white/60 text-[var(--color-atelier-grafite)] border-white hover:bg-white'}`}
+                title="Filtrar Clientes"
               >
-                <Filter size={18} />
+                <Filter size={16} />
                 {filterStatus !== 'all' && (
                   <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[var(--color-atelier-terracota)] border-2 border-white"></span>
                 )}
@@ -516,14 +510,14 @@ export default function BaseClientesPage() {
                   <>
                     <motion.div 
                       initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                      className="fixed inset-0 z-40 bg-black/10"
+                      className="fixed inset-0 z-40 bg-transparent"
                       onClick={() => setIsMobileFilterOpen(false)}
                     />
                     <motion.div 
                       initial={{ opacity: 0, scale: 0.95, y: -10 }}
                       animate={{ opacity: 1, scale: 1, y: 0 }}
                       exit={{ opacity: 0, scale: 0.95, y: -10 }}
-                      className="absolute right-0 top-14 w-52 bg-white/90 backdrop-blur-xl border border-white shadow-xl rounded-2xl overflow-hidden z-50 flex flex-col p-2 gap-1"
+                      className="absolute left-0 top-12 w-52 bg-white/90 backdrop-blur-xl border border-white shadow-xl rounded-2xl overflow-hidden z-50 flex flex-col p-2 gap-1"
                     >
                       <button onClick={() => { setFilterStatus('all'); setIsMobileFilterOpen(false); }} className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${filterStatus === 'all' ? 'bg-[var(--color-atelier-grafite)] text-white' : 'text-gray-600 hover:bg-white'}`}>Todos {filterStatus === 'all' && <CheckCircle2 size={14}/>}</button>
                       <button onClick={() => { setFilterStatus('lead'); setIsMobileFilterOpen(false); }} className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${filterStatus === 'lead' ? 'bg-[var(--color-atelier-grafite)] text-white' : 'text-gray-600 hover:bg-white'}`}>Leads {filterStatus === 'lead' && <CheckCircle2 size={14}/>}</button>
@@ -537,28 +531,30 @@ export default function BaseClientesPage() {
               </AnimatePresence>
             </div>
           </div>
-        </div>
 
-        {/* DESKTOP SEARCH E FILTROS (INTOCADO) */}
-        <div className="hidden md:flex glass-panel p-2 rounded-2xl flex-row justify-between items-center gap-4">
-          <div className="relative w-[350px] group/search">
-            <Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[var(--color-atelier-grafite)]/40 group-focus-within/search:text-[var(--color-atelier-terracota)] transition-colors" />
-            <input 
-              type="text" 
-              placeholder="Pesquisar por nome ou empresa..." 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full bg-white/60 border border-transparent focus:bg-white focus:border-[var(--color-atelier-terracota)]/30 rounded-[1rem] py-2.5 pl-11 pr-4 text-[13px] text-[var(--color-atelier-grafite)] outline-none transition-all shadow-sm"
-            />
-          </div>
-
-          <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar px-1">
-            <FilterButton label="Todos" active={filterStatus === 'all'} onClick={() => setFilterStatus('all')} />
-            <FilterButton label="Leads" active={filterStatus === 'lead'} onClick={() => setFilterStatus('lead')} />
-            <FilterButton label="Agências (B2B)" active={filterStatus === 'agency'} onClick={() => setFilterStatus('agency')} />
-            <FilterButton label="Em Andamento (Ativos)" active={filterStatus === 'active'} onClick={() => setFilterStatus('active')} />
-            <FilterButton label="Pendentes" active={filterStatus === 'pending'} onClick={() => setFilterStatus('pending')} />
-            <FilterButton label="Arquivados" active={filterStatus === 'archived'} onClick={() => setFilterStatus('archived')} />
+          <div className="flex items-center gap-2 bg-white/40 p-1.5 rounded-xl border border-white/60">
+            <button 
+              onClick={() => setIsConsultoriaModalOpen(true)}
+              className="w-10 h-10 rounded-lg flex items-center justify-center text-[var(--color-atelier-grafite)] hover:bg-white hover:text-[var(--color-atelier-terracota)] transition-colors shadow-sm"
+              title="Análise Estratégica"
+            >
+              <FileSearch size={18} />
+            </button>
+            <div className="w-px h-5 bg-[var(--color-atelier-grafite)]/10 mx-1"></div>
+            <button 
+              onClick={() => setIsAgencyModalOpen(true)}
+              className="w-10 h-10 rounded-lg flex items-center justify-center text-[var(--color-atelier-grafite)] hover:bg-white hover:text-[var(--color-atelier-terracota)] transition-colors shadow-sm"
+              title="Nova Agência Parceira"
+            >
+              <Briefcase size={18} />
+            </button>
+            <button 
+              onClick={() => setIsNewClientModalOpen(true)}
+              className="w-10 h-10 rounded-lg flex items-center justify-center bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] hover:bg-[var(--color-atelier-terracota)] transition-all shadow-md hover:-translate-y-0.5"
+              title="Novo Contrato"
+            >
+              <Plus size={18} />
+            </button>
           </div>
         </div>
       </header>
@@ -969,19 +965,72 @@ export default function BaseClientesPage() {
                     <h3 className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] mb-4 flex items-center gap-2">
                       <Users size={14} className="text-[var(--color-atelier-terracota)]"/> 1. Atribuição de Cliente
                     </h3>
-                    <div className="flex flex-col gap-2">
-                      <select 
-                        required 
-                        value={selectedClientId} 
-                        onChange={(e) => setSelectedClientId(e.target.value)}
-                        className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-4 py-3 text-[13px] outline-none shadow-sm font-bold text-[var(--color-atelier-grafite)] cursor-pointer"
+
+                    <div className="flex bg-white/60 rounded-[1.2rem] p-1 shadow-sm border border-transparent mb-4">
+                      <button 
+                        type="button"
+                        onClick={() => setIsCreatingNewClient(false)}
+                        className={`flex-1 py-2.5 rounded-[1rem] font-roboto text-[11px] font-bold uppercase tracking-widest transition-all ${!isCreatingNewClient ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white'}`}
                       >
-                        <option value="" disabled>-- Selecione um cliente da base --</option>
-                        {availableClients.map(client => (
-                          <option key={client.id} value={client.id}>{client.nome} ({client.email})</option>
-                        ))}
-                      </select>
+                        Cliente Existente
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={() => setIsCreatingNewClient(true)}
+                        className={`flex-1 py-2.5 rounded-[1rem] font-roboto text-[11px] font-bold uppercase tracking-widest transition-all ${isCreatingNewClient ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white'}`}
+                      >
+                        Novo Cliente
+                      </button>
                     </div>
+
+                    {!isCreatingNewClient ? (
+                      <div className="flex flex-col gap-2">
+                        <select 
+                          required={!isCreatingNewClient} 
+                          value={selectedClientId} 
+                          onChange={(e) => setSelectedClientId(e.target.value)}
+                          className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-4 py-3 text-[13px] outline-none shadow-sm font-bold text-[var(--color-atelier-grafite)] cursor-pointer"
+                        >
+                          <option value="" disabled>-- Selecione um cliente da base --</option>
+                          {availableClients.map(client => (
+                            <option key={client.id} value={client.id}>{client.nome} ({client.email})</option>
+                          ))}
+                        </select>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="flex flex-col gap-2">
+                            <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 pl-1">Nome Completo</label>
+                            <input 
+                              type="text" required={isCreatingNewClient}
+                              value={newClientNome} onChange={(e) => setNewClientNome(e.target.value)}
+                              placeholder="João Silva"
+                              className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)]"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 pl-1">Email</label>
+                            <input 
+                              type="email" required={isCreatingNewClient}
+                              value={newClientEmail} onChange={(e) => setNewClientEmail(e.target.value)}
+                              placeholder="joao@empresa.com"
+                              className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)]"
+                            />
+                          </div>
+                        </div>
+                        <div className="flex flex-col gap-2">
+                          <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 pl-1">Empresa</label>
+                          <input 
+                            type="text" required={isCreatingNewClient}
+                            value={newClientEmpresa} onChange={(e) => setNewClientEmpresa(e.target.value)}
+                            placeholder="Nome da Marca/Empresa"
+                            className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)]"
+                          />
+                        </div>
+                        <p className="text-xs text-[var(--color-atelier-terracota)]/80 italic ml-1">O usuário será criado automaticamente com a senha padrão: Atelier2026!</p>
+                      </div>
+                    )}
                   </div>
 
                   <div className="glass-panel p-6 border border-white">
