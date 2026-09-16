@@ -221,7 +221,7 @@ export class ClientsController {
       return res.status(201).json({ data: newProject });
     } catch (error: any) {
       console.error('Error creating project:', error.message);
-      return res.status(500).json({ error: 'Internal Server Error' });
+      return res.status(500).json({ error: error?.message || 'Internal Server Error' });
     }
   }
 }

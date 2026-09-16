@@ -101,8 +101,7 @@ export default function BaseClientesPage() {
     const fetchLocalData = async () => {
       setIsLocalLoading(true);
       try {
-        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
-        const response = await fetch(`${backendUrl}/api/v1/clients/overview`);
+        const response = await fetch('/api/clients/overview');
         if (!response.ok) throw new Error('Falha ao buscar dados do CRM');
         
         const { data } = await response.json();
@@ -182,16 +181,31 @@ export default function BaseClientesPage() {
             email: emailParaCriar,
             empresa: empresaParaCriar,
             role: 'client',
-            skipProjectCreation: true
+            skipProjectCreation: true,
+            allowExisting: true
           })
         });
 
         const inviteData = await inviteRes.json();
         if (!inviteRes.ok) {
-          throw new Error(inviteData.error || 'Falha ao criar o usuário do cliente.');
-        }
+          if (inviteRes.status === 409) {
+            const { data: existingProfile } = await supabase
+              .from('profiles')
+              .select('id')
+              .eq('email', emailParaCriar.trim().toLowerCase())
+              .maybeSingle();
 
-        finalClientId = inviteData.user.id;
+            if (existingProfile?.id) {
+              finalClientId = existingProfile.id;
+            } else {
+              throw new Error(inviteData.error || 'Falha ao processar o cliente.');
+            }
+          } else {
+            throw new Error(inviteData.error || 'Falha ao criar o usuário do cliente.');
+          }
+        } else {
+          finalClientId = inviteData.user.id;
+        }
 
         if (isConvertingLead) {
           await supabase.from('leads').delete().eq('id', selectedClientId);
@@ -202,8 +216,7 @@ export default function BaseClientesPage() {
         return;
       }
 
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
-      const response = await fetch(`${backendUrl}/api/v1/clients/projects`, {
+      const response = await fetch('/api/clients/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -222,7 +235,10 @@ export default function BaseClientesPage() {
         })
       });
 
-      if (!response.ok) throw new Error('Falha ao criar projeto');
+      if (!response.ok) {
+        const errData = await response.json().catch(() => ({}));
+        throw new Error(errData.error || 'Falha ao criar projeto');
+      }
 
       await NotificationEngine.notifyUser(
         finalClientId,
@@ -239,8 +255,8 @@ export default function BaseClientesPage() {
       setBillingDate("");
       
       refreshGlobalData();
-    } catch (error) {
-      showToast("Erro ao criar projeto. Verifique as tabelas do banco.");
+    } catch (error: any) {
+      showToast(error?.message || "Erro ao criar projeto. Verifique as tabelas do banco.");
     } finally {
       setIsSubmitting(false);
     }
@@ -976,7 +992,10 @@ export default function BaseClientesPage() {
                       </button>
                       <button 
                         type="button"
-                        onClick={() => setIsCreatingNewClient(true)}
+                        onClick={() => {
+                          setIsCreatingNewClient(true);
+                          setSelectedClientId("");
+                        }}
                         className={`flex-1 py-2.5 rounded-[1rem] font-roboto text-[11px] font-bold uppercase tracking-widest transition-all ${isCreatingNewClient ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white'}`}
                       >
                         Novo Cliente
@@ -1166,7 +1185,7 @@ export default function BaseClientesPage() {
                 <button 
                   type="submit" 
                   form="new-contract-form"
-                  disabled={isSubmitting || !selectedClientId}
+                  disabled={isSubmitting || (!isCreatingNewClient && !selectedClientId)}
                   className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-[1.2rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all shadow-[0_10px_20px_rgba(122,116,112,0.15)] disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}

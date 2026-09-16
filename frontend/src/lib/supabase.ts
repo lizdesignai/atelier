@@ -4,8 +4,10 @@ import { createClient } from '@supabase/supabase-js';
 // ALL database queries (.from()) and realtime (.channel()) are intercepted below
 // and routed to our Neon PostgreSQL via /api/db/query.
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'https://placeholder.supabase.co';
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY || 'placeholder-key';
+const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder'))
+  ? process.env.NEXT_PUBLIC_SUPABASE_URL
+  : 'https://tmmptilchainrsptwsxc.supabase.co';
+const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY || '';
 
 export const supabase = createClient(supabaseUrl, supabaseKey);
 
@@ -226,4 +228,61 @@ supabase.auth.getSession = async () => {
 // @ts-ignore - No-op for auth state changes (auth is handled by our JWT system)
 supabase.auth.onAuthStateChange = (_callback: any) => {
   return { data: { subscription: { unsubscribe: () => {} } } };
+};
+
+// ============================================================================
+// MONKEY PATCH: supabase.storage.from() -> Routed to /api/storage/upload
+// Enables seamless uploads bypassing client-side RLS using the server service role
+// and generates clean, valid public URLs from our active Supabase Storage.
+// ============================================================================
+
+const origStorageFrom = supabase.storage.from.bind(supabase.storage);
+
+// @ts-ignore
+supabase.storage.from = (bucket: string) => {
+  const originalBucket = origStorageFrom(bucket);
+
+  return {
+    ...originalBucket,
+    upload: async (path: string, fileBody: any, fileOptions?: any) => {
+      try {
+        const formData = new FormData();
+        formData.append('bucket', bucket);
+        formData.append('path', path);
+        formData.append('file', fileBody);
+        if (fileOptions?.upsert) formData.append('upsert', 'true');
+        if (fileOptions?.contentType) formData.append('contentType', fileOptions.contentType);
+
+        const baseUrl = typeof window !== 'undefined' ? '' : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+        const res = await fetch(`${baseUrl}/api/storage/upload`, {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          const msg = errBody.error?.message || `Upload failed with status ${res.status}`;
+          return { data: null, error: new Error(msg) };
+        }
+
+        const json = await res.json();
+        return { data: json.data, error: json.error || null };
+      } catch (err: any) {
+        console.error(`[StorageProxy] Upload to "${bucket}/${path}" failed:`, err);
+        return { data: null, error: err };
+      }
+    },
+    getPublicUrl: (path: string, _options?: any) => {
+      const effectiveBaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder'))
+        ? process.env.NEXT_PUBLIC_SUPABASE_URL
+        : 'https://tmmptilchainrsptwsxc.supabase.co';
+
+      const cleanPath = (path || '').replace(/^\/+/, '');
+      return {
+        data: {
+          publicUrl: `${effectiveBaseUrl}/storage/v1/object/public/${bucket}/${cleanPath}`
+        }
+      };
+    }
+  };
 };

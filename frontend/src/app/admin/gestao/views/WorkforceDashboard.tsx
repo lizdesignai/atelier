@@ -6,9 +6,10 @@ import {
   Users, Target, RotateCcw, Clock, 
   FileText, Copy, CheckCircle2, AlertTriangle, 
   TrendingUp, TrendingDown, Loader2, X, DollarSign,
-  Briefcase, CheckSquare, AlertCircle, Save, Edit3, PieChart, UserCheck, PauseCircle, Play, Activity, Layers
+  Briefcase, CheckSquare, AlertCircle, Save, Edit3, PieChart, UserCheck, PauseCircle, Play, Activity, Layers, UserPlus
 } from "lucide-react";
 import CollaboratorAssignmentModal from "../components/CollaboratorAssignmentModal";
+import NovoColaboradorModal from "../components/NovoColaboradorModal";
 import { startOfMonth, endOfMonth, startOfDay, startOfWeek, differenceInBusinessDays, differenceInHours } from "date-fns";
 
 interface WorkforceDashboardProps {
@@ -22,6 +23,9 @@ export default function WorkforceDashboard({ currentUser, activeTab = 'workforce
   const [teamStats, setTeamStats] = useState<any[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
   
+  // Modal de Novo Colaborador
+  const [isNewCollabModalOpen, setIsNewCollabModalOpen] = useState(false);
+
   // Estados para Modal de Diagnóstico e Atualização Financeira
   const [selectedReport, setSelectedReport] = useState<any | null>(null);
   const [isCopied, setIsCopied] = useState(false);
@@ -311,31 +315,52 @@ ${qualidadeText}
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-auto md:h-full gap-6 overflow-y-auto md:overflow-hidden relative">
       
       {/* HEADER DA VISÃO */}
-      <header className="shrink-0 flex items-center justify-between border-b border-[var(--color-atelier-grafite)]/10 pb-4">
-        <div></div>
-        {/* NAV HORIZONTAL SOFISTICADA ALINHADA AO HEAD (SUBSTITUI SLA GLOBAL) */}
-        <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0 gap-1">
-          <button 
-            onClick={() => setActiveTab?.('pulse')} 
-            className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'pulse' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
-            title="Pulso Live"
+      <header className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between border-b border-[var(--color-atelier-grafite)]/10 pb-4 gap-4">
+        <div>
+          <div className="inline-flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-full mb-1.5 border border-white shadow-2xs">
+            <Users size={12} strokeWidth={2.5} />
+            <span className="text-[9px] uppercase tracking-widest font-bold">Gestão & Inteligência de RH</span>
+          </div>
+          <h1 className="font-elegant text-3xl md:text-4xl text-[var(--color-atelier-grafite)] tracking-tight leading-none">
+            Produtividade <span className="text-[var(--color-atelier-terracota)] italic">& Equipe.</span>
+          </h1>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* BOTÃO ADICIONAR COLABORADOR */}
+          <button
+            onClick={() => setIsNewCollabModalOpen(true)}
+            className="bg-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)] text-white text-xs font-bold uppercase tracking-wider px-4 py-2.5 rounded-2xl transition-all flex items-center gap-2 shadow-sm shrink-0 active:scale-95"
+            title="Cadastrar Novo Colaborador"
           >
-            <Activity size={16} /> {activeTab === 'pulse' && <span>Pulso Live</span>}
+            <UserPlus size={16} />
+            <span>Novo Colaborador</span>
           </button>
-          <button 
-            onClick={() => setActiveTab?.('workforce')} 
-            className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'workforce' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
-            title="Equipe & RH"
-          >
-            <Users size={16} /> {activeTab === 'workforce' && <span>Equipe & RH</span>}
-          </button>
-          <button 
-            onClick={() => setActiveTab?.('economics')} 
-            className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'economics' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
-            title="Unit Economics"
-          >
-            <DollarSign size={16} /> {activeTab === 'economics' && <span>Unit Economics</span>}
-          </button>
+
+          {/* NAV HORIZONTAL SOFISTICADA ALINHADA AO HEAD (SUBSTITUI SLA GLOBAL) */}
+          <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0 gap-1">
+            <button 
+              onClick={() => setActiveTab?.('pulse')} 
+              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'pulse' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
+              title="Pulso Live"
+            >
+              <Activity size={16} /> {activeTab === 'pulse' && <span>Pulso Live</span>}
+            </button>
+            <button 
+              onClick={() => setActiveTab?.('workforce')} 
+              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'workforce' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
+              title="Equipe & RH"
+            >
+              <Users size={16} /> {activeTab === 'workforce' && <span>Equipe & RH</span>}
+            </button>
+            <button 
+              onClick={() => setActiveTab?.('economics')} 
+              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'economics' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
+              title="Unit Economics"
+            >
+              <DollarSign size={16} /> {activeTab === 'economics' && <span>Unit Economics</span>}
+            </button>
+          </div>
         </div>
       </header>
 
@@ -344,8 +369,19 @@ ${qualidadeText}
         
         {/* COLUNA ESQUERDA: LISTA DE COLABORADORES */}
         <div className="w-full lg:w-[320px] glass-panel bg-white/50 rounded-[2rem] border border-white shadow-sm flex flex-col h-auto lg:h-full shrink-0 overflow-hidden">
-          <div className="p-5 border-b border-gray-100 shrink-0 bg-white/40">
-            <h3 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-gray-500">Membros da Equipe</h3>
+          <div className="p-4 px-5 border-b border-gray-100 shrink-0 bg-white/40 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h3 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-gray-500">Membros da Equipe</h3>
+              <span className="bg-gray-100 text-gray-600 text-[10px] font-bold px-2 py-0.5 rounded-full">{teamStats.length}</span>
+            </div>
+            <button
+              onClick={() => setIsNewCollabModalOpen(true)}
+              title="Adicionar Novo Colaborador"
+              className="p-1.5 px-2.5 rounded-xl bg-[var(--color-atelier-terracota)]/10 hover:bg-[var(--color-atelier-terracota)] text-[var(--color-atelier-terracota)] hover:text-white transition-all flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider shadow-2xs"
+            >
+              <UserPlus size={13} />
+              <span>Novo</span>
+            </button>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar p-3 flex flex-col gap-2">
             {teamStats.map(member => {
@@ -669,6 +705,15 @@ ${qualidadeText}
         isOpen={isAssignmentModalOpen}
         onClose={() => setIsAssignmentModalOpen(false)}
         collaborator={selectedMember}
+      />
+
+      <NovoColaboradorModal
+        isOpen={isNewCollabModalOpen}
+        onClose={() => setIsNewCollabModalOpen(false)}
+        onSuccess={() => {
+          fetchWorkforceData();
+        }}
+        currentUserRole={currentUser?.role}
       />
     </motion.div>
   );
