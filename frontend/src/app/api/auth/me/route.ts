@@ -80,7 +80,7 @@ export async function GET() {
   } catch (error: any) {
     console.error('[Auth Me] Erro:', error);
     return NextResponse.json(
-      { error: 'Erro interno do servidor.' },
+      { error: error?.message || 'Erro interno do servidor.' },
       { status: 500 }
     );
   }

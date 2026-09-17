@@ -98,7 +98,7 @@ export async function POST(request: Request) {
   } catch (error: any) {
     console.error('[Auth Login] Erro:', error);
     return NextResponse.json(
-      { error: 'Erro interno do servidor.' },
+      { error: error?.message || 'Erro interno do servidor.' },
       { status: 500 }
     );
   }

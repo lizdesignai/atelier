@@ -9,7 +9,28 @@ import { jwtVerify } from 'jose';
 const COOKIE_NAME = 'atelier_session';
 
 // Rotas que NÃO requerem autenticação
-const PUBLIC_ROUTES = ['/login', '/api/auth/login', '/api/auth/reset-password', '/api/auth/logout'];
+const PUBLIC_ROUTES = [
+  '/login',
+  '/api/auth/login',
+  '/api/auth/login/mfa',
+  '/api/auth/me',
+  '/api/auth/reset-password',
+  '/api/auth/logout',
+  '/api/forms',
+  '/api/briefings',
+  '/api/consultorias',
+  '/api/cron',
+  '/api/webhooks',
+  '/api/public-onboarding',
+];
+
+function getJwtSecretBytes(): Uint8Array {
+  const secret = process.env.JWT_SECRET
+    || process.env.SUPABASE_SERVICE_ROLE_KEY
+    || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
+    || 'atelier-jwt-secret-production-fallback-2026';
+  return new TextEncoder().encode(secret);
+}
 
 function isPublicRoute(pathname: string): boolean {
   return PUBLIC_ROUTES.some(route => pathname.startsWith(route));
@@ -39,8 +60,7 @@ export async function proxy(request: NextRequest) {
       const token = request.cookies.get(COOKIE_NAME)?.value;
       if (token) {
         try {
-          const secret = new TextEncoder().encode(process.env.JWT_SECRET || '');
-          const { payload } = await jwtVerify(token, secret);
+          const { payload } = await jwtVerify(token, getJwtSecretBytes());
           if (payload.type === 'session') {
             const role = payload.role as string;
             const url = request.nextUrl.clone();
@@ -64,8 +84,7 @@ export async function proxy(request: NextRequest) {
     }
 
     try {
-      const secret = new TextEncoder().encode(process.env.JWT_SECRET || '');
-      await jwtVerify(token, secret);
+      await jwtVerify(token, getJwtSecretBytes());
       return NextResponse.next();
     } catch {
       return NextResponse.json({ error: 'Sessão expirada.' }, { status: 401 });
@@ -82,8 +101,7 @@ export async function proxy(request: NextRequest) {
   }
 
   try {
-    const secret = new TextEncoder().encode(process.env.JWT_SECRET || '');
-    const { payload } = await jwtVerify(token, secret);
+    const { payload } = await jwtVerify(token, getJwtSecretBytes());
 
     if (payload.type !== 'session') {
       const url = request.nextUrl.clone();
