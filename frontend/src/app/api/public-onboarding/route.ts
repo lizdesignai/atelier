@@ -92,7 +92,7 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json(
-      { success: true, message: 'Dossiê processado com segurança.' }, 
+      { success: true, message: 'Briefing processado com sucesso.' }, 
       { status: 200, headers: corsHeaders }
     );
 
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
     console.error("[Public Onboarding API Error]:", error);
     
     return NextResponse.json(
-      { error: error.message || 'Erro interno do servidor ao processar o Dossiê.' }, 
+      { error: error.message || 'Erro interno do servidor ao processar o Briefing.' }, 
       { status: 500, headers: corsHeaders }
     );
   }

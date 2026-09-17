@@ -214,7 +214,7 @@ export default function ConsultoriaPDF({ clientName, instagram, nicho, result }:
       {/* CONTEÚDO PRINCIPAL (Paginação Inteligente e Contínua) */}
       <Page size="A4" style={styles.page}>
         <View style={styles.header} fixed>
-          <Text style={styles.headerTitle}>Dossiê de Posicionamento</Text>
+          <Text style={styles.headerTitle}>Análise de Posicionamento</Text>
           <Image src="/images/simbolo-rosa.png" style={{ width: 24, height: 24, opacity: 0.5 }} />
         </View>
 
@@ -281,7 +281,7 @@ export default function ConsultoriaPDF({ clientName, instagram, nicho, result }:
         {/* RODAPÉ (Repetido em todas as páginas via fixed) */}
         <View style={styles.footer} fixed>
           <Text style={styles.footerText}>Atelier LizDesign</Text>
-          <Text style={styles.footerText}>Documento Confidencial</Text>
+          <Text style={styles.footerText}>{clientName || 'Atelier Liz Design'}</Text>
         </View>
       </Page>
     </Document>

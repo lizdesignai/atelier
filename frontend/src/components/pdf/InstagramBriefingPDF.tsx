@@ -222,8 +222,8 @@ export default function InstagramBriefingPDF({ data, clientName, aiInsight }: In
       {/* PÁGINA 1: CAPA EDITORIAL */}
       <Page size="A4" style={styles.coverPage}>
         <Image src="/images/simbolo-rosa.png" style={styles.coverLogo} />
-        <Text style={styles.coverTitle}>Dossiê de Mercado</Text>
-        <Text style={styles.coverSubtitle}>{clientName || "Cliente Atelier"}</Text>
+        <Text style={styles.coverTitle}>{clientName || "Briefing"}</Text>
+        <Text style={styles.coverSubtitle}>Briefing de Instagram</Text>
         <Text style={styles.coverDate}>{currentDate} • Atelier LizDesign</Text>
       </Page>
 
@@ -234,17 +234,17 @@ export default function InstagramBriefingPDF({ data, clientName, aiInsight }: In
           <Image src="/images/simbolo-rosa.png" style={{ width: 24, height: 24, opacity: 0.5 }} />
         </View>
 
-        {/* ESTRATÉGIA DO CMO (IA) */}
+        {/* DIRECIONAMENTO ESTRATÉGICO */}
         {aiInsight && (
           <View style={styles.aiBox}>
-            <Text style={styles.aiBoxTitle}>Estratégia de Dominação (IA CMO)</Text>
+            <Text style={styles.aiBoxTitle}>Direcionamento Estratégico</Text>
             {renderAiInsight(aiInsight)}
           </View>
         )}
 
-        {/* ESTÁGIO 1: NÚCLEO DE CONVERSÃO */}
+        {/* ESTÁGIO 1: POSICIONAMENTO DE VENDAS */}
         <View style={styles.sectionContainer} wrap={false}>
-          <Text style={styles.sectionTitle}>01. Núcleo de Conversão</Text>
+          <Text style={styles.sectionTitle}>01. Posicionamento de Vendas</Text>
           
           <View style={styles.questionBox}>
             <Text style={styles.label}>Produto Âncora</Text>
@@ -252,7 +252,7 @@ export default function InstagramBriefingPDF({ data, clientName, aiInsight }: In
           </View>
 
           <View style={styles.questionBox}>
-            <Text style={styles.label}>A Regra de Pareto (Cliente Ideal)</Text>
+            <Text style={styles.label}>Perfil do Cliente Ideal</Text>
             <Text style={styles.value}>{clienteIdeal}</Text>
           </View>
 
@@ -262,12 +262,12 @@ export default function InstagramBriefingPDF({ data, clientName, aiInsight }: In
           </View>
         </View>
 
-        {/* ESTÁGIO 2: DINÂMICA DE GUERRA */}
+        {/* ESTÁGIO 2: DIFERENCIAÇÃO E MERCADO */}
         <View style={styles.sectionContainer} wrap={false}>
-          <Text style={styles.sectionTitle}>02. Dinâmica de Guerra</Text>
+          <Text style={styles.sectionTitle}>02. Diferenciação e Mercado</Text>
           
           <View style={styles.questionBox}>
-            <Text style={styles.label}>O Inimigo Comum</Text>
+            <Text style={styles.label}>O Contraponto de Mercado</Text>
             <Text style={styles.value}>{inimigoComum}</Text>
           </View>
 
@@ -277,9 +277,9 @@ export default function InstagramBriefingPDF({ data, clientName, aiInsight }: In
           </View>
         </View>
 
-        {/* ESTÁGIO 3: ARSENAL E VOZ */}
+        {/* ESTÁGIO 3: IDENTIDADE E TOM DE VOZ */}
         <View style={styles.sectionContainer} wrap={false}>
-          <Text style={styles.sectionTitle}>03. Arsenal e Voz</Text>
+          <Text style={styles.sectionTitle}>03. Identidade e Tom de Voz</Text>
           
           <View style={styles.questionBox}>
             <Text style={styles.label}>Persona da Marca</Text>
@@ -287,17 +287,17 @@ export default function InstagramBriefingPDF({ data, clientName, aiInsight }: In
           </View>
 
           <View style={styles.questionBox}>
-            <Text style={styles.label}>Estado do Arsenal Visual</Text>
+            <Text style={styles.label}>Recursos Visuais Atuais</Text>
             <Text style={styles.value}>{arsenalVisual}</Text>
           </View>
         </View>
 
-        {/* ESTÁGIO 4: ENDGAME */}
+        {/* ESTÁGIO 4: METAS E PRÓXIMOS PASSOS */}
         <View style={styles.sectionContainer} wrap={false}>
-          <Text style={styles.sectionTitle}>04. Endgame</Text>
+          <Text style={styles.sectionTitle}>04. Metas e Próximos Passos</Text>
           
           <View style={styles.questionBox}>
-            <Text style={styles.label}>Ponto de Chegada (Métricas de Vitória)</Text>
+            <Text style={styles.label}>Visão de Sucesso</Text>
             <Text style={styles.value}>{pontoChegada}</Text>
           </View>
         </View>

@@ -28,10 +28,10 @@ export default function BriefingDocument({ clientBriefing, projectName }: Briefi
           style={{ width: '60px', height: '60px', objectFit: 'contain', opacity: 0.3, margin: '0 auto 20px auto', display: 'block' }} 
         />
         <h1 style={{ fontFamily: '"Times New Roman", Times, serif', fontSize: '38px', fontWeight: 'normal', margin: '0 0 10px 0', color: '#1a1a1a' }}>
-          Dossiê Estratégico
+          {projectName || 'Briefing'}
         </h1>
         <p style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '4px', color: '#8c562e', fontWeight: 'bold', margin: 0 }}>
-          {projectName}
+          Briefing de Marca
         </p>
       </div>
 
@@ -80,7 +80,7 @@ export default function BriefingDocument({ clientBriefing, projectName }: Briefi
 
       {/* RODAPÉ */}
       <div style={{ marginTop: '60px', paddingTop: '20px', borderTop: '1px solid #e5e5e5', textAlign: 'center' }}>
-        <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '2px', color: '#999999' }}>Atelier LizDesign • Documento Estratégico Confidencial</p>
+        <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '2px', color: '#999999' }}>Atelier LizDesign • {projectName || 'Briefing de Marca'}</p>
       </div>
     </div>
   );

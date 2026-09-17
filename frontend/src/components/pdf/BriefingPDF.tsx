@@ -374,32 +374,32 @@ export default function BriefingPDF({ clientBriefing, projectName, aiInsight }: 
       {/* PÁGINA 1: CAPA EDITORIAL */}
       <Page size="A4" style={styles.coverPage}>
         <Image src="/images/simbolo-rosa.png" style={styles.coverLogo} />
-        <Text style={styles.coverTitle}>Dossiê Estratégico</Text>
-        <Text style={styles.coverSubtitle}>{projectName}</Text>
+        <Text style={styles.coverTitle}>{projectName || 'Briefing'}</Text>
+        <Text style={styles.coverSubtitle}>Briefing de Identidade Visual</Text>
         <Text style={styles.coverDate}>{currentDate} • Atelier Liz Design</Text>
       </Page>
 
       {/* PÁGINA 2 em diante: CONTEÚDO */}
       <Page size="A4" style={styles.page}>
         <View style={styles.header} fixed>
-          <Text style={styles.headerTitle}>Fundamentação Estratégica</Text>
+          <Text style={styles.headerTitle}>Briefing de Marca</Text>
           <Image src="/images/simbolo-rosa.png" style={{ width: 24, height: 24, opacity: 0.5 }} />
         </View>
 
-        {/* CÉREBRO DA IA: DIAGNÓSTICO CBO */}
+        {/* VISÃO ESTRATÉGICA / INSIGHTS */}
         {aiInsight && (
           <View style={styles.aiBox}>
-            <Text style={styles.aiBoxTitle}>Diagnóstico de Marca (CBO AI)</Text>
+            <Text style={styles.aiBoxTitle}>Visão Estratégica</Text>
             {renderAiInsight(aiInsight)}
           </View>
         )}
 
-        <Text style={styles.sectionTitle}>Resumo Operacional do Cliente</Text>
+        <Text style={styles.sectionTitle}>Conheça {projectName}</Text>
 
         {/* MAPEAMENTO DO BRIEFING LIMPO */}
         {Object.entries(clientBriefing).map(([key, val]: any, index) => {
-          // Ignora campos sistémicos, URLs de imagem ou valores vazios
-          if (!val || key.includes('url') || key.includes('outro') || key === 'id' || key === 'project_id' || key === 'created_at') return null;
+          // Ignora campos sistêmicos, URLs de imagem ou valores vazios
+          if (!val || SYSTEM_FIELDS.has(key) || key.includes('url') || key.includes('outro')) return null;
           
           const niceLabel = DICTIONARY[key] || key.replace(/_/g, ' ');
           let displayValue = val;
@@ -428,7 +428,7 @@ export default function BriefingPDF({ clientBriefing, projectName, aiInsight }: 
         {/* RODAPÉ (Repetido em todas as páginas automaticamente) */}
         <View style={styles.footer} fixed>
           <Text style={styles.footerText}>Atelier LizDesign</Text>
-          <Text style={styles.footerText}>Documento Confidencial</Text>
+          <Text style={styles.footerText}>{projectName || 'Atelier Liz Design'}</Text>
         </View>
       </Page>
     </Document>

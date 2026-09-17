@@ -176,7 +176,7 @@ export default function FormularioPDF({ formType, clientName, dadosCompletos }: 
         {/* RODAPÉ (Repetido em todas as páginas automaticamente) */}
         <View style={styles.footer} fixed>
           <Text style={styles.footerText}>Atelier LizDesign</Text>
-          <Text style={styles.footerText}>Documento Confidencial</Text>
+          <Text style={styles.footerText}>{clientName || 'Atelier Liz Design'}</Text>
         </View>
       </Page>
     </Document>
