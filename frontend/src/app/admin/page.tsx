@@ -44,44 +44,30 @@ export default function AdminDashboard() {
     fetchDashboardData();
   }, [selectedDate]);
 
-    const fetchDashboardData = async () => {
+  const fetchDashboardData = async () => {
     setIsLoading(true);
     try {
-      const [resLeads, resBriefings, resInstaBriefings, resMeetings, resNotes, resForms, resIDVBriefings] = await Promise.all([
-        supabase.from('leads').select('*').order('created_at', { ascending: false }),
-        supabase.from('client_briefings').select('*, profiles(nome, empresa, email)').order('created_at', { ascending: false }),
-        supabase.from('instagram_briefings').select('*, profiles(nome, empresa, email)').order('created_at', { ascending: false }),
+      const [resConsultorias, resBriefings, resForms, resMeetings, resNotes] = await Promise.all([
+        fetch('/api/consultorias/list').then(res => res.json()).catch(() => ({ success: false, data: [] })),
+        fetch('/api/briefings/list').then(res => res.json()).catch(() => ({ success: false, data: [] })),
+        fetch('/api/forms/list').then(res => res.json()).catch(() => ({ success: false, forms: [] })),
         supabase.from('prospect_meetings').select('*, leads(nome, instagram, telefone)').order('meeting_date', { ascending: true }),
-        supabase.from('admin_daily_notes').select('content').eq('date_log', selectedDate).maybeSingle(),
-        fetch('/api/forms/list').then(res => res.json()),
-        fetch('/api/briefings/idv/list').then(res => res.json())
+        supabase.from('admin_daily_notes').select('content').eq('date_log', selectedDate).maybeSingle()
       ]);
 
-      if (resLeads.data) setConsultorias(resLeads.data);
-      if (resForms.success) setFormularios(resForms.forms);
-      
-      let allBriefings = [];
-      if (resBriefings.data) {
-        allBriefings = [...allBriefings, ...resBriefings.data.map(b => ({...b, briefing_type: 'IDV'}))];
+      if (resConsultorias?.success && resConsultorias.data) {
+        setConsultorias(resConsultorias.data);
       }
-      if (resInstaBriefings.data) {
-        allBriefings = [...allBriefings, ...resInstaBriefings.data.map(b => ({...b, briefing_type: 'INSTA'}))];
+      if (resForms?.success && resForms.forms) {
+        setFormularios(resForms.forms);
       }
-      if (resIDVBriefings.success) {
-        allBriefings = [...allBriefings, ...resIDVBriefings.data.map(b => ({
-          ...b,
-          briefing_type: 'IDV', 
-          profiles: { nome: b.Nome_Cliente, email: b.Email },
-          answers: b
-        }))];
+      if (resBriefings?.success && resBriefings.data) {
+        setBriefings(resBriefings.data);
       }
-      
-      allBriefings.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-      
-      setBriefings(allBriefings);
-      if (resMeetings.data) setMeetings(resMeetings.data);
-      setNoteContent(resNotes.data?.content || "");
+      if (resMeetings?.data) setMeetings(resMeetings.data);
+      setNoteContent(resNotes?.data?.content || "");
     } catch (e) {
+      console.error('[Dashboard Error]:', e);
       showToast("Erro ao sincronizar QG Estratégico.");
     } finally {
       setIsLoading(false);
@@ -423,19 +409,26 @@ export default function AdminDashboard() {
                      ))}
                   </div>
                 ) : selectedItem.type === 'consultoria' ? (
-                  // MAPEAR CONSULTORIA DO PAINEL MAKE/REST
+                  // MAPEAR CONSULTORIA DO PAINEL MAKE/REST / BANCO UNIFICADO
                   <div className="flex flex-col gap-4">
                      <DataField label="Nome do Prospect" value={selectedItem.data.nome} />
                      <DataField label="Melhor E-mail" value={selectedItem.data.email} />
                      <DataField label="WhatsApp" value={selectedItem.data.telefone} />
                      <DataField label="Instagram Informado" value={selectedItem.data.instagram} />
-                     <DataField label="Nicho Corporativo" value={selectedItem.data.nicho} />
+                     <DataField label="Nicho / Nome da Marca" value={selectedItem.data.nicho} />
+                     <DataField label="Função na Empresa" value={selectedItem.data.funcao_empresa} />
+                     <DataField label="Tempo de Mercado / Marca" value={selectedItem.data.tempo_marca} />
                      <div className="h-px bg-gray-200 my-2"></div>
                      <DataField label="Objetivos da Marca (Próximos 6 meses)" value={selectedItem.data.market_positioning} />
                      <DataField label="Diferencial de Mercado" value={selectedItem.data.strategic_justification} />
+                     <DataField label="Público Atual" value={selectedItem.data.publico_atual} />
+                     <DataField label="Público Desejado" value={selectedItem.data.publico_desejado} />
                      <DataField label="Personalidade da Marca (Se fosse uma pessoa)" value={selectedItem.data.ai_stories_strategy} />
                      <DataField label="Marcas / Referências Inspiracionais" value={selectedItem.data.ai_tone_of_voice} />
                      <DataField label="Como a Consultoria pode Ajudar?" value={selectedItem.data.ai_visual_diagnosis} />
+                     <DataField label="Como Conheceu" value={selectedItem.data.como_conheceu} />
+                     <DataField label="Possui Logotipo Atual?" value={selectedItem.data.link_logo_atual} />
+                     <DataField label="Descrição da Identidade Atual" value={selectedItem.data.descricao_identidade_atual} />
                      <DataField label="Considerações Finais" value={selectedItem.data.ai_brand_archetype} />
                   </div>
                 ) : selectedItem.type === 'insta_briefing' ? (
