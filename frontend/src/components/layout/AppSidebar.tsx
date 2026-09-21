@@ -9,7 +9,7 @@ import {
   Home, Lock, MessageSquare, ChevronLeft, ChevronRight, 
   Compass, LayoutDashboard, FolderKanban, Users, MessageCircle, 
   Globe2, CheckCircle2, DollarSign, Sparkles, Briefcase, 
-  Crosshair, LogOut, Activity, Crown, Grid, Menu, X
+  Crosshair, LogOut, Activity, Crown, Grid, Menu, X, FileText
 } from "lucide-react";
 import { supabase } from "../../lib/supabase"; 
 import { useDynamicTitle } from "../../hooks/useDynamicTitle"; 
@@ -26,7 +26,7 @@ interface AppSidebarProps {
 
 // Dicionário de Rotas para os Títulos das Abas do Navegador
 const ROUTE_NAMES: Record<string, string> = {
-  '/admin': 'Tela da Dona',
+  '/admin': 'QG da Liziane',
   '/cockpit': 'Inicial',
   '/brandbook': 'Brandbook',
   '/curadoria': 'Curadoria',
@@ -101,7 +101,12 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
 
         const rawService = project?.service_type || project?.type || project?.service || "";
         const isInstagram = rawService === "Gestão de Instagram" || rawService.toLowerCase().includes("instagram");
-        const service = isInstagram ? "Gestão de Instagram" : "Identidade Visual";
+        const isMapa = rawService === "O Mapa" || rawService.toLowerCase() === "o mapa" || rawService.toLowerCase() === "mapa";
+        
+        let service = "Identidade Visual";
+        if (isInstagram) service = "Gestão de Instagram";
+        if (isMapa) service = "O Mapa";
+
         setClientServiceType(service);
 
         if (project) {
@@ -124,14 +129,17 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
 
         // BLINDAGEM DE ROTAS PARA CLIENTES
         if (shouldArchive) {
-          const lockedRoutes = ['/', '/cofre', '/referencias', '/cockpit', '/curadoria', '/cofre-missoes', '/brandbook'];
+          const lockedRoutes = ['/', '/cofre', '/referencias', '/cockpit', '/curadoria', '/cofre-missoes', '/brandbook', '/mapa'];
           if (lockedRoutes.includes(pathname)) router.replace('/comunidade');
         } else {
-          if (pathname === '/brandbook') {
+          if (isMapa) {
+            const allowedMapaRoutes = ['/mapa', '/comunidade'];
+            if (!allowedMapaRoutes.includes(pathname)) router.replace('/mapa');
+          } else if (pathname === '/brandbook') {
             router.replace(isInstagram ? '/cockpit' : '/');
-          } else if (isInstagram && (pathname === '/' || pathname === '/cofre' || pathname === '/referencias')) {
+          } else if (isInstagram && (pathname === '/' || pathname === '/cofre' || pathname === '/referencias' || pathname === '/mapa')) {
             router.replace('/cockpit');
-          } else if (!isInstagram && (pathname === '/cockpit' || pathname === '/curadoria' || pathname === '/cofre-missoes')) {
+          } else if (!isInstagram && !isMapa && (pathname === '/cockpit' || pathname === '/curadoria' || pathname === '/cofre-missoes' || pathname === '/mapa')) {
             router.replace('/');
           }
         }
@@ -143,7 +151,10 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
         }
       } else {
         // 🟢 BLINDAGEM DE ROTAS PARA A EQUIPA
-        if (pathname === '/admin' && !isAdminOnly) {
+        const clientRoutes = ['/', '/cofre', '/referencias', '/cockpit', '/curadoria', '/cofre-missoes', '/brandbook', '/mapa', '/canais', '/simulador-feed'];
+        if (clientRoutes.includes(pathname)) {
+          router.replace(isAdminOnly ? '/admin/analytics' : '/admin/jtbd');
+        } else if (pathname === '/admin' && !isManagerOrAdmin) {
           router.replace('/admin/jtbd');
         }
       }
@@ -191,7 +202,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     ? '/admin/financeiro' 
     : isTeamMember 
       ? (isAdminOnly ? '/admin/analytics' : '/admin/jtbd') 
-      : (clientServiceType === "Gestão de Instagram" ? '/cockpit' : '/');
+      : (clientServiceType === "O Mapa" ? '/mapa' : (clientServiceType === "Gestão de Instagram" ? '/cockpit' : '/'));
 
   // ====================================================
   // 🟢 MOBILE BOTTOM NAVIGATION CONFIGURATION
@@ -206,6 +217,9 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     { href: '/admin/jtbd', icon: <Crosshair size={20} strokeWidth={1.5} />, label: 'Focus' },
     { href: '/admin/clientes', icon: <Users size={20} strokeWidth={1.5} />, label: 'Clientes' },
     { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+  ] : clientServiceType === "O Mapa" ? [
+    { href: '/mapa', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : clientServiceType === "Gestão de Instagram" ? [
     { href: '/cockpit', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
@@ -292,6 +306,10 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
                   <NavItem href="/cockpit" icon={<Home size={18} strokeWidth={1.5} />} label="Inicial" collapsed={isCollapsed} active={pathname === '/cockpit'} />
                   <NavItem href="/simulador-feed" icon={<Grid size={18} strokeWidth={1.5} />} label="Feed" collapsed={isCollapsed} active={pathname === '/simulador-feed'} />
                 </>
+              ) : clientServiceType === "O Mapa" ? (
+                <>
+                  <NavItem href="/mapa" icon={<Home size={18} strokeWidth={1.5} />} label="O Mapa" collapsed={isCollapsed} active={pathname === '/mapa'} />
+                </>
               ) : (
                 <>
                   <NavItem href="/" icon={<Home size={18} strokeWidth={1.5} />} label="Inicial" collapsed={isCollapsed} active={pathname === '/'} />
@@ -304,7 +322,9 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
                 <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
               </div>
               
-              <NavItem href="/canais" icon={<MessageSquare size={18} strokeWidth={1.5} />} label="Canais" collapsed={isCollapsed} active={pathname === '/canais'} badge={globalUnreadCount} />
+              {clientServiceType !== "O Mapa" && (
+                <NavItem href="/canais" icon={<MessageSquare size={18} strokeWidth={1.5} />} label="Canais" collapsed={isCollapsed} active={pathname === '/canais'} badge={globalUnreadCount} />
+              )}
               <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
             </>
           )}
@@ -345,7 +365,11 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               
               {/* Visto apenas por Gestor e Admin */}
               {isManagerOrAdmin && (
-                <NavItem href="/admin/analytics" icon={<Briefcase size={18} strokeWidth={1.5} />} label="Analytics" collapsed={isCollapsed} active={pathname === '/admin/analytics'} />
+                <>
+                  <NavItem href="/admin" icon={<FileText size={18} strokeWidth={1.5} />} label="QG da Liziane" collapsed={isCollapsed} active={pathname === '/admin'} />
+                  <NavItem href="/admin/gestao" icon={<LayoutDashboard size={18} strokeWidth={1.5} />} label="Produtividade" collapsed={isCollapsed} active={pathname === '/admin/gestao'} />
+                  <NavItem href="/admin/analytics" icon={<Briefcase size={18} strokeWidth={1.5} />} label="Analytics" collapsed={isCollapsed} active={pathname === '/admin/analytics'} />
+                </>
               )}
 
 

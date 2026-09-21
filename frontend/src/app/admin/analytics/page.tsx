@@ -1013,7 +1013,7 @@ export default function AnalyticsPage() {
                 </span>
                 <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Visão Geral</span>
               </div>
-              <h1 className="font-elegant text-3xl md:text-4xl text-[var(--color-atelier-grafite)] truncate">Tela da <span className="text-[var(--color-atelier-terracota)] italic">Dona.</span></h1>
+              <h1 className="font-elegant text-3xl md:text-4xl text-[var(--color-atelier-grafite)] truncate">QG da <span className="text-[var(--color-atelier-terracota)] italic">Liziane.</span></h1>
             </>
           )}
           {activeView === 'produtividade' && (
@@ -1105,7 +1105,7 @@ export default function AnalyticsPage() {
                         className={`flex items-center gap-3 p-2.5 rounded-2xl transition-all ${activeView === 'dona' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'hover:bg-gray-100 text-[var(--color-atelier-grafite)]/70'}`}
                       >
                         <Crown size={16} className={activeView === 'dona' ? 'text-white' : 'text-[var(--color-atelier-terracota)]'} />
-                        <span className="font-bold text-[11px] uppercase tracking-wider">Tela da Dona</span>
+                        <span className="font-bold text-[11px] uppercase tracking-wider">QG da Liziane</span>
                       </button>
                     )}
 

@@ -34,7 +34,7 @@ export async function GET() {
     const supabase = getRawSupabase();
 
     // 1. NEON QUERIES
-    const [neonInstas, neonIdvs, neonConsultorias] = await Promise.all([
+    const [neonInstas, neonIdvs] = await Promise.all([
       (sql as any).query(`
         SELECT *
         FROM orcamentos_gerenciamento_instagram
@@ -50,31 +50,20 @@ export async function GET() {
       `).catch((err: any) => {
         console.error('[Forms List] Error querying Neon orcamentos_identidade_visual:', err);
         return [];
-      }),
-      (sql as any).query(`
-        SELECT *
-        FROM consultorias_posicionamento
-        ORDER BY created_at DESC
-      `).catch((err: any) => {
-        console.error('[Forms List] Error querying Neon consultorias_posicionamento:', err);
-        return [];
       })
     ]);
 
     // 2. SUPABASE QUERIES
     let supaInstas: any[] = [];
     let supaIdvs: any[] = [];
-    let supaConsultorias: any[] = [];
 
     if (supabase) {
-      const [resInsta, resIdv, resCons] = await Promise.all([
+      const [resInsta, resIdv] = await Promise.all([
         supabase.from('orcamentos_gerenciamento_instagram').select('*').order('created_at', { ascending: false }),
-        supabase.from('orcamentos_identidade_visual').select('*').order('created_at', { ascending: false }),
-        supabase.from('consultorias_posicionamento').select('*').order('created_at', { ascending: false })
+        supabase.from('orcamentos_identidade_visual').select('*').order('created_at', { ascending: false })
       ]);
       supaInstas = resInsta.data || [];
       supaIdvs = resIdv.data || [];
-      supaConsultorias = resCons.data || [];
     }
 
     // 3. MERGE & DEDUPLICATE
@@ -104,9 +93,6 @@ export async function GET() {
 
     addItems(neonIdvs, 'Identidade Visual', 'orcamentos_identidade_visual');
     addItems(supaIdvs, 'Identidade Visual', 'orcamentos_identidade_visual');
-
-    addItems(neonConsultorias, 'Consultoria de Posicionamento', 'consultorias_posicionamento');
-    addItems(supaConsultorias, 'Consultoria de Posicionamento', 'consultorias_posicionamento');
 
     // Sort by created_at DESC
     allForms.sort(

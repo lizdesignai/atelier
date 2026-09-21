@@ -65,7 +65,7 @@ export default function BaseClientesPage() {
   const [newClientEmpresa, setNewClientEmpresa] = useState("");
 
   const [selectedClientId, setSelectedClientId] = useState("");
-  const [serviceType, setServiceType] = useState<"Identidade Visual" | "Gestão de Instagram">("Identidade Visual");
+  const [serviceType, setServiceType] = useState<"Identidade Visual" | "Gestão de Instagram" | "O Mapa">("Identidade Visual");
   const [projectPackage, setProjectPackage] = useState("Identidade Visual Premium");
   const [financialValue, setFinancialValue] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("Transferência Bancária");
@@ -106,27 +106,8 @@ export default function BaseClientesPage() {
         
         const { data } = await response.json();
 
-        // Buscar leads via Supabase (Neon Proxy)
-        const { data: leads } = await supabase.from('leads').select('*').eq('status', 'prospect');
-        
-        const formattedLeads = (leads || []).map((l: any) => ({
-           id: l.id,
-           client_id: l.id,
-           isLead: true,
-           profiles: { nome: l.nome, email: l.email, empresa: l.nicho || "Lead", avatar_url: "" },
-           created_at: l.created_at,
-           status: 'prospect',
-           financial_value: 0
-        }));
-
-        setAvailableClients([...(data.availableClients || []), ...formattedLeads.map((l: any) => ({ 
-          id: l.client_id, 
-          nome: l.profiles.nome,
-          email: l.profiles.email,
-          empresa: l.profiles.empresa,
-          isLead: true 
-        }))]);
-        setEnrichedProjects([...(data.enrichedProjects || []), ...formattedLeads]);
+        setAvailableClients(data.availableClients || []);
+        setEnrichedProjects(data.enrichedProjects || []);
       } catch (error) {
         console.error("Erro ao buscar dados do CRM:", error);
       } finally {
@@ -141,6 +122,10 @@ export default function BaseClientesPage() {
     if (serviceType === "Identidade Visual") {
       setProjectPackage("Identidade Visual Premium");
       setPaymentRecurrence("Único");
+    } else if (serviceType === "O Mapa") {
+      setProjectPackage("O Mapa - Sessão Única");
+      setPaymentRecurrence("Único");
+      setPaymentSplit("100% Antecipado");
     } else {
       setProjectPackage("Pacote 1");
       setPaymentRecurrence("Mensal");
@@ -473,6 +458,9 @@ export default function BaseClientesPage() {
     if (filterStatus === "all") matchesStatus = true;
     else if (filterStatus === "lead") matchesStatus = project.isLead === true;
     else if (filterStatus === "agency") matchesStatus = project.isAgency === true;
+    else if (filterStatus === "Identidade Visual") matchesStatus = project.service_type === "Identidade Visual" && !project.isLead && !project.isAgency;
+    else if (filterStatus === "Gestão de Instagram") matchesStatus = project.service_type === "Gestão de Instagram" && !project.isLead && !project.isAgency;
+    else if (filterStatus === "O Mapa") matchesStatus = project.service_type === "O Mapa" && !project.isLead && !project.isAgency;
     else matchesStatus = project.status === filterStatus && !project.isLead && !project.isAgency;
     
     return matchesSearch && matchesStatus;
@@ -538,8 +526,10 @@ export default function BaseClientesPage() {
                       <button onClick={() => { setFilterStatus('all'); setIsMobileFilterOpen(false); }} className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${filterStatus === 'all' ? 'bg-[var(--color-atelier-grafite)] text-white' : 'text-gray-600 hover:bg-white'}`}>Todos {filterStatus === 'all' && <CheckCircle2 size={14}/>}</button>
                       <button onClick={() => { setFilterStatus('lead'); setIsMobileFilterOpen(false); }} className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${filterStatus === 'lead' ? 'bg-[var(--color-atelier-grafite)] text-white' : 'text-gray-600 hover:bg-white'}`}>Leads {filterStatus === 'lead' && <CheckCircle2 size={14}/>}</button>
                       <button onClick={() => { setFilterStatus('agency'); setIsMobileFilterOpen(false); }} className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${filterStatus === 'agency' ? 'bg-[var(--color-atelier-grafite)] text-white' : 'text-gray-600 hover:bg-white'}`}>Agências (B2B) {filterStatus === 'agency' && <CheckCircle2 size={14}/>}</button>
+                      <button onClick={() => { setFilterStatus('Identidade Visual'); setIsMobileFilterOpen(false); }} className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${filterStatus === 'Identidade Visual' ? 'bg-[var(--color-atelier-grafite)] text-white' : 'text-gray-600 hover:bg-white'}`}>Identidade Visual {filterStatus === 'Identidade Visual' && <CheckCircle2 size={14}/>}</button>
+                      <button onClick={() => { setFilterStatus('Gestão de Instagram'); setIsMobileFilterOpen(false); }} className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${filterStatus === 'Gestão de Instagram' ? 'bg-[var(--color-atelier-grafite)] text-white' : 'text-gray-600 hover:bg-white'}`}>Gerenciamento {filterStatus === 'Gestão de Instagram' && <CheckCircle2 size={14}/>}</button>
+                      <button onClick={() => { setFilterStatus('O Mapa'); setIsMobileFilterOpen(false); }} className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${filterStatus === 'O Mapa' ? 'bg-[var(--color-atelier-grafite)] text-white' : 'text-gray-600 hover:bg-white'}`}>O Mapa {filterStatus === 'O Mapa' && <CheckCircle2 size={14}/>}</button>
                       <button onClick={() => { setFilterStatus('active'); setIsMobileFilterOpen(false); }} className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${filterStatus === 'active' ? 'bg-[var(--color-atelier-grafite)] text-white' : 'text-gray-600 hover:bg-white'}`}>Ativos {filterStatus === 'active' && <CheckCircle2 size={14}/>}</button>
-                      <button onClick={() => { setFilterStatus('pending'); setIsMobileFilterOpen(false); }} className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${filterStatus === 'pending' ? 'bg-[var(--color-atelier-grafite)] text-white' : 'text-gray-600 hover:bg-white'}`}>Pendentes {filterStatus === 'pending' && <CheckCircle2 size={14}/>}</button>
                       <button onClick={() => { setFilterStatus('archived'); setIsMobileFilterOpen(false); }} className={`flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-bold transition-colors ${filterStatus === 'archived' ? 'bg-[var(--color-atelier-grafite)] text-white' : 'text-gray-600 hover:bg-white'}`}>Arquivados {filterStatus === 'archived' && <CheckCircle2 size={14}/>}</button>
                     </motion.div>
                   </>
@@ -1058,7 +1048,7 @@ export default function BaseClientesPage() {
                     </h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col gap-2 col-span-1 md:col-span-2">
                         <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 pl-1">Área Core</label>
                         <div className="flex bg-white/60 rounded-[1.2rem] p-1 shadow-sm border border-transparent">
                           <button 
@@ -1066,7 +1056,7 @@ export default function BaseClientesPage() {
                             onClick={() => setServiceType("Identidade Visual")}
                             className={`flex-1 py-2.5 rounded-[1rem] font-roboto text-[11px] font-bold uppercase tracking-widest transition-all ${serviceType === "Identidade Visual" ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white'}`}
                           >
-                            Identidade Visual
+                            IDV
                           </button>
                           <button 
                             type="button"
@@ -1074,6 +1064,13 @@ export default function BaseClientesPage() {
                             className={`flex-1 py-2.5 rounded-[1rem] font-roboto text-[11px] font-bold uppercase tracking-widest transition-all ${serviceType === "Gestão de Instagram" ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white'}`}
                           >
                             Instagram
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={() => setServiceType("O Mapa")}
+                            className={`flex-1 py-2.5 rounded-[1rem] font-roboto text-[11px] font-bold uppercase tracking-widest transition-all ${serviceType === "O Mapa" ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white'}`}
+                          >
+                            O Mapa
                           </button>
                         </div>
                       </div>

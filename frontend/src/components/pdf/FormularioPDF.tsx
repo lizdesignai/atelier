@@ -1,6 +1,7 @@
 // src/components/pdf/FormularioPDF.tsx
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
+import { stripEmojis } from '@/lib/pdfUtils';
 
 // 1. REGISTO DE FONTES DE LUXO
 Font.register({
@@ -15,7 +16,7 @@ Font.register({
 
 Font.register({
   family: 'Elegant',
-  src: 'https://fonts.gstatic.com/s/playfairdisplay/v29/nuFvD-vYSZviVYUb_rj3ij__anPXJzDwcbmjWBN2PKdFvXDXbtM.woff2'
+  src: '/fonts/Elegant-Regular.ttf'
 });
 
 // 2. ESTILIZAÇÃO DO DOCUMENTO 
@@ -129,25 +130,28 @@ interface FormularioPDFProps {
   formType: string;
   clientName: string;
   dadosCompletos: Record<string, any>;
+  customCoverTitle?: string;
+  customHeaderTitle?: string;
 }
 
-export default function FormularioPDF({ formType, clientName, dadosCompletos }: FormularioPDFProps) {
+export default function FormularioPDF({ formType, clientName, dadosCompletos, customCoverTitle, customHeaderTitle }: FormularioPDFProps) {
   const currentDate = new Date().toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
+  const safeClientName = stripEmojis(clientName);
 
   return (
     <Document>
       {/* PÁGINA 1: CAPA EDITORIAL */}
       <Page size="A4" style={styles.coverPage}>
         <Image src="/images/simbolo-rosa.png" style={styles.coverLogo} />
-        <Text style={styles.coverTitle}>Orçamento & Captação</Text>
-        <Text style={styles.coverSubtitle}>{formType}</Text>
+        <Text style={styles.coverTitle}>{customCoverTitle || 'Orçamento & Captação'}</Text>
+        <Text style={styles.coverSubtitle}>{stripEmojis(formType)}</Text>
         <Text style={styles.coverDate}>{currentDate} • Atelier Liz Design</Text>
       </Page>
 
       {/* PÁGINA 2 em diante: CONTEÚDO */}
       <Page size="A4" style={styles.page}>
         <View style={styles.header} fixed>
-          <Text style={styles.headerTitle}>Ficha de Orçamento</Text>
+          <Text style={styles.headerTitle}>{customHeaderTitle || 'Ficha de Orçamento'}</Text>
           <Image src="/images/simbolo-rosa.png" style={{ width: 24, height: 24, opacity: 0.5 }} />
         </View>
 
@@ -166,9 +170,9 @@ export default function FormularioPDF({ formType, clientName, dadosCompletos }: 
           }
           
           return (
-            <View key={index} style={styles.qaContainer} wrap={false}>
-              <Text style={styles.question}>{niceLabel}</Text>
-              <Text style={styles.answer}>{String(displayValue)}</Text>
+            <View key={index} style={styles.qaContainer} wrap>
+              <Text style={styles.question}>{stripEmojis(niceLabel)}</Text>
+              <Text style={styles.answer}>{stripEmojis(String(displayValue))}</Text>
             </View>
           );
         })}
@@ -176,7 +180,7 @@ export default function FormularioPDF({ formType, clientName, dadosCompletos }: 
         {/* RODAPÉ (Repetido em todas as páginas automaticamente) */}
         <View style={styles.footer} fixed>
           <Text style={styles.footerText}>Atelier LizDesign</Text>
-          <Text style={styles.footerText}>{clientName || 'Atelier Liz Design'}</Text>
+          <Text style={styles.footerText}>{safeClientName || 'Atelier Liz Design'}</Text>
         </View>
       </Page>
     </Document>

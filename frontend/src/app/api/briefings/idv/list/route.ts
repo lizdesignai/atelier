@@ -44,10 +44,10 @@ export async function GET() {
       const d = b.dados_completos || {};
       const normalized = {
         ...b,
-        Nome_Cliente: b.Nome_Cliente || d.Nome_Cliente || 'Cliente',
-        Email: b.Email || d.Email || '',
-        WhatsApp: b.WhatsApp || d.WhatsApp || '',
-        Nome_Logotipo: b.Nome_Logotipo || d.Nome_Logotipo || '',
+        Nome_Cliente: b.Nome_Cliente || d.Nome_Cliente || b.nome || d.nome || 'Cliente',
+        Email: b.Email || d.Email || b.email || d.email || '',
+        WhatsApp: b.WhatsApp || d.WhatsApp || b.whatsapp || d.whatsapp || '',
+        Nome_Logotipo: b.Nome_Logotipo || d.Nome_Logotipo || b.nome_logo || d.nome_logo || '',
       };
 
       const idKey = String(b.id || '');

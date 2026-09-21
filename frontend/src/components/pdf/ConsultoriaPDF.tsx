@@ -1,6 +1,7 @@
 // src/components/pdf/ConsultoriaPDF.tsx
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
+import { stripEmojis } from '@/lib/pdfUtils';
 
 // 1. REGISTO DE FONTES DE LUXO
 Font.register({
@@ -191,6 +192,21 @@ export default function ConsultoriaPDF({ clientName, instagram, nicho, result }:
 
   const currentDate = new Date().toLocaleDateString('pt-PT', { month: 'long', year: 'numeric' });
 
+  const safeClientName = stripEmojis(clientName);
+  const safeInstagram = stripEmojis(instagram);
+  const safeNicho = stripEmojis(nicho);
+
+  const safeResult = {
+    ...result,
+    brand_archetype: stripEmojis(result.brand_archetype),
+    visual_diagnosis: stripEmojis(result.visual_diagnosis),
+    tone_of_voice: stripEmojis(result.tone_of_voice),
+    stories_strategy: stripEmojis(result.stories_strategy),
+    strategic_justification: stripEmojis(result.strategic_justification),
+    market_positioning: stripEmojis(result.market_positioning),
+    content_pillars: result.content_pillars?.map(stripEmojis) || []
+  };
+
   // Utilitário para quebrar textos em parágrafos preservando quebras de linha manuais
   const renderText = (text: string) => {
     if (!text) return <Text style={styles.paragraph}>Não definido.</Text>;
@@ -206,8 +222,8 @@ export default function ConsultoriaPDF({ clientName, instagram, nicho, result }:
       <Page size="A4" style={styles.coverPage}>
         <Image src="/images/simbolo-rosa.png" style={styles.coverLogo} />
         <Text style={styles.coverTitle}>Auditoria Estratégica</Text>
-        <Text style={styles.coverSubtitle}>{clientName}</Text>
-        <Text style={styles.coverDetails}>{instagram} • {nicho}</Text>
+        <Text style={styles.coverSubtitle}>{safeClientName}</Text>
+        <Text style={styles.coverDetails}>{safeInstagram} • {safeNicho}</Text>
         <Text style={styles.coverDate}>{currentDate} • Atelier Liz Design</Text>
       </Page>
 
@@ -219,57 +235,57 @@ export default function ConsultoriaPDF({ clientName, instagram, nicho, result }:
         </View>
 
         {/* 1. ARQUÉTIPO DE MARCA */}
-        <View style={styles.primaryBox} wrap={false}>
+        <View style={styles.primaryBox} wrap>
           <Text style={styles.boxTitle}>Arquétipo de Marca Recomendado</Text>
           <Text style={{ fontFamily: 'Elegant', fontSize: 22, color: '#1a1a1a', marginBottom: 8 }}>
-            {result.brand_archetype ? result.brand_archetype.split('-')[0] : 'Indefinido'}
+            {safeResult.brand_archetype ? safeResult.brand_archetype.split('-')[0] : 'Indefinido'}
           </Text>
-          {result.brand_archetype && result.brand_archetype.includes('-') && (
+          {safeResult.brand_archetype && safeResult.brand_archetype.includes('-') && (
             <Text style={styles.paragraph}>
-              {result.brand_archetype.split('-').slice(1).join('-').trim()}
+              {safeResult.brand_archetype.split('-').slice(1).join('-').trim()}
             </Text>
           )}
         </View>
 
         {/* 2. JUSTIFICATIVA ESTRATÉGICA (Oceano Azul) */}
-        {result.strategic_justification && (
+        {safeResult.strategic_justification && (
           <View style={styles.secondaryBox}>
             <Text style={styles.boxTitle}>Justificativa Estratégica (Oceano Azul)</Text>
-            {renderText(result.strategic_justification)}
+            {renderText(safeResult.strategic_justification)}
           </View>
         )}
 
         {/* 3. POSICIONAMENTO DE MERCADO */}
-        {result.market_positioning && (
+        {safeResult.market_positioning && (
           <View style={styles.secondaryBox}>
             <Text style={styles.boxTitle}>Posicionamento de Mercado</Text>
-            {renderText(result.market_positioning)}
+            {renderText(safeResult.market_positioning)}
           </View>
         )}
 
         {/* 4. DIAGNÓSTICO VISUAL */}
         <View style={styles.secondaryBox}>
           <Text style={styles.boxTitle}>Diagnóstico Visual e Estético</Text>
-          {renderText(result.visual_diagnosis)}
+          {renderText(safeResult.visual_diagnosis)}
         </View>
 
         {/* 5. TOM DE VOZ */}
         <View style={styles.secondaryBox}>
           <Text style={styles.boxTitle}>Tom de Voz (Brand Persona)</Text>
-          {renderText(result.tone_of_voice)}
+          {renderText(safeResult.tone_of_voice)}
         </View>
 
         {/* 6. ESTRATÉGIA DE STORIES */}
         <View style={styles.secondaryBox}>
           <Text style={styles.boxTitle}>Dinâmica de Conversão (Stories)</Text>
-          {renderText(result.stories_strategy)}
+          {renderText(safeResult.stories_strategy)}
         </View>
 
         {/* 7. PILARES DE CONTEÚDO */}
-        {result.content_pillars && result.content_pillars.length > 0 && (
-          <View style={styles.pillarsSection} wrap={false}>
+        {safeResult.content_pillars && safeResult.content_pillars.length > 0 && (
+          <View style={styles.pillarsSection} wrap>
             <Text style={styles.boxTitle}>Táticas & Pilares de Conteúdo</Text>
-            {result.content_pillars.map((pillar, index) => (
+            {safeResult.content_pillars.map((pillar, index) => (
               <View key={index} style={styles.pillarItem}>
                 <Text style={styles.pillarNumber}>0{index + 1}</Text>
                 <Text style={styles.pillarText}>{pillar}</Text>
@@ -281,7 +297,7 @@ export default function ConsultoriaPDF({ clientName, instagram, nicho, result }:
         {/* RODAPÉ (Repetido em todas as páginas via fixed) */}
         <View style={styles.footer} fixed>
           <Text style={styles.footerText}>Atelier LizDesign</Text>
-          <Text style={styles.footerText}>{clientName || 'Atelier Liz Design'}</Text>
+          <Text style={styles.footerText}>{safeClientName || 'Atelier Liz Design'}</Text>
         </View>
       </Page>
     </Document>

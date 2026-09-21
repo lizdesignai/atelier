@@ -1,6 +1,7 @@
 // src/components/pdf/BriefingPDF.tsx
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
+import { stripEmojis } from '@/lib/pdfUtils';
 
 // 1. REGISTO DE FONTES DE LUXO
 Font.register({
@@ -184,10 +185,13 @@ interface BriefingPDFProps {
 
 export default function BriefingPDF({ clientBriefing, projectName, aiInsight }: BriefingPDFProps) {
   
+  const safeProjectName = stripEmojis(projectName);
+
   // Função nativa para formatar a resposta da IA dentro do @react-pdf/renderer
   const renderAiInsight = (text: string) => {
     if (!text) return null;
-    const lines = text.split('\n');
+    const cleanText = stripEmojis(text);
+    const lines = cleanText.split('\n');
     return lines.map((line, index) => {
       const cleanLine = line.trim();
       if (!cleanLine) return null; // Filtro de linhas vazias
@@ -367,6 +371,8 @@ export default function BriefingPDF({ clientBriefing, projectName, aiInsight }: 
     validacao_espelho: "A marca reflete quem você é?",
     ajustes_espelho: "Quais ajustes faria?",
     consideracoes_finais: "Considerações finais",
+    emoji_empresa: "A Marca em Emojis",
+    musica_empresa: "Música que a define",
   };
 
   return (
@@ -374,7 +380,7 @@ export default function BriefingPDF({ clientBriefing, projectName, aiInsight }: 
       {/* PÁGINA 1: CAPA EDITORIAL */}
       <Page size="A4" style={styles.coverPage}>
         <Image src="/images/simbolo-rosa.png" style={styles.coverLogo} />
-        <Text style={styles.coverTitle}>{projectName || 'Briefing'}</Text>
+        <Text style={styles.coverTitle}>{safeProjectName || 'Briefing'}</Text>
         <Text style={styles.coverSubtitle}>Briefing de Identidade Visual</Text>
         <Text style={styles.coverDate}>{currentDate} • Atelier Liz Design</Text>
       </Page>
@@ -394,7 +400,7 @@ export default function BriefingPDF({ clientBriefing, projectName, aiInsight }: 
           </View>
         )}
 
-        <Text style={styles.sectionTitle}>Conheça {projectName}</Text>
+        <Text style={styles.sectionTitle}>Conheça {safeProjectName}</Text>
 
         {/* MAPEAMENTO DO BRIEFING LIMPO */}
         {Object.entries(clientBriefing).map(([key, val]: any, index) => {
@@ -410,16 +416,16 @@ export default function BriefingPDF({ clientBriefing, projectName, aiInsight }: 
           }
           
           return (
-            <View key={index} style={styles.qaContainer} wrap={false}>
-              <Text style={styles.question}>{niceLabel}</Text>
-              <Text style={styles.answer}>{String(displayValue)}</Text>
+            <View key={index} style={styles.qaContainer} wrap>
+              <Text style={styles.question}>{stripEmojis(niceLabel)}</Text>
+              <Text style={styles.answer}>{stripEmojis(String(displayValue))}</Text>
             </View>
           );
         })}
 
         {/* IMAGEM DE REFERÊNCIA (Se existir) */}
         {clientBriefing.logo_atual_url && (
-          <View style={[styles.qaContainer, { marginTop: 20 }]} wrap={false}>
+          <View style={[styles.qaContainer, { marginTop: 20 }]} wrap>
             <Text style={styles.question}>Referência Visual (Logotipo Anterior)</Text>
             <Image src={clientBriefing.logo_atual_url} style={styles.imageRef} />
           </View>
@@ -428,7 +434,7 @@ export default function BriefingPDF({ clientBriefing, projectName, aiInsight }: 
         {/* RODAPÉ (Repetido em todas as páginas automaticamente) */}
         <View style={styles.footer} fixed>
           <Text style={styles.footerText}>Atelier LizDesign</Text>
-          <Text style={styles.footerText}>{projectName || 'Atelier Liz Design'}</Text>
+          <Text style={styles.footerText}>{safeProjectName || 'Atelier Liz Design'}</Text>
         </View>
       </Page>
     </Document>

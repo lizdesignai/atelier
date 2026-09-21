@@ -5,7 +5,7 @@ export async function GET() {
   try {
     const sql = getDb();
 
-    const [tasksData, profilesData, agenciesData, activeProjects] = await Promise.all([
+    const [tasksData, profilesData, agenciesData, activeProjects, leadsData] = await Promise.all([
       sql`SELECT project_id, status FROM tasks`,
       sql`SELECT id, email, nome, avatar_url, role, created_at, empresa FROM profiles WHERE role IN ('client', 'lead')`,
       sql`SELECT id, name, status, financial_value, billing_date, created_at, trello_url FROM agencies`,
@@ -13,7 +13,8 @@ export async function GET() {
           FROM projects p
           LEFT JOIN profiles pr ON p.client_id = pr.id
           WHERE p.status IN ('active', 'delivered')
-          ORDER BY p.created_at DESC`
+          ORDER BY p.created_at DESC`,
+      sql`SELECT id, nome, email, nicho, created_at FROM leads WHERE status = 'prospect'`
     ]);
 
     const enriched = (activeProjects || []).map((p: any) => {
@@ -30,7 +31,7 @@ export async function GET() {
       };
     });
 
-    const leadsMapped = (profilesData || [])
+    const profilesLeadsMapped = (profilesData || [])
       .filter((p: any) => p.role === 'lead')
       .map((lead: any) => ({
         id: `lead-${lead.id}`,
@@ -44,6 +45,21 @@ export async function GET() {
         created_at: lead.created_at,
         financial_value: 0
       }));
+
+    const nativeLeadsMapped = (leadsData || []).map((l: any) => ({
+      id: `lead-native-${l.id}`,
+      client_id: l.id,
+      isLead: true,
+      isAgency: false,
+      profiles: { nome: l.nome, email: l.email, empresa: l.nicho || 'Lead' },
+      status: 'lead',
+      type: 'Lead (Orçamento)',
+      calculatedProgress: 0,
+      created_at: l.created_at,
+      financial_value: 0
+    }));
+
+    const leadsMapped = [...profilesLeadsMapped, ...nativeLeadsMapped];
 
     const agenciesMapped = (agenciesData || []).map((agency: any) => ({
       id: `agency-${agency.id}`,
@@ -63,10 +79,21 @@ export async function GET() {
     const enrichedProjects = [...enriched, ...leadsMapped, ...agenciesMapped]
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
+    const mappedAvailableLeads = (leadsData || []).map((l: any) => ({
+      id: l.id,
+      nome: l.nome,
+      email: l.email,
+      empresa: l.nicho || 'Lead',
+      isLead: true
+    }));
+
     return NextResponse.json({
       data: {
         enrichedProjects,
-        availableClients: (profilesData || []).filter((p: any) => p.role === 'client')
+        availableClients: [
+          ...(profilesData || []).filter((p: any) => p.role === 'client'),
+          ...mappedAvailableLeads
+        ]
       }
     });
   } catch (error: any) {

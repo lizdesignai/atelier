@@ -275,7 +275,7 @@ export default function WorkforceDashboard({ currentUser, activeTab = 'workforce
   // MOTOR DE DIAGNÓSTICO
   // ==========================================================================
   const generateDiagnosticReport = (member: any) => {
-    let aderenciaText = member.slaPercentage >= 90 ? "Excelente aderência à carga horária estipulada (SLA)." : member.slaPercentage >= 70 ? "Aderência satisfatória, mas com espaço para otimização." : "Baixa aderência à carga horária. Avaliar gargalos operacionais.";
+    let aderenciaText = member.slaPercentage >= 90 ? "Excelente aderência à carga horária estipulada (SLA)." : member.slaPercentage >= 70 ? "Aderência satisfatória, mas com espaço para otimização." : "Baixa aderência à carga horária.";
     let qualidadeText = member.reworkRate <= 10 ? "Taxa de qualidade altíssima. Entregas precisas." : member.reworkRate <= 30 ? "Qualidade dentro da média. Refações pontuais." : "Alto índice de refação identificado. Necessita revisão atenta de briefings.";
 
     const report = `📋 DIAGNÓSTICO DE DESEMPENHO: ${member.nome.toUpperCase()}

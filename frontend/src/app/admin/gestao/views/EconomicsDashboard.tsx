@@ -41,23 +41,27 @@ export default function EconomicsDashboard({ currentUser, activeTab = 'economics
       const now = new Date();
       const monthStart = startOfMonth(now).toISOString();
 
-      // 1. Buscar Projetos e seus Fees
-      const { data: projects } = await supabase
-        .from('projects')
-        .select('id, financial_value, type, status, profiles(nome, avatar_url)')
-        .eq('status', 'active');
-        
-      // 1.1 Buscar Agências WL
-      const { data: agencies } = await supabase
-        .from('agencies')
-        .select('id, financial_value, name')
-        .eq('status', 'active');
+      // 1. Buscar Projetos e Agências via API (bypassa RLS e garante os nomes)
+      const overviewRes = await fetch('/api/clients/overview').then(res => res.json());
+      const allProjects = overviewRes?.data?.enrichedProjects || [];
 
       // 2. Buscar Tempo Logado (Total histórico do ciclo atual)
       const { data: sessions } = await supabase
         .from('work_sessions')
-        .select('duration_minutes, task_id, tasks(project_id, agency_id)')
+        .select('duration_minutes, task_id, tasks(project_id, agency_id, subclient_id)')
         .gte('start_time', monthStart);
+
+      // 2.5 Buscar Subclientes para mapear para as Agências
+      const { data: subclients } = await supabase
+        .from('agency_subclients')
+        .select('id, agency_id');
+      
+      const subclientAgencyMap: Record<string, string> = {};
+      if (subclients) {
+        subclients.forEach(sub => {
+          if (sub.agency_id) subclientAgencyMap[sub.id] = sub.agency_id;
+        });
+      }
 
       // 3. Buscar T-NPS (Última nota de cada cliente)
       const { data: npsScores } = await supabase
@@ -68,18 +72,19 @@ export default function EconomicsDashboard({ currentUser, activeTab = 'economics
       // 4. Buscar Última Entrega (Para detecção de Churn)
       const { data: lastTasks } = await supabase
         .from('tasks')
-        .select('project_id, agency_id, completed_at')
+        .select('project_id, agency_id, subclient_id, completed_at')
         .eq('status', 'completed')
         .order('completed_at', { ascending: false });
 
       const enrichedData: any[] = [];
 
-      // Processar Projetos Próprios
-      if (projects) {
-        projects.forEach(proj => {
-          const safeProfile = extractNode(proj.profiles);
-          const clientName = safeProfile?.nome || "Cliente Desconhecido";
-          const avatarUrl = safeProfile?.avatar_url || null;
+      allProjects.forEach((proj: any) => {
+        if (proj.isLead || proj.status !== 'active') return;
+
+        if (!proj.isAgency) {
+          // Processar Projetos Próprios
+          const clientName = proj.profiles?.nome || "Cliente Desconhecido";
+          const avatarUrl = proj.profiles?.avatar_url || null;
 
           const projectSessions = sessions?.filter(s => {
               const safeTask = extractNode(s.tasks);
@@ -140,15 +145,20 @@ export default function EconomicsDashboard({ currentUser, activeTab = 'economics
             color,
             icon
           });
-        });
-      }
+        }
+      });
 
       // Processar Agências (White Label)
-      if (agencies) {
-        agencies.forEach(ag => {
+      allProjects.forEach((proj: any) => {
+        if (proj.isLead || proj.status !== 'active') return;
+
+        if (proj.isAgency) {
+          const ag = proj;
           const agencySessions = sessions?.filter(s => {
               const safeTask = extractNode(s.tasks);
-              return safeTask?.agency_id === ag.id;
+              const belongsToAgency = safeTask?.agency_id === ag.id || safeTask?.agency_id === ag.client_id;
+              const belongsToSubclientOfAgency = safeTask?.subclient_id && subclientAgencyMap[safeTask.subclient_id] === (ag.id || ag.client_id);
+              return belongsToAgency || belongsToSubclientOfAgency;
           }) || [];
           
           const totalMinutes = agencySessions.reduce((acc, s) => acc + (s.duration_minutes || 0), 0);
@@ -159,7 +169,7 @@ export default function EconomicsDashboard({ currentUser, activeTab = 'economics
           const marginPercentage = fee > 0 ? (grossMargin / fee) * 100 : 0;
 
           // Agências não têm NPS associado no nosso modelo atual, e calculamos o último delivery
-          const lastDelivery = lastTasks?.find(t => t.agency_id === ag.id)?.completed_at;
+          const lastDelivery = lastTasks?.find(t => t.agency_id === (ag.id || ag.client_id) || (t.subclient_id && subclientAgencyMap[t.subclient_id] === (ag.id || ag.client_id)))?.completed_at;
           const daysSinceLastDelivery = lastDelivery ? differenceInDays(now, new Date(lastDelivery)) : 99;
           
           const churnRisk = daysSinceLastDelivery > 7 ? 'high' : daysSinceLastDelivery > 4 ? 'medium' : 'low';
@@ -188,9 +198,9 @@ export default function EconomicsDashboard({ currentUser, activeTab = 'economics
           }
 
           enrichedData.push({
-            id: ag.id,
+            id: ag.client_id || ag.id, // Use client_id from API to get correct DB id
             sourceType: 'agency',
-            clientName: ag.name,
+            clientName: ag.profiles?.nome || ag.name || 'Agência',
             avatar: null,
             type: 'Agência WL',
             fee,
@@ -205,8 +215,8 @@ export default function EconomicsDashboard({ currentUser, activeTab = 'economics
             color,
             icon
           });
-        });
-      }
+        }
+      });
 
       setProjectsData(enrichedData.sort((a, b) => b.fee - a.fee)); // Ordena pelas contas que mais pagam
     } catch (error) {

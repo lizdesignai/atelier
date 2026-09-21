@@ -88,25 +88,26 @@ export default function PulseDashboard({ currentUser, activeTab = 'pulse', setAc
       const currentNow = new Date();
       const monthStart = startOfMonth(currentNow).toISOString();
       
-      const [resProjects, resAgencies, resSubs, resMonthSessions] = await Promise.all([
-        supabase.from('projects').select('id, financial_value, profiles(nome)').eq('status', 'active'),
-        supabase.from('agencies').select('id, financial_value, name').eq('status', 'active'),
+      const [overviewRes, resSubs, resMonthSessions] = await Promise.all([
+        fetch('/api/clients/overview').then(res => res.json()),
         supabase.from('agency_subclients').select('id, name, agency_id'),
         supabase.from('work_sessions').select('duration_minutes, task_id, tasks(project_id, agency_id, subclient_id)').gte('start_time', monthStart)
       ]);
 
       const unifiedSources: any[] = [];
-      if (resProjects.data) {
-        resProjects.data.forEach(p => {
-          const profile = extractNode(p.profiles);
-          unifiedSources.push({ id: p.id, type: 'project', name: profile?.nome || 'Projeto Desconhecido', label: 'Estúdio', fee: Number(p.financial_value || 0) });
+      
+      if (overviewRes?.data?.enrichedProjects) {
+        overviewRes.data.enrichedProjects.forEach((p: any) => {
+          if (p.isAgency) {
+            unifiedSources.push({ id: p.client_id, type: 'agency', name: p.profiles?.nome || 'Agência', label: 'Agência WL', fee: Number(p.financial_value || 0) });
+          } else if (!p.isLead && p.status === 'active') {
+            unifiedSources.push({ id: p.id, type: 'project', name: p.profiles?.nome || 'Projeto Desconhecido', label: 'Estúdio', fee: Number(p.financial_value || 0) });
+          }
         });
       }
-      if (resAgencies.data) {
-        resAgencies.data.forEach(a => unifiedSources.push({ id: a.id, type: 'agency', name: a.name, label: 'Agência WL', fee: Number(a.financial_value || 0) }));
-      }
+
       if (resSubs.data) {
-        resSubs.data.forEach(s => unifiedSources.push({ id: s.id, type: 'subclient', name: s.name, label: 'Subcliente WL', fee: 0 }));
+        resSubs.data.forEach(s => unifiedSources.push({ id: s.id, type: 'subclient', name: s.name, label: 'Subcliente WL', fee: 0, agency_id: s.agency_id }));
       }
       setSources(unifiedSources.sort((a, b) => a.name.localeCompare(b.name)));
 
@@ -169,21 +170,32 @@ export default function PulseDashboard({ currentUser, activeTab = 'pulse', setAc
   }, [activeSessions, closedSessions, todayTasks, now, team]);
 
   const demandMetrics = useMemo(() => {
-    // Calcular dados por fonte (Estúdio, Agência, Subcliente)
-    const sourceStats = sources.map(source => {
-      const sourceTasks = tasks.filter(t => 
-        (source.type === 'project' && t.project_id === source.id) ||
-        (source.type === 'agency' && t.agency_id === source.id) ||
-        (source.type === 'subclient' && t.subclient_id === source.id)
-      );
+    // Calcular dados por fonte (Estúdio, Agência)
+    // Subclientes não são listados individualmente, seus dados são somados na Agência correspondente
+    const primarySources = sources.filter(s => s.type !== 'subclient');
+
+    const sourceStats = primarySources.map(source => {
+      const sourceTasks = tasks.filter(t => {
+        if (source.type === 'project') return t.project_id === source.id;
+        if (source.type === 'agency') {
+          // Verifica se a tarefa é diretamente da agência, ou se pertence a um subcliente desta agência
+          const isDirect = t.agency_id === source.id;
+          const isSubclient = t.subclient_id && sources.find(sub => sub.id === t.subclient_id)?.agency_id === source.id;
+          return isDirect || isSubclient;
+        }
+        return false;
+      });
       
       const sourceSessions = monthSessions.filter(s => {
         const t = extractNode(s.tasks);
-        return t && (
-          (source.type === 'project' && t.project_id === source.id) ||
-          (source.type === 'agency' && t.agency_id === source.id) ||
-          (source.type === 'subclient' && t.subclient_id === source.id)
-        );
+        if (!t) return false;
+        if (source.type === 'project') return t.project_id === source.id;
+        if (source.type === 'agency') {
+          const isDirect = t.agency_id === source.id;
+          const isSubclient = t.subclient_id && sources.find(sub => sub.id === t.subclient_id)?.agency_id === source.id;
+          return isDirect || isSubclient;
+        }
+        return false;
       });
 
       const totalTasks = sourceTasks.length;
@@ -324,8 +336,13 @@ export default function PulseDashboard({ currentUser, activeTab = 'pulse', setAc
           <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-3 pr-2">
             <AnimatePresence mode="popLayout">
               {(() => {
-                // Filtrar tarefas pendentes e em revisão, ordenadas por deadline
-                const upcoming = tasks.filter(t => t.status === 'pending' || t.status === 'review' || t.status === 'needs_revision').slice(0, 15);
+                // Filtrar tarefas pendentes e em revisão, ignorando aquelas que venceram há mais de 14 dias (dados de teste/antigos)
+                const nowMs = Date.now();
+                const cutoffMs = nowMs - (14 * 24 * 60 * 60 * 1000); // 14 dias atrás
+                const upcoming = tasks
+                  .filter(t => (t.status === 'pending' || t.status === 'review' || t.status === 'needs_revision') && new Date(t.deadline).getTime() >= cutoffMs)
+                  .sort((a, b) => Math.abs(new Date(a.deadline).getTime() - nowMs) - Math.abs(new Date(b.deadline).getTime() - nowMs))
+                  .slice(0, 15);
                 if (upcoming.length === 0) {
                   return (
                     <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.9 }} className="flex flex-col items-center justify-center h-full text-center opacity-40">
@@ -417,10 +434,9 @@ export default function PulseDashboard({ currentUser, activeTab = 'pulse', setAc
                 value={filterSource}
                 onChange={(e) => setFilterSource(e.target.value)}
               >
-                <option value="all">Todos (Estúdio, Agências, Subs)</option>
+                <option value="all">Todos (Estúdio, Agências)</option>
                 <option value="project">Apenas Projetos/Estúdio</option>
                 <option value="agency">Apenas Agências</option>
-                <option value="subclient">Apenas Subclientes</option>
               </select>
               
               <select

@@ -10,7 +10,7 @@ export async function GET() {
     const supabase = getRawSupabase();
 
     // 1. NEON QUERIES
-    const [neonIDV, neonClientBriefings, neonInstaBriefings] = await Promise.all([
+    const [neonIDV, neonOnboarding] = await Promise.all([
       sql`
         SELECT *
         FROM briefings_identidade_visual
@@ -20,39 +20,26 @@ export async function GET() {
         return [];
       }),
       sql`
-        SELECT cb.*, p.nome as profile_nome, p.empresa as profile_empresa, p.email as profile_email
-        FROM client_briefings cb
-        LEFT JOIN profiles p ON cb.client_id = p.id
-        ORDER BY cb.created_at DESC
+        SELECT *
+        FROM onboarding_respostas
+        ORDER BY created_at DESC
       `.catch(err => {
-        console.error('[Briefings List] Error Neon client_briefings:', err);
+        console.error('[Briefings List] Error Neon onboarding_respostas:', err);
         return [];
-      }),
-      sql`
-        SELECT ib.*, p.nome as profile_nome, p.empresa as profile_empresa, p.email as profile_email
-        FROM instagram_briefings ib
-        LEFT JOIN profiles p ON ib.client_id = p.id
-        ORDER BY ib.created_at DESC
-      `.catch(err => {
-        console.error('[Briefings List] Error Neon instagram_briefings:', err);
-        return [];
-      }),
+      })
     ]);
 
     // 2. SUPABASE QUERIES
     let supaIDV: any[] = [];
-    let supaClientBriefings: any[] = [];
-    let supaInstaBriefings: any[] = [];
+    let supaOnboarding: any[] = [];
 
     if (supabase) {
-      const [resIDV, resCB, resIB] = await Promise.all([
+      const [resIDV, resOnboarding] = await Promise.all([
         supabase.from('briefings_identidade_visual').select('*').order('created_at', { ascending: false }),
-        supabase.from('client_briefings').select('*, profiles(nome, empresa, email)').order('created_at', { ascending: false }),
-        supabase.from('instagram_briefings').select('*, profiles(nome, empresa, email)').order('created_at', { ascending: false })
+        supabase.from('onboarding_respostas').select('*').order('created_at', { ascending: false })
       ]);
       supaIDV = resIDV.data || [];
-      supaClientBriefings = resCB.data || [];
-      supaInstaBriefings = resIB.data || [];
+      supaOnboarding = resOnboarding.data || [];
     }
 
     // 3. NORMALIZE AND MERGE
@@ -63,8 +50,8 @@ export async function GET() {
     // Helper to deduplicate
     const addBriefing = (b: any) => {
       const idKey = String(b.id || '');
-      const clientEmail = (b.profiles?.email || b.answers?.Email || b.answers?.email || '').toLowerCase().trim();
-      const clientName = (b.profiles?.nome || b.answers?.Nome_Cliente || b.answers?.nome || '').toLowerCase().trim();
+      const clientEmail = (b.profiles?.email || b.answers?.Email || b.answers?.email || b.email || '').toLowerCase().trim();
+      const clientName = (b.profiles?.nome || b.answers?.Nome_Cliente || b.answers?.nome || b.nome || '').toLowerCase().trim();
       const dedupKey = `${b.briefing_type}:${clientEmail || clientName}`;
 
       if (idKey && seenIds.has(idKey)) return;
@@ -79,9 +66,9 @@ export async function GET() {
     const combinedIDV = [...neonIDV, ...supaIDV];
     for (const b of combinedIDV) {
       const d = b.dados_completos || {};
-      const nome = b.Nome_Cliente || d.Nome_Cliente || 'Cliente';
-      const email = b.Email || d.Email || '';
-      const empresa = b.Nome_Logotipo || d.Nome_Logotipo || '';
+      const nome = b.Nome_Cliente || d.Nome_Cliente || b.nome || d.nome || 'Cliente';
+      const email = b.Email || d.Email || b.email || d.email || '';
+      const empresa = b.Nome_Logotipo || d.Nome_Logotipo || b.nome_logo || d.nome_logo || '';
 
       // Skip invalid empty test submissions
       if ((!nome || nome === 'null') && (!email || email === 'null')) continue;
@@ -103,51 +90,28 @@ export async function GET() {
       });
     }
 
-    // B) client_briefings (Neon & Supabase)
-    const combinedCB = [...neonClientBriefings, ...supaClientBriefings];
-    for (const b of combinedCB) {
-      const profileNome = b.profile_nome || b.profiles?.nome || b.answers?.nome || 'Cliente';
-      const profileEmail = b.profile_email || b.profiles?.email || b.answers?.email || '';
-      const profileEmpresa = b.profile_empresa || b.profiles?.empresa || '';
+    // B) onboarding_respostas (Neon & Supabase)
+    const combinedOnboarding = [...neonOnboarding, ...supaOnboarding];
+    for (const b of combinedOnboarding) {
+      const d = b.dados_completos || {};
+      const nome = b.Nome || d.Nome || b.nome || d.nome || 'Cliente';
+      const email = b.Email || d.Email || b.email || d.email || '';
+      const empresa = b.Empresa || d.Empresa || b.empresa || d.empresa || '';
 
       addBriefing({
         id: b.id,
-        briefing_type: 'IDV',
+        briefing_type: 'ONBOARDING',
         created_at: b.created_at,
-        is_completed: b.is_completed ?? true,
-        status: b.is_completed ? 'approved' : 'pending',
+        is_completed: b.lido ?? true,
+        status: b.lido ? 'approved' : 'pending',
         profiles: {
-          nome: profileNome,
-          email: profileEmail,
-          empresa: profileEmpresa
+          nome,
+          email,
+          empresa
         },
-        answers: b.answers || b,
+        answers: { ...b, ...d },
         raw: b,
-        source_table: 'client_briefings'
-      });
-    }
-
-    // C) instagram_briefings (Neon & Supabase)
-    const combinedIB = [...neonInstaBriefings, ...supaInstaBriefings];
-    for (const b of combinedIB) {
-      const profileNome = b.profile_nome || b.profiles?.nome || b.answers?.nome || 'Cliente';
-      const profileEmail = b.profile_email || b.profiles?.email || b.answers?.email || '';
-      const profileEmpresa = b.profile_empresa || b.profiles?.empresa || '';
-
-      addBriefing({
-        id: b.id,
-        briefing_type: 'INSTA',
-        created_at: b.created_at,
-        is_completed: b.is_completed ?? true,
-        status: b.is_completed ? 'approved' : 'pending',
-        profiles: {
-          nome: profileNome,
-          email: profileEmail,
-          empresa: profileEmpresa
-        },
-        answers: b.answers || b,
-        raw: b,
-        source_table: 'instagram_briefings'
+        source_table: 'onboarding_respostas'
       });
     }
 

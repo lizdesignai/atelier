@@ -1,6 +1,7 @@
 // src/components/pdf/InstagramBriefingPDF.tsx
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
+import { stripEmojis } from '@/lib/pdfUtils';
 
 // 1. REGISTO DE FONTES DE LUXO
 Font.register({
@@ -181,24 +182,27 @@ export default function InstagramBriefingPDF({ data, clientName, aiInsight }: In
     safeData = data;
   }
 
-  // Garantia de propriedades para não renderizar `undefined` no PDF
-  const produtoAncora = safeData?.produto_ancora || "Não preenchido.";
-  const clienteIdeal = safeData?.cliente_ideal || "Não preenchido.";
-  const gatilhoCompra = safeData?.gatilho_compra === 'Outro' 
-    ? (safeData?.gatilho_compra_outro || "Gatilho customizado não especificado.") 
-    : (safeData?.gatilho_compra || "Não preenchido.");
+  // Garantia de propriedades para não renderizar `undefined` no PDF (com stripEmojis)
+  const safeClientName = stripEmojis(clientName);
+  const produtoAncora = stripEmojis(safeData?.produto_ancora || "Não preenchido.");
+  const clienteIdeal = stripEmojis(safeData?.cliente_ideal || "Não preenchido.");
+  const gatilhoCompra = stripEmojis(
+    safeData?.gatilho_compra === 'Outro' 
+      ? (safeData?.gatilho_compra_outro || "Gatilho customizado não especificado.") 
+      : (safeData?.gatilho_compra || "Não preenchido.")
+  );
   
-  const inimigoComum = safeData?.inimigo_comum || "Não preenchido.";
-  const padraoExcelencia = safeData?.padrao_excelencia || "Não preenchido.";
+  const inimigoComum = stripEmojis(safeData?.inimigo_comum || "Não preenchido.");
+  const padraoExcelencia = stripEmojis(safeData?.padrao_excelencia || "Não preenchido.");
   
-  const personaMarca = safeData?.persona_marca || "Não preenchido.";
-  const arsenalVisual = safeData?.arsenal_visual || "Não preenchido.";
-  const pontoChegada = safeData?.ponto_chegada || "Não preenchido.";
-
+  const personaMarca = stripEmojis(safeData?.persona_marca || "Não preenchido.");
+  const arsenalVisual = stripEmojis(safeData?.arsenal_visual || "Não preenchido.");
+  const pontoChegada = stripEmojis(safeData?.ponto_chegada || "Não preenchido.");
 
   const renderAiInsight = (text: string) => {
     if (!text) return null;
-    const lines = text.split('\n');
+    const cleanText = stripEmojis(text);
+    const lines = cleanText.split('\n');
     return lines.map((line, index) => {
       const cleanLine = line.trim();
       if (!cleanLine) return null;
@@ -222,7 +226,7 @@ export default function InstagramBriefingPDF({ data, clientName, aiInsight }: In
       {/* PÁGINA 1: CAPA EDITORIAL */}
       <Page size="A4" style={styles.coverPage}>
         <Image src="/images/simbolo-rosa.png" style={styles.coverLogo} />
-        <Text style={styles.coverTitle}>{clientName || "Briefing"}</Text>
+        <Text style={styles.coverTitle}>{safeClientName || "Briefing"}</Text>
         <Text style={styles.coverSubtitle}>Briefing de Instagram</Text>
         <Text style={styles.coverDate}>{currentDate} • Atelier LizDesign</Text>
       </Page>
@@ -243,7 +247,7 @@ export default function InstagramBriefingPDF({ data, clientName, aiInsight }: In
         )}
 
         {/* ESTÁGIO 1: POSICIONAMENTO DE VENDAS */}
-        <View style={styles.sectionContainer} wrap={false}>
+        <View style={styles.sectionContainer} wrap>
           <Text style={styles.sectionTitle}>01. Posicionamento de Vendas</Text>
           
           <View style={styles.questionBox}>

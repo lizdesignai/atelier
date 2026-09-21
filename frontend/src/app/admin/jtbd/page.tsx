@@ -329,7 +329,8 @@ export default function JTBDPage() {
         body: JSON.stringify({ 
           requestedStatus: finalStatus, 
           task,
-          collaboratorName: currentUser?.nome?.split(' ')[0] || 'Desconhecido'
+          collaboratorName: currentUser?.nome?.split(' ')[0] || 'Desconhecido',
+          userId: currentUser?.id
         })
       });
 

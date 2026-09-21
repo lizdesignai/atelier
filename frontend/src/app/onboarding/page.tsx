@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { CheckCircle2, PlayCircle } from "lucide-react";
+import { CheckCircle2, PlayCircle, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useSession } from "../../hooks/useSession";
 
 export default function OnboardingPage() {
   const router = useRouter();
-  const { data: session } = useSession();
-  const [role, setRole] = useState<string>("client");
+  const { data: session, isLoading } = useSession();
+  const [role, setRole] = useState<string | null>(null);
 
   useEffect(() => {
     if (session?.user?.role) {
@@ -18,6 +18,7 @@ export default function OnboardingPage() {
   }, [session]);
 
   const handleConfirm = () => {
+    if (isLoading || !role) return; // Prevent clicking before session loads
     localStorage.setItem("has_seen_onboarding", "true");
     router.push(role === "client" ? "/" : "/admin");
   };
@@ -59,12 +60,17 @@ export default function OnboardingPage() {
         </div>
 
         <motion.button 
-          whileHover={{ scale: 1.02, y: -2 }}
-          whileTap={{ scale: 0.98 }}
+          whileHover={{ scale: (isLoading || !role) ? 1 : 1.02, y: (isLoading || !role) ? 0 : -2 }}
+          whileTap={{ scale: (isLoading || !role) ? 1 : 0.98 }}
           onClick={handleConfirm}
-          className="bg-[var(--color-atelier-terracota)] text-white px-10 py-4 rounded-2xl font-bold text-[13px] uppercase tracking-widest flex items-center gap-3 shadow-lg hover:shadow-xl hover:bg-[#b05230] transition-all"
+          disabled={isLoading || !role}
+          className={`px-10 py-4 rounded-2xl font-bold text-[13px] uppercase tracking-widest flex items-center gap-3 shadow-lg transition-all ${
+            isLoading || !role 
+              ? 'bg-gray-300 text-gray-500 cursor-not-allowed shadow-none' 
+              : 'bg-[var(--color-atelier-terracota)] text-white hover:shadow-xl hover:bg-[#b05230]'
+          }`}
         >
-          <CheckCircle2 size={18} />
+          {isLoading || !role ? <Loader2 className="animate-spin" size={18} /> : <CheckCircle2 size={18} />}
           Estou pronto para começar
         </motion.button>
         

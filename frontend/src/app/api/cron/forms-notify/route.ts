@@ -37,7 +37,7 @@ export async function GET(request: Request) {
     `;
 
     const briefingsIdv = await sql`
-      SELECT id, "Nome_Cliente", "Email", "WhatsApp"
+      SELECT id, dados_completos, "Nome_Cliente", "Email", "WhatsApp"
       FROM briefings_identidade_visual 
       WHERE notificado = false
     `;
@@ -92,9 +92,10 @@ export async function GET(request: Request) {
     }
 
     for (const form of briefingsIdv) {
-      const nome = form.Nome_Cliente || 'Cliente Não Identificado';
-      const email = form.Email;
-      const zap = form.WhatsApp;
+      const d = form.dados_completos || {};
+      const nome = form.Nome_Cliente || d.Nome_Cliente || d.nome || 'Cliente Não Identificado';
+      const email = form.Email || d.Email || d.email;
+      const zap = form.WhatsApp || d.WhatsApp || d.whatsapp;
       emailContent += `<li><strong>Briefing Identidade Visual:</strong> ${nome}</li>`;
       await createLeadIfNotExists(nome, email, zap, 'Identidade Visual');
     }

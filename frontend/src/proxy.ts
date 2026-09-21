@@ -22,6 +22,7 @@ const PUBLIC_ROUTES = [
   '/api/cron',
   '/api/webhooks',
   '/api/public-onboarding',
+  '/api/pesquisas',
 ];
 
 function getJwtSecretBytes(): Uint8Array {
