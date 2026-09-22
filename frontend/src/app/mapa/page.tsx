@@ -1,13 +1,34 @@
 "use client";
 
-import { motion } from "framer-motion";
-import { Compass, FileText, ArrowRight } from "lucide-react";
+import React, { useEffect, useState } from 'react';
 import { useGlobalStore } from "@/contexts/GlobalStore";
+import MapaDashboard from '@/components/mapa/MapaDashboard';
+import RoadmapTimeline, { StageInfo } from '@/components/mapa/RoadmapTimeline';
+import ProgressBar from '@/components/mapa/ProgressBar';
 
 export default function MapaPage() {
   const { isGlobalLoading } = useGlobalStore();
+  const [data, setData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (isGlobalLoading) {
+  useEffect(() => {
+    async function fetchMapa() {
+      try {
+        const res = await fetch('/api/mapa/progress');
+        const json = await res.json();
+        if (json.success && json.data) {
+          setData(json.data);
+        }
+      } catch (err) {
+        console.error('Erro ao buscar mapa:', err);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    fetchMapa();
+  }, []);
+
+  if (isGlobalLoading || isLoading) {
     return (
       <div className="flex-1 flex items-center justify-center">
         <div className="w-8 h-8 rounded-full border-2 border-[var(--color-atelier-terracota)] border-t-transparent animate-spin"></div>
@@ -15,46 +36,86 @@ export default function MapaPage() {
     );
   }
 
+  if (!data) {
+    return (
+      <div className="flex-1 flex items-center justify-center">
+        <p className="text-[var(--color-atelier-grafite)]/50">Nenhum mapa encontrado.</p>
+      </div>
+    );
+  }
+
+  // Construir estágios da trilha baseados no banco
+  const currentStageNum = data.etapa_atual || 0;
+  
+  const buildStageStatus = (stageNum: number): 'locked' | 'available' | 'in_progress' | 'completed' => {
+    if (stageNum < currentStageNum) return 'completed';
+    if (stageNum === currentStageNum) {
+      // Check if started
+      const prog = data.progresso_etapas?.[String(stageNum)];
+      if (prog && (prog.aula_vista || prog.pdf_aberto || Object.keys(prog.tarefas || {}).length > 0)) {
+        return 'in_progress';
+      }
+      return 'available';
+    }
+    return 'locked';
+  };
+
+  const stages: StageInfo[] = [
+    {
+      id: 0,
+      title: 'Baseline',
+      subtitle: 'O seu estado atual documentado.',
+      timeEstimate: '10 min',
+      status: buildStageStatus(0),
+    },
+    {
+      id: 1,
+      title: 'Clareza',
+      subtitle: 'Antes de querer atenção, você precisa ser entendido.',
+      timeEstimate: '45 min',
+      status: buildStageStatus(1),
+    },
+    {
+      id: 2,
+      title: 'Percepção',
+      subtitle: 'O que sua marca parece antes mesmo de alguém ler.',
+      timeEstimate: '1h 30m',
+      status: buildStageStatus(2),
+    },
+    {
+      id: 3,
+      title: 'Autoridade',
+      subtitle: 'Autoridade não é dizer que você é bom. É provar.',
+      timeEstimate: '2h',
+      status: buildStageStatus(3),
+    },
+    {
+      id: 4,
+      title: 'Conversão',
+      subtitle: 'Deixando claro o próximo passo de compra.',
+      timeEstimate: '1h',
+      status: buildStageStatus(4),
+    },
+    {
+      id: 5,
+      title: 'Evolução',
+      subtitle: 'Reavaliando seu perfil para ver o que mudou.',
+      timeEstimate: '15 min',
+      status: buildStageStatus(5),
+    }
+  ];
+
   return (
-    <div className="flex-1 flex flex-col p-6 overflow-y-auto custom-scrollbar">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-4xl w-full mx-auto space-y-6"
-      >
-        <div className="glass-panel p-8 flex flex-col items-center text-center space-y-6 relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-atelier-terracota)]/5 rounded-full blur-3xl -mr-20 -mt-20"></div>
-          
-          <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[var(--color-atelier-terracota)] to-[#d27555] flex items-center justify-center text-white shadow-lg relative z-10">
-            <Compass size={40} />
-          </div>
-          
-          <div className="relative z-10 space-y-2">
-            <h1 className="text-3xl font-light text-[var(--color-atelier-grafite)]">O Mapa</h1>
-            <p className="text-[var(--color-atelier-grafite)]/70 max-w-lg mx-auto">
-              Seu direcionamento estratégico. Aqui ficarão disponíveis as entregas, o dossiê da sua marca e os relatórios de posicionamento.
-            </p>
-          </div>
-        </div>
+    <div className="flex-1 flex flex-col overflow-y-auto custom-scrollbar relative px-4 md:px-8">
+      <div className="w-full max-w-4xl mx-auto pb-24 space-y-6 pt-4">
+        
+        <ProgressBar currentStage={Math.min(currentStageNum, 5)} totalStages={5} />
+        
+        <MapaDashboard mapaData={data} benchmarkData={data.benchmark} />
+        
+        <RoadmapTimeline stages={stages} />
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="glass-panel p-6 flex flex-col items-start gap-4 group cursor-pointer hover:border-[var(--color-atelier-terracota)]/30 transition-colors">
-            <div className="w-12 h-12 rounded-xl bg-[var(--color-atelier-grafite)]/5 flex items-center justify-center text-[var(--color-atelier-grafite)]">
-              <FileText size={24} />
-            </div>
-            <div>
-              <h3 className="font-bold text-[var(--color-atelier-grafite)]">Dossiê Estratégico</h3>
-              <p className="text-sm text-[var(--color-atelier-grafite)]/60 mt-1">
-                Acesse o seu relatório detalhado de posicionamento e raio-x.
-              </p>
-            </div>
-            <button className="mt-auto pt-4 flex items-center gap-2 text-sm font-bold text-[var(--color-atelier-terracota)] group-hover:translate-x-1 transition-transform">
-              Acessar Documento <ArrowRight size={16} />
-            </button>
-          </div>
-        </div>
-
-      </motion.div>
+      </div>
     </div>
   );
 }

@@ -7,6 +7,7 @@ import { motion, AnimatePresence, Variants } from "framer-motion";
 import dynamic from "next/dynamic";
 
 import AppSidebar from "../components/layout/AppSidebar";
+import MobileSidebar from "../components/layout/MobileSidebar";
 import AppHeader from "../components/layout/AppHeader"; 
 import { GlobalStoreProvider } from "../contexts/GlobalStore";
 import { QueryClientProvider } from "@tanstack/react-query";
@@ -205,12 +206,7 @@ export default function ClientShell({ children }: { children: React.ReactNode })
         
         {!isLoginPage && <CommandPalette />}
 
-        <motion.div 
-          initial={!isLoginPage ? { scale: 1.05, opacity: 0 } : false}
-          animate={isInitializing && !isLoginPage ? { scale: 1.05, opacity: 0 } : { scale: 1, opacity: 1 }}
-          transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-          className="flex flex-1 w-full h-full relative"
-        >
+        <div className="flex flex-1 w-full h-full relative">
           {!isLoginPage && (
             <>
               <div className="hidden md:block absolute top-[-10%] left-[-5%] w-[500px] h-[500px] bg-[var(--color-atelier-terracota)]/5 blur-[120px] rounded-full pointer-events-none z-0"></div>
@@ -219,14 +215,25 @@ export default function ClientShell({ children }: { children: React.ReactNode })
           )}
 
           {!isLoginPage && userRole && (
-            <AppSidebar 
-              userRole={userRole} 
-              handleLogout={handleLogout} 
-              onHideSidebar={(hidden) => setIsSidebarHidden(hidden)} 
-            />
+            <>
+              <AppSidebar 
+                userRole={userRole} 
+                handleLogout={handleLogout} 
+                onHideSidebar={(hidden) => setIsSidebarHidden(hidden)} 
+              />
+              <MobileSidebar 
+                userRole={userRole} 
+                handleLogout={handleLogout} 
+              />
+            </>
           )}
 
-          <div className="flex-1 flex flex-col h-screen overflow-hidden relative z-10 w-full">
+          <motion.div 
+            initial={!isLoginPage ? { scale: 1.02, opacity: 0 } : false}
+            animate={isInitializing && !isLoginPage ? { scale: 1.02, opacity: 0 } : { scale: 1, opacity: 1 }}
+            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+            className="flex-1 flex flex-col h-screen overflow-hidden relative z-10 w-full"
+          >
             {!isLoginPage && userRole && !isSidebarHidden && (
               <AppHeader handleLogout={handleLogout} />
             )}
@@ -236,8 +243,8 @@ export default function ClientShell({ children }: { children: React.ReactNode })
                 {children}
               </div>
             </main>
-          </div>
-        </motion.div>
+          </motion.div>
+        </div>
       </GlobalStoreProvider>
     </QueryClientProvider>
   );

@@ -1,0 +1,6 @@
+require('dotenv').config({path: '../backend/.env'});
+const { neon } = require('@neondatabase/serverless');
+const sql = neon(process.env.POSTGRES_URL);
+sql`SELECT id, nome, role FROM profiles WHERE role IN ('admin', 'gestor', 'colaborador')`
+  .then(r => console.log(r))
+  .catch(console.error);

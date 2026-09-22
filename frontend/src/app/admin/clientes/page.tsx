@@ -336,6 +336,34 @@ export default function BaseClientesPage() {
   const handleMenuAction = async (action: string, project: any) => {
     setOpenMenuId(null);
 
+    if (action === 'ConverterMapa') {
+      try {
+        setIsSubmitting(true);
+        const res = await fetch('/api/mapa/convert-lead', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            lead_id: project.id.replace('lead-native-', '').replace('lead-', ''), 
+            email: project.profiles?.email || project.email,
+            nome: project.profiles?.nome,
+            nicho: project.profiles?.empresa
+          })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          alert(`Lead convertido! Acesso liberado ao Mapa.\nLogin: ${data.data.login}\nSenha: ${data.data.senha_padrao}`);
+          refreshGlobalData();
+        } else {
+          alert('Erro: ' + data.error);
+        }
+      } catch (e) {
+        alert('Erro ao converter lead');
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     if (action === 'EditarCliente') {
       setClientToEdit({ 
         ...project.profiles, 
@@ -746,9 +774,17 @@ export default function BaseClientesPage() {
                           onClick={(e) => e.stopPropagation()}
                         >
                           {!project.isAgency && (
-                            <button onClick={() => handleMenuAction('EditarCliente', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors w-full text-left">
-                              <Settings size={14} /> Editar Perfil
-                            </button>
+                            <>
+                              <button onClick={() => handleMenuAction('EditarCliente', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors w-full text-left">
+                                <Settings size={14} /> Editar Perfil
+                              </button>
+
+                              {project.isLead && (
+                                <button onClick={() => handleMenuAction('ConverterMapa', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-green-600 hover:bg-green-50 transition-colors w-full text-left">
+                                  <Sparkles size={14} /> Gerar O Mapa
+                                </button>
+                              )}
+                            </>
                           )}
 
                           {(!project.isLead || project.isAgency) && (

@@ -9,7 +9,8 @@ import {
   Home, Lock, MessageSquare, ChevronLeft, ChevronRight, 
   Compass, LayoutDashboard, FolderKanban, Users, MessageCircle, 
   Globe2, CheckCircle2, DollarSign, Sparkles, Briefcase, 
-  Crosshair, LogOut, Activity, Crown, Grid, Menu, X, FileText
+  Crosshair, LogOut, Activity, Crown, Grid, Menu, X, FileText,
+  Eye, Target, TrendingUp, Archive
 } from "lucide-react";
 import { supabase } from "../../lib/supabase"; 
 import { useDynamicTitle } from "../../hooks/useDynamicTitle"; 
@@ -133,8 +134,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
           if (lockedRoutes.includes(pathname)) router.replace('/comunidade');
         } else {
           if (isMapa) {
-            const allowedMapaRoutes = ['/mapa', '/comunidade'];
-            if (!allowedMapaRoutes.includes(pathname)) router.replace('/mapa');
+            if (!pathname.startsWith('/mapa') && pathname !== '/comunidade') router.replace('/mapa');
           } else if (pathname === '/brandbook') {
             router.replace(isInstagram ? '/cockpit' : '/');
           } else if (isInstagram && (pathname === '/' || pathname === '/cofre' || pathname === '/referencias' || pathname === '/mapa')) {
@@ -220,6 +220,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : clientServiceType === "O Mapa" ? [
     { href: '/mapa', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
+    { href: '/mapa/cofre', icon: <Archive size={20} strokeWidth={1.5} />, label: 'Cofre' },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : clientServiceType === "Gestão de Instagram" ? [
     { href: '/cockpit', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
@@ -234,10 +235,44 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ];
 
-  const mobileDrawerItems: Array<{ href: string; icon: React.ReactNode; label: string; badge?: number }> = [];
+  const mobileDrawerItems: Array<{ href: string; icon: React.ReactNode; label: string; badge?: number }> = isContador ? [
+    { href: '/admin/financeiro', icon: <DollarSign size={20} strokeWidth={1.5} />, label: 'Financeiro' },
+    { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+  ] : isTeamMember ? [
+    { href: '/admin/jtbd', icon: <Crosshair size={20} strokeWidth={1.5} />, label: 'Focus' },
+    { href: '/admin/projetos', icon: <FolderKanban size={20} strokeWidth={1.5} />, label: 'Estúdio' },
+    { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' },
+    ...(isManagerOrAdmin ? [
+      { href: '/admin', icon: <FileText size={20} strokeWidth={1.5} />, label: 'QG da Liziane' },
+      { href: '/admin/gestao', icon: <LayoutDashboard size={20} strokeWidth={1.5} />, label: 'Produtividade' },
+      { href: '/admin/analytics', icon: <Briefcase size={20} strokeWidth={1.5} />, label: 'Analytics' }
+    ] : [])
+  ] : clientServiceType === "O Mapa" ? [
+    { href: '/mapa', icon: <Home size={20} strokeWidth={1.5} />, label: 'Visão Geral' },
+    { href: '/mapa/sprint/0', icon: <Target size={20} strokeWidth={1.5} />, label: 'Baseline' },
+    { href: '/mapa/sprint/1', icon: <Crosshair size={20} strokeWidth={1.5} />, label: 'Clareza' },
+    { href: '/mapa/sprint/2', icon: <Eye size={20} strokeWidth={1.5} />, label: 'Percepção' },
+    { href: '/mapa/sprint/3', icon: <Crown size={20} strokeWidth={1.5} />, label: 'Autoridade' },
+    { href: '/mapa/sprint/4', icon: <Target size={20} strokeWidth={1.5} />, label: 'Conversão' },
+    { href: '/mapa/sprint/5', icon: <TrendingUp size={20} strokeWidth={1.5} />, label: 'Revalidação' },
+    { href: '/mapa/cofre', icon: <Archive size={20} strokeWidth={1.5} />, label: 'Cofre de Evidências' },
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+  ] : clientServiceType === "Gestão de Instagram" ? [
+    { href: '/cockpit', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
+    { href: '/simulador-feed', icon: <Grid size={20} strokeWidth={1.5} />, label: 'Feed' },
+    { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+  ] : [
+    { href: '/', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
+    { href: '/cofre', icon: <Lock size={20} strokeWidth={1.5} />, label: 'O Cofre' },
+    { href: '/referencias', icon: <Compass size={20} strokeWidth={1.5} />, label: 'Referências' },
+    { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+  ];
 
   return (
-    <>
     <motion.aside 
       initial={false}
       animate={{ width: isCollapsed ? 88 : 280 }}
@@ -308,7 +343,24 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
                 </>
               ) : clientServiceType === "O Mapa" ? (
                 <>
-                  <NavItem href="/mapa" icon={<Home size={18} strokeWidth={1.5} />} label="O Mapa" collapsed={isCollapsed} active={pathname === '/mapa'} />
+                  <NavItem href="/mapa" icon={<Home size={18} strokeWidth={1.5} />} label="Visão Geral" collapsed={isCollapsed} active={pathname === '/mapa'} />
+                  
+                  <div className="flex items-center justify-center my-3 opacity-20">
+                    <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
+                  </div>
+                  
+                  <NavItem href="/mapa/sprint/0" icon={<Target size={18} strokeWidth={1.5} />} label="Baseline" collapsed={isCollapsed} active={pathname === '/mapa/sprint/0'} />
+                  <NavItem href="/mapa/sprint/1" icon={<Crosshair size={18} strokeWidth={1.5} />} label="Clareza" collapsed={isCollapsed} active={pathname === '/mapa/sprint/1'} />
+                  <NavItem href="/mapa/sprint/2" icon={<Eye size={18} strokeWidth={1.5} />} label="Percepção" collapsed={isCollapsed} active={pathname === '/mapa/sprint/2'} />
+                  <NavItem href="/mapa/sprint/3" icon={<Crown size={18} strokeWidth={1.5} />} label="Autoridade" collapsed={isCollapsed} active={pathname === '/mapa/sprint/3'} />
+                  <NavItem href="/mapa/sprint/4" icon={<Target size={18} strokeWidth={1.5} />} label="Conversão" collapsed={isCollapsed} active={pathname === '/mapa/sprint/4'} />
+                  <NavItem href="/mapa/sprint/5" icon={<TrendingUp size={18} strokeWidth={1.5} />} label="Revalidação" collapsed={isCollapsed} active={pathname === '/mapa/sprint/5'} />
+                  
+                  <div className="flex items-center justify-center my-3 opacity-20">
+                    <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
+                  </div>
+                  
+                  <NavItem href="/mapa/cofre" icon={<Archive size={18} strokeWidth={1.5} />} label="Cofre de Evidências" collapsed={isCollapsed} active={pathname === '/mapa/cofre'} />
                 </>
               ) : (
                 <>
@@ -406,115 +458,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
 
         </nav>
       </div>
-
     </motion.aside>
-
-    {/* ==================================================== */}
-    {/* MOBILE BOTTOM NAVIGATION BAR (FLOATING PILL) */}
-    {/* ==================================================== */}
-    <div className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[99999] px-2 py-1.5 bg-white/70 backdrop-blur-3xl border border-white/80 rounded-[2rem] flex items-center justify-around w-[92vw] max-w-[420px] shadow-lg">
-      {mobileMainItems.map((item) => (
-         <Link 
-            key={item.href} 
-            href={item.href} 
-            className={`flex items-center justify-center gap-1.5 relative transition-all duration-500 rounded-full overflow-hidden ${pathname === item.href ? 'bg-[var(--color-atelier-terracota)] text-white px-3.5 py-2' : 'text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-grafite)] hover:bg-gray-50/50 w-10 h-10 shrink-0'}`}
-         >
-            <div className="relative z-10 flex items-center justify-center shrink-0">
-              {item.icon}
-              {item.badge !== undefined && item.badge > 0 && (
-                <div className={`absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full border border-white shadow-sm ${pathname === item.href ? 'bg-white' : 'bg-red-500 animate-pulse-slow'}`}></div>
-              )}
-            </div>
-            
-            <AnimatePresence>
-              {pathname === item.href && (
-                <motion.span 
-                  initial={{ width: 0, opacity: 0 }} 
-                  animate={{ width: "auto", opacity: 1 }} 
-                  exit={{ width: 0, opacity: 0 }} 
-                  className="text-[10px] font-bold tracking-wide whitespace-nowrap origin-left"
-                >
-                  {item.label}
-                </motion.span>
-              )}
-            </AnimatePresence>
-         </Link>
-      ))}
-      
-      {/* BOTÃO MAIS (DRAWER) */}
-      {mobileDrawerItems.length > 0 && (
-        <button 
-           onClick={() => setIsMobileDrawerOpen(true)} 
-           className="flex items-center justify-center relative transition-all duration-300 rounded-full text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-grafite)] hover:bg-gray-50/50 w-10 h-10 shrink-0 outline-none"
-        >
-          <div className="relative z-10 flex items-center justify-center scale-90">
-            <Menu size={20} strokeWidth={1.5} />
-          </div>
-        </button>
-      )}
-    </div>
-
-    {/* ==================================================== */}
-    {/* MOBILE DRAWER */}
-    {/* ==================================================== */}
-    <AnimatePresence>
-      {isMobileDrawerOpen && (
-        <>
-          <motion.div 
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="md:hidden fixed inset-0 z-[101] bg-black/20 backdrop-blur-sm"
-            onClick={() => setIsMobileDrawerOpen(false)}
-          />
-          <motion.div 
-            initial={{ y: '100%' }} animate={{ y: 0 }} exit={{ y: '100%' }}
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            className="md:hidden fixed bottom-0 left-0 w-full z-[102] bg-[var(--color-atelier-creme)] rounded-t-[2.5rem] shadow-[0_-20px_40px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col max-h-[85vh]"
-          >
-            <div className="flex items-center justify-between p-6 pb-2">
-              <div className="flex items-center gap-3">
-                <img src="/images/simbolo-rosa.png" alt="Atelier" className="w-8 h-8 object-contain" />
-                <span className="font-elegant text-xl text-[var(--color-atelier-grafite)] leading-none tracking-tight">Menu</span>
-              </div>
-              <button onClick={() => setIsMobileDrawerOpen(false)} className="w-10 h-10 flex items-center justify-center bg-white/50 rounded-full text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)]">
-                <X size={18} strokeWidth={2} />
-              </button>
-            </div>
-            
-            <div className="flex-1 overflow-y-auto px-6 py-4 flex flex-col gap-2 pb-32">
-              {mobileDrawerItems.map((item) => (
-                <Link 
-                  key={item.href} href={item.href} onClick={() => setIsMobileDrawerOpen(false)}
-                  className={`flex items-center gap-4 p-4 rounded-[1.5rem] bg-white/60 shadow-sm border border-white/60 ${pathname === item.href ? 'border-[var(--color-atelier-terracota)]/30 bg-white' : ''}`}
-                >
-                  <div className={`${pathname === item.href ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/60'}`}>
-                    {item.icon}
-                  </div>
-                  <span className={`font-roboto text-sm flex-1 font-bold ${pathname === item.href ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/80'}`}>
-                    {item.label}
-                  </span>
-                  {item.badge !== undefined && item.badge > 0 && (
-                    <span className="bg-red-500 text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-sm animate-pulse-slow">
-                      {item.badge > 99 ? '99+' : item.badge}
-                    </span>
-                  )}
-                </Link>
-              ))}
-
-              <div className="w-full h-px bg-[var(--color-atelier-grafite)]/10 my-2"></div>
-
-              <button 
-                onClick={() => { setIsMobileDrawerOpen(false); handleLogout && handleLogout(); }}
-                className="flex items-center gap-4 p-4 rounded-[1.5rem] bg-red-50/50 text-red-500/80 hover:text-red-600 font-bold text-sm"
-              >
-                <LogOut size={18} strokeWidth={1.5} />
-                Desconectar
-              </button>
-            </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
-    </>
   );
 }
 
