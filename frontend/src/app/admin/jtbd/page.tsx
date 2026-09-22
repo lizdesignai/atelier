@@ -132,7 +132,7 @@ export default function JTBDPage() {
           supabase.from('projects').select('id, profiles(nome), type, client_id').eq('status', 'active')
         ]);
         
-        if (tDataRes.data) teamData = tDataRes.data.filter((t: any) => t.status !== 'paused' && !t.is_paused);
+        if (tDataRes.data) teamData = tDataRes.data;
         if (pDataRes.data) setProjects(pDataRes.data);
       } else {
         teamData = [profile];

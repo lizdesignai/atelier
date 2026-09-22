@@ -164,15 +164,14 @@ export default function AnalyticsPage() {
       const { data } = await response.json();
 
       if (data.team) {
-        const activeTeam = data.team.filter((t: any) => t.status !== 'paused' && !t.is_paused);
-        setTeam(activeTeam);
+        setTeam(data.team);
       }
       if (data.routingRules) setRoutingRules(data.routingRules);
       if (data.agencies) setAgencies(data.agencies);
       if (data.subclients) setAgencySubclients(data.subclients);
       
       if (data.tasks && data.team) {
-        const activeTeam = data.team.filter((t: any) => t.status !== 'paused' && !t.is_paused);
+        const activeTeam = data.team;
         const mappedTasks = data.tasks.map((task: any) => {
           const executor = activeTeam.find((t: any) => t.id === task.assigned_to);
           let projectVisualData = task.projects;
@@ -223,7 +222,7 @@ export default function AnalyticsPage() {
       console.warn("Executando fallback direto do Supabase para o Analytics:", error);
       try {
         const { data: rawTeamData } = await supabase.from('profiles').select('*').in('role', ['admin', 'gestor', 'colaborador']).order('nome');
-        const teamData = rawTeamData?.filter((t: any) => t.status !== 'paused' && !t.is_paused);
+        const teamData = rawTeamData;
         const { data: agData } = await supabase.from('agencies').select('*').order('name');
         const { data: subData } = await supabase.from('agency_subclients').select('*').order('name');
         const { data: taskData } = await supabase.from('tasks').select('*, projects(profiles(nome), type, client_id), agency_subclients(id, name)').order('created_at', { ascending: false });
