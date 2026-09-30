@@ -120,10 +120,10 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Admin/Gestor acessando / são redirecionados para /admin/fio
+    // Admin/Gestor acessando / são redirecionados para /admin/jtbd
     if ((role === 'admin' || role === 'gestor') && pathname === '/') {
       const url = request.nextUrl.clone();
-      url.pathname = '/admin/fio';
+      url.pathname = '/admin/jtbd';
       return NextResponse.redirect(url);
     }
 

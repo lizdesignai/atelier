@@ -1,5 +1,5 @@
 // src/services/ReminderSchedulerService.ts
-import { supabase } from '../config/supabase';
+import { neon } from '@neondatabase/serverless';
 import { NotificationService } from './NotificationService';
 
 export class ReminderSchedulerService {
@@ -29,16 +29,42 @@ export class ReminderSchedulerService {
   static async checkAndSendReminders() {
     try {
       const now = new Date();
+      const sql = neon(process.env.POSTGRES_URL || '');
 
       // Busca tarefas ativas com responsável atribuído
-      const { data: tasks, error } = await supabase
-        .from('tasks')
-        .select('id, title, deadline, assigned_to, task_type, sent_reminders, projects(type, profiles(nome)), agency_subclients(name)')
-        .neq('status', 'completed')
-        .not('deadline', 'is', null)
-        .not('assigned_to', 'is', null);
+      const tasks = await sql`
+        SELECT 
+          t.id, 
+          t.title, 
+          t.deadline, 
+          t.assigned_to, 
+          t.task_type, 
+          t.sent_reminders,
+          CASE 
+            WHEN p.id IS NOT NULL THEN 
+              json_build_object(
+                'type', p.type, 
+                'profiles', CASE 
+                  WHEN pr.id IS NOT NULL THEN json_build_object('nome', pr.nome) 
+                  ELSE null 
+                END
+              ) 
+            ELSE null 
+          END as projects,
+          CASE 
+            WHEN a.id IS NOT NULL THEN json_build_object('name', a.name) 
+            ELSE null 
+          END as agency_subclients
+        FROM tasks t
+        LEFT JOIN projects p ON t.project_id = p.id
+        LEFT JOIN profiles pr ON p.client_id = pr.id
+        LEFT JOIN agency_subclients a ON t.subclient_id = a.id
+        WHERE t.status != 'completed' 
+          AND t.deadline IS NOT NULL 
+          AND t.assigned_to IS NOT NULL
+      `;
 
-      if (error || !tasks) return;
+      if (!tasks) return;
 
       for (const task of tasks) {
         if (!task.deadline || !task.assigned_to) continue;
@@ -54,7 +80,7 @@ export class ReminderSchedulerService {
         const diffMs = deadlineDate.getTime() - now.getTime();
         const diffMinutes = Math.floor(diffMs / 60000);
 
-        const sentReminders: string[] = Array.isArray(task.sent_reminders) ? task.sent_reminders : [];
+        const sentReminders: string[] = Array.isArray(task.sent_reminders) ? task.sent_reminders : (task.sent_reminders ? JSON.parse(task.sent_reminders as any) : []);
         let reminderToTrigger: { key: string; label: string; isExact: boolean; notificationType?: string } | null = null;
 
         // Regras de disparo gerais: 24h e 12h para QUALQUER tarefa
@@ -78,7 +104,8 @@ export class ReminderSchedulerService {
         if (!reminderToTrigger) continue;
 
         // Buscar e-mail do colaborador
-        const { data: collab } = await supabase.from('profiles').select('email, nome').eq('id', task.assigned_to).single();
+        const collabData = await sql`SELECT email, nome FROM profiles WHERE id = ${task.assigned_to}`;
+        const collab = collabData[0];
         if (!collab) continue;
 
         const rawTask: any = task;
@@ -107,14 +134,10 @@ export class ReminderSchedulerService {
         }
 
         // 1. Notificação In-App
-        await supabase.from('notifications').insert({
-          user_id: task.assigned_to,
-          title: notificationTitle,
-          message: notificationMessage,
-          type: reminderToTrigger.key === '12h' ? 'warning' : 'action',
-          action_url: '/admin/jtbd',
-          is_read: false
-        });
+        await sql`
+          INSERT INTO notifications (user_id, title, message, type, action_url, is_read)
+          VALUES (${task.assigned_to}, ${notificationTitle}, ${notificationMessage}, ${reminderToTrigger.key === '12h' ? 'warning' : 'action'}, '/admin/jtbd', false)
+        `;
 
         // 2. Notificação por E-mail (via NotificationService)
         if (collab.email) {
@@ -130,7 +153,7 @@ export class ReminderSchedulerService {
 
         // 3. Atualizar marcadores salvos
         const updatedReminders = [...sentReminders, reminderToTrigger.key];
-        await supabase.from('tasks').update({ sent_reminders: updatedReminders }).eq('id', task.id);
+        await sql`UPDATE tasks SET sent_reminders = ${JSON.stringify(updatedReminders)}::jsonb WHERE id = ${task.id}`;
         console.log(`[ReminderScheduler] Enviado lembrete (${reminderToTrigger.key}) para ${collab.email} - ${task.title}`);
       }
     } catch (err: any) {

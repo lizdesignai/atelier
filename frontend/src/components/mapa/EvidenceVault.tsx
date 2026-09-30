@@ -72,20 +72,20 @@ export default function EvidenceVault() {
   const hasEvolution = evolution?.inicial && evolution?.atual && evolution.inicial.score !== evolution.atual.score;
 
   return (
-    <div className="max-w-4xl mx-auto py-8 px-4 space-y-12">
-      <div className="text-center space-y-4">
-        <div className="w-16 h-16 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] rounded-full flex items-center justify-center mx-auto mb-6">
-          <Archive size={28} />
+    <div className="max-w-4xl mx-auto py-4 md:py-8 px-4 space-y-8 md:space-y-12 pb-28 md:pb-24">
+      <div className="text-center space-y-3 md:space-y-4">
+        <div className="w-12 h-12 md:w-16 md:h-16 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] rounded-full flex items-center justify-center mx-auto mb-4 md:mb-6">
+          <Archive size={24} className="md:w-7 md:h-7" />
         </div>
-        <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)]">
+        <h1 className="font-elegant text-3xl sm:text-4xl md:text-5xl text-[var(--color-atelier-grafite)]">
           Cofre de Evidências
         </h1>
-        <p className="text-lg text-[var(--color-atelier-grafite)]/70 max-w-xl mx-auto">
+        <p className="text-base md:text-lg text-[var(--color-atelier-grafite)]/70 max-w-xl mx-auto">
           O registro documentado da sua transformação.
         </p>
       </div>
 
-      <div className="relative border-l border-[var(--color-atelier-grafite)]/20 ml-4 space-y-12 pb-8">
+      <div className="relative border-l border-[var(--color-atelier-grafite)]/20 ml-2 md:ml-4 space-y-10 md:space-y-12 pb-8">
         
         {/* Renderiza por etapas conhecidas (0 a 4) */}
         {[0, 1, 2, 3, 4].map((etapa) => {
@@ -97,30 +97,30 @@ export default function EvidenceVault() {
               key={etapa}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              className="relative pl-8"
+              className="relative pl-6 md:pl-8"
             >
               <div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-[var(--color-atelier-terracota)] shadow-[0_0_8px_rgba(173,111,64,0.5)]"></div>
               
-              <h3 className="font-bold text-lg text-[var(--color-atelier-grafite)] mb-4 tracking-wide uppercase">
+              <h3 className="font-bold text-base md:text-lg text-[var(--color-atelier-grafite)] mb-3 md:mb-4 tracking-wide uppercase">
                 {ETAPA_MAP[etapa]}
               </h3>
 
-              <div className="grid gap-4">
+              <div className="grid gap-3 md:gap-4">
                 {items.map((ev) => (
-                  <div key={ev.id} className="glass-panel p-6 border border-[var(--color-atelier-grafite)]/10 flex gap-4">
+                  <div key={ev.id} className="glass-panel p-4 md:p-6 border border-[var(--color-atelier-grafite)]/10 flex gap-3 md:gap-4">
                     <div className="mt-1 text-[var(--color-atelier-grafite)]/40 shrink-0">
-                      {ev.tipo === 'texto' ? <FileText size={20} /> : <ImageIcon size={20} />}
+                      {ev.tipo === 'texto' ? <FileText size={18} className="md:w-5 md:h-5" /> : <ImageIcon size={18} className="md:w-5 md:h-5" />}
                     </div>
                     <div>
-                      <p className="text-[var(--color-atelier-grafite)] text-sm font-medium whitespace-pre-wrap leading-relaxed">
+                      <p className="text-[var(--color-atelier-grafite)] text-xs md:text-sm font-medium whitespace-pre-wrap leading-relaxed">
                         {ev.conteudo}
                       </p>
                       {ev.arquivo_url && (
-                        <a href={ev.arquivo_url} target="_blank" rel="noreferrer" className="text-[var(--color-atelier-terracota)] text-xs font-bold underline mt-3 inline-block">
+                        <a href={ev.arquivo_url} target="_blank" rel="noreferrer" className="text-[var(--color-atelier-terracota)] text-[10px] md:text-xs font-bold underline mt-2 md:mt-3 inline-block">
                           Ver anexo
                         </a>
                       )}
-                      <span className="block mt-3 text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/40 tracking-wider">
+                      <span className="block mt-2 md:mt-3 text-[9px] md:text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/40 tracking-wider">
                         {new Date(ev.created_at).toLocaleDateString('pt-BR')}
                       </span>
                     </div>
@@ -136,28 +136,28 @@ export default function EvidenceVault() {
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            className="relative pl-8 pt-4"
+            className="relative pl-6 md:pl-8 pt-2 md:pt-4"
           >
             <div className="absolute -left-[5px] top-[26px] w-2.5 h-2.5 rounded-full bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)]"></div>
             
-            <h3 className="font-bold text-lg text-[var(--color-atelier-grafite)] mb-4 tracking-wide uppercase">
+            <h3 className="font-bold text-base md:text-lg text-[var(--color-atelier-grafite)] mb-3 md:mb-4 tracking-wide uppercase">
               {ETAPA_MAP[5]}
             </h3>
 
-            <div className="glass-panel p-6 border border-green-500/20 bg-green-50/50 flex flex-col md:flex-row items-center gap-6 justify-between">
+            <div className="glass-panel p-5 md:p-6 border border-green-500/20 bg-green-50/50 flex flex-col md:flex-row items-start md:items-center gap-4 md:gap-6 justify-between">
               <div>
-                <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 block mb-1">
+                <span className="text-[9px] md:text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 block mb-1">
                   IPD Atualizado
                 </span>
-                <div className="flex items-center gap-4">
-                  <span className="text-3xl font-light text-[var(--color-atelier-grafite)]/40 line-through decoration-1">{evolution.inicial!.score}</span>
-                  <ArrowRight size={20} className="text-[var(--color-atelier-grafite)]/30" />
-                  <span className="text-4xl font-bold text-green-700">{evolution.atual!.score}</span>
+                <div className="flex items-center gap-3 md:gap-4">
+                  <span className="text-2xl md:text-3xl font-light text-[var(--color-atelier-grafite)]/40 line-through decoration-1">{evolution.inicial!.score}</span>
+                  <ArrowRight size={18} className="md:w-5 md:h-5 text-[var(--color-atelier-grafite)]/30" />
+                  <span className="text-3xl md:text-4xl font-bold text-green-700">{evolution.atual!.score}</span>
                 </div>
               </div>
-              <div className="flex items-center gap-2 bg-white px-4 py-2 rounded-full border border-green-200 shadow-sm">
-                {delta > 0 ? <ArrowUpRight className="text-green-600" size={20} /> : <ArrowDownRight className="text-red-500" size={20} />}
-                <span className={`font-bold ${delta > 0 ? 'text-green-700' : 'text-red-600'}`}>
+              <div className="w-full md:w-auto flex items-center justify-center md:justify-start gap-2 bg-white px-4 py-3 md:py-2 rounded-full border border-green-200 shadow-sm mt-2 md:mt-0">
+                {delta > 0 ? <ArrowUpRight className="text-green-600" size={18} /> : <ArrowDownRight className="text-red-500" size={18} />}
+                <span className={`font-bold text-sm md:text-base ${delta > 0 ? 'text-green-700' : 'text-red-600'}`}>
                   {delta > 0 ? '+' : ''}{delta} pts
                 </span>
               </div>
@@ -166,8 +166,8 @@ export default function EvidenceVault() {
         )}
 
         {Object.keys(groupedEvidences).length === 0 && (
-          <div className="pl-8">
-            <p className="text-[var(--color-atelier-grafite)]/50 text-sm italic">
+          <div className="pl-6 md:pl-8">
+            <p className="text-[var(--color-atelier-grafite)]/50 text-xs md:text-sm italic">
               Nenhuma evidência registrada ainda.
             </p>
           </div>

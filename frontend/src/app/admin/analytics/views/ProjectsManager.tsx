@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { ALL_SKILLS } from "../constants";
 import ClientAssetsModal from "../../../../components/ClientAssetsModal";
+import { IdvBriefingModal, IdvCuradoriaModal } from "../components/IdvClientModals";
 import { formatForDateTimeLocal, parseFromDateTimeLocal } from "../../../../lib/dateUtils";
 
 // 🟢 TIPAGEM ESTRITA BLINDADA
@@ -49,7 +50,7 @@ interface ProjectsManagerProps {
   handleUpdateSubclientDemand: (id: string, count: number) => void;
   handleEditSubclient?: (id: string, updates: { name: string; deliverables_count: number; trello_url?: string; trello_sync_list_ids?: string[] }) => void;
   handleUpdateContentReleaseDay?: (projectId: string, dayStr: string) => void;
-  groupTasksByStage: (tasks: any[]) => Record<string, any[]>;
+  groupTasksByStage: (tasks: any[], isIdv?: boolean) => Record<string, any[]>;
   isBulkMode: boolean;
   toggleTaskSelection: (id: string) => void;
   selectedTaskIds: string[];
@@ -495,6 +496,8 @@ export default function ProjectsManager({
   const [walletFilter, setWalletFilter] = useState<'all' | 'agency' | 'studio'>('all');
 
   const [isAssetsModalOpen, setIsAssetsModalOpen] = useState(false);
+  const [isBriefingModalOpen, setIsBriefingModalOpen] = useState(false);
+  const [isCuradoriaModalOpen, setIsCuradoriaModalOpen] = useState(false);
 
   const isSubclientView = selectedEntityType === 'subclient';
   const displayData = isSubclientView 
@@ -665,7 +668,7 @@ export default function ProjectsManager({
 
       if (error) throw error;
       
-      showToast("Perfil White-Label criado com sucesso!");
+      showToast("Perfil Studio Veronna criado com sucesso!");
       setIsSubclientModalOpen(false);
       setSubclientForm({ name: "", count: 0, trello_url: "" });
       
@@ -678,9 +681,25 @@ export default function ProjectsManager({
   };
 
   const getTasksForCurrentView = () => {
-    if (isSubclientView && displayData) return tasks.filter(t => t.subclient_id === displayData.id);
-    return tasks.filter(t => t.project_id === selectedEntityId && !t.subclient_id);
-  };
+      let baseTasks = [];
+      if (isSubclientView && displayData) baseTasks = tasks.filter(t => t.subclient_id === displayData.id);
+      else baseTasks = tasks.filter(t => t.project_id === selectedEntityId && !t.subclient_id);
+      
+      return baseTasks
+        .filter(t => t.status !== 'completed' && t.status !== 'archived')
+        .filter(t => {
+          if (!t.deadline) return true;
+          const taskDate = new Date(t.deadline);
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          return taskDate.getTime() >= today.getTime();
+        })
+        .sort((a, b) => {
+           const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+           return da - db;
+        });
+    };
 
   const visibleTasks = getTasksForCurrentView();
 
@@ -767,11 +786,63 @@ export default function ProjectsManager({
                     {selectedEntityType === 'agency' || isSubclientView ? displayData?.name : displayData?.profiles?.nome}
                     <FolderUp size={24} className="text-gray-300 group-hover:text-[var(--color-atelier-terracota)] transition-colors" />
                   </h2>
-                  <div className="flex items-center gap-3 mt-1">
+                  <div className="flex flex-col gap-2 mt-1">
+                    <div className="flex items-center gap-3">
                     <p className="text-[11px] font-bold text-[var(--color-atelier-grafite)]/40 uppercase tracking-widest">
-                      {selectedEntityType === 'agency' ? 'Operação White-Label (Agência)' : isSubclientView ? 'Subcliente Delegado (White-Label)' : displayData?.service_type}
+                      {selectedEntityType === 'agency' ? 'Operação Studio Veronna (Agência)' : isSubclientView ? 'Subcliente Delegado (Studio Veronna)' : displayData?.service_type}
                     </p>
-                    {selectedEntityType === 'project' && handleUpdateContentReleaseDay && (
+                    </div>
+                    {isIdvService(displayData) && (
+                      <div className="flex items-center gap-3 mt-2">
+                         <button onClick={() => setIsBriefingModalOpen(true)} className="flex items-center gap-2 bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-[var(--color-atelier-terracota)] transition-colors">
+                            <FileText size={12}/> Respostas do Briefing
+                         </button>
+                         <button onClick={() => setIsCuradoriaModalOpen(true)} className="flex items-center gap-2 bg-white text-[var(--color-atelier-grafite)] border border-[var(--color-atelier-grafite)]/20 px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-sm hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)] transition-colors">
+                            <ImageIcon size={12}/> Referências Visuais
+                         </button>
+                         <button onClick={async () => {
+                           if (confirm('Deseja dar este projeto como encerrado? Ele deixará de aparecer na lista de ativos.')) {
+                             const { error } = await supabase.from('projects').update({ status: 'completed' }).eq('id', displayData.id);
+                             if (!error) {
+                               if (typeof showToast === 'function') showToast('Projeto encerrado com sucesso!');
+                             }
+                           }
+                         }} className="flex items-center gap-2 bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-red-600 hover:text-white transition-colors">
+                            <Check size={12}/> Encerrar Projeto
+                         </button>
+                      </div>
+                    )}
+                    {selectedEntityType === 'project' && isIdvService(displayData) && (
+                      <div className="flex items-center gap-3 bg-gray-50/80 px-3 py-1.5 rounded-md border border-gray-200">
+                        <div className="flex items-center gap-2">
+                           <span className="text-[10px] font-bold text-gray-500 uppercase">Início:</span>
+                           <input 
+                             type="date" 
+                             defaultValue={displayData?.contract_start?.split('T')[0] || ''}
+                             onBlur={async (e) => {
+                               if (!e.target.value) return;
+                               const res = await fetch(`/api/admin/recalc-idv-dates`, {
+                                 method: 'POST',
+                                 headers: { 'Content-Type': 'application/json' },
+                                 body: JSON.stringify({ projectId: displayData.id, kickoffDate: e.target.value })
+                               });
+                               if (res.ok) {
+                                 if (typeof showToast === 'function') showToast('Datas calculadas! Atualize a página.');
+                               }
+                             }}
+                             className="bg-transparent text-[11px] font-bold text-[var(--color-atelier-grafite)] outline-none cursor-pointer"
+                           />
+                        </div>
+                        <div className="h-4 w-px bg-gray-300"></div>
+                        <div className="flex items-center gap-2">
+                           <span className="text-[10px] font-bold text-gray-500 uppercase">Entrega Prevista:</span>
+                           <span className="text-[11px] font-bold text-[var(--color-atelier-terracota)]">
+                             {displayData?.delivery_target_date ? new Date(displayData.delivery_target_date).toLocaleDateString('pt-BR', { timeZone: 'UTC' }) : 'A definir'}
+                           </span>
+                        </div>
+                      </div>
+                    )}
+                    {selectedEntityType === 'project' && !isIdvService(displayData) && handleUpdateContentReleaseDay && (
                       <div className="flex items-center gap-2 bg-gray-50/80 px-2 py-1 rounded-md border border-gray-200" title="Define o dia do mês a partir do qual o conteúdo entra no Cockpit.">
                         <Calendar size={10} className="text-[var(--color-atelier-terracota)]" />
                         <input 
@@ -944,10 +1015,17 @@ export default function ProjectsManager({
                     </div>
                  </div>
                ) : (
-                 Object.entries(groupTasksByStage(visibleTasks)).map(([stage, stageTasks]) => (
-                    <div key={stage} className="mb-6 animate-[fadeIn_0.4s_ease-out]">
-                      <h4 className="font-roboto font-bold text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-3 flex items-center gap-2 border-b border-[var(--color-atelier-grafite)]/5 pb-2"><Layers size={12}/> {stage}</h4>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                 Object.entries(groupTasksByStage(visibleTasks, isIdvService(displayData))).map(([stage, stageTasks], index) => (
+                    <details key={stage} className="mb-4 animate-[fadeIn_0.4s_ease-out] group bg-white border border-[var(--color-atelier-grafite)]/10 rounded-2xl shadow-sm hover:border-[var(--color-atelier-terracota)]/30 transition-colors" open>
+                      <summary className="font-roboto font-bold text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)] p-4 flex items-center justify-between cursor-pointer bg-gray-50/50 group-open:border-b group-open:border-[var(--color-atelier-grafite)]/5 select-none rounded-t-2xl group-[&:not([open])]:rounded-b-2xl">
+                        <div className="flex items-center gap-3">
+                           <Layers size={14} className="text-[var(--color-atelier-terracota)]" /> 
+                           {stage}
+                           <span className="ml-2 text-[10px] bg-white border border-gray-200 text-gray-500 px-2 py-0.5 rounded-full">{stageTasks.length}</span>
+                        </div>
+                        <ChevronDown size={14} className="text-gray-400 group-open:rotate-180 transition-transform" />
+                      </summary>
+                      <div className="p-4 grid grid-cols-1 lg:grid-cols-2 gap-3 bg-[#faf9f8] rounded-b-2xl">
                         {stageTasks.map(task => {
                           const isSelected = selectedTaskIds.includes(task.id);
                           const executorName = task.profiles?.nome ? task.profiles.nome.split(" ")[0] : "Aguardando Responsável";
@@ -962,7 +1040,7 @@ export default function ProjectsManager({
                                 {/* Cabeçalho: Client name */}
                                 <div className="flex items-center justify-between w-full mb-1">
                                   <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 truncate" title={task.projects?.profiles?.nome}>
-                                    {task.projects?.profiles?.nome || "White-Label"}
+                                    {task.projects?.profiles?.nome || "Studio Veronna"}
                                   </span>
                                   <div className="flex items-center gap-2">
                                     {task.urgency && <Flame size={12} className="text-orange-500 shrink-0"/>}
@@ -987,16 +1065,16 @@ export default function ProjectsManager({
                                  </div>
                                  <span className={`text-[10px] font-bold px-2 py-1 rounded-md ${task.deadline && new Date(task.deadline) < new Date() && task.status !== 'completed' ? 'bg-red-50 text-red-600' : 'bg-gray-50 text-[var(--color-atelier-grafite)]/40'}`}>
                                    {task.deadline ? new Date(task.deadline).toLocaleDateString('pt-BR') : 'Sem Prazo'}
-                                 </span>
+                                   </span>
+                                </div>
                               </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                 ))
-               )}
-            </div>
+                            )
+                          })}
+                        </div>
+                      </details>
+                   ))
+                 )}
+              </div>
           </>
         )}
       </div>
@@ -1571,7 +1649,7 @@ export default function ProjectsManager({
         )}
       </AnimatePresence>
 
-      {/* MODAL: CRIAR PERFIL WHITE-LABEL (MANTIDO DO SEU CÓDIGO) */}
+      {/* MODAL: CRIAR PERFIL Studio Veronna (MANTIDO DO SEU CÓDIGO) */}
       <AnimatePresence>
         {isSubclientModalOpen && (
           <div className="fixed inset-0 z-[300] flex items-center justify-center px-4">
@@ -1581,7 +1659,7 @@ export default function ProjectsManager({
               <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <div>
                   <h3 className="font-elegant text-3xl text-blue-600 flex items-center gap-2"><Briefcase size={24} /> Novo Perfil</h3>
-                  <p className="font-roboto text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Cliente Delegado (White-Label)</p>
+                  <p className="font-roboto text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Cliente Delegado (Studio Veronna)</p>
                 </div>
                 <button onClick={() => setIsSubclientModalOpen(false)} className="text-gray-400 hover:text-black transition-colors"><X size={20}/></button>
               </div>
@@ -1643,7 +1721,7 @@ export default function ProjectsManager({
               <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <div>
                   <h3 className="font-elegant text-3xl text-blue-600 flex items-center gap-2"><Edit3 size={24} /> Editar Subcliente</h3>
-                  <p className="font-roboto text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Atualizar Dados do Perfil White-Label</p>
+                  <p className="font-roboto text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Atualizar Dados do Perfil Studio Veronna</p>
                 </div>
                 <button onClick={() => setEditingSubclient(null)} className="text-gray-400 hover:text-black transition-colors"><X size={20}/></button>
               </div>
@@ -1801,7 +1879,7 @@ export default function ProjectsManager({
                 <div className="flex items-center justify-between pb-2 border-b border-gray-200/60 shrink-0">
                    <div className="flex flex-col min-w-0 pr-2">
                       <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">{mobileExpandedClient.label}</span>
-                      <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-tight truncate">{mobileExpandedClient.name || "White-Label"}</h3>
+                      <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-tight truncate">{mobileExpandedClient.name || "Studio Veronna"}</h3>
                    </div>
                    <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); setMobileExpandedClient(null); }} className="w-10 h-10 rounded-full bg-gray-100/80 active:bg-gray-200 active:scale-95 text-gray-500 hover:text-[var(--color-atelier-terracota)] transition-all flex items-center justify-center shrink-0 cursor-pointer touch-manipulation z-20" title="Fechar">
                       <X size={18} />
@@ -1878,7 +1956,7 @@ export default function ProjectsManager({
                           const offset = idx - activeWalletIndex;
                           if (offset < 0 || offset > 2) return null;
 
-                          const clientName = entity.name || "White-Label";
+                          const clientName = entity.name || "Studio Veronna";
                           const avatarUrl = entity.avatar_url;
                           const clientTasksCount = tasks.filter(t => t.project_id === entity.id || t.subclient_id === entity.id || t.projects?.id === entity.id).length;
                           
@@ -2053,7 +2131,7 @@ export default function ProjectsManager({
                 <div className="flex flex-col gap-1.5">
                   <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Projeto / Cliente Alvo</span>
                   <div className="w-full bg-gray-100 border border-gray-200 rounded-xl p-3.5 text-xs text-[var(--color-atelier-grafite)] font-bold">
-                    {displayData?.name || displayData?.profiles?.nome || "Cliente Selecionado"} ({isSubclientView ? 'Marca White-Label' : 'Projeto'})
+                    {displayData?.name || displayData?.profiles?.nome || "Cliente Selecionado"} ({isSubclientView ? 'Marca Studio Veronna' : 'Projeto'})
                   </div>
                 </div>
 
@@ -2135,6 +2213,11 @@ export default function ProjectsManager({
           </div>
         )}
       </AnimatePresence>
+
+      
+      <IdvBriefingModal isOpen={isBriefingModalOpen} onClose={() => setIsBriefingModalOpen(false)} project={displayData} />
+      <IdvCuradoriaModal isOpen={isCuradoriaModalOpen} onClose={() => setIsCuradoriaModalOpen(false)} project={displayData} />
+
 
     </>
   );

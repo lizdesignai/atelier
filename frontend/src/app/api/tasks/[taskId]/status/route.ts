@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
+import { NotificationEngine } from '@/lib/NotificationEngine';
 
 export async function PATCH(
   request: Request,
@@ -80,7 +81,74 @@ export async function PATCH(
       return NextResponse.json({ error: 'Task not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ data: result[0] });
+    const task = result[0];
+
+    // ==========================================
+    // IDV AUTOMATION: STAGE-GATE & PHASE UPDATE
+    // ==========================================
+    if (requestedStatus === 'completed' && task.task_type === 'gate' && task.project_id) {
+       // Destravar tarefas que dependem deste gate (draft -> pending)
+       const unlockQuery = `
+         UPDATE tasks 
+         SET status = 'pending', updated_at = NOW() 
+         WHERE depends_on = $1 AND status = 'draft' 
+         RETURNING stage
+       `;
+       const unlockedTasks = await (sql as any).query(unlockQuery, [task.id]);
+
+       if (unlockedTasks && unlockedTasks.length > 0) {
+         const nextPhaseIdv = unlockedTasks[0].stage; // ex: 'develop', 'present'
+         
+         // Mapear idv_phase para a fase do admin
+         const phaseMap: Record<string, string> = {
+           'onboarding': 'onboarding',
+           'discover': 'pesquisa',
+           'define': 'direcionamento',
+           'develop': 'processo',
+           'qa': 'qa',
+           'present': 'apresentacao',
+           'client_review': 'client_review',
+           'refine': 'refinamento',
+           'deliver': 'entrega',
+           'activate': 'ativacao'
+         };
+         
+         const nextFaseAdmin = phaseMap[nextPhaseIdv] || nextPhaseIdv;
+
+         await (sql as any).query(`
+           UPDATE projects 
+           SET idv_phase = $1, fase = $2, updated_at = NOW() 
+           WHERE id = $3
+         `, [nextPhaseIdv, nextFaseAdmin, task.project_id]);
+
+         // Notificar cliente se o gate representar um avanço visível
+         try {
+           const projectRes = await (sql as any).query(`SELECT client_id FROM projects WHERE id = $1`, [task.project_id]);
+           const clientId = projectRes?.[0]?.client_id;
+           if (clientId) {
+              await NotificationEngine.notifyUser(
+                 clientId,
+                 "✨ Nova Fase do Projeto!",
+                 `Seu projeto avançou para a fase de ${nextPhaseIdv}. Acompanhe os detalhes no seu painel.`,
+                 "success",
+                 "/"
+              );
+           }
+         } catch (notifyErr) {
+           console.warn('Failed to notify client about phase change:', notifyErr);
+         }
+       }
+    }
+
+    // Invalidate Analytics Cache on any status update
+    try {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+      await fetch(`${backendUrl}/api/v1/analytics/clear-cache`, { method: 'POST' });
+    } catch (cacheErr) {
+      console.warn('Failed to clear analytics cache:', cacheErr);
+    }
+
+    return NextResponse.json({ data: task });
 
   } catch (error: any) {
     console.error('Error updating task status:', error);

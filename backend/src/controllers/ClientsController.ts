@@ -1,19 +1,29 @@
 import { Request, Response } from 'express';
-import { supabase } from '../config/supabase';
+import { neon } from '@neondatabase/serverless';
 
 const IDV_PIPELINE = [
   { stage: "Setup & Onboarding", type: "setup", title: "Formulário de cadastro & Contrato", daysOffset: 0, estTime: 30 },
-  { stage: "Setup & Onboarding", type: "setup", title: "Pagamento", daysOffset: 1, estTime: 15 },
-  { stage: "Imersão", type: "reuniao", title: "Reunião de briefing", daysOffset: 2, estTime: 60 },
-  { stage: "Imersão", type: "copy", title: "Formulário de briefing detalhado", daysOffset: 3, estTime: 30 },
-  { stage: "Exploração", type: "design", title: "Estudo da marca, Concorrentes & Moodboard", daysOffset: 5, estTime: 180 },
-  { stage: "Exploração", type: "copy", title: "Envio de Direcionamento Criativo", daysOffset: 6, estTime: 30 },
-  { stage: "Design Sprint", type: "design", title: "Testes de Fontes e Modificações", daysOffset: 8, estTime: 120 },
-  { stage: "Design Sprint", type: "design", title: "Testes de Símbolos & Paletas", daysOffset: 10, estTime: 180 },
-  { stage: "Design Sprint", type: "design", title: "Montagem dos Mockups & Extras", daysOffset: 13, estTime: 240 },
-  { stage: "Apresentação", type: "design", title: "Montagem de Apresentação Final", daysOffset: 15, estTime: 120 },
-  { stage: "Apresentação", type: "reuniao", title: "Reunião de Apresentação", daysOffset: 16, estTime: 60 },
-  { stage: "Handover", type: "design", title: "Fechamento de Arquivos e Envio Drive", daysOffset: 18, estTime: 60 }
+  { stage: "Setup & Onboarding", type: "setup", title: "Onboarding do Cliente", daysOffset: 1, estTime: 15 },
+  { stage: "01 Descobrir", type: "reuniao", title: "Reunião de Briefing", daysOffset: 2, estTime: 60 },
+  { stage: "01 Descobrir", type: "copy", title: "Análise do Briefing + Brand Snapshot", daysOffset: 3, estTime: 45 },
+  { stage: "01 Descobrir", type: "gate", title: "GATE 01: Validação da Fundação", daysOffset: 3, estTime: 15 },
+  { stage: "02 Brand Lab", type: "copy", title: "Acompanhar Brand Lab do Cliente", daysOffset: 4, estTime: 30 },
+  { stage: "02 Brand Lab", type: "design", title: "Compilar Brand DNA", daysOffset: 5, estTime: 60 },
+  { stage: "02 Brand Lab", type: "gate", title: "GATE 02: Validação do Brand DNA", daysOffset: 5, estTime: 15 },
+  { stage: "03 Direcionar", type: "design", title: "Desenvolver Território A", daysOffset: 6, estTime: 180 },
+  { stage: "03 Direcionar", type: "design", title: "Desenvolver Território B", daysOffset: 7, estTime: 180 },
+  { stage: "03 Direcionar", type: "copy", title: "Enviar Territórios para Avaliação", daysOffset: 8, estTime: 30 },
+  { stage: "03 Direcionar", type: "gate", title: "GATE 03: Território Escolhido", daysOffset: 8, estTime: 15 },
+  { stage: "04 Construir", type: "design", title: "Desenvolvimento do Símbolo", daysOffset: 9, estTime: 180 },
+  { stage: "04 Construir", type: "design", title: "Tipografia & Paleta Cromática", daysOffset: 10, estTime: 120 },
+  { stage: "04 Construir", type: "design", title: "Sistema Gráfico & Aplicações", daysOffset: 11, estTime: 240 },
+  { stage: "04 Construir", type: "gate", title: "GATE 04: Preview e Aprovação Interna", daysOffset: 13, estTime: 30 },
+  { stage: "05 Revelar", type: "design", title: "Montagem da Apresentação Narrativa", daysOffset: 14, estTime: 120 },
+  { stage: "05 Revelar", type: "reuniao", title: "Reunião de Apresentação", daysOffset: 15, estTime: 60 },
+  { stage: "05 Revelar", type: "gate", title: "GATE 05: Identidade Aprovada", daysOffset: 15, estTime: 15 },
+  { stage: "06 Ativar", type: "design", title: "Brand Starter Kit + Asset Library", daysOffset: 16, estTime: 90 },
+  { stage: "06 Ativar", type: "setup", title: "Checklist de Ativação + Handover", daysOffset: 17, estTime: 60 },
+  { stage: "06 Ativar", type: "gate", title: "GATE 06: Marca Ativada", daysOffset: 18, estTime: 15 }
 ];
 
 const IG_SETUP = [
@@ -52,22 +62,23 @@ const IG_PACKAGES: Record<string, any[]> = {
 export class ClientsController {
   static async getOverview(req: Request, res: Response) {
     try {
-      const [tasksRes, profilesRes, agenciesRes, activeProjectsRes] = await Promise.all([
-        supabase.from('tasks').select('project_id, status'),
-        supabase.from('profiles').select('id, nome, avatar_url, role, created_at, empresa').in('role', ['client', 'lead']),
-        supabase.from('agencies').select('id, name, status, financial_value, billing_date, created_at, trello_url'),
-        supabase.from('projects').select('id, client_id, service_type, type, status, phase, fase, progress, financial_value, billing_date, contract_start, contract_end, posts_quantity, videos_quantity, created_at, profiles(nome, avatar_url, empresa)').in('status', ['active', 'delivered'])
+      const sql = neon(process.env.POSTGRES_URL || '');
+      
+      const [tasksData, profilesData, agenciesData, activeProjects] = await Promise.all([
+        sql`SELECT project_id, status FROM tasks`,
+        sql`SELECT id, nome, avatar_url, role, created_at, empresa FROM profiles WHERE role IN ('client', 'lead')`,
+        sql`SELECT id, name, status, financial_value, billing_date, created_at, trello_url FROM agencies`,
+        sql`
+          SELECT 
+            p.id, p.client_id, p.service_type, p.type, p.status, p.phase, p.fase, p.progress, 
+            p.financial_value, p.billing_date, p.contract_start, p.contract_end, 
+            p.posts_quantity, p.videos_quantity, p.created_at,
+            CASE WHEN pr.id IS NOT NULL THEN json_build_object('nome', pr.nome, 'avatar_url', pr.avatar_url, 'empresa', pr.empresa) ELSE null END as profiles
+          FROM projects p
+          LEFT JOIN profiles pr ON p.client_id = pr.id
+          WHERE p.status IN ('active', 'delivered')
+        `
       ]);
-
-      if (tasksRes.error) throw tasksRes.error;
-      if (profilesRes.error) throw profilesRes.error;
-      if (agenciesRes.error) throw agenciesRes.error;
-      if (activeProjectsRes.error) throw activeProjectsRes.error;
-
-      const tasksData = tasksRes.data || [];
-      const profilesData = profilesRes.data || [];
-      const agenciesData = agenciesRes.data || [];
-      const activeProjects = activeProjectsRes.data || [];
 
       let enriched = activeProjects.map(p => {
         const pTasks = tasksData.filter(t => t.project_id === p.id);
@@ -106,7 +117,7 @@ export class ClientsController {
       }));
 
       const enrichedProjects = [...enriched, ...leadsMapped, ...agenciesMapped]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        .sort((a: any, b: any) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
       return res.status(200).json({
         data: {
@@ -133,6 +144,8 @@ export class ClientsController {
         return res.status(400).json({ error: 'Client ID is required' });
       }
 
+      const sql = neon(process.env.POSTGRES_URL || '');
+
       const projectPayload = {
         client_id,
         service_type,
@@ -153,8 +166,20 @@ export class ClientsController {
         videos_quantity: videos_quantity ? parseInt(videos_quantity) : 0
       };
 
-      const { data: newProject, error: projError } = await supabase.from('projects').insert(projectPayload).select().single();
-      if (projError) throw projError;
+      const newProjectData = await sql`
+        INSERT INTO projects (
+          client_id, service_type, type, status, phase, fase, progress, financial_value, payment_method, 
+          payment_recurrence, payment_split, billing_date, data_limite, contract_start, contract_end, 
+          posts_quantity, videos_quantity
+        ) VALUES (
+          ${projectPayload.client_id}, ${projectPayload.service_type}, ${projectPayload.type}, ${projectPayload.status}, 
+          ${projectPayload.phase}, ${projectPayload.fase}, ${projectPayload.progress}, ${projectPayload.financial_value}, 
+          ${projectPayload.payment_method || null}, ${projectPayload.payment_recurrence || null}, ${projectPayload.payment_split || null}, 
+          ${projectPayload.billing_date || null}, ${projectPayload.data_limite || null}, ${projectPayload.contract_start || null}, 
+          ${projectPayload.contract_end || null}, ${projectPayload.posts_quantity}, ${projectPayload.videos_quantity}
+        ) RETURNING *
+      `;
+      const newProject = newProjectData[0];
       
       let pipeline: any[] = [];
       if (service_type === 'Identidade Visual') {
@@ -213,8 +238,20 @@ export class ClientsController {
         };
       });
 
-      const { error: tasksError } = await supabase.from('tasks').insert(tasksToInsert);
-      if (tasksError) {
+      try {
+        if (tasksToInsert.length > 0) {
+          await Promise.all(tasksToInsert.map(t => 
+            sql`
+              INSERT INTO tasks (
+                project_id, title, stage, type, status, priority_score, assigned_to, deadline, estimated_minutes, is_blocked
+              ) VALUES (
+                ${t.project_id}, ${t.title}, ${t.stage}, ${t.type}, ${t.status}, ${t.priority_score}, 
+                ${t.assigned_to || null}, ${t.deadline}, ${t.estimated_minutes}, ${t.is_blocked}
+              )
+            `
+          ));
+        }
+      } catch (tasksError) {
         console.error("Erro ao injetar pipeline de tarefas:", tasksError);
       }
 

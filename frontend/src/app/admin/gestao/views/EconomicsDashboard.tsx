@@ -132,7 +132,7 @@ export default function EconomicsDashboard({ currentUser, activeTab = 'economics
             sourceType: 'project',
             clientName: clientName,
             avatar: avatarUrl,
-            type: proj.type || 'Estúdio',
+            type: proj.type || 'Studio Veronna',
             fee,
             totalHours,
             operationalCost,
@@ -148,7 +148,7 @@ export default function EconomicsDashboard({ currentUser, activeTab = 'economics
         }
       });
 
-      // Processar Agências (White Label)
+      // Processar Agências (Studio Veronna)
       allProjects.forEach((proj: any) => {
         if (proj.isLead || proj.status !== 'active') return;
 

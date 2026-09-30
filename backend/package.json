@@ -13,6 +13,7 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
+    "@neondatabase/serverless": "^1.1.0",
     "@supabase/supabase-js": "^2.110.0",
     "@upstash/redis": "^1.38.0",
     "cors": "^2.8.6",

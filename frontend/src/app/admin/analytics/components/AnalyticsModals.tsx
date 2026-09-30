@@ -414,6 +414,17 @@ export default function AnalyticsModals({
                 <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-orange-600 flex items-center gap-1"><Flame size={12}/> Classificar como Urgente</span>
               </label>
 
+                            {editingTask?.title?.includes('Moodboard') && editingTask?.media_assets?.length > 0 && (
+                <button onClick={async () => {
+                  try {
+                    await fetch('/api/admin/send-to-curadoria', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ taskId: editingTask.id, projectId: editingTask.project_id || editingTask.projects?.id }) });
+                    window.dispatchEvent(new CustomEvent('showToast', { detail: 'Imagens enviadas para Curadoria do Cliente!' }));
+                  } catch(e) {}
+                }} className="w-full mt-2 bg-indigo-50 text-indigo-600 border border-indigo-200 py-3 rounded-xl text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-indigo-600 hover:text-white transition-colors flex justify-center items-center gap-2 shrink-0">
+                  <ImageIcon size={14}/> Aprovar e Enviar para Curadoria do Cliente
+                </button>
+              )}
+
               <button onClick={handleUpdateTask} disabled={isProcessing} className="w-full mt-2 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-[var(--color-atelier-terracota)] transition-colors flex justify-center items-center gap-2 shrink-0">
                 {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>} Salvar Alterações
               </button>
@@ -575,7 +586,7 @@ export default function AnalyticsModals({
                    </div>
                    <div className="flex flex-col gap-1">
                       <span className="text-[9px] font-bold uppercase text-gray-400 ml-1">Localização</span>
-                      <input type="text" placeholder="Ex: Escritório ou Estúdio..." value={captacaoForm.location} onChange={(e)=>setCaptacaoForm({...captacaoForm, location: e.target.value})} className="bg-gray-50 border border-gray-100 rounded-xl p-3 text-[12px] outline-none" />
+                      <input type="text" placeholder="Ex: Escritório ou Studio Veronna..." value={captacaoForm.location} onChange={(e)=>setCaptacaoForm({...captacaoForm, location: e.target.value})} className="bg-gray-50 border border-gray-100 rounded-xl p-3 text-[12px] outline-none" />
                    </div>
                 </div>
 

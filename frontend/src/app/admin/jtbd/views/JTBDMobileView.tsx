@@ -218,7 +218,7 @@ export default function JTBDMobileView({
       const id = t.subclient_id || t.project_id || t.projects?.id;
       const name = t.agency_subclients?.name || t.projects?.profiles?.nome || t.projects?.title;
       const avatar = t.projects?.profiles?.avatar_url || null;
-      const label = t.agency_subclients ? 'White-Label' : (t.projects?.type || 'Cliente');
+      const label = t.agency_subclients ? 'Studio Veronna' : (t.projects?.type || 'Cliente');
       if (id && name && !map.has(id)) {
         map.set(id, { id, name, avatarUrl: avatar, label, type: t.subclient_id ? 'subclient' : 'project' });
       }
@@ -440,7 +440,7 @@ export default function JTBDMobileView({
               <div className="flex items-center justify-between pb-2 border-b border-gray-200/60 shrink-0">
                 <div className="flex flex-col min-w-0 pr-2">
                   <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">{expandedClientInline.label}</span>
-                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-tight truncate">{expandedClientInline.name || "White-Label"}</h3>
+                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-tight truncate">{expandedClientInline.name || "Studio Veronna"}</h3>
                 </div>
                 <button onClick={() => setExpandedClientInline(null)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-gray-600 active:scale-95 transition-transform shrink-0">
                   ✕
@@ -486,7 +486,7 @@ export default function JTBDMobileView({
                   const offset = idx - safeWalletIndex;
                   if (offset < 0 || offset > 2) return null;
 
-                  const clientName = entity.name || "White-Label";
+                  const clientName = entity.name || "Studio Veronna";
                   const avatarUrl = entity.avatarUrl || entity.avatar_url;
                   const currentMonth = new Date().getMonth();
                   const currentYear = new Date().getFullYear();

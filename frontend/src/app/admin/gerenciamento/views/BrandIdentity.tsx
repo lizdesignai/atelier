@@ -155,7 +155,7 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
          await NotificationEngine.notifyUser(
            currentProject.client_id,
            "⚠️ Briefing Devolvido (Revisão Necessária)",
-           "O Estúdio solicita mais profundidade nas suas respostas. Por favor, reveja e reenvie o seu Dossiê de Marca.",
+           "O Studio Veronna solicita mais profundidade nas suas respostas. Por favor, reveja e reenvie o seu Dossiê de Marca.",
            "action",
            "/meu-espaco"
          );

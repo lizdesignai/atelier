@@ -107,7 +107,7 @@ export default function OverviewDashboard({
         .filter(t => t.project_id || t.projects?.id)
         .map(t => [
           t.project_id || t.projects?.id, 
-          t.projects?.profiles?.nome || "White-Label"
+          t.projects?.profiles?.nome || "Studio Veronna"
         ])
     ).entries()
   ).map(([id, name]) => ({ id, name }));
@@ -138,7 +138,13 @@ export default function OverviewDashboard({
             <div className="flex flex-col min-h-0 shrink-0 h-[40%] relative overflow-hidden transition-all pt-2">
               <div className="pb-3 mb-1 shrink-0 flex flex-col gap-3">
                 <div className="flex justify-between items-center mb-1">
-                    <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Próximas Tarefas</h3>
+                    <div className="flex items-center gap-4">
+                      <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Próximas Tarefas</h3>
+                      <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 text-orange-700 px-3 py-1 rounded-full shadow-sm">
+                         <span className="text-[10px] font-bold uppercase tracking-widest">WIP Limit:</span>
+                         <span className="text-xs font-bold">{validProjects.filter(p => p.status === 'active' && isIdvService(p)).length} / 4 Projetos Ativos</span>
+                      </div>
+                    </div>
                     
                     <div className="flex items-center gap-2">
                       <div className="relative flex items-center">
@@ -221,7 +227,7 @@ export default function OverviewDashboard({
                                {/* Cabeçalho: Client name */}
                                <div className="flex items-center justify-between w-full mb-1">
                                  <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 truncate" title={task.projects?.profiles?.nome}>
-                                   {task.projects?.profiles?.nome || "White-Label"}
+                                   {task.projects?.profiles?.nome || "Studio Veronna"}
                                  </span>
                                  <div className="flex items-center gap-2">
                                    {task.urgency && <Flame size={12} className="text-orange-500 shrink-0"/>}
@@ -303,10 +309,10 @@ export default function OverviewDashboard({
                 <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Carteira</h3>
                 
                 {/* Toggle Switch */}
-                <div className="flex bg-white/60 p-1 rounded-full shadow-sm border border-white relative overflow-hidden">
-                   <div className={`absolute top-1 bottom-1 w-[48%] rounded-full bg-[var(--color-atelier-terracota)] shadow-sm transition-transform duration-300 ease-out`} style={{ transform: walletFilter === 'agency' ? 'translateX(105%)' : 'translateX(0%)' }}></div>
-                   <button onClick={() => { setWalletFilter('all'); setWalletIndex(0); }} className={`relative z-10 px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-full transition-colors duration-300 ${walletFilter !== 'agency' ? 'text-white' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)]'}`}>Studio</button>
-                   <button onClick={() => { setWalletFilter('agency'); setWalletIndex(0); }} className={`relative z-10 px-3 py-1 text-[9px] font-bold uppercase tracking-widest rounded-full transition-colors duration-300 ${walletFilter === 'agency' ? 'text-white' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)]'}`}>Agência</button>
+                <div className="flex bg-white/60 p-1 rounded-full shadow-sm border border-white relative overflow-hidden w-[200px]">
+                   <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full bg-[var(--color-atelier-terracota)] shadow-sm transition-transform duration-300 ease-out`} style={{ transform: walletFilter === 'agency' ? 'translateX(100%)' : 'translateX(0%)' }}></div>
+                   <button onClick={() => { setWalletFilter('all'); setWalletIndex(0); }} className={`relative flex-1 z-10 px-1 text-center py-1 text-[9px] font-bold uppercase tracking-widest rounded-full transition-colors duration-300 ${walletFilter !== 'agency' ? 'text-white' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)]'}`}>Studio Veronna</button>
+                   <button onClick={() => { setWalletFilter('agency'); setWalletIndex(0); }} className={`relative flex-1 z-10 px-1 text-center py-1 text-[9px] font-bold uppercase tracking-widest rounded-full transition-colors duration-300 ${walletFilter === 'agency' ? 'text-white' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)]'}`}>Agência</button>
                 </div>
               </div>
 
@@ -386,7 +392,14 @@ export default function OverviewDashboard({
                                 )}
                              </div>
                              <div className="flex flex-col flex-1 min-w-0 pr-2 text-white">
-                                <span className="text-[9px] uppercase font-bold tracking-widest opacity-80 mb-0.5">{item.label}</span>
+                                                                 <span className="text-[9px] uppercase font-bold tracking-widest opacity-80 mb-0.5">
+                                    {item.label}
+                                    {item.type === 'project' && item.idv_product && (
+                                       <span className="ml-2 inline-flex items-center gap-1 opacity-90">
+                                         • {item.idv_product} / {item.idv_complexity || 'C2'} / {item.fase ? item.fase.toUpperCase() : 'ONBOARDING'}
+                                       </span>
+                                    )}
+                                 </span>
                                 <span className="font-elegant text-[22px] truncate leading-tight drop-shadow-sm">{item.name}</span>
                              </div>
                           </div>
@@ -486,7 +499,7 @@ export default function OverviewDashboard({
                            </div>
                            <div className="flex-1 flex flex-col min-w-0">
                               <span className="font-roboto font-bold text-[12px] text-[var(--color-atelier-grafite)] truncate leading-tight pr-2">{task.title}</span>
-                              <span className="text-[10px] text-[var(--color-atelier-grafite)]/50 truncate mt-0.5">{task.projects?.profiles?.nome || "White-Label"}</span>
+                              <span className="text-[10px] text-[var(--color-atelier-grafite)]/50 truncate mt-0.5">{task.projects?.profiles?.nome || "Studio Veronna"}</span>
                            </div>
                            <div className="shrink-0 flex flex-col items-end">
                               <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)]">{new Date(task.deadline).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</span>

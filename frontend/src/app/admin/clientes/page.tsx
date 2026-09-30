@@ -374,6 +374,45 @@ export default function BaseClientesPage() {
       return;
     }
 
+    if (action === 'GerarAcesso') {
+      try {
+        setIsSubmitting(true);
+        const email = project.profiles?.email || project.email;
+        const nome = project.profiles?.nome || project.name || "Cliente";
+        const empresa = project.profiles?.empresa || project.name || "";
+        
+        if (!email) {
+          showToast("Cliente não possui email configurado.");
+          return;
+        }
+
+        const inviteRes = await fetch('/api/auth/invite', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            nome,
+            email,
+            empresa,
+            role: 'client',
+            skipProjectCreation: true,
+            allowExisting: true
+          })
+        });
+
+        const data = await inviteRes.json();
+        if (inviteRes.ok) {
+          showToast("Acesso liberado com sucesso! E-mail enviado.");
+        } else {
+          showToast(`Erro: ${data.error}`);
+        }
+      } catch (e) {
+        showToast("Erro ao forçar acesso do usuário.");
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
     if (action === 'Editar') {
       setProjectToEdit(project);
       setEditFinancialValue(project.financial_value || "");
@@ -392,7 +431,7 @@ export default function BaseClientesPage() {
         await supabase.from('agencies').update({ status: 'archived' }).eq('id', project.client_id);
       } else {
         await supabase.from('projects').update({ status: 'archived' }).eq('id', project.id);
-        await NotificationEngine.notifyUser(project.client_id, "⏸️ Operação Suspensa", "O seu acesso ao estúdio e operação foram temporariamente suspensos.", "warning");
+        await NotificationEngine.notifyUser(project.client_id, "⏸️ Operação Suspensa", "O seu acesso ao Studio Veronna e operação foram temporariamente suspensos.", "warning");
       }
       showToast("Operação suspensa com sucesso."); 
       refreshGlobalData(); 
@@ -407,7 +446,7 @@ export default function BaseClientesPage() {
         await supabase.from('agencies').update({ status: 'active' }).eq('id', project.client_id);
       } else {
         await supabase.from('projects').update({ status: 'active' }).eq('id', project.id);
-        await NotificationEngine.notifyUser(project.client_id, "▶️ Operação Retomada", "O seu acesso ao estúdio foi reativado.", "success", "/cockpit");
+        await NotificationEngine.notifyUser(project.client_id, "▶️ Operação Retomada", "O seu acesso ao Studio Veronna foi reativado.", "success", "/cockpit");
       }
       showToast("Operação reativada com sucesso."); 
       refreshGlobalData(); 
@@ -674,7 +713,7 @@ export default function BaseClientesPage() {
                     {project.isLead ? (
                       <StatusBadge icon={User} text="Potencial Cliente" color="gray" />
                     ) : project.isAgency ? (
-                      <StatusBadge icon={Briefcase} text="Operação White-Label" color="gray" />
+                      <StatusBadge icon={Briefcase} text="Operação Studio Veronna" color="gray" />
                     ) : (
                       <>
                         {project.status === 'active' && <StatusBadge icon={Clock} text="Em Andamento" color="terracota" />}
@@ -777,6 +816,10 @@ export default function BaseClientesPage() {
                             <>
                               <button onClick={() => handleMenuAction('EditarCliente', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors w-full text-left">
                                 <Settings size={14} /> Editar Perfil
+                              </button>
+
+                              <button onClick={() => handleMenuAction('GerarAcesso', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors w-full text-left">
+                                <Mail size={14} /> Enviar Acesso
                               </button>
 
                               {project.isLead && (
@@ -1254,7 +1297,7 @@ export default function BaseClientesPage() {
                     Nova Agência Parceira
                   </h2>
                   <p className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-2">
-                    White-label & Terceirização
+                    Studio Veronna & Terceirização
                   </p>
                 </div>
                 <button onClick={() => setIsAgencyModalOpen(false)} className="w-10 h-10 rounded-full bg-white flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors shadow-sm border border-white/50">

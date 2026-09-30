@@ -31,6 +31,8 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
   const isManagerOrAdmin = ['admin', 'gestor'].includes(userRole);
   const isClient = !isTeamMember && !isContador;
 
+  const [currentSprint, setCurrentSprint] = useState<number | null>(null);
+
   useEffect(() => {
     if (!session || !projects) return;
 
@@ -45,7 +47,21 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
         
         let service = "Identidade Visual";
         if (isInstagram) service = "Gestão de Instagram";
-        if (isMapa) service = "O Mapa";
+        if (isMapa) {
+          service = "O Mapa";
+          // Buscar progresso atual do mapa
+          try {
+            const res = await fetch('/api/mapa/progress');
+            if (res.ok) {
+              const json = await res.json();
+              if (json.success && json.data) {
+                setCurrentSprint(json.data.etapa_atual ?? 0);
+              }
+            }
+          } catch (err) {
+            console.error('Erro ao buscar sprint:', err);
+          }
+        }
 
         setClientServiceType(service);
 
@@ -72,6 +88,31 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
   if (isClient && isProjectArchived) return null;
   if (isContador && !isReady) return null;
 
+  // Determinar o ícone do Sprint atual (ou fallback)
+  const getSprintIcon = (sprintNum: number | null) => {
+    switch(sprintNum) {
+      case 0: return <Target size={20} strokeWidth={1.5} />;
+      case 1: return <Crosshair size={20} strokeWidth={1.5} />;
+      case 2: return <Eye size={20} strokeWidth={1.5} />;
+      case 3: return <Crown size={20} strokeWidth={1.5} />;
+      case 4: return <Target size={20} strokeWidth={1.5} />; // Mesma da 0 ou você pode variar
+      case 5: return <TrendingUp size={20} strokeWidth={1.5} />;
+      default: return <Target size={20} strokeWidth={1.5} />;
+    }
+  };
+
+  const getSprintLabel = (sprintNum: number | null) => {
+    switch(sprintNum) {
+      case 0: return 'Baseline';
+      case 1: return 'Clareza';
+      case 2: return 'Percepção';
+      case 3: return 'Autoridade';
+      case 4: return 'Conversão';
+      case 5: return 'Revalidação';
+      default: return 'Sprint Atual';
+    }
+  };
+
   const mobileMainItems = isContador ? [
     { href: '/admin/financeiro', icon: <DollarSign size={20} strokeWidth={1.5} />, label: 'Finanças' },
     { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
@@ -83,8 +124,8 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
     { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : clientServiceType === "O Mapa" ? [
-    { href: '/mapa', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
-    { href: '/mapa/cofre', icon: <Archive size={20} strokeWidth={1.5} />, label: 'Cofre' },
+    { href: '/mapa', icon: <Home size={20} strokeWidth={1.5} />, label: 'Visão Geral' },
+    { href: currentSprint !== null ? `/mapa/sprint/${currentSprint}` : '/mapa/sprint/0', icon: getSprintIcon(currentSprint), label: getSprintLabel(currentSprint) },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : clientServiceType === "Gestão de Instagram" ? [
     { href: '/cockpit', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
@@ -105,7 +146,7 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : isTeamMember ? [
     { href: '/admin/jtbd', icon: <Crosshair size={20} strokeWidth={1.5} />, label: 'Focus' },
-    { href: '/admin/projetos', icon: <FolderKanban size={20} strokeWidth={1.5} />, label: 'Estúdio' },
+    { href: '/admin/projetos', icon: <FolderKanban size={20} strokeWidth={1.5} />, label: 'Studio Veronna' },
     { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' },
     ...(isManagerOrAdmin ? [

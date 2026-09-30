@@ -65,19 +65,19 @@ export default function EvolutionModule({ mapaAtual, mapaInicial }: EvolutionMod
   return (
     <div className="max-w-4xl mx-auto space-y-8">
       
-      <div className="text-center mb-10">
-        <h2 className="font-elegant text-5xl text-[var(--color-atelier-grafite)] mb-4">A sua Evolução</h2>
-        <p className="text-[var(--color-atelier-grafite)]/60 text-lg max-w-2xl mx-auto font-medium">
+      <div className="text-center mb-8 md:mb-10">
+        <h2 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] mb-3 md:mb-4">A sua Evolução</h2>
+        <p className="text-[var(--color-atelier-grafite)]/60 text-base md:text-lg max-w-2xl mx-auto font-medium px-4">
           O resultado do seu trabalho prático ao longo do Método Mapa 4D.
         </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         
         {/* Card Antes */}
-        <div className="glass-panel p-8 text-center flex flex-col justify-center border border-[var(--color-atelier-grafite)]/5">
+        <div className="glass-panel p-6 md:p-8 text-center flex flex-col justify-center border border-[var(--color-atelier-grafite)]/5">
           <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2">Ponto de Partida</span>
-          <span className="text-5xl font-light text-[var(--color-atelier-grafite)]/40 mb-1">{initialTotal}</span>
+          <span className="text-4xl md:text-5xl font-light text-[var(--color-atelier-grafite)]/40 mb-1">{initialTotal}</span>
           <span className="text-xs text-[var(--color-atelier-grafite)]/40">{new Date(mapaInicial.created_at).toLocaleDateString('pt-BR')}</span>
         </div>
 
@@ -86,7 +86,7 @@ export default function EvolutionModule({ mapaAtual, mapaInicial }: EvolutionMod
           initial={{ scale: 0.9, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ type: "spring", stiffness: 200, damping: 20 }}
-          className={`p-8 text-center rounded-[2.5rem] shadow-2xl flex flex-col justify-center relative overflow-hidden border
+          className={`p-6 md:p-8 text-center rounded-[2.5rem] shadow-2xl flex flex-col justify-center relative overflow-hidden border
             ${totalDelta > 0 ? 'bg-gradient-to-br from-green-50 to-emerald-100 border-green-200' : 
               totalDelta < 0 ? 'bg-gradient-to-br from-red-50 to-rose-100 border-red-200' : 'glass-panel'}
           `}
@@ -94,8 +94,8 @@ export default function EvolutionModule({ mapaAtual, mapaInicial }: EvolutionMod
           {totalDelta > 0 && <div className="absolute top-0 right-0 p-4 opacity-10"><TrendingUp size={100} /></div>}
           <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 mb-2 relative z-10">Evolução Global</span>
           <div className="flex items-center justify-center gap-2 relative z-10">
-            {totalDelta > 0 ? <ArrowUpRight className="text-green-600" size={32} /> : totalDelta < 0 ? <ArrowDownRight className="text-red-500" size={32} /> : null}
-            <span className={`text-6xl font-bold tracking-tighter ${totalDelta > 0 ? 'text-green-700' : totalDelta < 0 ? 'text-red-600' : 'text-[var(--color-atelier-grafite)]'}`}>
+            {totalDelta > 0 ? <ArrowUpRight className="text-green-600" size={28} /> : totalDelta < 0 ? <ArrowDownRight className="text-red-500" size={28} /> : null}
+            <span className={`text-5xl md:text-6xl font-bold tracking-tighter ${totalDelta > 0 ? 'text-green-700' : totalDelta < 0 ? 'text-red-600' : 'text-[var(--color-atelier-grafite)]'}`}>
               {totalDelta > 0 ? '+' : ''}{totalDelta}
             </span>
           </div>
@@ -103,15 +103,15 @@ export default function EvolutionModule({ mapaAtual, mapaInicial }: EvolutionMod
         </motion.div>
 
         {/* Card Depois */}
-        <div className="glass-panel p-8 text-center flex flex-col justify-center border-2 border-[var(--color-atelier-terracota)]/20 shadow-sm relative overflow-hidden">
+        <div className="glass-panel p-6 md:p-8 text-center flex flex-col justify-center border-2 border-[var(--color-atelier-terracota)]/20 shadow-sm relative overflow-hidden">
           <div className="absolute inset-0 bg-[var(--color-atelier-terracota)]/5" />
           <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mb-2 relative z-10">Novo Diagnóstico</span>
-          <span className="text-5xl font-bold text-[var(--color-atelier-grafite)] mb-1 relative z-10">{currentTotal}</span>
+          <span className="text-4xl md:text-5xl font-bold text-[var(--color-atelier-grafite)] mb-1 relative z-10">{currentTotal}</span>
           <span className="text-xs font-medium text-[var(--color-atelier-grafite)]/60 relative z-10">{new Date(mapaAtual.created_at).toLocaleDateString('pt-BR')}</span>
         </div>
       </div>
 
-      <div className="glass-panel p-8 md:p-12 mt-8">
+      <div className="glass-panel p-6 md:p-12 mt-6 md:mt-8">
         <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] mb-8 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
           Avanço por Dimensão
         </h3>

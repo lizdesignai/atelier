@@ -1,20 +1,31 @@
 import { Request, Response } from 'express';
-import { supabase } from '../config/supabase';
+import { neon } from '@neondatabase/serverless';
 
 export class AssignmentController {
   // GET /api/v1/assignments/all
   static async getAllAssignments(req: Request, res: Response) {
     try {
-      const { data, error } = await supabase
-        .from('collaborator_assignments')
-        .select(`
-          *,
-          profiles:collaborator_id(id, nome, avatar_url, role),
-          projects:project_id(id, type, service_type, client_id, profiles(nome)),
-          agency_subclients:subclient_id(id, name, agency_id)
-        `);
+      const sql = neon(process.env.POSTGRES_URL || '');
+      
+      const data = await sql`
+        SELECT 
+          ca.*,
+          CASE WHEN p.id IS NOT NULL THEN json_build_object('id', p.id, 'nome', p.nome, 'avatar_url', p.avatar_url, 'role', p.role) ELSE null END as profiles,
+          CASE WHEN prj.id IS NOT NULL THEN json_build_object(
+            'id', prj.id, 
+            'type', prj.type, 
+            'service_type', prj.service_type, 
+            'client_id', prj.client_id, 
+            'profiles', CASE WHEN prj_p.id IS NOT NULL THEN json_build_object('nome', prj_p.nome) ELSE null END
+          ) ELSE null END as projects,
+          CASE WHEN asub.id IS NOT NULL THEN json_build_object('id', asub.id, 'name', asub.name, 'agency_id', asub.agency_id) ELSE null END as agency_subclients
+        FROM collaborator_assignments ca
+        LEFT JOIN profiles p ON ca.collaborator_id = p.id
+        LEFT JOIN projects prj ON ca.project_id = prj.id
+        LEFT JOIN profiles prj_p ON prj.client_id = prj_p.id
+        LEFT JOIN agency_subclients asub ON ca.subclient_id = asub.id
+      `;
 
-      if (error) throw error;
       return res.status(200).json({ data: data || [] });
     } catch (error: any) {
       console.error('Error fetching assignments:', error.message);
@@ -26,16 +37,26 @@ export class AssignmentController {
   static async getCollaboratorAssignments(req: Request, res: Response) {
     try {
       const { collaboratorId } = req.params;
-      const { data, error } = await supabase
-        .from('collaborator_assignments')
-        .select(`
-          *,
-          projects:project_id(id, type, service_type, client_id, profiles(nome)),
-          agency_subclients:subclient_id(id, name, agency_id)
-        `)
-        .eq('collaborator_id', collaboratorId);
+      const sql = neon(process.env.POSTGRES_URL || '');
 
-      if (error) throw error;
+      const data = await sql`
+        SELECT 
+          ca.*,
+          CASE WHEN prj.id IS NOT NULL THEN json_build_object(
+            'id', prj.id, 
+            'type', prj.type, 
+            'service_type', prj.service_type, 
+            'client_id', prj.client_id, 
+            'profiles', CASE WHEN prj_p.id IS NOT NULL THEN json_build_object('nome', prj_p.nome) ELSE null END
+          ) ELSE null END as projects,
+          CASE WHEN asub.id IS NOT NULL THEN json_build_object('id', asub.id, 'name', asub.name, 'agency_id', asub.agency_id) ELSE null END as agency_subclients
+        FROM collaborator_assignments ca
+        LEFT JOIN projects prj ON ca.project_id = prj.id
+        LEFT JOIN profiles prj_p ON prj.client_id = prj_p.id
+        LEFT JOIN agency_subclients asub ON ca.subclient_id = asub.id
+        WHERE ca.collaborator_id = ${collaboratorId}
+      `;
+
       return res.status(200).json({ data: data || [] });
     } catch (error: any) {
       console.error('Error fetching collaborator assignments:', error.message);
@@ -52,37 +73,55 @@ export class AssignmentController {
         return res.status(400).json({ error: 'collaboratorId and either projectId or subclientId are required' });
       }
 
-      const payload: any = {
-        collaborator_id: collaboratorId,
-        project_id: projectId || null,
-        subclient_id: subclientId || null
-      };
+      const sql = neon(process.env.POSTGRES_URL || '');
+      let upsertData;
 
-      const { data, error } = await supabase
-        .from('collaborator_assignments')
-        .upsert(payload, { onConflict: projectId ? 'collaborator_id,project_id' : 'collaborator_id,subclient_id' })
-        .select(`
-          *,
-          profiles:collaborator_id(id, nome, avatar_url, role),
-          projects:project_id(id, type, service_type, client_id, profiles(nome)),
-          agency_subclients:subclient_id(id, name, agency_id)
-        `)
-        .single();
+      if (projectId) {
+        upsertData = await sql`
+          INSERT INTO collaborator_assignments (collaborator_id, project_id, subclient_id)
+          VALUES (${collaboratorId}, ${projectId}, ${subclientId || null})
+          ON CONFLICT (collaborator_id, project_id) DO UPDATE SET subclient_id = EXCLUDED.subclient_id
+          RETURNING *
+        `;
+      } else {
+        upsertData = await sql`
+          INSERT INTO collaborator_assignments (collaborator_id, project_id, subclient_id)
+          VALUES (${collaboratorId}, ${projectId || null}, ${subclientId})
+          ON CONFLICT (collaborator_id, subclient_id) DO UPDATE SET project_id = EXCLUDED.project_id
+          RETURNING *
+        `;
+      }
 
-      if (error) throw error;
+      const assignmentId = upsertData[0].id;
+
+      const selectData = await sql`
+        SELECT 
+          ca.*,
+          CASE WHEN p.id IS NOT NULL THEN json_build_object('id', p.id, 'nome', p.nome, 'avatar_url', p.avatar_url, 'role', p.role) ELSE null END as profiles,
+          CASE WHEN prj.id IS NOT NULL THEN json_build_object(
+            'id', prj.id, 
+            'type', prj.type, 
+            'service_type', prj.service_type, 
+            'client_id', prj.client_id, 
+            'profiles', CASE WHEN prj_p.id IS NOT NULL THEN json_build_object('nome', prj_p.nome) ELSE null END
+          ) ELSE null END as projects,
+          CASE WHEN asub.id IS NOT NULL THEN json_build_object('id', asub.id, 'name', asub.name, 'agency_id', asub.agency_id) ELSE null END as agency_subclients
+        FROM collaborator_assignments ca
+        LEFT JOIN profiles p ON ca.collaborator_id = p.id
+        LEFT JOIN projects prj ON ca.project_id = prj.id
+        LEFT JOIN profiles prj_p ON prj.client_id = prj_p.id
+        LEFT JOIN agency_subclients asub ON ca.subclient_id = asub.id
+        WHERE ca.id = ${assignmentId}
+      `;
+
+      const data = selectData[0];
 
       // Update existing tasks for this client/subclient to belong to this collaborator
       try {
         if (projectId) {
-          await supabase
-            .from('tasks')
-            .update({ assigned_to: collaboratorId })
-            .eq('project_id', projectId);
+          await sql`UPDATE tasks SET assigned_to = ${collaboratorId} WHERE project_id = ${projectId}`;
         } else if (subclientId) {
-          await supabase
-            .from('tasks')
-            .update({ assigned_to: collaboratorId })
-            .eq('subclient_id', subclientId);
+          await sql`UPDATE tasks SET assigned_to = ${collaboratorId} WHERE subclient_id = ${subclientId}`;
         }
       } catch (tErr) {
         console.warn("Failed to update existing tasks assigned_to:", tErr);
@@ -99,12 +138,8 @@ export class AssignmentController {
   static async removeAssignment(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const { error } = await supabase
-        .from('collaborator_assignments')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
+      const sql = neon(process.env.POSTGRES_URL || '');
+      await sql`DELETE FROM collaborator_assignments WHERE id = ${id}`;
 
       return res.status(204).send();
     } catch (error: any) {

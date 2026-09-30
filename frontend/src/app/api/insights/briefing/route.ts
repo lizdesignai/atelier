@@ -1,76 +1,78 @@
-// src/app/api/insights/briefing/route.ts
 import { NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
+import { getDb } from '@/lib/db';
 
 export async function POST(req: Request) {
   try {
     const apiKey = process.env.GEMINI_API_KEY_BRIEFING || process.env.GEMINI_API_KEY || '';
     if (!apiKey) throw new Error('Chave de API do Gemini não configurada no servidor.');
 
-    const { briefingData, clientName } = await req.json();
+    const { briefingData, clientName, projectId } = await req.json();
 
     if (!briefingData) {
       return NextResponse.json({ error: 'O Dossiê do cliente está vazio.' }, { status: 400 });
     }
 
-    // 1. Instanciação do SDK com o Modelo Moderno
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ 
       model: 'gemini-2.5-flash',
       generationConfig: {
-        temperature: 0.7, // Mantido 0.7 conforme o seu original para criatividade de Marketing
+        temperature: 0.7,
         responseMimeType: "application/json", 
       }
     });
 
-    // 2. Prompt Original Fundido com o Schema JSON
     const systemPrompt = `
-      Você é um Chief Marketing Officer (CMO) e Estrategista de Growth de alto nível.
-      Analise o "Dossiê de Mercado" do cliente e forje uma "Estratégia de Dominação Digital".
+      Você é a inteligência estratégica do Atelier. Analise o briefing do cliente para o projeto de Identidade Visual e extraia um 'Brand Snapshot' preciso e direto.
 
       Cliente: ${clientName}
-      Respostas do Dossiê: ${JSON.stringify(briefingData)}
+      Briefing: ${JSON.stringify(briefingData)}
 
-      REGRAS DE TOM E ESTILO:
-      - Tom executivo, sofisticado, direto ao ponto. 
-      - Sem introduções genéricas ou jargões de IA.
-
-      Retorne UMA ESTRUTURA JSON EXATA (sem blocos de código markdown \`\`\`json, apenas o objeto puro):
+      Retorne UMA ESTRUTURA JSON EXATA:
       {
-        "posicionamento": "Descreva como transformar o 'Produto Âncora' em um objeto de desejo e como atacar o 'Inimigo Comum' de forma elegante.",
-        "funil": "Mapeie o que postar no Topo, Meio e Fundo de Funil baseado na Regra de Pareto citada pelo cliente (Atelier Method).",
-        "copywriting": [
-          "Regra 1 de escrita e tom de voz para gerar autoridade imediata.",
-          "Regra 2 de escrita e tom de voz para gerar autoridade imediata.",
-          "Regra 3 de escrita e tom de voz para gerar autoridade imediata."
-        ],
-        "roadmap": "Plano tático para atingir o 'Ponto de Chegada' (Objetivo Principal) em 6 meses, com métricas de sucesso claras."
+        "essencia": "Frase curta (max 10 palavras) que resume o que a marca fundamentalmente é.",
+        "publico": "Quem é, o que sente e o que busca (max 2 frases).",
+        "problema": "O problema central que o negócio resolve (max 2 frases).",
+        "promessa": "A promessa central da marca.",
+        "personalidade": ["Adjetivo 1", "Adjetivo 2", "Adjetivo 3", "Adjetivo 4"],
+        "diferenciais": "Diferenciais reais identificados.",
+        "ambiente_competitivo": "Como a marca se posiciona frente aos concorrentes.",
+        "anti_patterns": "O que a marca NÃO deve parecer (baseado nos adjetivos negativos/restrições)."
       }
     `;
 
-    console.log(`[IA CMO] A invocar gemini-2.5-flash (Modo JSON) para: ${clientName}...`);
+    console.log(`[IA Estratégica] Gerando Brand Snapshot para: ${clientName}...`);
     const result = await model.generateContent(systemPrompt);
     const responseText = result.response.text();
 
-    // 3. Adapter Pattern: Parse do JSON e conversão para o Markdown que o Frontend espera
     const aiData = JSON.parse(responseText);
 
-    const finalMarkdown = `### 1. Posicionamento de Elite e Brand Equity
-${aiData.posicionamento}
+    if (projectId) {
+      const sql = getDb();
+      // Remove any previous snapshot to keep it simple, or just insert new one
+      await sql`DELETE FROM brand_snapshots WHERE project_id = ${projectId}`;
+      
+      // Compatibilidade retroativa para a UI atual
+      const finalMarkdown = `### 1. Essência\n${aiData.essencia}\n\n### 2. A Promessa\n${aiData.promessa}\n\n### 3. O Problema que Resolve\n${aiData.problema}\n\n### 4. Personalidade\n${aiData.personalidade.join(', ')}\n\n### 5. Público\n${aiData.publico}\n\n### 6. Anti-Patterns\n${aiData.anti_patterns}`;
 
-### 2. Funil de Conteúdo e Conversão (Atelier Method)
-${aiData.funil}
+      await sql`
+        INSERT INTO brand_snapshots (
+          project_id, essencia, publico, problema, promessa, personalidade, diferenciais, ambiente_competitivo, anti_patterns, ai_raw, status
+        ) VALUES (
+          ${projectId}, ${aiData.essencia}, ${aiData.publico}, ${aiData.problema}, ${aiData.promessa}, 
+          ${JSON.stringify(aiData.personalidade)}::jsonb, ${aiData.diferenciais}, ${aiData.ambiente_competitivo}, ${aiData.anti_patterns}, ${JSON.stringify(aiData)}::jsonb, 'draft'
+        )
+      `;
+    } else {
+      // Se não tem projectId, só precisamos retornar
+    }
 
-### 3. Engenharia de Copywriting e Tom de Voz
-${aiData.copywriting.map((regra: string) => `- ${regra}`).join('\n')}
+    const finalMarkdown = `### 1. Essência\n${aiData.essencia}\n\n### 2. A Promessa\n${aiData.promessa}\n\n### 3. O Problema que Resolve\n${aiData.problema}\n\n### 4. Personalidade\n${aiData.personalidade.join(', ')}\n\n### 5. Público\n${aiData.publico}\n\n### 6. Anti-Patterns\n${aiData.anti_patterns}`;
 
-### 4. Roadmap de 6 Meses (O Endgame)
-${aiData.roadmap}`;
-
-    return NextResponse.json({ insight: finalMarkdown });
+    return NextResponse.json({ snapshot: aiData, insight: finalMarkdown });
 
   } catch (error: any) {
-    console.error('[IA CMO] Erro Crítico:', error);
+    console.error('[IA Estratégica] Erro:', error);
     return NextResponse.json({ error: error.message || 'Falha no processamento da IA.' }, { status: 500 });
   }
 }

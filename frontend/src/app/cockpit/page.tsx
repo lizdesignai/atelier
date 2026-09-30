@@ -855,12 +855,12 @@ export default function CockpitPage() {
             {/* 1. SE EXISTIREM PEÇAS GRÁFICAS */}
             {allPosts.length > 0 ? (
               <div className="flex flex-col h-full absolute inset-0">
-                {/* Header do Estúdio */}
+                {/* Header do Studio Veronna */}
                 <div className="flex justify-between items-center px-8 py-5 border-b border-[var(--color-atelier-grafite)]/10 bg-white/40 shrink-0">
                    <div className="flex items-center gap-3">
                      <LayoutDashboard size={20} className="text-[var(--color-atelier-terracota)]"/>
                      <div>
-                       <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">Estúdio de Aprovação</h2>
+                       <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none">Studio Veronna de Aprovação</h2>
                        <p className="font-roboto text-[9px] uppercase tracking-widest font-bold text-gray-400 mt-1">Peças Gráficas e Audiovisuais</p>
                      </div>
                    </div>

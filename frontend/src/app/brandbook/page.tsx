@@ -1,24 +1,21 @@
-// src/app/cofre-missoes/page.tsx
+// src/app/brandbook/page.tsx
 "use client";
 
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
-import { NotificationEngine } from "../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR
+import { NotificationEngine } from "../../lib/NotificationEngine"; 
 import { 
   Loader2, Target, Eye, MessageSquare, 
   UploadCloud, CheckCircle2, ArrowRight, BrainCircuit, 
-  Download, Sparkles, X, ChevronRight, Info, Zap
+  Sparkles, X, ChevronRight
 } from "lucide-react";
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
 };
 
-// ============================================================================
-// DICIONÁRIO DE DADOS ESTÁTICOS (HQ Unsplash)
-// ============================================================================
 const SEMIOTICS_PAIRS = [
   {
     id: "lighting", title: "Luz e Atmosfera",
@@ -92,7 +89,7 @@ const SCENARIOS = [
   }
 ];
 
-export default function BrandbookLaboratory() {
+export default function BrandDNALaboratory() {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -101,25 +98,20 @@ export default function BrandbookLaboratory() {
   const [project, setProject] = useState<any>(null);
   const [labDataId, setLabDataId] = useState<string | null>(null);
 
-  // Módulo 1: Content Tilt (Algoritmo Proporcional Soma 100)
   const [tilt, setTilt] = useState({ technical: 25, culture: 25, status: 25, community: 25 });
   
-  // Módulo 2 & 3: Testes de Fluxo
   const [semiotics, setSemiotics] = useState<Record<string, string>>({});
   const [activeSemioticsIndex, setActiveSemioticsIndex] = useState(0);
   
   const [voice, setVoice] = useState<Record<string, string>>({});
   const [activeVoiceIndex, setActiveVoiceIndex] = useState(0);
 
-  // Módulo 4: Dropzone e Modal
   const [synapses, setSynapses] = useState<{url: string, reason: string}[]>([]);
   const [isUploading, setIsUploading] = useState(false);
   const [pendingSynapseIndex, setPendingSynapseIndex] = useState<number | null>(null);
   const [tempReason, setTempReason] = useState("");
 
-  // Fechamento & Upsell 💰
-  const [aiSourceCode, setAiSourceCode] = useState<string | null>(null);
-  const [showUpsell, setShowUpsell] = useState(false);
+  const [brandDna, setBrandDna] = useState<any>(null);
 
   useEffect(() => {
     fetchLabData();
@@ -133,7 +125,6 @@ export default function BrandbookLaboratory() {
       const { data: projData } = await supabase.from('projects')
         .select('*')
         .eq('client_id', session.user.id)
-        .or('service_type.eq.Gestão de Instagram,type.ilike.%Instagram%')
         .order('created_at', { ascending: false })
         .limit(1)
         .single();
@@ -153,9 +144,15 @@ export default function BrandbookLaboratory() {
           if (labData.semiotics_choices) setSemiotics(labData.semiotics_choices);
           if (labData.voice_scenarios) setVoice(labData.voice_scenarios);
           if (labData.synapses_vault) setSynapses(labData.synapses_vault);
+          
           if (labData.ai_source_code) {
-            setAiSourceCode(labData.ai_source_code);
-            setActiveZone(5);
+            try {
+              let parsedDna = typeof labData.ai_source_code === 'string' ? JSON.parse(labData.ai_source_code) : labData.ai_source_code;
+              setBrandDna(parsedDna);
+              setActiveZone(5);
+            } catch (e) {
+              console.log("Old string insight format, leaving brandDna empty.");
+            }
           }
         } else {
           const { data: newLab } = await supabase.from('brandbook_laboratory').insert({ project_id: projData.id, client_id: session.user.id }).select().single();
@@ -187,9 +184,6 @@ export default function BrandbookLaboratory() {
     }
   };
 
-  // ==========================================
-  // ALGORITMO: FICHAS DE ATENÇÃO (Proporcional)
-  // ==========================================
   const handleTiltChange = (key: keyof typeof tilt, newValue: number) => {
     const oldVal = tilt[key];
     const delta = newValue - oldVal;
@@ -219,9 +213,6 @@ export default function BrandbookLaboratory() {
     setTilt(newTilt);
   };
 
-  // ==========================================
-  // FLUXOS DE STEPPER (Auto-Swipe)
-  // ==========================================
   const handleSemioticsChoice = (pairId: string, choice: 'A' | 'B') => {
     const newSemiotics = { ...semiotics, [pairId]: choice };
     setSemiotics(newSemiotics);
@@ -252,9 +243,6 @@ export default function BrandbookLaboratory() {
     }, 500);
   };
 
-  // ==========================================
-  // ACERVO DE REFERÊNCIAS (Upload + Pop-up Obrigatório)
-  // ==========================================
   const handleUploadSynapse = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !project) return;
@@ -273,7 +261,6 @@ export default function BrandbookLaboratory() {
       const newSynapses = [...synapses, { url: data.publicUrl, reason: "" }];
       setSynapses(newSynapses);
       
-      // Abre o Modal obrigatório
       setTempReason("");
       setPendingSynapseIndex(newSynapses.length - 1);
       
@@ -299,10 +286,7 @@ export default function BrandbookLaboratory() {
     showToast("Referência registrada com sucesso!");
   };
 
-  // ==========================================
-  // FECHAMENTO & UPSELL MAGNÉTICO
-  // ==========================================
-  const generateSourceCode = async () => {
+  const generateBrandDNA = async () => {
     if (Object.keys(semiotics).length < SEMIOTICS_PAIRS.length) { showToast("Conclua a Etapa 2."); return; }
     if (Object.keys(voice).length < SCENARIOS.length) { showToast("Conclua a Etapa 3."); return; }
 
@@ -310,20 +294,30 @@ export default function BrandbookLaboratory() {
     await saveProgress();
 
     try {
-      showToast("Sintetizando as Diretrizes da Marca...");
+      showToast("Sintetizando o DNA da Marca...");
       const res = await fetch('/api/insights/brandbook', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientName: project.profiles.nome, tilt, semiotics, voice, synapses })
+        body: JSON.stringify({ 
+          projectId: project.id,
+          clientName: project.profiles.nome, 
+          tilt, semiotics, voice, synapses 
+        })
       });
       
       const data = await res.json();
       if (data.error) throw new Error(data.error);
 
-      await supabase.from('brandbook_laboratory').update({ ai_source_code: data.insight }).eq('id', labDataId);
-      setAiSourceCode(data.insight);
+      setBrandDna(data.dna);
       setActiveZone(5);
-      showToast("Análise Estratégica gerada com sucesso! ✨");
+      showToast("Brand DNA gerado com sucesso! ✨");
+      
+      await NotificationEngine.notifyManagement(
+        "🧬 Brand DNA Forjado",
+        `O cliente ${project.profiles?.nome} concluiu o Brand Lab e o DNA foi sintetizado. Próxima fase: Territórios.`,
+        "success",
+        `/admin/projetos?id=${project.id}`
+      );
     } catch (error) {
       showToast("Erro ao compilar as informações.");
     } finally {
@@ -331,43 +325,6 @@ export default function BrandbookLaboratory() {
     }
   };
 
-  const generatePDF = async () => {
-    showToast("Gerando documento em PDF...");
-    try {
-      const { pdf } = await import('@react-pdf/renderer');
-      const BrandbookPDF = (await import('../../components/pdf/BrandbookPDF')).default; 
-      const doc = <BrandbookPDF clientName={project.profiles?.nome} tilt={tilt as any} semiotics={semiotics} voice={voice} synapses={synapses} aiInsight={aiSourceCode||undefined} />;
-      const blob = await pdf(doc).toBlob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url; link.download = `Diretrizes_Marca_${project.profiles?.nome}.pdf`;
-      link.click();
-
-      // 💥 GATILHO DO PICO DE DOPAMINA: O PDF transferiu, acorda o Upsell passado 1.5 seg
-      setTimeout(() => {
-        setShowUpsell(true);
-      }, 1500);
-
-    } catch (e) {
-      console.error(e);
-      showToast("Erro na exportação."); 
-    }
-  };
-
-  const handleAcceptUpsell = async () => {
-     setShowUpsell(false);
-     showToast("Maravilhoso! A nossa equipa entrará em contacto nas próximas horas.");
-     
-     // 🔔 SINAL DE FUMO PARA O ESTÚDIO (Lead Quente)
-     await NotificationEngine.notifyManagement(
-       "📈 Interesse em Serviços de Gestão",
-       `O cliente ${project.profiles?.nome} solicitou contato para serviços de gestão na Zona 5 das Diretrizes.`,
-       "success",
-       "/admin/clientes"
-     );
-  };
-
-  // Adicione esta linha para calcular a soma em tempo real
   const totalTilt = tilt.technical + tilt.culture + tilt.status + tilt.community;
 
   if (isLoading) return <div className="flex h-screen w-full items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
@@ -375,27 +332,25 @@ export default function BrandbookLaboratory() {
   return (
     <div className="flex flex-col h-full flex-1 w-full relative z-10 overflow-hidden text-[var(--color-atelier-grafite)]">
       
-      {/* HEADER DE LUXO (Sem Backgrounds para mesclar com o layout nativo) */}
       <header className="py-4 md:py-6 flex justify-between items-center shrink-0 z-20 px-6 max-w-[1400px] w-full mx-auto animate-[fadeInUp_0.5s_ease-out]">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-8 h-8 rounded-xl bg-white/40 flex items-center justify-center border border-white shadow-sm"><Sparkles size={14} className="text-[var(--color-atelier-terracota)]" /></div>
-            <span className="font-roboto text-[10px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Painel de Expressão</span>
+            <span className="font-roboto text-[10px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Laboratório</span>
           </div>
-          <h1 className="font-elegant text-2xl md:text-3xl text-[var(--color-atelier-grafite)] leading-none mt-1">Diretrizes de Marca</h1>
+          <h1 className="font-elegant text-2xl md:text-3xl text-[var(--color-atelier-grafite)] leading-none mt-1">Brand DNA</h1>
         </div>
-        <button onClick={() => router.push('/meu-espaco')} className="w-10 h-10 rounded-[1rem] bg-white border border-[var(--color-atelier-grafite)]/10 flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:bg-[var(--color-atelier-grafite)] hover:text-white transition-all shadow-sm">
+        <button onClick={() => router.push('/')} className="w-10 h-10 rounded-[1rem] bg-white border border-[var(--color-atelier-grafite)]/10 flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:bg-[var(--color-atelier-grafite)] hover:text-white transition-all shadow-sm">
           <X size={18} />
         </button>
       </header>
 
       <div className="flex flex-1 min-h-0 relative gap-6 max-w-[1400px] w-full mx-auto animate-[fadeInUp_0.8s_ease-out_0.2s_both] px-6">
         
-        {/* SIDEBAR DE NAVEGAÇÃO INTERNA */}
         <div className="w-[260px] hidden md:flex flex-col shrink-0 z-10 h-full border-r border-[var(--color-atelier-grafite)]/5 pr-6 pb-6">
           <div className="py-2 flex-1 overflow-y-auto custom-scrollbar">
             <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/60 leading-relaxed mb-6 font-medium bg-white/40 p-4 rounded-[1.2rem] border border-white shadow-sm">
-              Navegue pelas 4 etapas de decisão. O sistema compilará as suas escolhas nas diretrizes da sua marca.
+              Navegue pelas 4 etapas de decisão. O sistema extrairá o seu Brand DNA com base nas suas respostas.
             </p>
             
             <div className="flex flex-col gap-3">
@@ -425,25 +380,21 @@ export default function BrandbookLaboratory() {
 
           <div className="mt-auto pt-4 border-t border-[var(--color-atelier-grafite)]/5">
             <button 
-              onClick={activeZone === 5 ? () => setActiveZone(1) : generateSourceCode} 
+              onClick={activeZone === 5 ? () => setActiveZone(1) : generateBrandDNA} 
               disabled={isProcessing}
               className={`w-full py-4 rounded-[1.2rem] font-bold uppercase tracking-widest text-[10px] flex items-center justify-center gap-2 transition-all shadow-md hover:-translate-y-0.5
                 ${activeZone === 5 ? 'bg-white text-[var(--color-atelier-grafite)] border border-white' : 'bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)]'}
               `}
             >
               {isProcessing ? <Loader2 size={16} className="animate-spin" /> : activeZone === 5 ? <ArrowRight size={16}/> : <BrainCircuit size={16} />}
-              {activeZone === 5 ? 'Revisar Etapas' : 'Sintetizar Diretrizes'}
+              {activeZone === 5 ? 'Revisar Etapas' : 'Forjar Brand DNA'}
             </button>
           </div>
         </div>
 
-        {/* PALCO PRINCIPAL (No Scroll Wrapper Adaptativo) */}
         <div className="flex-1 relative overflow-y-auto custom-scrollbar px-2 pb-20 pt-2 scroll-smooth flex justify-center items-start">
           <AnimatePresence mode="wait">
             
-            {/* =========================================================================
-                ETAPA 1: O FOCO ESTRATÉGICO (Content Tilt)
-                ========================================================================= */}
             {activeZone === 1 && (
               <motion.div key="z1" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-2xl flex flex-col gap-6 pb-4 h-full justify-center">
                 <div className="text-center shrink-0">
@@ -489,9 +440,6 @@ export default function BrandbookLaboratory() {
               </motion.div>
             )}
 
-            {/* =========================================================================
-                ETAPA 2: SEMIÓTICA VISUAL (Esse ou Esse)
-                ========================================================================= */}
             {activeZone === 2 && (
               <motion.div key="z2" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="w-full max-w-4xl flex flex-col gap-8 pb-10 h-full">
                 <div className="text-center shrink-0">
@@ -549,9 +497,6 @@ export default function BrandbookLaboratory() {
               </motion.div>
             )}
 
-            {/* =========================================================================
-                ETAPA 3: CENÁRIOS DE COMUNICAÇÃO
-                ========================================================================= */}
             {activeZone === 3 && (
               <motion.div key="z3" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-3xl mx-auto flex flex-col gap-6 pb-4 h-full justify-center">
                 <div className="text-center shrink-0">
@@ -604,9 +549,6 @@ export default function BrandbookLaboratory() {
               </motion.div>
             )}
 
-            {/* =========================================================================
-                ETAPA 4: ACERVO DE REFERÊNCIAS
-                ========================================================================= */}
             {activeZone === 4 && (
               <motion.div key="z4" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} className="max-w-4xl mx-auto flex flex-col gap-8 pb-10 min-h-full">
                 <div className="text-center max-w-2xl mx-auto shrink-0">
@@ -650,12 +592,11 @@ export default function BrandbookLaboratory() {
                     </div>
                   )}
 
-                  <button onClick={generateSourceCode} disabled={isProcessing} className="w-full py-5 bg-[var(--color-atelier-grafite)] text-white rounded-[1.5rem] font-bold uppercase tracking-widest text-[11px] shadow-xl hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3 mt-auto disabled:opacity-50">
-                    {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <BrainCircuit size={18} />} GERAR DIRETRIZES DA MARCA
+                  <button onClick={generateBrandDNA} disabled={isProcessing} className="w-full py-5 bg-[var(--color-atelier-grafite)] text-white rounded-[1.5rem] font-bold uppercase tracking-widest text-[11px] shadow-xl hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all flex items-center justify-center gap-3 mt-auto disabled:opacity-50">
+                    {isProcessing ? <Loader2 size={16} className="animate-spin" /> : <BrainCircuit size={18} />} FORJAR BRAND DNA
                   </button>
                 </div>
 
-                {/* MODAL OBRIGATÓRIO (POP-UP) PÓS UPLOAD */}
                 <AnimatePresence>
                   {pendingSynapseIndex !== null && (
                     <div className="fixed inset-0 z-[120] flex items-center justify-center px-4">
@@ -689,34 +630,76 @@ export default function BrandbookLaboratory() {
               </motion.div>
             )}
 
-            {/* =========================================================================
-                ETAPA 5: A CONCLUSÃO (Diretrizes Consolidadas)
-                ========================================================================= */}
-            {activeZone === 5 && (
-              <motion.div key="z5" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="max-w-3xl mx-auto flex flex-col gap-8 pb-10 min-h-full justify-center">
-                <div className="glass-panel bg-white/80 p-12 rounded-[3.5rem] text-center shadow-[0_20px_50px_rgba(0,0,0,0.05)] relative overflow-hidden border border-white">
+            {/* ZONA 5: RESULTADO BRAND DNA */}
+            {activeZone === 5 && brandDna && (
+              <motion.div key="z5" initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="w-full max-w-3xl flex flex-col gap-6 pb-20">
+                <div className="glass-panel p-8 md:p-12 rounded-[3rem] border border-white bg-white/80 shadow-[0_20px_50px_rgba(0,0,0,0.05)] relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-64 h-64 bg-[var(--color-atelier-terracota)]/10 blur-3xl rounded-full"></div>
                   
-                  <div className="w-24 h-24 rounded-[1.5rem] bg-[var(--color-atelier-terracota)]/10 border border-[var(--color-atelier-terracota)]/20 flex items-center justify-center mx-auto mb-8 shadow-inner relative z-10">
-                    <CheckCircle2 size={40} className="text-[var(--color-atelier-terracota)]" />
-                  </div>
-                  
-                  <h2 className="font-elegant text-5xl text-[var(--color-atelier-grafite)] mb-4 relative z-10">Análise Estratégica <span className="text-[var(--color-atelier-terracota)] italic">Concluída.</span></h2>
-                  <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 leading-relaxed max-w-lg mx-auto mb-10 relative z-10 font-medium">
-                    O nosso Assistente Estratégico (IA) compilou a sua distribuição de atenção, a sua sintaxe visual fotográfica e as suas respostas de posicionamento. A identidade da sua marca está definida.
-                  </p>
-                  
-                  <div className="bg-white p-8 rounded-3xl border border-[var(--color-atelier-grafite)]/5 text-left mb-10 max-h-[35vh] overflow-y-auto custom-scrollbar relative z-10 shadow-inner">
-                    <div className="flex items-center gap-2 mb-4 pb-4 border-b border-[var(--color-atelier-grafite)]/5">
-                      <BrainCircuit size={16} className="text-[var(--color-atelier-terracota)]" />
-                      <span className="font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Assistente de Marca (IA)</span>
+                  <div className="relative z-10">
+                    <div className="flex items-center gap-3 mb-8">
+                      <div className="w-12 h-12 rounded-[1.2rem] bg-[var(--color-atelier-terracota)]/10 flex items-center justify-center border border-[var(--color-atelier-terracota)]/20 shadow-inner">
+                        <Sparkles className="text-[var(--color-atelier-terracota)]" size={20} />
+                      </div>
+                      <div>
+                        <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none">O DNA da sua Marca</h2>
+                        <span className="font-roboto text-[10px] uppercase tracking-widest text-[var(--color-atelier-terracota)] font-bold mt-1 block">Sintetizado com Sucesso</span>
+                      </div>
                     </div>
-                    <div className="text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed whitespace-pre-wrap font-medium">
-                      {aiSourceCode || "Ocorreu um erro ao renderizar o documento estratégico."}
-                    </div>
-                  </div>
 
-                  <button onClick={generatePDF} className="bg-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)] text-white px-10 py-5 rounded-[1.5rem] font-roboto text-[11px] font-bold uppercase tracking-widest transition-all shadow-xl flex items-center justify-center gap-3 mx-auto relative z-10 hover:-translate-y-1">
-                    <Download size={18} /> Descarregar Diretrizes em PDF
+                    <div className="space-y-8">
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-3">Manifesto</h4>
+                        <p className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-snug italic border-l-4 border-[var(--color-atelier-terracota)] pl-4">"{brandDna.manifesto}"</p>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="bg-[var(--color-atelier-grafite)]/5 p-5 rounded-2xl">
+                          <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2">Propósito Central</h4>
+                          <p className="text-sm font-roboto text-[var(--color-atelier-grafite)]">{brandDna.propocito}</p>
+                        </div>
+                        <div className="bg-[var(--color-atelier-grafite)]/5 p-5 rounded-2xl">
+                          <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2">Arquétipo</h4>
+                          <p className="text-sm font-roboto text-[var(--color-atelier-grafite)]">{brandDna.arquetipo}</p>
+                        </div>
+                      </div>
+
+                      <div>
+                        <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-3">Tom de Voz</h4>
+                        <p className="text-sm font-roboto text-[var(--color-atelier-grafite)] mb-4 bg-white p-4 rounded-xl shadow-sm border border-[var(--color-atelier-grafite)]/5">{brandDna.tom_de_voz?.descritivo}</p>
+                        <ul className="space-y-2">
+                          {brandDna.tom_de_voz?.regras?.map((r: string, i: number) => (
+                            <li key={i} className="flex items-start gap-2 text-sm font-roboto text-[var(--color-atelier-grafite)]">
+                              <CheckCircle2 size={16} className="text-[var(--color-atelier-terracota)] mt-0.5 shrink-0" />
+                              {r}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 border-t border-[var(--color-atelier-grafite)]/10 pt-6">
+                        <div>
+                          <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2">Cores</h4>
+                          <p className="text-sm font-roboto text-[var(--color-atelier-grafite)]">{brandDna.diretrizes_visuais?.cores}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2">Tipografia</h4>
+                          <p className="text-sm font-roboto text-[var(--color-atelier-grafite)]">{brandDna.diretrizes_visuais?.tipografia}</p>
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-2">Fotografia</h4>
+                          <p className="text-sm font-roboto text-[var(--color-atelier-grafite)]">{brandDna.diretrizes_visuais?.fotografia}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-8 text-center bg-white/40 p-6 rounded-[2rem] border border-white">
+                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] mb-2">A Fundação está Pronta.</h3>
+                  <p className="text-sm font-roboto text-[var(--color-atelier-grafite)]/70 mb-6">O Studio Veronna foi notificado e estamos avançando para a construção dos seus Territórios Visuais. Acompanhe pelo seu Painel.</p>
+                  <button onClick={() => router.push('/')} className="bg-[var(--color-atelier-grafite)] text-white px-8 py-3 rounded-full font-roboto font-bold uppercase tracking-widest text-xs hover:bg-[var(--color-atelier-terracota)] transition-all shadow-md hover:-translate-y-1 inline-flex items-center gap-2">
+                    Voltar ao Meu Projeto <ArrowRight size={14} />
                   </button>
                 </div>
               </motion.div>
@@ -725,40 +708,6 @@ export default function BrandbookLaboratory() {
           </AnimatePresence>
         </div>
       </div>
-
-      {/* =========================================================================
-          🚀 UPSELL MODAL (PICO DE DOPAMINA)
-          Aparece após o PDF ser extraído com sucesso
-          ========================================================================= */}
-      <AnimatePresence>
-        {showUpsell && (
-          <div className="fixed inset-0 z-[150] flex items-center justify-center px-4">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[var(--color-atelier-grafite)]/60 backdrop-blur-md" />
-            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="glass-panel bg-white p-10 md:p-12 rounded-[3.5rem] shadow-2xl relative z-10 max-w-2xl w-full border border-white text-center">
-               
-               <div className="w-20 h-20 rounded-full bg-[var(--color-atelier-terracota)]/10 border border-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-terracota)] flex items-center justify-center mx-auto mb-6 shadow-inner">
-                  <Zap size={32} fill="currentColor"/>
-               </div>
-
-               <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-4">Estratégia Definida. <br/><span className="text-[var(--color-atelier-terracota)] italic">E a Execução?</span></h2>
-               <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 leading-relaxed mb-8 max-w-lg mx-auto font-medium">
-                 Você tem em mãos um manual estratégico exclusivo. No entanto, o design perfeito só ganha vida com um acompanhamento consistente. <br/><br/>
-                 O estúdio pode assumir integralmente a criação, redação de textos e publicações da sua marca a partir of hoje. Deixe a execução com nossos especialistas e foque no seu negócio.
-               </p>
-
-               <div className="flex gap-3 flex-col">
-                 <button onClick={handleAcceptUpsell} className="w-full bg-[var(--color-atelier-terracota)] text-white py-5 rounded-[1.5rem] font-bold uppercase tracking-widest text-[11px] shadow-lg hover:bg-[#8c562e] hover:-translate-y-0.5 transition-all">
-                   Sim, Quero Conhecer os Serviços de Gestão
-                 </button>
-                 <button onClick={() => setShowUpsell(false)} className="w-full bg-white text-[var(--color-atelier-grafite)]/50 py-4 rounded-[1.5rem] font-bold uppercase tracking-widest text-[10px] hover:text-[var(--color-atelier-grafite)] transition-colors">
-                   Não, eu mesmo farei a gestão
-                 </button>
-               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
     </div>
   );
 }

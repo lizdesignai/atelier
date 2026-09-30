@@ -101,7 +101,7 @@ export default function PulseDashboard({ currentUser, activeTab = 'pulse', setAc
           if (p.isAgency) {
             unifiedSources.push({ id: p.client_id, type: 'agency', name: p.profiles?.nome || 'Agência', label: 'Agência WL', fee: Number(p.financial_value || 0) });
           } else if (!p.isLead && p.status === 'active') {
-            unifiedSources.push({ id: p.id, type: 'project', name: p.profiles?.nome || 'Projeto Desconhecido', label: 'Estúdio', fee: Number(p.financial_value || 0) });
+            unifiedSources.push({ id: p.id, type: 'project', name: p.profiles?.nome || 'Projeto Desconhecido', label: 'Studio Veronna', fee: Number(p.financial_value || 0) });
           }
         });
       }
@@ -170,7 +170,7 @@ export default function PulseDashboard({ currentUser, activeTab = 'pulse', setAc
   }, [activeSessions, closedSessions, todayTasks, now, team]);
 
   const demandMetrics = useMemo(() => {
-    // Calcular dados por fonte (Estúdio, Agência)
+    // Calcular dados por fonte (Studio Veronna, Agência)
     // Subclientes não são listados individualmente, seus dados são somados na Agência correspondente
     const primarySources = sources.filter(s => s.type !== 'subclient');
 
@@ -365,7 +365,7 @@ export default function PulseDashboard({ currentUser, activeTab = 'pulse', setAc
                     sourceName = s ? s.name : "Agência";
                   } else if (task.project_id) {
                     const s = sources.find(x => x.id === task.project_id);
-                    sourceName = s ? s.name : "Estúdio";
+                    sourceName = s ? s.name : "Studio Veronna";
                   }
                   
                   return (
@@ -434,8 +434,8 @@ export default function PulseDashboard({ currentUser, activeTab = 'pulse', setAc
                 value={filterSource}
                 onChange={(e) => setFilterSource(e.target.value)}
               >
-                <option value="all">Todos (Estúdio, Agências)</option>
-                <option value="project">Apenas Projetos/Estúdio</option>
+                <option value="all">Todos (Studio Veronna, Agências)</option>
+                <option value="project">Apenas Projetos/Studio Veronna</option>
                 <option value="agency">Apenas Agências</option>
               </select>
               

@@ -26,7 +26,7 @@ const COLOR_MAP: Record<string, { bg: string, border: string, text: string }> = 
 };
 
 // ============================================================================
-// MOCK DE CONQUISTAS (Foco em LTV, Eficiência de Estúdio e Prova Social)
+// MOCK DE CONQUISTAS (Foco em LTV, Eficiência de Studio Veronna e Prova Social)
 // ============================================================================
 const MISSIONS_DB = [
   {
@@ -240,7 +240,7 @@ export default function MissoesPage() {
                       </div>
                       <div className="flex flex-col">
                         <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] line-through decoration-[var(--color-atelier-grafite)]/30">{mission.title}</h3>
-                        <p className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40 mt-1.5">Etapa validada pelo estúdio.</p>
+                        <p className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40 mt-1.5">Etapa validada pelo Studio Veronna.</p>
                       </div>
                     </div>
 

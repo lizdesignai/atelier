@@ -7,13 +7,13 @@ import { supabase } from "../../../lib/supabase";
 import { AtelierPMEngine } from "../../../lib/AtelierPMEngine"; 
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
 import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
-import { BrainCircuit, Loader2, X, Cpu, Play, CheckSquare, Check, Activity, FolderKanban, GitMerge, Crown, DollarSign, Users, SlidersHorizontal, LayoutDashboard } from "lucide-react";
+import { BrainCircuit, Loader2, X, Cpu, Play, CheckSquare, Check, Activity, FolderKanban, GitMerge, Crown, DollarSign, Users, SlidersHorizontal, LayoutDashboard, Target } from "lucide-react";
 import Link from "next/link";
 import { useProfile } from "../../../hooks/useProfile";
 // Importações do Núcleo Estático
 import { 
   TASK_TYPES_IDV, TASK_TYPES_IG, ALL_SKILLS, 
-  IDV_PIPELINE, IG_SETUP, generateUnitaryIG 
+  IDV_FLOW_PIPELINE, IG_SETUP, generateUnitaryIG 
 } from "./constants";
 
 // Importações dos Módulos da Interface
@@ -34,7 +34,38 @@ const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
 };
 
-const groupTasksByStage = (projectTasks: any[]) => {
+const groupTasksByStage = (projectTasks: any[], isIdv: boolean = false) => {
+  if (isIdv) {
+      const stageTitles: Record<string, string> = {
+        'discover': 'Fase 1: Discover (Briefing & Pesquisa)',
+        'define': 'Fase 2: Define (Direção Criativa)',
+        'develop': 'Fase 3: Develop (Exploração & Sistema Visual)',
+        'qa': 'Fase 4: QA (Revisão Criativa)',
+        'present': 'Fase 5: Present (Apresentação Oficial)',
+        'refine': 'Fase 6: Refine (Ajustes)',
+        'deliver': 'Fase 7: Deliver (Hand-off & Brandbook)',
+        'Gestão Contínua': 'Gestão Contínua'
+      };
+      
+      const stages: Record<string, any[]> = {};
+      Object.values(stageTitles).forEach(title => {
+         stages[title] = [];
+      });
+      stages['Outras Demandas'] = [];
+      
+      projectTasks.forEach(t => {
+        const sName = stageTitles[t.stage] || t.stage || 'Outras Demandas';
+        if (!stages[sName]) stages[sName] = [];
+        stages[sName].push(t);
+      });
+      
+      Object.keys(stages).forEach(k => {
+         if (stages[k].length === 0) delete stages[k];
+      });
+
+      return stages;
+    }
+
   const stages: Record<string, any[]> = {
      "Planejamento/Copywriting": [],
      "Captação": [],
@@ -180,7 +211,7 @@ export default function AnalyticsPage() {
             const agency = data.agencies.find((a: any) => a.id === task.agency_id);
             const subclient = data.subclients.find((s: any) => s.id === task.subclient_id);
             projectVisualData = {
-              type: 'Agência / White-Label',
+              type: 'Agência / Studio Veronna',
               service_type: 'Produção Contínua',
               profiles: { nome: `${agency?.name || 'Agência'} • ${subclient?.name || 'Cliente'}`, avatar_url: null }
             };
@@ -239,7 +270,7 @@ export default function AnalyticsPage() {
               const agency = agData.find((a: any) => a.id === task.agency_id);
               const subclient = subData.find((s: any) => s.id === task.subclient_id);
               projectVisualData = {
-                type: 'Agência / White-Label',
+                type: 'Agência / Studio Veronna',
                 service_type: 'Produção Contínua',
                 profiles: { nome: `${agency?.name || 'Agência'} • ${subclient?.name || 'Cliente'}`, avatar_url: null }
               };
@@ -279,6 +310,18 @@ export default function AnalyticsPage() {
     hasFetchedInitialRef.current = true;
     fetchOperationalData(true);
   }, [isGlobalLoading, fetchOperationalData]);
+
+  // 🔄 REFRESH AUTOMÁTICO (Foco/Visibilidade)
+  // Resolve o problema de concluir a tarefa no Focus e voltar para o Analytics sem atualizar
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        fetchOperationalData(false, true); // Força um fresh pull
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [fetchOperationalData]);
 
 
 
@@ -332,9 +375,13 @@ export default function AnalyticsPage() {
       const { error } = await supabase.from('tasks').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', taskId);
       if (error) throw error;
       showToast("Tarefa concluída com sucesso!");
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+      await fetch(`${backendUrl}/api/v1/analytics/clear-cache`, { method: 'POST' }).catch(() => {});
       await fetchOperationalData();
     } catch (e) {
       showToast("Erro ao finalizar tarefa.");
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+      await fetch(`${backendUrl}/api/v1/analytics/clear-cache`, { method: 'POST' }).catch(() => {});
       await fetchOperationalData(); 
     }
   };
@@ -392,6 +439,17 @@ export default function AnalyticsPage() {
           "info",
           "/admin/jtbd"
         );
+      }
+
+      if (editingTask.title?.includes('Kick-off') && editingTask.deadline) {
+        try {
+          await fetch('/api/admin/recalc-idv-dates', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ projectId: editingTask.project_id || editingTask.projects?.id, kickoffDate: editingTask.deadline })
+          });
+          showToast("Prazos do projeto recalculados com sucesso!");
+        } catch(e) {}
       }
 
       showToast("Tarefa sincronizada com a Mesa de Trabalho!");
@@ -471,9 +529,13 @@ export default function AnalyticsPage() {
       await supabase.from('tasks').update({ status: 'completed', completed_at: new Date().toISOString() }).in('id', selectedTaskIds);
       showToast(`Lote de ${selectedTaskIds.length} tarefas concluído!`);
       setSelectedTaskIds([]);
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+      await fetch(`${backendUrl}/api/v1/analytics/clear-cache`, { method: 'POST' }).catch(() => {});
       await fetchOperationalData();
     } catch(e) {
       showToast("Erro ao concluir em lote.");
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+      await fetch(`${backendUrl}/api/v1/analytics/clear-cache`, { method: 'POST' }).catch(() => {});
       await fetchOperationalData();
     } finally {
       setIsProcessing(false);
@@ -808,7 +870,7 @@ export default function AnalyticsPage() {
           showToast("Atenção: O fluxo de Identidade Visual já foi iniciado.");
           setIsProcessing(false); return;
         }
-        pipeline = IDV_PIPELINE;
+        pipeline = IDV_FLOW_PIPELINE[project.idv_product] || IDV_FLOW_PIPELINE['IDV-CORE'] || [];
       } else {
         // Passo 2: Geração unitária de posts baseada no pacote do cliente
         const packageTasks = generateUnitaryIG(currentPackage);
@@ -968,7 +1030,7 @@ export default function AnalyticsPage() {
       await NotificationEngine.notifyUser(
         collabId,
         "🎖️ Competências Atualizadas",
-        "O seu perfil de skills no estúdio foi recalibrado pela Liderança.",
+        "O seu perfil de skills no Studio Veronna foi recalibrado pela Liderança.",
         "info",
         "/admin/jtbd"
       );
@@ -980,7 +1042,20 @@ export default function AnalyticsPage() {
     }
   };
 
-  const activeTasksForQueue = tasks.filter(t => t.status !== 'completed' && t.status !== 'archived');
+  const activeTasksForQueue = tasks
+    .filter(t => t.status !== 'completed' && t.status !== 'archived')
+    .filter(t => {
+      if (!t.deadline) return true;
+      const taskDate = new Date(t.deadline);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      return taskDate.getTime() >= today.getTime();
+    })
+    .sort((a, b) => {
+      const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+      return da - db;
+    });
   const activeProjectsList = validProjects.filter(p => p.status === 'active');
   const liveTasks = tasks.filter(t => t.status === 'in_progress');
 
@@ -993,7 +1068,7 @@ export default function AnalyticsPage() {
 
   const unifiedWallet = [
     ...validProjects.filter(p => p.status === 'active').map(p => ({ id: p.id, name: p.profiles?.nome, type: 'project', label: isIdvService(p) ? 'IDV' : 'Instagram', avatar_url: p.profiles?.avatar_url, trello_url: p.trello_url, trello_sync_list_ids: p.trello_sync_list_ids })),
-    ...agencies.map(a => ({ id: a.id, name: a.name, type: 'agency', label: 'White-Label', avatar_url: null, trello_url: a.trello_url }))
+    ...agencies.map(a => ({ id: a.id, name: a.name, type: 'agency', label: 'Studio Veronna', avatar_url: null, trello_url: a.trello_url }))
   ].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
 
   if (isGlobalLoading || isLocalLoading) return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
@@ -1054,7 +1129,7 @@ export default function AnalyticsPage() {
                 <span className="bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] w-8 h-8 rounded-xl flex items-center justify-center">
                   <BrainCircuit size={16} className="text-[var(--color-atelier-terracota)]" />
                 </span>
-                <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Gestão do Estúdio</span>
+                <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Gestão do Studio Veronna</span>
               </div>
               <h1 className="font-elegant text-3xl md:text-4xl text-[var(--color-atelier-grafite)] truncate">Estratégia & <span className="text-[var(--color-atelier-terracota)] italic">Analytics.</span></h1>
             </>
@@ -1123,6 +1198,14 @@ export default function AnalyticsPage() {
                       <Users size={16} className={activeView === 'clientes' ? 'text-white' : 'text-[var(--color-atelier-terracota)]'} />
                       <span className="font-bold text-[11px] uppercase tracking-wider">Clientes</span>
                     </button>
+
+                    <Link
+                      href="/admin/analytics/idv"
+                      className={`flex items-center gap-3 p-2.5 rounded-2xl transition-all hover:bg-gray-100 text-[var(--color-atelier-grafite)]/70`}
+                    >
+                      <Target size={16} className="text-[var(--color-atelier-terracota)]" />
+                      <span className="font-bold text-[11px] uppercase tracking-wider">IDV Intelligence</span>
+                    </Link>
 
                     {userRole === 'admin' && (
                       <button

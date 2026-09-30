@@ -90,7 +90,7 @@ export default function RoutingEngine({
 
               {/* 🟢 Adicionado: Subclientes das Agências */}
               {agencySubclients.length > 0 && (
-                <optgroup label="Subclientes (White-Label)" className="text-black">
+                <optgroup label="Subclientes (Studio Veronna)" className="text-black">
                   {agencySubclients.map(sub => <option key={sub.id} value={sub.id} className="text-black">{sub.name} (Subcliente)</option>)}
                 </optgroup>
               )}

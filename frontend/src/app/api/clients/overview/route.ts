@@ -66,7 +66,7 @@ export async function GET() {
       client_id: agency.id,
       isLead: false,
       isAgency: true,
-      profiles: { nome: agency.name, empresa: "Agência Parceira (White-Label)", avatar_url: null },
+      profiles: { nome: agency.name, empresa: "Agência Parceira (Studio Veronna)", avatar_url: null },
       status: agency.status,
       type: 'Agência Parceira',
       financial_value: agency.financial_value,

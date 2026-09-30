@@ -94,7 +94,7 @@ export default function DemandsDashboard({ currentUser, activeTab = 'demands', s
       if (resProjects.data) {
         resProjects.data.forEach(p => {
           const profile = extractNode(p.profiles);
-          unifiedSources.push({ id: p.id, type: 'project', name: profile?.nome || 'Projeto Desconhecido', label: 'Estúdio' });
+          unifiedSources.push({ id: p.id, type: 'project', name: profile?.nome || 'Projeto Desconhecido', label: 'Studio Veronna' });
         });
       }
       if (resAgencies.data) {
@@ -389,7 +389,7 @@ export default function DemandsDashboard({ currentUser, activeTab = 'demands', s
                         <div className="flex items-center justify-between p-3 rounded-xl bg-white border border-gray-100 shadow-sm">
                           <div className="flex items-center gap-3">
                             <div className="w-3 h-3 rounded-full bg-[var(--color-atelier-terracota)] shadow-sm"></div>
-                            <span className="font-bold text-[12px] text-[var(--color-atelier-grafite)]">Estúdio</span>
+                            <span className="font-bold text-[12px] text-[var(--color-atelier-grafite)]">Studio Veronna</span>
                           </div>
                           <span className="font-elegant text-xl">{workloadDistribution.studio.toFixed(1)}%</span>
                         </div>
@@ -561,7 +561,7 @@ export default function DemandsDashboard({ currentUser, activeTab = 'demands', s
 
                         if (task.subclient_id) {
                           const sub = sources.find(s => s.id === task.subclient_id);
-                          sourceTag = "White-Label";
+                          sourceTag = "Studio Veronna";
                           sourceColor = "from-indigo-50 to-white border-indigo-100 text-indigo-600";
                           sourceName = sub?.name || "Subcliente";
                         } else if (task.agency_id) {
@@ -571,7 +571,7 @@ export default function DemandsDashboard({ currentUser, activeTab = 'demands', s
                           sourceName = ag?.name || "Agência";
                         } else if (task.project_id) {
                           const proj = sources.find(s => s.id === task.project_id);
-                          sourceTag = "Estúdio";
+                          sourceTag = "Studio Veronna";
                           sourceColor = "from-[var(--color-atelier-terracota)]/10 to-white border-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-terracota)]";
                           sourceName = proj?.name || "Projeto Próprio";
                         }

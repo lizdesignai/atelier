@@ -392,7 +392,7 @@ export default function ComunidadeFeed() {
                 <div className="flex flex-col">
                   <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-tight mb-1">Dia de Celebração! 🎉</h3>
                   <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 font-medium">
-                    A marca de <span className="font-bold text-[var(--color-atelier-terracota)]">{todaysAnniversaries[0].nome}</span> completa mais um ciclo de evolução hoje no estúdio.
+                    A marca de <span className="font-bold text-[var(--color-atelier-terracota)]">{todaysAnniversaries[0].nome}</span> completa mais um ciclo de evolução hoje no Studio Veronna.
                   </p>
                 </div>
               </div>

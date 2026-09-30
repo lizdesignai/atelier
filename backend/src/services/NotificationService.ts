@@ -1,4 +1,5 @@
 import { Resend } from 'resend';
+import { neon } from '@neondatabase/serverless';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -227,15 +228,14 @@ export class NotificationService {
       const { subject, html } = this.getEmailTemplate(params.type, params);
       const recipients = Array.isArray(params.to) ? params.to : [params.to];
       
-      // IMPORT SUPABASE HERE to avoid circular dependency if needed, or we can just import at the top
-      const { supabase } = require('../config/supabase');
-
       // IN-APP NOTIFICATIONS
       try {
-        const { data: users } = await supabase
-          .from('profiles')
-          .select('id, email')
-          .in('email', recipients);
+        const sql = neon(process.env.POSTGRES_URL || '');
+        const users = await sql`
+          SELECT id, email
+          FROM profiles
+          WHERE email = ANY(${recipients}::text[])
+        `;
           
         if (users && users.length > 0) {
           // Extrai título amigável baseado no subject (removendo tags como [REVISÃO])
@@ -248,16 +248,19 @@ export class NotificationService {
           if (params.type === 'task_paused') inAppMessage = `Tarefa pausada: ${params.taskName}`;
           if (params.type === 'task_completed') inAppMessage = `Tarefa concluída: ${params.taskName}`;
           
-          const notificationsToInsert = users.map((u: any) => ({
-            user_id: u.id,
-            title: inAppTitle,
-            message: inAppMessage,
-            type: params.type === 'task_completed' ? 'success' : 'action',
-            action_url: params.link || '/admin/jtbd',
-            is_read: false
-          }));
-          
-          await supabase.from('notifications').insert(notificationsToInsert);
+          for (const u of users) {
+             await sql`
+                INSERT INTO notifications (user_id, title, message, type, action_url, is_read)
+                VALUES (
+                   ${u.id}, 
+                   ${inAppTitle}, 
+                   ${inAppMessage}, 
+                   ${params.type === 'task_completed' ? 'success' : 'action'}, 
+                   ${params.link || '/admin/jtbd'}, 
+                   false
+                )
+             `;
+          }
         }
       } catch (dbErr) {
         console.error("[NotificationService] Falha ao inserir notificação in-app:", dbErr);

@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { supabase } from '../config/supabase';
+import { neon } from '@neondatabase/serverless';
 
 export class FocusController {
   // GET /api/v1/focus/urgent/:collaboratorId
@@ -9,31 +9,75 @@ export class FocusController {
       const now = new Date();
       const next24h = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
+      const sql = neon(process.env.POSTGRES_URL || '');
+
       // Check role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', collaboratorId)
-        .single();
+      const profileRes = await sql`
+        SELECT role FROM profiles WHERE id = ${collaboratorId}
+      `;
+      const profile = profileRes[0];
 
-      let query = supabase
-        .from('tasks')
-        .select(`
-          *,
-          projects(id, type, service_type, client_id, profiles(nome)),
-          agency_subclients(id, name, agency_id)
-        `)
-        .neq('status', 'completed')
-        .gte('deadline', now.toISOString())
-        .lte('deadline', next24h.toISOString())
-        .order('deadline', { ascending: true });
-
+      let data;
       if (profile?.role === 'colaborador') {
-        query = query.eq('assigned_to', collaboratorId);
+        data = await sql`
+          SELECT 
+            t.*,
+            CASE WHEN p.id IS NOT NULL THEN
+              json_build_object(
+                'id', p.id,
+                'type', p.type,
+                'service_type', p.service_type,
+                'client_id', p.client_id,
+                'profiles', CASE WHEN pr.id IS NOT NULL THEN json_build_object('nome', pr.nome) ELSE null END
+              )
+            ELSE null END as projects,
+            CASE WHEN asub.id IS NOT NULL THEN
+              json_build_object(
+                'id', asub.id,
+                'name', asub.name,
+                'agency_id', asub.agency_id
+              )
+            ELSE null END as agency_subclients
+          FROM tasks t
+          LEFT JOIN projects p ON t.project_id = p.id
+          LEFT JOIN profiles pr ON p.client_id = pr.id
+          LEFT JOIN agency_subclients asub ON t.subclient_id = asub.id
+          WHERE t.status != 'completed' 
+            AND t.deadline >= ${now.toISOString()} 
+            AND t.deadline <= ${next24h.toISOString()}
+            AND t.assigned_to = ${collaboratorId}
+          ORDER BY t.deadline ASC
+        `;
+      } else {
+        data = await sql`
+          SELECT 
+            t.*,
+            CASE WHEN p.id IS NOT NULL THEN
+              json_build_object(
+                'id', p.id,
+                'type', p.type,
+                'service_type', p.service_type,
+                'client_id', p.client_id,
+                'profiles', CASE WHEN pr.id IS NOT NULL THEN json_build_object('nome', pr.nome) ELSE null END
+              )
+            ELSE null END as projects,
+            CASE WHEN asub.id IS NOT NULL THEN
+              json_build_object(
+                'id', asub.id,
+                'name', asub.name,
+                'agency_id', asub.agency_id
+              )
+            ELSE null END as agency_subclients
+          FROM tasks t
+          LEFT JOIN projects p ON t.project_id = p.id
+          LEFT JOIN profiles pr ON p.client_id = pr.id
+          LEFT JOIN agency_subclients asub ON t.subclient_id = asub.id
+          WHERE t.status != 'completed' 
+            AND t.deadline >= ${now.toISOString()} 
+            AND t.deadline <= ${next24h.toISOString()}
+          ORDER BY t.deadline ASC
+        `;
       }
-
-      const { data, error } = await query;
-      if (error) throw error;
 
       return res.status(200).json({ data: data || [] });
     } catch (error: any) {
@@ -54,36 +98,48 @@ export class FocusController {
       const startDate = new Date(targetYear, targetMonth, 1).toISOString();
       const endDate = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59).toISOString();
 
-      let query = supabase
-        .from('tasks')
-        .select(`
-          *,
-          projects(id, type, service_type, client_id, profiles(nome)),
-          agency_subclients(id, name, agency_id)
-        `)
-        .gte('deadline', startDate)
-        .lte('deadline', endDate)
-        .order('deadline', { ascending: true });
-
-      if (projectId) {
-        query = query.eq('project_id', projectId);
-      } else if (subclientId) {
-        query = query.eq('subclient_id', subclientId);
-      }
+      const sql = neon(process.env.POSTGRES_URL || '');
 
       // Check role
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', collaboratorId)
-        .single();
+      const profileRes = await sql`
+        SELECT role FROM profiles WHERE id = ${collaboratorId}
+      `;
+      const profile = profileRes[0];
 
-      if (profile?.role === 'colaborador') {
-        query = query.eq('assigned_to', collaboratorId);
-      }
+      const pId = projectId ? String(projectId) : null;
+      const sId = subclientId ? String(subclientId) : null;
+      const assignedTo = profile?.role === 'colaborador' ? collaboratorId : null;
 
-      const { data, error } = await query;
-      if (error) throw error;
+      const data = await sql`
+        SELECT 
+          t.*,
+          CASE WHEN p.id IS NOT NULL THEN
+            json_build_object(
+              'id', p.id,
+              'type', p.type,
+              'service_type', p.service_type,
+              'client_id', p.client_id,
+              'profiles', CASE WHEN pr.id IS NOT NULL THEN json_build_object('nome', pr.nome) ELSE null END
+            )
+          ELSE null END as projects,
+          CASE WHEN asub.id IS NOT NULL THEN
+            json_build_object(
+              'id', asub.id,
+              'name', asub.name,
+              'agency_id', asub.agency_id
+            )
+          ELSE null END as agency_subclients
+        FROM tasks t
+        LEFT JOIN projects p ON t.project_id = p.id
+        LEFT JOIN profiles pr ON p.client_id = pr.id
+        LEFT JOIN agency_subclients asub ON t.subclient_id = asub.id
+        WHERE t.deadline >= ${startDate} 
+          AND t.deadline <= ${endDate}
+          AND (${pId}::uuid IS NULL OR t.project_id = ${pId}::uuid)
+          AND (${sId}::uuid IS NULL OR t.subclient_id = ${sId}::uuid)
+          AND (${assignedTo}::uuid IS NULL OR t.assigned_to = ${assignedTo}::uuid)
+        ORDER BY t.deadline ASC
+      `;
 
       return res.status(200).json({ data: data || [] });
     } catch (error: any) {
@@ -96,21 +152,37 @@ export class FocusController {
   static async getAssignedClients(req: Request, res: Response) {
     try {
       const { collaboratorId } = req.params;
+      const sql = neon(process.env.POSTGRES_URL || '');
 
-      const { data: assignments, error: assignmentsError } = await supabase
-        .from('collaborator_assignments')
-        .select(`
-          id,
-          project_id,
-          subclient_id,
-          projects:project_id(id, type, service_type, profiles(nome, avatar_url)),
-          agency_subclients:subclient_id(id, name)
-        `)
-        .eq('collaborator_id', collaboratorId);
+      const assignments = await sql`
+        SELECT 
+          ca.id,
+          ca.project_id,
+          ca.subclient_id,
+          CASE WHEN p.id IS NOT NULL THEN
+            json_build_object(
+              'id', p.id,
+              'type', p.type,
+              'service_type', p.service_type,
+              'profiles', CASE WHEN pr.id IS NOT NULL THEN json_build_object('nome', pr.nome, 'avatar_url', pr.avatar_url) ELSE null END
+            )
+          ELSE null END as projects,
+          CASE WHEN asub.id IS NOT NULL THEN
+            json_build_object(
+              'id', asub.id,
+              'name', asub.name
+            )
+          ELSE null END as agency_subclients
+        FROM collaborator_assignments ca
+        LEFT JOIN projects p ON ca.project_id = p.id
+        LEFT JOIN profiles pr ON p.client_id = pr.id
+        LEFT JOIN agency_subclients asub ON ca.subclient_id = asub.id
+        WHERE ca.collaborator_id = ${collaboratorId}
+      `;
 
       let assignedList: any[] = [];
 
-      if (!assignmentsError && assignments && assignments.length > 0) {
+      if (assignments && assignments.length > 0) {
         assignedList = assignments.map((a: any) => {
           if (a.project_id && a.projects) {
             return {
@@ -142,11 +214,12 @@ export class FocusController {
       );
 
       // Check tasks table for active tasks assigned to this collaborator
-      const { data: activeTasks } = await supabase
-        .from('tasks')
-        .select('project_id, subclient_id')
-        .eq('assigned_to', collaboratorId)
-        .neq('status', 'completed');
+      const activeTasks = await sql`
+        SELECT project_id, subclient_id
+        FROM tasks
+        WHERE assigned_to = ${collaboratorId}
+          AND status != 'completed'
+      `;
 
       if (activeTasks && activeTasks.length > 0) {
         const taskProjectIds = Array.from(new Set(
@@ -162,10 +235,16 @@ export class FocusController {
         ));
 
         if (taskProjectIds.length > 0) {
-          const { data: missingProjects } = await supabase
-            .from('projects')
-            .select('id, type, service_type, profiles(nome, avatar_url)')
-            .in('id', taskProjectIds);
+          const missingProjects = await sql`
+            SELECT 
+              p.id, p.type, p.service_type,
+              CASE WHEN pr.id IS NOT NULL THEN
+                json_build_object('nome', pr.nome, 'avatar_url', pr.avatar_url)
+              ELSE null END as profiles
+            FROM projects p
+            LEFT JOIN profiles pr ON p.client_id = pr.id
+            WHERE p.id = ANY(${taskProjectIds}::uuid[])
+          `;
 
           if (missingProjects) {
             for (const p of missingProjects as any[]) {
@@ -180,10 +259,11 @@ export class FocusController {
         }
 
         if (taskSubclientIds.length > 0) {
-          const { data: missingSubclients } = await supabase
-            .from('agency_subclients')
-            .select('id, name')
-            .in('id', taskSubclientIds);
+          const missingSubclients = await sql`
+            SELECT id, name
+            FROM agency_subclients
+            WHERE id = ANY(${taskSubclientIds}::uuid[])
+          `;
 
           if (missingSubclients) {
             for (const s of missingSubclients as any[]) {
@@ -203,21 +283,29 @@ export class FocusController {
       }
 
       // Fallback for Admin or Gestor without explicit assignments
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('role')
-        .eq('id', collaboratorId)
-        .single();
+      const profileRes = await sql`
+        SELECT role FROM profiles WHERE id = ${collaboratorId}
+      `;
+      const profile = profileRes[0];
 
       const isAdminOrGestor = profile?.role === 'admin' || profile?.role === 'gestor';
 
       if (isAdminOrGestor) {
         const [projectsRes, subclientsRes] = await Promise.all([
-          supabase.from('projects').select('id, type, service_type, profiles(nome, avatar_url)').in('status', ['active', 'delivered']),
-          supabase.from('agency_subclients').select('id, name, agency_id')
+          sql`
+            SELECT 
+              p.id, p.type, p.service_type,
+              CASE WHEN pr.id IS NOT NULL THEN
+                json_build_object('nome', pr.nome, 'avatar_url', pr.avatar_url)
+              ELSE null END as profiles
+            FROM projects p
+            LEFT JOIN profiles pr ON p.client_id = pr.id
+            WHERE p.status IN ('active', 'delivered')
+          `,
+          sql`SELECT id, name, agency_id FROM agency_subclients`
         ]);
 
-        const mappedProjects = (projectsRes.data || []).map((p: any) => ({
+        const mappedProjects = (projectsRes || []).map((p: any) => ({
           id: p.id,
           name: p.profiles?.nome ? `${p.profiles.nome} (${p.type || p.service_type})` : (p.type || 'Projeto'),
           avatarUrl: p.profiles?.avatar_url || null,
@@ -225,7 +313,7 @@ export class FocusController {
           raw: p
         }));
 
-        const mappedSubclients = (subclientsRes.data || []).map((s: any) => ({
+        const mappedSubclients = (subclientsRes || []).map((s: any) => ({
           id: s.id,
           name: s.name,
           avatarUrl: null,

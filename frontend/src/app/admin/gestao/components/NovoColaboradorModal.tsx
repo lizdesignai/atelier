@@ -514,7 +514,7 @@ export default function NovoColaboradorModal({
                   {/* COMPETÊNCIAS / SKILLS DA ESTEIRA */}
                   <div className="flex flex-col gap-2">
                     <label className="text-[10px] uppercase tracking-widest font-bold text-gray-500 ml-1">
-                      Competências & Habilidades no Estúdio
+                      Competências & Habilidades no Studio Veronna
                     </label>
                     <div className="flex flex-wrap gap-1.5 p-3 bg-white border border-gray-200 rounded-2xl">
                       {ALL_SKILLS.map(skill => {

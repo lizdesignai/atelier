@@ -1,7 +1,6 @@
-// src/controllers/AnalyticsController.ts
 import { Request, Response } from 'express';
-import { supabase } from '../config/supabase';
 import { redis } from '../config/redis';
+import { neon } from '@neondatabase/serverless';
 
 export class AnalyticsController {
   
@@ -11,7 +10,6 @@ export class AnalyticsController {
       const cacheKey = 'analytics:dashboard';
       const isFreshRequested = req.query.fresh === 'true';
       
-      // Tenta recuperar do Cache do Redis (Upstash) se não for forçado fresh
       if (!isFreshRequested) {
         try {
           const cachedData = await redis.get(cacheKey);
@@ -24,35 +22,61 @@ export class AnalyticsController {
         }
       }
 
+      if (!process.env.POSTGRES_URL) {
+        throw new Error('POSTGRES_URL is not set');
+      }
+      const sql = neon(process.env.POSTGRES_URL);
+
       const fifteenDaysAgo = new Date();
       fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
 
       const [teamRes, rulesRes, tasksRes, agenciesRes, subclientsRes] = await Promise.all([
-        supabase.from('profiles').select('id, nome, role, avatar_url, skills, team_performance(exp_points, level_name)').in('role', ['admin', 'gestor', 'colaborador']),
-        supabase.from('routing_rules').select('id, project_id, task_type, assignee_id, created_at'),
-        supabase.from('tasks')
-          .select('id, project_id, assigned_to, title, description, caption, external_links, media_assets, status, deadline, created_at, completed_at, actual_time, estimated_time, stage, task_type, attachment_url, subclient_id, agency_id, projects(type, service_type, profiles(nome, avatar_url)), agency_subclients(name)')
-          .or(`status.neq.completed,completed_at.gte.${fifteenDaysAgo.toISOString()}`)
-          .order('deadline', { ascending: true }),
-        supabase.from('agencies').select('id, name, status, financial_value, billing_date, created_at, trello_url').eq('status', 'active'),
-        supabase.from('agency_subclients').select('id, agency_id, name, deliverables_count, created_at, trello_url')
+        sql`
+          SELECT 
+            p.id, p.nome, p.role, p.avatar_url, p.skills,
+            CASE WHEN tp.user_id IS NOT NULL THEN
+              json_build_object('exp_points', tp.exp_points, 'level_name', tp.level_name)
+            ELSE null END as team_performance
+          FROM profiles p
+          LEFT JOIN team_performance tp ON p.id = tp.user_id
+          WHERE p.role IN ('admin', 'gestor', 'colaborador')
+        `,
+        sql`SELECT id, project_id, task_type, assignee_id, created_at FROM routing_rules`,
+        sql`
+          SELECT 
+            t.id, t.project_id, t.assigned_to, t.title, t.description, t.caption, 
+            t.external_links, t.media_assets, t.status, t.deadline, t.created_at, 
+            t.completed_at, t.actual_time, t.estimated_time, t.stage, t.task_type, 
+            t.attachment_url, t.subclient_id, t.agency_id,
+            CASE WHEN p.id IS NOT NULL THEN
+              json_build_object(
+                'type', p.type,
+                'service_type', p.service_type,
+                'profiles', CASE WHEN pr.id IS NOT NULL THEN json_build_object('nome', pr.nome, 'avatar_url', pr.avatar_url) ELSE null END
+              )
+            ELSE null END as projects,
+            CASE WHEN asb.id IS NOT NULL THEN
+              json_build_object('name', asb.name)
+            ELSE null END as agency_subclients
+          FROM tasks t
+          LEFT JOIN projects p ON t.project_id = p.id
+          LEFT JOIN profiles pr ON p.client_id = pr.id
+          LEFT JOIN agency_subclients asb ON t.subclient_id = asb.id
+          WHERE t.status != 'completed' OR t.completed_at >= ${fifteenDaysAgo.toISOString()}
+          ORDER BY t.deadline ASC
+        `,
+        sql`SELECT id, name, status, financial_value, billing_date, created_at, trello_url FROM agencies WHERE status = 'active'`,
+        sql`SELECT id, agency_id, name, deliverables_count, created_at, trello_url FROM agency_subclients`
       ]);
 
-      if (teamRes.error) throw teamRes.error;
-      if (rulesRes.error) throw rulesRes.error;
-      if (tasksRes.error) throw tasksRes.error;
-      if (agenciesRes.error) throw agenciesRes.error;
-      if (subclientsRes.error) throw subclientsRes.error;
-
       const dashboardData = {
-        team: teamRes.data,
-        routingRules: rulesRes.data,
-        tasks: tasksRes.data,
-        agencies: agenciesRes.data,
-        subclients: subclientsRes.data
+        team: teamRes,
+        routingRules: rulesRes,
+        tasks: tasksRes,
+        agencies: agenciesRes,
+        subclients: subclientsRes
       };
 
-      // Grava no Redis com TTL de 60 segundos
       try {
         await redis.set(cacheKey, JSON.stringify(dashboardData), { ex: 60 });
       } catch (cacheErr) {
@@ -77,3 +101,4 @@ export class AnalyticsController {
     }
   }
 }
+

@@ -1,16 +1,25 @@
-import { supabase } from '../config/supabase';
+import { neon } from '@neondatabase/serverless';
 import { NotificationService } from '../services/NotificationService';
 
 export async function checkContractDeadlines() {
   console.log('[Cron] Verificando contratos prestes a vencer...');
   
   try {
-    const { data: projects, error } = await supabase
-      .from('projects')
-      .select('id, contract_end, profiles(nome)')
-      .in('status', ['active']);
+    const sql = neon(process.env.POSTGRES_URL || '');
+    
+    const projects = await sql`
+      SELECT 
+        p.id, 
+        p.contract_end, 
+        CASE 
+          WHEN pr.id IS NOT NULL THEN json_build_object('nome', pr.nome) 
+          ELSE null 
+        END as profiles
+      FROM projects p
+      LEFT JOIN profiles pr ON p.client_id = pr.id
+      WHERE p.status IN ('active')
+    `;
 
-    if (error) throw error;
     if (!projects) return;
 
     for (const project of projects) {

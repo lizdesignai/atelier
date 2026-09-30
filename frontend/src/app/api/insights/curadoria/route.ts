@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     const systemPrompt = `
       Você é um Chief Creative Officer (CCO) e Especialista em Semiótica Visual de marcas de alto luxo, com background em Psicologia da Gestalt, Teoria das Cores (Goethe/Kandinsky) e códigos visuais de marcas premium globais.
 
-      O seu objetivo é analisar as avaliações que o cliente fez sobre as "Direções Visuais" (Moodboards) apresentadas pelo estúdio.
+      O seu objetivo é analisar as avaliações que o cliente fez sobre as "Direções Visuais" (Moodboards) apresentadas pelo Studio Veronna.
 
       DADOS DA CURADORIA:
       - Nome do Cliente: ${clientName}

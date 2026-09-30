@@ -212,7 +212,7 @@ export default function LoginPage() {
         if (!hasSeenOnboarding) {
           router.push("/onboarding");
         } else {
-          router.push(role === 'client' ? "/" : role === 'contador' ? "/admin/financeiro" : "/admin/fio");
+          router.push(role === 'client' ? "/" : role === 'contador' ? "/admin/financeiro" : "/admin/jtbd");
         }
       }, 1800);
 
@@ -257,7 +257,7 @@ export default function LoginPage() {
         if (!hasSeenOnboarding) {
           router.push("/onboarding");
         } else {
-          router.push(role === 'client' ? "/" : role === 'contador' ? "/admin/financeiro" : "/admin/fio");
+          router.push(role === 'client' ? "/" : role === 'contador' ? "/admin/financeiro" : "/admin/jtbd");
         }
       }, 1800);
 
@@ -375,7 +375,7 @@ export default function LoginPage() {
 
               <div className="text-center mb-8 w-full">
                 <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-2 tracking-tight">
-                  {authMode === 'login' && !mfaStep && <>Acesso ao <span className="text-[var(--color-atelier-terracota)] italic">Estúdio.</span></>}
+                  {authMode === 'login' && !mfaStep && <>Acesso ao <span className="text-[var(--color-atelier-terracota)] italic">Studio Veronna.</span></>}
                   {authMode === 'login' && mfaStep && <>Verificação <span className="text-[var(--color-atelier-terracota)] italic">MFA.</span></>}
                   {authMode === 'forgot_password' && <>Recuperar <span className="text-[var(--color-atelier-terracota)] italic">Acesso.</span></>}
                   {authMode === 'reset_confirm' && <>Nova <span className="text-[var(--color-atelier-terracota)] italic">Senha.</span></>}

@@ -170,7 +170,7 @@ export default function ClientShell({ children }: { children: React.ReactNode })
         setUserRole(role);
 
         if (isLoginPage) {
-          router.replace(role === "client" ? "/" : role === "contador" ? "/admin/financeiro" : "/admin/fio");
+          router.replace(role === "client" ? "/" : role === "contador" ? "/admin/financeiro" : "/admin/jtbd");
         }
 
         timer = setTimeout(() => setIsInitializing(false), 500);

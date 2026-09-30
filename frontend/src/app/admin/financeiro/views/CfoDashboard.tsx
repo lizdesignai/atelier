@@ -81,7 +81,7 @@ export default function CfoDashboard({
                 </span>
               )}
             </div>
-            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 block mt-1.5">B2C + White-Label (B2B)</span>
+            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 block mt-1.5">B2C + Studio Veronna (B2B)</span>
           </div>
         </div>
 
@@ -284,7 +284,7 @@ export default function CfoDashboard({
           
           <div className="flex-1 flex flex-col justify-center gap-4 relative z-10">
             <p className="text-[11px] font-roboto font-bold uppercase tracking-widest text-white/50 text-center leading-relaxed">
-              Consolide o balanço financeiro atual no histórico do estúdio para acompanhamento.
+              Consolide o balanço financeiro atual no histórico do Studio Veronna para acompanhamento.
             </p>
             
             <div className="flex flex-col gap-2">

@@ -149,17 +149,17 @@ export default function StageTemplate({ content, clientName, mapaData, onUpdateP
   const isReadyToComplete = progresso.aula_vista && progresso.evidencia_enviada && allTasksDone && hasPassedCheckpoint;
 
   return (
-    <div className="w-full max-w-4xl mx-auto space-y-12 pb-24">
+    <div className="w-full max-w-4xl mx-auto space-y-8 md:space-y-12 pb-28 md:pb-24">
       
       {/* 1. CONTEXTO */}
-      <section className="text-center pt-8">
+      <section className="text-center pt-4 md:pt-8">
         <div className="inline-block px-3 py-1 rounded-full border border-[var(--color-atelier-grafite)]/20 text-[var(--color-atelier-grafite)] text-[10px] font-bold uppercase tracking-[0.2em] mb-4">
           Sprint 0{content.id} • {content.dimensao}
         </div>
-        <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] mb-4">
+        <h1 className="font-elegant text-3xl sm:text-4xl md:text-5xl text-[var(--color-atelier-grafite)] mb-4">
           {content.contexto.title}
         </h1>
-        <p className="text-[var(--color-atelier-grafite)]/60 text-lg max-w-2xl mx-auto font-medium mb-6">
+        <p className="text-[var(--color-atelier-grafite)]/60 text-base md:text-lg max-w-2xl mx-auto font-medium mb-6">
           {content.contexto.subtitle}
         </p>
         <p className="text-sm text-[var(--color-atelier-grafite)] leading-relaxed max-w-3xl mx-auto">
@@ -173,29 +173,29 @@ export default function StageTemplate({ content, clientName, mapaData, onUpdateP
           <div className="absolute inset-0 bg-black/40 group-hover:bg-black/30 transition-colors flex items-center justify-center rounded-2xl">
             <button 
               onClick={handleMarkVideoViewed}
-              className="w-20 h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white border border-white/30 hover:scale-110 hover:bg-[var(--color-atelier-terracota)] transition-all"
+              className="w-16 h-16 md:w-20 md:h-20 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center text-white border border-white/30 hover:scale-110 hover:bg-[var(--color-atelier-terracota)] transition-all"
             >
-              <Play size={32} className="ml-2" />
+              <Play size={24} className="md:w-8 md:h-8 ml-1 md:ml-2" />
             </button>
           </div>
-          <span className="absolute bottom-4 left-6 text-white font-bold text-sm tracking-widest uppercase">
+          <span className="absolute bottom-3 md:bottom-4 left-4 md:left-6 text-white font-bold text-[10px] md:text-sm tracking-widest uppercase">
             AULA: {content.aula.title}
           </span>
           {progresso.aula_vista && (
-            <span className="absolute top-4 right-6 bg-green-500 text-white text-[10px] uppercase font-bold px-3 py-1 rounded-full flex items-center gap-1 shadow-md">
+            <span className="absolute top-3 md:top-4 right-4 md:right-6 bg-green-500 text-white text-[9px] md:text-[10px] uppercase font-bold px-2 md:px-3 py-1 rounded-full flex items-center gap-1 shadow-md">
               <CheckCircle2 size={12} /> Assistida
             </span>
           )}
         </div>
 
         {content.aula.timestamps && content.aula.timestamps.length > 0 && (
-          <div className="p-6 md:px-10 bg-white/30 rounded-b-2xl">
-            <h4 className="text-xs font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-4">Nesta aula</h4>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div className="p-4 md:p-6 lg:px-10 bg-white/30 rounded-b-2xl">
+            <h4 className="text-[10px] md:text-xs font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-3 md:mb-4">Nesta aula</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-3">
               {content.aula.timestamps.map((ts, idx) => (
-                <div key={idx} className="flex items-center gap-3 text-sm text-[var(--color-atelier-grafite)]">
-                  <span className="text-[var(--color-atelier-terracota)] font-roboto font-bold bg-[var(--color-atelier-terracota)]/10 px-2 py-0.5 rounded">{ts.time}</span>
-                  <span className="font-medium">{ts.label}</span>
+                <div key={idx} className="flex items-center gap-2 md:gap-3 text-xs md:text-sm text-[var(--color-atelier-grafite)]">
+                  <span className="text-[var(--color-atelier-terracota)] font-roboto font-bold bg-[var(--color-atelier-terracota)]/10 px-1.5 md:px-2 py-0.5 rounded">{ts.time}</span>
+                  <span className="font-medium leading-tight">{ts.label}</span>
                 </div>
               ))}
             </div>
@@ -215,20 +215,20 @@ export default function StageTemplate({ content, clientName, mapaData, onUpdateP
 
       {/* 3. GUIA PDF */}
       <section className="flex flex-col md:flex-row gap-6">
-        <div className="flex-1 glass-panel p-8 flex items-center justify-between group">
+        <div className="flex-1 glass-panel p-6 md:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 group">
           <div>
-            <h3 className="font-roboto font-bold text-lg text-[var(--color-atelier-grafite)] mb-1 flex items-center gap-2">
+            <h3 className="font-roboto font-bold text-base md:text-lg text-[var(--color-atelier-grafite)] mb-1 flex items-center gap-2">
               <FileText size={18} className="text-[var(--color-atelier-terracota)]" />
               Guia Prático da Semana
             </h3>
-            <p className="text-sm text-[var(--color-atelier-grafite)]/60">
+            <p className="text-xs md:text-sm text-[var(--color-atelier-grafite)]/60">
               Material de apoio em PDF gerado com as suas respostas.
             </p>
           </div>
           <button 
             onClick={generatePDF}
             disabled={isGeneratingPDF}
-            className="flex items-center justify-center gap-2 bg-[var(--color-atelier-grafite)] text-white px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-[var(--color-atelier-terracota)] transition-colors disabled:opacity-50"
+            className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[var(--color-atelier-grafite)] text-white px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-[var(--color-atelier-terracota)] transition-colors disabled:opacity-50"
           >
             {isGeneratingPDF ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
             Baixar PDF
@@ -237,10 +237,10 @@ export default function StageTemplate({ content, clientName, mapaData, onUpdateP
       </section>
 
       {/* 4. MISSÃO (Checklist) */}
-      <section className="glass-panel p-8 md:p-12">
-        <div className="mb-8">
-          <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-2">{content.missao.title}</h2>
-          <p className="text-[var(--color-atelier-grafite)]/60 font-medium">{content.missao.description}</p>
+      <section className="glass-panel p-6 md:p-12">
+        <div className="mb-6 md:mb-8">
+          <h2 className="font-elegant text-2xl md:text-3xl text-[var(--color-atelier-grafite)] mb-2">{content.missao.title}</h2>
+          <p className="text-sm md:text-base text-[var(--color-atelier-grafite)]/60 font-medium">{content.missao.description}</p>
         </div>
 
         <div className="space-y-3">
@@ -287,10 +287,10 @@ export default function StageTemplate({ content, clientName, mapaData, onUpdateP
       </section>
 
       {/* 5. EVIDÊNCIA */}
-      <section className="glass-panel p-8 md:p-12">
+      <section className="glass-panel p-6 md:p-12">
         <div className="mb-6">
-          <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-2">{content.evidencia.title}</h2>
-          <p className="text-[var(--color-atelier-grafite)]/60 font-medium">{content.evidencia.description}</p>
+          <h2 className="font-elegant text-2xl md:text-3xl text-[var(--color-atelier-grafite)] mb-2">{content.evidencia.title}</h2>
+          <p className="text-sm md:text-base text-[var(--color-atelier-grafite)]/60 font-medium">{content.evidencia.description}</p>
         </div>
         
         <div className="space-y-4">
@@ -302,18 +302,18 @@ export default function StageTemplate({ content, clientName, mapaData, onUpdateP
             className="w-full h-32 p-4 rounded-2xl border border-[var(--color-atelier-grafite)]/10 bg-white/50 focus:outline-none focus:border-[var(--color-atelier-terracota)]/50 focus:ring-2 focus:ring-[var(--color-atelier-terracota)]/20 transition-all resize-none text-sm disabled:opacity-70 disabled:cursor-not-allowed"
           />
           
-          <div className="flex items-center justify-end">
+          <div className="flex flex-col sm:flex-row items-center sm:justify-end gap-3">
             {!progresso.evidencia_enviada ? (
               <button 
                 onClick={submitEvidencia}
                 disabled={isSubmittingEvidencia}
-                className="flex items-center gap-2 bg-[var(--color-atelier-terracota)] text-white px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest shadow-md hover:bg-[#8c562e] transition-colors"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[var(--color-atelier-terracota)] text-white px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest shadow-md hover:bg-[#8c562e] transition-colors"
               >
                 {isSubmittingEvidencia ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
                 Enviar Evidência
               </button>
             ) : (
-              <span className="flex items-center gap-2 text-green-600 font-bold text-xs uppercase tracking-widest px-4 py-2 bg-green-50 rounded-full">
+              <span className="w-full sm:w-auto flex items-center justify-center gap-2 text-green-600 font-bold text-[10px] md:text-xs uppercase tracking-widest px-4 py-2 bg-green-50 rounded-full">
                 <CheckCircle2 size={16} /> Recebido e Auditado
               </span>
             )}
@@ -322,25 +322,25 @@ export default function StageTemplate({ content, clientName, mapaData, onUpdateP
       </section>
 
       {/* 6. CHECKPOINT */}
-      <section className="glass-panel p-8 md:p-12 border border-[var(--color-atelier-grafite)]/10">
-        <div className="mb-8 flex items-start justify-between">
+      <section className="glass-panel p-6 md:p-12 border border-[var(--color-atelier-grafite)]/10">
+        <div className="mb-6 md:mb-8 flex flex-col md:flex-row md:items-start justify-between gap-4">
           <div>
-            <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-2 flex items-center gap-2">
-              <ShieldCheck className="text-[var(--color-atelier-terracota)]" size={28} />
+            <h2 className="font-elegant text-2xl md:text-3xl text-[var(--color-atelier-grafite)] mb-2 flex items-center gap-2">
+              <ShieldCheck className="text-[var(--color-atelier-terracota)] shrink-0" size={24} />
               {content.checkpoint.title}
             </h2>
-            <p className="text-[var(--color-atelier-grafite)]/60 font-medium">Você precisa de 80% para desbloquear a próxima fase.</p>
+            <p className="text-sm md:text-base text-[var(--color-atelier-grafite)]/60 font-medium">Você precisa de 80% para desbloquear a próxima fase.</p>
           </div>
           
           {progresso.checkpoint_score > 0 && (
-            <div className={`px-4 py-2 rounded-2xl flex flex-col items-center ${progresso.checkpoint_score >= 80 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-              <span className="text-2xl font-bold">{progresso.checkpoint_score}%</span>
+            <div className={`self-start md:self-auto px-4 py-2 rounded-2xl flex flex-col items-center ${progresso.checkpoint_score >= 80 ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+              <span className="text-xl md:text-2xl font-bold">{progresso.checkpoint_score}%</span>
               <span className="text-[9px] uppercase font-bold tracking-widest">Score Obtido</span>
             </div>
           )}
         </div>
 
-        <div className="space-y-8">
+        <div className="space-y-6 md:space-y-8">
           {content.checkpoint.perguntas.map((q, idx) => (
             <div key={idx} className="space-y-3">
               <p className="font-roboto font-bold text-[var(--color-atelier-grafite)] text-sm">{idx + 1}. {q.pergunta}</p>
@@ -401,21 +401,21 @@ export default function StageTemplate({ content, clientName, mapaData, onUpdateP
       {isReadyToComplete && !progresso.concluida && (
         <motion.section 
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-br from-[var(--color-atelier-grafite)] to-[#2a2a2a] p-12 rounded-[2rem] text-center relative overflow-hidden shadow-2xl"
+          className="bg-gradient-to-br from-[var(--color-atelier-grafite)] to-[#2a2a2a] p-8 md:p-12 rounded-[2rem] text-center relative overflow-hidden shadow-2xl"
         >
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(173,111,64,0.3)_0%,transparent_70%)]" />
           <div className="relative z-10">
             <span className="inline-block px-4 py-1.5 bg-white/10 text-white rounded-full text-[10px] uppercase font-bold tracking-widest mb-6 border border-white/20">
               Descoberta da Semana
             </span>
-            <h2 className="font-elegant text-3xl md:text-4xl text-white mb-8 italic">
+            <h2 className="font-elegant text-2xl sm:text-3xl md:text-4xl text-white mb-8 italic">
               "{content.descoberta}"
             </h2>
             
             <button 
               onClick={handleCompletion}
               disabled={isCompleting}
-              className="mx-auto flex items-center justify-center gap-3 bg-[var(--color-atelier-terracota)] text-white px-8 py-4 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-[#8c562e] hover:scale-105 transition-all shadow-xl disabled:opacity-50"
+              className="mx-auto w-full md:w-auto flex items-center justify-center gap-2 md:gap-3 bg-[var(--color-atelier-terracota)] text-white px-6 md:px-8 py-4 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-[#8c562e] hover:scale-105 transition-all shadow-xl disabled:opacity-50"
             >
               {isCompleting ? <Loader2 className="animate-spin" size={20} /> : (
                 <>
@@ -428,15 +428,15 @@ export default function StageTemplate({ content, clientName, mapaData, onUpdateP
       )}
 
       {progresso.concluida && (
-        <div className="text-center p-8 glass-panel border border-green-500/30 bg-green-50/50">
+        <div className="text-center p-6 md:p-8 glass-panel border border-green-500/30 bg-green-50/50">
           <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 size={32} />
           </div>
-              <h3 className="font-bold text-green-800 text-lg mb-1">Sprint {content.id} Concluído!</h3>
+          <h3 className="font-bold text-green-800 text-lg mb-1">Sprint {content.id} Concluído!</h3>
           <p className="text-green-700/70 text-sm mb-6">Você dominou a dimensão da {content.dimensao}.</p>
           <button 
             onClick={() => router.push('/mapa')}
-            className="text-xs font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] border border-[var(--color-atelier-grafite)]/20 px-6 py-2 rounded-full hover:bg-white"
+            className="w-full sm:w-auto text-xs font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] border border-[var(--color-atelier-grafite)]/20 px-6 py-3 rounded-full hover:bg-white"
           >
             Voltar ao Roadmap
           </button>

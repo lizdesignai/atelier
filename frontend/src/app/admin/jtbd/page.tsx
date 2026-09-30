@@ -118,39 +118,23 @@ export default function JTBDPage() {
   const fetchJTBDData = async () => {
     setIsLoading(true);
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
+      const res = await fetch('/api/jtbd/data');
+      if (!res.ok) throw new Error('Falha ao carregar dados');
+      
+      const { data } = await res.json();
+      if (!data) return;
 
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+      const profile = data.profile;
       setCurrentUser(profile);
       setViewingUserId(profile.id);
+      setTeam(data.teamData);
+      if (data.projectsData) setProjects(data.projectsData);
 
-      let teamData = [];
-      if (profile.role === 'admin' || profile.role === 'gestor') {
-        const [tDataRes, pDataRes] = await Promise.all([
-          supabase.from('profiles').select('*').in('role', ['admin', 'gestor', 'colaborador']).order('nome'),
-          supabase.from('projects').select('id, profiles(nome), type, client_id').eq('status', 'active')
-        ]);
-        
-        if (tDataRes.data) teamData = tDataRes.data;
-        if (pDataRes.data) setProjects(pDataRes.data);
-      } else {
-        teamData = [profile];
-      }
-      setTeam(teamData);
+      const tasksData = data.tasksData;
 
-      const teamIds = teamData.map(t => t.id);
-      
-      const { data: tasksData } = await supabase
-        .from('tasks')
-        .select('*, projects(profiles(nome), type, client_id), agency_subclients(id, name, trello_url), social_posts(image_url, status, created_at)')
-        .in('assigned_to', teamIds)
-        .order('priority_score', { ascending: false, nullsFirst: false }) 
-        .order('deadline', { ascending: true });
-      
       if (tasksData) {
-        // OrdenaÃ§Ã£o rigorosa em memÃ³ria pelo prazo mais apertado (considerando a brevidade)
-        tasksData.sort((a, b) => {
+        // Ordenação rigorosa em memória pelo prazo mais apertado (considerando a brevidade)
+        tasksData.sort((a: any, b: any) => {
           const dateA = new Date(a.internal_deadline || a.deadline).getTime();
           const dateB = new Date(b.internal_deadline || b.deadline).getTime();
           if (dateA !== dateB) return dateA - dateB;
@@ -164,7 +148,7 @@ export default function JTBDPage() {
         const finalTasks = optimizedTasks || tasksData;
 
         // ==========================================
-        // COTA DE PRODUTIVIDADE (FOCO DIÃRIO) EM LOTES DE 5
+        // COTA DE PRODUTIVIDADE (FOCO DIÁRIO) EM LOTES DE 5
         // ==========================================
         const byAssignee: Record<string, any[]> = {};
         finalTasks.forEach(t => {
@@ -305,6 +289,58 @@ export default function JTBDPage() {
       console.error("Erro no roteamento para o cliente", e);
       showToast("Erro ao enviar ao cliente. Mantida em revisÃ£o.");
       return 'review';
+    }
+  };
+
+  const handleBatchComplete = async (tasksToComplete: any[]) => {
+    if (tasksToComplete.length === 0) return;
+    try {
+      setAdHocProcessing(true);
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+      
+      const newTasks = [...allTasks];
+      let hasError = false;
+
+      for (const task of tasksToComplete) {
+        let finalStatus = 'completed';
+        if (task.attachment_url && task.status !== 'pending_client_approval') {
+          finalStatus = await handleClientApprovalRouting(task);
+        }
+
+        const tIndex = newTasks.findIndex(t => t.id === task.id);
+        if (tIndex > -1) {
+          newTasks[tIndex] = { ...newTasks[tIndex], status: finalStatus };
+        }
+
+        try {
+          await fetch(`/api/tasks/${task.id}/status`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              requestedStatus: finalStatus, 
+              task,
+              user: currentUser
+            })
+          });
+        } catch (e) {
+          console.error("Batch update error for task", task.id, e);
+          hasError = true;
+        }
+      }
+
+      setAllTasks(newTasks);
+      
+      if (hasError) {
+        showToast("Algumas tarefas falharam na aprovação em lote.");
+      } else {
+        showToast(`${tasksToComplete.length} tarefas aprovadas com sucesso!`);
+      }
+      
+      window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
+    } catch (error) {
+      showToast("Erro ao processar lote.");
+    } finally {
+      setAdHocProcessing(false);
     }
   };
 
@@ -588,6 +624,7 @@ export default function JTBDPage() {
             completedTasks={completedTasks}
             isAdminOrManager={isAdminOrManager}
             updateTaskStatus={updateTaskStatus}
+            handleBatchComplete={handleBatchComplete}
             handleReschedule={handleReschedule}
             isRescheduling={isRescheduling}
             handleDragOver={handleDragOver}

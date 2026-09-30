@@ -12,6 +12,7 @@ const ALLOWED_TABLES = new Set([
   'channels', 'channel_messages', 'demand_leads', 'financial_records',
   'brand_assets', 'brand_guidelines', 'instagram_reports',
   'onboarding_steps', 'user_preferences', 'activity_log',
+  'brand_snapshots', 'territory_evaluations', 'activation_checklists', 'activation_checklist', 'client_briefings', 'studio_diary'
 ]);
 
 function sanitizeId(name: string): string {

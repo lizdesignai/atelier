@@ -1,6 +1,6 @@
 // src/controllers/StudioController.ts
 import { Request, Response } from 'express';
-import { supabase } from '../config/supabase';
+import { neon } from '@neondatabase/serverless';
 
 export class StudioController {
   static async getProjectDashboard(req: Request, res: Response) {
@@ -10,6 +10,8 @@ export class StudioController {
       if (!projectId) {
         return res.status(400).json({ error: 'Project ID is required' });
       }
+
+      const sql = neon(process.env.POSTGRES_URL || '');
 
       const projectIdStr = projectId as string;
       const isAgency = projectIdStr.startsWith('agency-');
@@ -23,32 +25,42 @@ export class StudioController {
       if (isAgency) {
         // Otimização: Seleção de colunas explícitas para agências e subclientes
         const [agencyRes, subclientsRes] = await Promise.all([
-          supabase.from('agencies').select('id, name, status, financial_value, billing_date, created_at, trello_url').eq('id', actualId).single(),
-          supabase.from('agency_subclients').select('id, agency_id, name, deliverables_count, created_at, trello_url').eq('agency_id', actualId).order('name', { ascending: true })
+          sql`SELECT id, name, status, financial_value, billing_date, created_at, trello_url FROM agencies WHERE id = ${actualId}`,
+          sql`SELECT id, agency_id, name, deliverables_count, created_at, trello_url FROM agency_subclients WHERE agency_id = ${actualId} ORDER BY name ASC`
         ]);
         
-        if (agencyRes.error) throw agencyRes.error;
+        const agencyData = agencyRes[0];
+        if (!agencyData) throw new Error('Agency not found');
+
         projectData = {
-          ...agencyRes.data,
+          ...agencyData,
           id: projectId, // Mantém ID prefixado consistente com o frontend
           isAgency: true,
-          profiles: { nome: agencyRes.data.name, empresa: agencyRes.data.name, avatar_url: null },
+          profiles: { nome: agencyData.name, empresa: agencyData.name, avatar_url: null },
           status: 'active'
         };
-        agencySubclients = subclientsRes.data || [];
+        agencySubclients = subclientsRes || [];
       } else {
         // Otimização: Seleção de colunas explícitas para projetos normais, assets e briefings
         const [projRes, assetsRes, briefingRes] = await Promise.all([
-          supabase.from('projects').select('id, client_id, service_type, type, status, phase, fase, progress, financial_value, billing_date, created_at, profiles(nome, empresa, avatar_url)').eq('id', actualId).single(),
-          supabase.from('project_assets').select('id, project_id, name, url, created_at').eq('project_id', actualId).order('created_at', { ascending: false }),
-          supabase.from('client_briefings').select('answers, is_completed').eq('project_id', actualId).maybeSingle()
+          sql`
+            SELECT p.id, p.client_id, p.service_type, p.type, p.status, p.phase, p.fase, p.progress, p.financial_value, p.billing_date, p.created_at, 
+            CASE WHEN pr.id IS NOT NULL THEN json_build_object('nome', pr.nome, 'empresa', pr.empresa, 'avatar_url', pr.avatar_url) ELSE null END as profiles
+            FROM projects p 
+            LEFT JOIN profiles pr ON p.client_id = pr.id 
+            WHERE p.id = ${actualId}
+          `,
+          sql`SELECT id, project_id, name, url, created_at FROM project_assets WHERE project_id = ${actualId} ORDER BY created_at DESC`,
+          sql`SELECT answers, is_completed FROM client_briefings WHERE project_id = ${actualId}`
         ]);
         
-        if (projRes.error) throw projRes.error;
+        const projData = projRes[0];
+        if (!projData) throw new Error('Project not found');
         
-        projectData = { ...projRes.data, isAgency: false };
-        assets = assetsRes.data || [];
-        briefing = (briefingRes.data?.is_completed !== false && briefingRes.data?.answers) ? briefingRes.data.answers : null;
+        projectData = { ...projData, isAgency: false };
+        assets = assetsRes || [];
+        const briefingData = briefingRes[0];
+        briefing = (briefingData?.is_completed !== false && briefingData?.answers) ? briefingData.answers : null;
       }
 
       return res.status(200).json({

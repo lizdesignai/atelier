@@ -203,6 +203,36 @@ export async function POST(request: Request) {
       `;
     }
 
+    // DISPARAR EMAIL DE BOAS VINDAS COM CREDENCIAIS
+    try {
+      const { Resend } = require('resend');
+      const { sendEmailSafely, buildAppLikeEmail } = require('@/lib/resend');
+      const resendApiKey = process.env.RESEND_API_KEY;
+      
+      if (resendApiKey) {
+        const resend = new Resend(resendApiKey);
+        const loginUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://atelier.lizdesign.com.br';
+        
+        const emailHtml = buildAppLikeEmail(
+          '✨',
+          'Bem-vindo ao Atelier',
+          `<p>Olá <strong>${nome.trim()}</strong>,</p>
+           <p>Seu acesso exclusivo à plataforma do Atelier foi liberado. A partir de agora, você acompanhará todo o desenvolvimento do seu projeto por aqui.</p>
+           <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0;">
+             <p style="margin: 0 0 10px 0;"><strong>Seu E-mail:</strong> ${cleanEmail}</p>
+             <p style="margin: 0;"><strong>Sua Senha:</strong> ${chosenPassword}</p>
+           </div>
+           <p><em>Recomendamos que você altere esta senha no seu primeiro acesso.</em></p>`,
+          'Acessar Meu Painel',
+          loginUrl
+        );
+
+        await sendEmailSafely(resend, cleanEmail, 'Seu Acesso ao Atelier', emailHtml, 'Auth Invite');
+      }
+    } catch (emailErr) {
+      console.error('[Auth Invite] Erro ao enviar email de boas vindas:', emailErr);
+    }
+
     return NextResponse.json(
       {
         user: {

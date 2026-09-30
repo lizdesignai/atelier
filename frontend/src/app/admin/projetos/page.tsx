@@ -13,6 +13,7 @@ import {
 import { supabase } from "../../../lib/supabase";
 import { updateProjectAction } from "../../actions/projects";
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
+import RevealCeremonyAdmin from "../../../components/admin/RevealCeremonyAdmin";
 import DiaryModule from "../../../components/admin/DiaryModule";
 import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
 
@@ -184,7 +185,22 @@ function PainelIdentidade() {
 
   useEffect(() => {
     if (currentProject) {
-      setDeadlineDate(currentProject.data_limite || "");
+      let dataLimite = "";
+      if (currentProject.data_limite) {
+        try {
+          // Trata tanto string ISO quanto o formato do banco
+          const val = currentProject.data_limite;
+          if (typeof val === 'string') {
+             dataLimite = val.split('T')[0];
+          } else if (val instanceof Date) {
+             dataLimite = val.toISOString().split('T')[0];
+          } else {
+             const d = new Date(val);
+             if (!isNaN(d.getTime())) dataLimite = d.toISOString().split('T')[0];
+          }
+        } catch (e) {}
+      }
+      setDeadlineDate(dataLimite);
       setContractUrl(currentProject.contract_url || "");
       setBriefingAiInsight(currentProject.briefing_ai_insight || null);
       setCuradoriaAiInsight(currentProject.curadoria_ai_insight || null);
@@ -205,6 +221,7 @@ function PainelIdentidade() {
   const [isGeneratingCuradoriaInsight, setIsGeneratingCuradoriaInsight] = useState(false);
   const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
   const [isGeneratingCuradoriaPDF, setIsGeneratingCuradoriaPDF] = useState(false);
+  const [isGeneratingIDVTasks, setIsGeneratingIDVTasks] = useState(false);
 
   useEffect(() => {
     if (!activeProjectId) return;
@@ -252,7 +269,7 @@ function PainelIdentidade() {
           });
         }
       } catch (error) {
-        console.error("Erro no fetching unificado do Estúdio:", error);
+        console.error("Erro no fetching unificado do Studio Veronna:", error);
       }
     };
     fetchStudioData();
@@ -273,7 +290,7 @@ function PainelIdentidade() {
           "⚠️ Briefing Devolvido (Revisão Necessária)",
           "A equipe analisou o seu Briefing e solicita mais profundidade nas respostas. Por favor, revise-o no Meu Espaço.",
           "action",
-          "/meu-espaco"
+          "/"
         );
       }
       showToast("Solicitação de revisão enviada ao cliente.");
@@ -399,6 +416,24 @@ function PainelIdentidade() {
     }
   };
 
+  const handleGenerateIDVTasks = async () => {
+    if (!activeProjectId) return;
+    setIsGeneratingIDVTasks(true);
+    showToast("AIDV: Gerando Trilha da Marca...");
+    try {
+      const res = await fetch(`/api/projects/${activeProjectId}/generate-idv-tasks`, { method: 'POST' });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      
+      showToast("Trilha da Marca gerada com sucesso! As tarefas foram populadas.");
+      refreshGlobalData();
+    } catch (e) {
+      showToast(e.message || "Erro ao gerar tarefas da trilha.");
+    } finally {
+      setIsGeneratingIDVTasks(false);
+    }
+  };
+
   const handleDownloadCuradoriaPDF = async () => {
     if (adminRefs.length === 0) return;
     setIsGeneratingCuradoriaPDF(true);
@@ -462,7 +497,7 @@ function PainelIdentidade() {
           "📦 Novo Material Disponível",
           `A equipe adicionou o arquivo final "${file.name}" ao seu espaço.`,
           "info",
-          "/meu-espaco"
+          "/"
         );
       }
       showToast("✨ Arquivo adicionado aos Materiais Finais!");
@@ -514,7 +549,7 @@ function PainelIdentidade() {
           "📜 Contrato Disponível",
           "A cópia digital do seu contrato assinado já está disponível no seu espaço.",
           "info",
-          "/meu-espaco"
+          "/"
         );
       }
       showToast("Contrato anexado com sucesso!");
@@ -571,7 +606,7 @@ function PainelIdentidade() {
     try {
       await updateProjectAction(activeProjectId, { status: 'delivered', delivered_at: new Date().toISOString() });
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(currentProject.client_id, "🎉 Projeto Entregue!", "Você terá 15 dias de acesso ao Meu Espaço para fazer o download final dos seus materiais.", "success", "/meu-espaco");
+        await NotificationEngine.notifyUser(currentProject.client_id, "🎉 Projeto Entregue!", "Você terá 15 dias de acesso ao Meu Espaço para fazer o download final dos seus materiais.", "success", "/");
       }
       showToast("Projeto marcado como Entregue! A contagem regressiva de 15 dias começou.");
       refreshGlobalData();
@@ -599,7 +634,7 @@ function PainelIdentidade() {
     try {
       await updateProjectAction(activeProjectId, { status: 'active', delivered_at: null });
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(currentProject.client_id, "🔓 Operação Reativada", "O seu projeto voltou a ficar ativo. Você tem acesso total restaurado ao seu espaço.", "success", "/meu-espaco");
+        await NotificationEngine.notifyUser(currentProject.client_id, "🔓 Operação Reativada", "O seu projeto voltou a ficar ativo. Você tem acesso total restaurado ao seu espaço.", "success", "/");
       }
       showToast("Projeto Reativado com sucesso!");
       refreshGlobalData();
@@ -691,7 +726,7 @@ function PainelIdentidade() {
       }
       
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(currentProject.client_id, "🧭 Nova Direção Visual (Moodboard)", "A equipe enviou referências e um novo caminho criativo para a sua marca. Analise e compartilhe a sua opinião no Meu Espaço.", "action", "/meu-espaco");
+        await NotificationEngine.notifyUser(currentProject.client_id, "🧭 Nova Direção Visual (Moodboard)", "A equipe enviou referências e um novo caminho criativo para a sua marca. Analise e compartilhe a sua opinião no Meu Espaço.", "action", "/");
       }
 
       showToast("Direção visual enviada com sucesso!");
@@ -1115,13 +1150,43 @@ function PainelIdentidade() {
                 {/* Box: Fase Atual */}
                 <div className="bg-white/60 border border-white p-5 rounded-[1.5rem] shadow-sm flex flex-col gap-3 group transition-all hover:bg-white">
                    <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2"><Sparkles size={14} className="text-[var(--color-atelier-terracota)]" /> Fase Atual</label>
-                   <select value={currentProject?.fase || "reuniao"} onChange={handleStageChange} className="w-full bg-white px-4 py-3 rounded-xl text-[13px] font-bold text-[var(--color-atelier-terracota)] outline-none cursor-pointer border border-transparent focus:border-[var(--color-atelier-terracota)]/30 shadow-sm transition-colors">
-                      <option value="reuniao">1. Reunião de Alinhamento</option>
-                      <option value="pesquisa">2. Estudo e Pesquisa</option>
-                      <option value="direcionamento">3. Direcionamento Criativo</option>
-                      <option value="processo">4. Processo Criativo IDV</option>
-                      <option value="apresentacao">5. Apresentação Oficial</option>
+                   <select value={currentProject?.fase || 'onboarding'} onChange={handleStageChange} className="w-full bg-white px-4 py-3 rounded-xl text-[13px] font-bold text-[var(--color-atelier-terracota)] outline-none cursor-pointer border border-transparent focus:border-[var(--color-atelier-terracota)]/30 shadow-sm transition-colors">
+                      <option value="onboarding">0. ONBOARDING (Ready Gate)</option>
+                      <option value="pesquisa">1. DISCOVER (Imersão)</option>
+                      <option value="direcionamento">2. DEFINE (Direção Visual)</option>
+                      <option value="processo">3. DEVELOP (Construção Técnica)</option>
+                      <option value="qa">4. QA (Revisão Criativa)</option>
+                      <option value="apresentacao">5. PRESENT (Apresentação Oficial)</option>
+                      <option value="client_review">🔒 GATE 2: Client Review (48h)</option>
+                      <option value="refinamento">6. REFINE (Ajustes Consolidados)</option>
+                      <option value="entrega">7. DELIVER (Exportação e Cofre)</option>
+                      <option value="ativacao">8. ACTIVATE (Pós-Entrega)</option>
                    </select>
+                </div>
+
+                
+                {/* Box: Ready Gate */}
+                <div className="bg-white/60 border border-white p-5 rounded-[1.5rem] shadow-sm flex flex-col gap-3 group transition-all hover:bg-white">
+                   <div className="flex justify-between items-center w-full">
+                     <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2"><Lock size={14} className="text-[var(--color-atelier-terracota)]" /> Ready Gate</label>
+                   </div>
+                   <div className="flex flex-col gap-2 mt-2">
+                     <div className="flex items-center gap-2 text-[11px] font-roboto font-bold text-[var(--color-atelier-grafite)]/70">
+                       <input type="checkbox" checked={currentProject?.ready_checklist?.contract || false} readOnly /> Contrato Assinado
+                     </div>
+                     <div className="flex items-center gap-2 text-[11px] font-roboto font-bold text-[var(--color-atelier-grafite)]/70">
+                       <input type="checkbox" checked={currentProject?.ready_checklist?.payment || false} readOnly /> Pagamento Confirmado
+                     </div>
+                     <div className="flex items-center gap-2 text-[11px] font-roboto font-bold text-[var(--color-atelier-grafite)]/70">
+                       <input type="checkbox" checked={currentProject?.ready_checklist?.briefing || false} readOnly /> Briefing Preenchido
+                     </div>
+                     <div className="flex items-center gap-2 text-[11px] font-roboto font-bold text-[var(--color-atelier-grafite)]/70">
+                       <input type="checkbox" checked={currentProject?.ready_checklist?.assets || false} readOnly /> Materiais Recebidos
+                     </div>
+                     <div className="flex items-center gap-2 text-[11px] font-roboto font-bold text-[var(--color-atelier-grafite)]/70">
+                       <input type="checkbox" checked={currentProject?.ready_checklist?.meeting_scheduled || false} readOnly /> Reunião Agendada
+                     </div>
+                   </div>
                 </div>
 
                 {/* Box: Contrato */}
@@ -1145,7 +1210,13 @@ function PainelIdentidade() {
                    )}
                 </div>
 
+                                <RevealCeremonyAdmin project={currentProject} onUpdate={refreshGlobalData} />
+                
                 {/* Botões de Ação Rápida */}
+                <button onClick={handleGenerateIDVTasks} disabled={isGeneratingIDVTasks} className="w-full bg-[var(--color-atelier-rose)] text-[var(--color-atelier-terracota)] rounded-[1.2rem] py-3 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all flex items-center justify-center gap-2 shadow-sm mb-2 border border-[var(--color-atelier-terracota)]/20">
+                  {isGeneratingIDVTasks ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} 
+                  Gerar Trilha da Marca (AIDV)
+                </button>
                 <div className="mt-4 grid grid-cols-2 gap-3 pt-6 border-t border-[var(--color-atelier-grafite)]/10 shrink-0">
                   {currentProject.status === 'archived' ? (
                      <button onClick={handleReactivateProject} className="bg-blue-600 text-white rounded-[1.2rem] py-3.5 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-sm hover:-translate-y-0.5"><RotateCcw size={14} /> Reativar</button>

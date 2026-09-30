@@ -67,7 +67,7 @@ export default function LeftSidebar({ userProfile }: LeftSidebarProps) {
         
         {isAdmin && (
           <div className="mt-4">
-            <NavItem href="/admin/projetos" icon={<LayoutDashboard size={20} strokeWidth={1.5} />} label="Voltar ao Estúdio" active={false} isSpecial />
+            <NavItem href="/admin/projetos" icon={<LayoutDashboard size={20} strokeWidth={1.5} />} label="Voltar ao Studio Veronna" active={false} isSpecial />
           </div>
         )}
       </nav>

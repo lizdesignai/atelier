@@ -215,7 +215,7 @@ export default function CollaboratorAssignmentModal({
                 {/* Subclientes de Agências */}
                 <div>
                   <h4 className="text-xs uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 mb-3 flex items-center gap-2">
-                    <Building2 size={14} /> Subclientes de Agências (White-Label)
+                    <Building2 size={14} /> Subclientes de Agências (Studio Veronna)
                   </h4>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {subclients.map((sub) => {

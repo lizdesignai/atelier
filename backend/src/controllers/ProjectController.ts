@@ -1,31 +1,22 @@
-// src/controllers/ProjectController.ts
 import { Request, Response } from 'express';
-import { supabase } from '../config/supabase';
+import { neon } from '@neondatabase/serverless';
 
 export class ProjectController {
   
   // GET /api/v1/projects/unified
   static async getUnifiedWallet(req: Request, res: Response) {
     try {
+      const sql = neon(process.env.POSTGRES_URL || '');
       // Otimização: Queries paralelas e seleção de colunas explícitas
       const [projectsRes, agenciesRes] = await Promise.all([
-        supabase
-          .from('projects')
-          .select('id, client_id, service_type, type, status, phase, fase, progress, financial_value, billing_date, created_at')
-          .eq('status', 'active'),
-        supabase
-          .from('agencies')
-          .select('id, name, status, financial_value, billing_date, created_at, trello_url')
-          .eq('status', 'active')
+        sql`SELECT id, client_id, service_type, type, status, phase, fase, progress, financial_value, billing_date, created_at FROM projects WHERE status = 'active'`,
+        sql`SELECT id, name, status, financial_value, billing_date, created_at, trello_url FROM agencies WHERE status = 'active'`
       ]);
         
-      if (projectsRes.error) throw projectsRes.error;
-      if (agenciesRes.error) throw agenciesRes.error;
-
       // Unificar carteira
       const unifiedWallet = [
-        ...(projectsRes.data || []).map((p: any) => ({ ...p, entityType: 'project' })),
-        ...(agenciesRes.data || []).map((a: any) => ({ ...a, entityType: 'agency' }))
+        ...(projectsRes || []).map((p: any) => ({ ...p, entityType: 'project' })),
+        ...(agenciesRes || []).map((a: any) => ({ ...a, entityType: 'agency' }))
       ];
 
       return res.status(200).json({ data: unifiedWallet });
@@ -39,15 +30,14 @@ export class ProjectController {
   static async getProject(req: Request, res: Response) {
     try {
       const { id } = req.params;
-      const { data, error } = await supabase
-        .from('projects')
-        .select('id, client_id, service_type, type, status, phase, fase, progress, financial_value, billing_date, created_at, data_limite')
-        .eq('id', id)
-        .single();
+      const sql = neon(process.env.POSTGRES_URL || '');
+      const data = await sql`
+        SELECT id, client_id, service_type, type, status, phase, fase, progress, financial_value, billing_date, created_at, data_limite
+        FROM projects
+        WHERE id = ${id}
+      `;
       
-      if (error) throw error;
-      
-      return res.status(200).json({ data });
+      return res.status(200).json({ data: data[0] });
     } catch (error: any) {
       console.error('Error fetching project:', error.message);
       return res.status(500).json({ error: 'Internal Server Error' });
@@ -58,18 +48,22 @@ export class ProjectController {
   static async getAgencySubclients(req: Request, res: Response) {
     try {
       const { agencyId } = req.query;
+      const sql = neon(process.env.POSTGRES_URL || '');
       
-      let query = supabase
-        .from('agency_subclients')
-        .select('id, agency_id, name, deliverables_count, created_at, trello_url');
-        
+      let data;
       if (agencyId) {
-        query = query.eq('agency_id', String(agencyId));
+        data = await sql`
+          SELECT id, agency_id, name, deliverables_count, created_at, trello_url
+          FROM agency_subclients
+          WHERE agency_id = ${String(agencyId)}
+        `;
+      } else {
+        data = await sql`
+          SELECT id, agency_id, name, deliverables_count, created_at, trello_url
+          FROM agency_subclients
+        `;
       }
 
-      const { data, error } = await query;
-      if (error) throw error;
-      
       return res.status(200).json({ data });
     } catch (error: any) {
       console.error('Error fetching subclients:', error.message);

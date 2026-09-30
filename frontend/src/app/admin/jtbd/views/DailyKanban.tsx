@@ -15,6 +15,7 @@ interface DailyKanbanProps {
   completedTasks: any[];
   isAdminOrManager: boolean;
   updateTaskStatus: (task: any, newStatus: string) => void;
+  handleBatchComplete?: (tasks: any[]) => void;
   handleReschedule: (task: any) => void;
   isRescheduling: string | null;
   handleDragOver: (e: React.DragEvent) => void;
@@ -32,6 +33,7 @@ export default function DailyKanban({
   completedTasks,
   isAdminOrManager,
   updateTaskStatus,
+  handleBatchComplete,
   handleReschedule,
   isRescheduling,
   handleDragOver,
@@ -443,9 +445,19 @@ export default function DailyKanban({
                 <h3 className="font-elegant text-2xl text-orange-900 flex items-center gap-2">
                   <AlertTriangle size={20} className="text-orange-500"/> Revisão Interna
                 </h3>
-                <span className="bg-white px-3 py-1 rounded-lg text-[11px] font-bold text-orange-600 shadow-sm border border-orange-200">
-                  {reviewTasks.length}
-                </span>
+                <div className="flex items-center gap-2">
+                  {isAdminOrManager && handleBatchComplete && reviewTasks.length > 0 && (
+                    <button
+                      onClick={() => handleBatchComplete(reviewTasks)}
+                      className="bg-green-500 hover:bg-green-600 text-white text-[11px] font-bold px-3 py-1 rounded-lg shadow-sm transition-colors uppercase"
+                    >
+                      Aprovar Todas
+                    </button>
+                  )}
+                  <span className="bg-white px-3 py-1 rounded-lg text-[11px] font-bold text-orange-600 shadow-sm border border-orange-200">
+                    {reviewTasks.length}
+                  </span>
+                </div>
               </div>
               <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pr-3 flex flex-col pt-2 pb-4">
                 <AnimatePresence mode="popLayout">

@@ -38,26 +38,26 @@ export default function BaselineTemplate({ mapaData, onUpdateProgress, onComplet
   };
 
   return (
-    <div className="max-w-3xl mx-auto py-8 px-4 space-y-12">
+    <div className="max-w-3xl mx-auto py-4 md:py-8 px-4 space-y-8 md:space-y-12 pb-24">
       <div className="text-center space-y-4">
         <div className="inline-block px-3 py-1 rounded-full border border-[var(--color-atelier-grafite)]/20 text-[var(--color-atelier-grafite)] text-[10px] font-bold uppercase tracking-[0.2em] mb-4">
           Sprint 0 • Baseline
         </div>
-        <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)]">
+        <h1 className="font-elegant text-3xl sm:text-4xl md:text-5xl text-[var(--color-atelier-grafite)]">
           O Seu Estado Atual
         </h1>
-        <p className="text-lg text-[var(--color-atelier-grafite)]/70 max-w-xl mx-auto">
+        <p className="text-base md:text-lg text-[var(--color-atelier-grafite)]/70 max-w-xl mx-auto">
           Antes de iniciarmos a transformação, precisamos documentar onde você está hoje.
         </p>
       </div>
 
-      <div className="glass-panel p-8 md:p-10 space-y-8 border-t-4 border-t-[var(--color-atelier-terracota)]">
+      <div className="glass-panel p-6 md:p-10 space-y-8 border-t-4 border-t-[var(--color-atelier-terracota)]">
         
         {/* Objetivos */}
         <div className="space-y-4">
           <div className="flex items-center gap-3 text-[var(--color-atelier-terracota)]">
             <Target size={24} />
-            <h2 className="font-roboto font-bold text-xl text-[var(--color-atelier-grafite)]">Seus Objetivos</h2>
+            <h2 className="font-roboto font-bold text-lg md:text-xl text-[var(--color-atelier-grafite)]">Seus Objetivos</h2>
           </div>
           <p className="text-sm text-[var(--color-atelier-grafite)]/70">O que você espera melhorar nas próximas 4 semanas?</p>
           <textarea 
@@ -72,27 +72,27 @@ export default function BaselineTemplate({ mapaData, onUpdateProgress, onComplet
         <div className="space-y-4 pt-6 border-t border-[var(--color-atelier-grafite)]/10">
           <div className="flex items-center gap-3 text-[var(--color-atelier-terracota)]">
             <Camera size={24} />
-            <h2 className="font-roboto font-bold text-xl text-[var(--color-atelier-grafite)]">O Seu "Antes"</h2>
+            <h2 className="font-roboto font-bold text-lg md:text-xl text-[var(--color-atelier-grafite)]">O Seu "Antes"</h2>
           </div>
           <p className="text-sm text-[var(--color-atelier-grafite)]/70">Para medir sua evolução, você precisará comparar o antes e depois.</p>
           
-          <div className="border-2 border-dashed border-[var(--color-atelier-grafite)]/20 rounded-xl p-8 text-center bg-white/30 hover:bg-white/50 transition-colors cursor-pointer">
+          <div className="border-2 border-dashed border-[var(--color-atelier-grafite)]/20 rounded-xl p-6 md:p-8 text-center bg-white/30 hover:bg-white/50 transition-colors cursor-pointer">
              <Upload size={32} className="mx-auto text-[var(--color-atelier-grafite)]/30 mb-4" />
              <p className="font-medium text-sm text-[var(--color-atelier-grafite)]">Fazer upload de screenshots</p>
              <p className="text-xs text-[var(--color-atelier-grafite)]/50 mt-2">Recomendamos: 1 print da sua Bio e 1 print do seu Feed atual.</p>
-             <p className="text-xs text-[var(--color-atelier-terracota)] mt-4 font-bold">(Funcionalidade na Fase 2)</p>
+             <p className="text-[10px] md:text-xs text-[var(--color-atelier-terracota)] mt-4 font-bold">(Funcionalidade na Fase 2)</p>
           </div>
         </div>
 
         {/* Compromisso */}
         <div className="space-y-4 pt-6 border-t border-[var(--color-atelier-grafite)]/10">
           <label className="flex items-start gap-4 cursor-pointer group">
-            <div className={`mt-1 w-6 h-6 rounded flex items-center justify-center shrink-0 border transition-all ${compromisso ? 'bg-[var(--color-atelier-terracota)] border-[var(--color-atelier-terracota)]' : 'bg-white border-[var(--color-atelier-grafite)]/30 group-hover:border-[var(--color-atelier-terracota)]/50'}`}>
+            <div className={`mt-0.5 md:mt-1 w-5 h-5 md:w-6 md:h-6 rounded flex items-center justify-center shrink-0 border transition-all ${compromisso ? 'bg-[var(--color-atelier-terracota)] border-[var(--color-atelier-terracota)]' : 'bg-white border-[var(--color-atelier-grafite)]/30 group-hover:border-[var(--color-atelier-terracota)]/50'}`}>
               {compromisso && <Check size={14} className="text-white" strokeWidth={3} />}
             </div>
-            <div className="select-none">
-              <span className="block font-bold text-[var(--color-atelier-grafite)] mb-1">O Compromisso</span>
-              <span className="text-sm text-[var(--color-atelier-grafite)]/70 leading-relaxed block">
+            <div className="select-none flex-1">
+              <span className="block font-bold text-[var(--color-atelier-grafite)] mb-1 text-sm md:text-base">O Compromisso</span>
+              <span className="text-xs md:text-sm text-[var(--color-atelier-grafite)]/70 leading-relaxed block">
                 Comprometo-me a dedicar aproximadamente 2 horas por semana, durante 4 semanas, para assistir às aulas, aplicar os templates e submeter as evidências.
               </span>
             </div>
@@ -105,7 +105,7 @@ export default function BaselineTemplate({ mapaData, onUpdateProgress, onComplet
         <button 
           onClick={handleSubmit}
           disabled={isSubmitting || !objetivos.trim() || !compromisso}
-          className="bg-[var(--color-atelier-terracota)] text-white px-8 py-4 rounded-full text-sm font-bold uppercase tracking-widest shadow-xl hover:-translate-y-1 hover:bg-[#8c562e] transition-all disabled:opacity-50 disabled:hover:translate-y-0"
+          className="w-full sm:w-auto bg-[var(--color-atelier-terracota)] text-white px-8 py-4 rounded-full text-xs md:text-sm font-bold uppercase tracking-widest shadow-xl hover:-translate-y-1 hover:bg-[#8c562e] transition-all disabled:opacity-50 disabled:hover:translate-y-0"
         >
           {isSubmitting ? 'A salvar...' : 'Iniciar Minha Jornada'}
         </button>

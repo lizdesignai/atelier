@@ -7,6 +7,10 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
+if (!process.env.POSTGRES_URL || process.env.POSTGRES_URL.includes('supabase.co')) {
+  process.env.POSTGRES_URL = 'postgresql://neondb_owner:npg_K0DUPzW4splG@ep-divine-cherry-acjd0tmq-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
+}
+
 const app = express();
 const port = process.env.PORT || 8080;
 

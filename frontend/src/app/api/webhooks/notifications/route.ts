@@ -294,7 +294,7 @@ export async function POST(request: Request) {
     // 2. KANBAN & DEMANDAS DIÁRIAS (Tarefas e Roteamento de Equipe)
     // =========================================================================
     if (table === 'tasks') {
-      const taskTitle = record.title || "Demanda do Estúdio";
+      const taskTitle = record.title || "Demanda do Studio Veronna";
       
       if (type === 'INSERT' && record.assigned_to) {
         const assignee = await getUserProfile(record.assigned_to);

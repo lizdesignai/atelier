@@ -1,4 +1,4 @@
-import { supabase } from '../config/supabase';
+import { neon } from '@neondatabase/serverless';
 import { NotificationService } from './NotificationService';
 
 const TRELLO_API_KEY = process.env.NEXT_PUBLIC_TRELLO_API_KEY;
@@ -19,7 +19,6 @@ export class TrelloWorkerService {
     if (this.intervalId) return;
     console.log(`[TrelloWorker] Serviço de automação do Trello iniciado (intervalo: ${intervalMs / 1000 / 60} min)`);
     
-    // Executa a primeira checagem após 15 segundos da inicialização para não competir com outros workers no boot
     setTimeout(() => {
       this.syncTrelloDemands();
     }, 15000);
@@ -37,36 +36,46 @@ export class TrelloWorkerService {
 
     try {
       console.log('[TrelloWorker] Verificando novas demandas...');
+      const sql = neon(process.env.POSTGRES_URL || '');
 
       // Buscar projects e agency_subclients que possuem trello_sync_list_ids configurados
-      const [ { data: projects }, { data: subclients } ] = await Promise.all([
-        supabase.from('projects').select('id, client_id, name, trello_url, trello_sync_list_ids').not('trello_sync_list_ids', 'is', null),
-        supabase.from('agency_subclients').select('id, agency_id, name, trello_url, trello_sync_list_ids').not('trello_sync_list_ids', 'is', null)
-      ]);
+      // As colunas trello_url e trello_sync_list_ids não existem em projects no Neon DB
+      // const [projects, subclients] = await Promise.all([
+      //   sql`SELECT id, client_id, type as name, trello_url, trello_sync_list_ids FROM projects WHERE trello_sync_list_ids IS NOT NULL`,
+      //   sql`SELECT id, agency_id, name, trello_url, trello_sync_list_ids FROM agency_subclients WHERE trello_sync_list_ids IS NOT NULL`
+      // ]);
+      const projects: any[] = [];
+      const subclients: any[] = [];
 
       const processSync = async (entity: any, isSubclient: boolean) => {
         // Ignorar arrays vazios de trello_sync_list_ids
-        if (!entity.trello_url || !entity.trello_sync_list_ids || entity.trello_sync_list_ids.length === 0) return;
+        if (!entity.trello_url || !entity.trello_sync_list_ids) return;
+
+        let listIds = [];
+        if (typeof entity.trello_sync_list_ids === 'string') {
+          listIds = entity.trello_sync_list_ids.split(',').map((id: string) => id.trim());
+        } else if (Array.isArray(entity.trello_sync_list_ids)) {
+          listIds = entity.trello_sync_list_ids;
+        }
+        
+        if (listIds.length === 0) return;
 
         const boardId = extractBoardId(entity.trello_url);
         if (!boardId) return;
 
-        for (const listId of entity.trello_sync_list_ids) {
+        for (const listId of listIds) {
           try {
             const cardsRes = await fetch(`https://api.trello.com/1/lists/${listId}/cards?key=${TRELLO_API_KEY}&token=${TRELLO_TOKEN}`);
             if (!cardsRes.ok) continue;
             const cards = await cardsRes.json();
 
             for (const card of cards) {
-              // Verifica se já existe uma demanda (task) com esse trello_card_id
-              const { data: existingTask } = await supabase
-                .from('tasks')
-                .select('id')
-                .eq('trello_card_id', card.id)
-                .maybeSingle();
+              const existingTaskData = await sql`
+                SELECT id FROM tasks WHERE trello_card_id = ${card.id} LIMIT 1
+              `;
+              const existingTask = existingTaskData[0];
 
               if (!existingTask) {
-                // Criar nova demanda
                 const taskPayload: any = {
                   title: card.name,
                   status: 'pendente',
@@ -75,27 +84,39 @@ export class TrelloWorkerService {
                   trello_card_id: card.id
                 };
 
-                if (isSubclient) {
-                  taskPayload.agency_subclient_id = entity.id;
-                  taskPayload.client_id = entity.agency_id;
-                } else {
-                  taskPayload.project_id = entity.id;
-                  taskPayload.client_id = entity.client_id;
-                }
+                let newTask;
+                let error = null;
 
-                const { data: newTask, error } = await supabase
-                  .from('tasks')
-                  .insert(taskPayload)
-                  .select('id')
-                  .single();
+                try {
+                  let newTaskData;
+                  if (isSubclient) {
+                    taskPayload.subclient_id = entity.id;
+                    taskPayload.client_id = entity.agency_id;
+                    newTaskData = await sql`
+                      INSERT INTO tasks (title, status, priority, task_type, trello_card_id, subclient_id, client_id)
+                      VALUES (${taskPayload.title}, ${taskPayload.status}, ${taskPayload.priority}, ${taskPayload.task_type}, ${taskPayload.trello_card_id}, ${taskPayload.subclient_id}, ${taskPayload.client_id})
+                      RETURNING id
+                    `;
+                  } else {
+                    taskPayload.project_id = entity.id;
+                    taskPayload.client_id = entity.client_id;
+                    newTaskData = await sql`
+                      INSERT INTO tasks (title, status, priority, task_type, trello_card_id, project_id, client_id)
+                      VALUES (${taskPayload.title}, ${taskPayload.status}, ${taskPayload.priority}, ${taskPayload.task_type}, ${taskPayload.trello_card_id}, ${taskPayload.project_id}, ${taskPayload.client_id})
+                      RETURNING id
+                    `;
+                  }
+                  newTask = newTaskData[0];
+                } catch (err) {
+                  error = err;
+                }
 
                 if (!error && newTask) {
                   console.log(`[TrelloWorker] Demanda criada: ${card.name} para ${entity.name}`);
 
-                  // Notifica administradores / gestores
-                  const emailUsersRes = await supabase.from('profiles').select('email').in('role', ['Administrador', 'Líder']);
-                  if (emailUsersRes.data) {
-                    const emails = emailUsersRes.data.map(u => u.email).filter(Boolean);
+                  const emailUsersRes = await sql`SELECT email FROM profiles WHERE role IN ('Administrador', 'Líder')`;
+                  if (emailUsersRes) {
+                    const emails = emailUsersRes.map((u: any) => u.email).filter(Boolean);
                     if (emails.length > 0) {
                       await NotificationService.sendNotification({
                         to: emails,
