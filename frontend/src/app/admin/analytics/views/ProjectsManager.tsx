@@ -818,7 +818,7 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
                            <span className="text-[10px] font-bold text-gray-500 uppercase">Início:</span>
                            <input 
                              type="date" 
-                             defaultValue={displayData?.contract_start?.split('T')[0] || ''}
+                             defaultValue={displayData?.contract_start ? (typeof displayData.contract_start === 'string' ? displayData.contract_start.split('T')[0] : new Date(displayData.contract_start).toISOString().split('T')[0]) : ''}
                              onBlur={async (e) => {
                                if (!e.target.value) return;
                                const res = await fetch(`/api/admin/recalc-idv-dates`, {

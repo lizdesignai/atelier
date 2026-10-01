@@ -1,4 +1,5 @@
 "use client";
+import { AdminTerritoriesManager } from "../../../../components/admin/AdminTerritoriesManager";
 
 // src/app/admin/jtbd/components/TaskCard.tsx
 import { useState, useEffect } from "react";
@@ -439,7 +440,15 @@ export default function TaskCard({
         {isFocus && <div className="absolute top-0 left-0 w-1.5 h-full gemini-gradient-border z-20"></div>}
         {task.urgency && !isCompleted && !isFocus && <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500 z-20"></div>}
 
-        {/* COVER VISUAL (Oculta se forceStaticMode para evitar duplicação no Kanban) */}
+        
+              {/* TERRITORIES VIEW IF TASK IS ABOUT TERRITORIES */}
+              {(task.title?.toLowerCase().includes('território') || task.title?.toLowerCase().includes('direcionar') || task.title?.toLowerCase().includes('direção')) && (
+                <div className="mt-6 pt-6 border-t border-gray-100 flex flex-col gap-5 shrink-0 order-5">
+                   <AdminTerritoriesManager projectId={task.project_id} taskId={task.id} currentUser={null} />
+                </div>
+              )}
+
+              {/* COVER VISUAL (Oculta se forceStaticMode para evitar duplicação no Kanban) */}
         {displayImageUrl && !forceStaticMode && (
           <div className="w-full h-36 relative bg-gray-100 border-b border-[var(--color-atelier-grafite)]/10 shrink-0 overflow-hidden pointer-events-none flex items-center justify-center">
             {isPdf ? (

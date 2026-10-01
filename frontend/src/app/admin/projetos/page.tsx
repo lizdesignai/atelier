@@ -1,5 +1,6 @@
-// src/app/admin/projetos/page.tsx
 "use client";
+﻿import { AdminTerritoriesManager } from "../../../components/admin/AdminTerritoriesManager";
+// src/app/admin/projetos/page.tsx
 
 import { useState, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,18 +13,18 @@ import {
 } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { updateProjectAction } from "../../actions/projects";
-import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
+import { useGlobalStore } from "../../../contexts/GlobalStore"; // Ã°Å¸Â§Â  INJEÃƒâ€¡ÃƒÆ’O DA MEMÃƒâ€œRIA GLOBAL
 import RevealCeremonyAdmin from "../../../components/admin/RevealCeremonyAdmin";
 import DiaryModule from "../../../components/admin/DiaryModule";
-import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
+import { NotificationEngine } from "../../../lib/NotificationEngine"; // Ã°Å¸â€â€ INJEÃƒâ€¡ÃƒÆ’O DO MOTOR DE NOTIFICAÃƒâ€¡Ãƒâ€¢ES
 
-// IMPORTAÇÃO EXTERNA: Traz apenas o Motor de Gestão de Instagram
+// IMPORTAÃƒâ€¡ÃƒÆ’O EXTERNA: Traz apenas o Motor de GestÃƒÂ£o de Instagram
 import { GerenciamentoWorkspace as ImportWorkspace } from "../gerenciamento/page";
 
-// Importação do nosso Motor de Automação
+// ImportaÃƒÂ§ÃƒÂ£o do nosso Motor de AutomaÃƒÂ§ÃƒÂ£o
 import { AtelierPMEngine } from "../../../lib/AtelierPMEngine";
 
-// Novo Hook de Título Dinâmico
+// Novo Hook de TÃƒÂ­tulo DinÃƒÂ¢mico
 import { useDynamicTitle } from "../../../hooks/useDynamicTitle"; 
 
 // ============================================================================
@@ -41,7 +42,7 @@ const showToast = (message: string) => {
 };
 
 // ============================================================================
-// DICIONÁRIOS GLOBAIS (Partilhados)
+// DICIONÃƒÂRIOS GLOBAIS (Partilhados)
 // ============================================================================
 const isIdvService = (project: any) => {
   if (!project) return false;
@@ -49,20 +50,20 @@ const isIdvService = (project: any) => {
 };
 
 const SEMIOTICS_MAP: Record<string, { A: string, B: string }> = {
-  lighting: { A: "Luz Natural (Acolhedor)", B: "Luz Dura & Sombras (Cinemático)" },
+  lighting: { A: "Luz Natural (Acolhedor)", B: "Luz Dura & Sombras (CinemÃƒÂ¡tico)" },
   framing: { A: "Macro/Detalhe (Intimista)", B: "Plano Aberto (Operacional)" },
-  presence: { A: "Movimento Real (Cândido)", B: "Retrato Posado (Autoridade)" },
-  temperature: { A: "Tons Quentes (Tradição)", B: "Tons Frios (Hiper-modernidade)" },
-  composition: { A: "Caos Criativo (Assimétrico)", B: "Rigor Técnico (Simetria)" },
-  setting: { A: "Urbano/Rua (Vivência)", B: "Interior Polido (Isolamento/Luxo)" },
-  post_prod: { A: "Granulação/Analógico (Verdade)", B: "Nitidez 4K (Sofisticação)" },
-  negative_space: { A: "Informação Densa (Complexidade)", B: "Espaço Vazio (Minimalismo)" }
+  presence: { A: "Movimento Real (CÃƒÂ¢ndido)", B: "Retrato Posado (Autoridade)" },
+  temperature: { A: "Tons Quentes (TradiÃƒÂ§ÃƒÂ£o)", B: "Tons Frios (Hiper-modernidade)" },
+  composition: { A: "Caos Criativo (AssimÃƒÂ©trico)", B: "Rigor TÃƒÂ©cnico (Simetria)" },
+  setting: { A: "Urbano/Rua (VivÃƒÂªncia)", B: "Interior Polido (Isolamento/Luxo)" },
+  post_prod: { A: "GranulaÃƒÂ§ÃƒÂ£o/AnalÃƒÂ³gico (Verdade)", B: "Nitidez 4K (SofisticaÃƒÂ§ÃƒÂ£o)" },
+  negative_space: { A: "InformaÃƒÂ§ÃƒÂ£o Densa (Complexidade)", B: "EspaÃƒÂ§o Vazio (Minimalismo)" }
 };
 
 const VOICE_MAP: Record<string, string> = {
   A: "Oculto/Educativo",
   B: "Estrategista Frio/Soberano",
-  C: "Implacável/Agressivo"
+  C: "ImplacÃƒÂ¡vel/Agressivo"
 };
 
 function InfoBlock({ label, value }: { label: string, value: any }) {
@@ -114,7 +115,7 @@ export function GerenciamentoWorkspace({ activeProjectId, activeSubclientId, cur
 
 function PainelIdentidade() {
   // ==========================================
-  // ESTADOS DO SUPABASE E NAVEGAÇÃO
+  // ESTADOS DO SUPABASE E NAVEGAÃƒâ€¡ÃƒÆ’O
   // ==========================================
   const { activeProjects, isGlobalLoading, refreshGlobalData } = useGlobalStore();
   
@@ -123,10 +124,10 @@ function PainelIdentidade() {
   const [isClientMenuOpen, setIsClientMenuOpen] = useState(false);
   const [isBriefingModalOpen, setIsBriefingModalOpen] = useState(false);
 
-  // 🟢 ESTADO DO MENU INSTAGRAM E AGÊNCIAS
+  // Ã°Å¸Å¸Â¢ ESTADO DO MENU INSTAGRAM E AGÃƒÅ NCIAS
   const [activeTab, setActiveTab] = useState<'calendario' | 'posts' | 'identidade' | 'missoes'>('calendario');
 
-  // Lógica de Subclientes para Agências B2B
+  // LÃƒÂ³gica de Subclientes para AgÃƒÂªncias B2B
   const [agencySubclients, setAgencySubclients] = useState<any[]>([]);
   const [activeSubclientId, setActiveSubclientId] = useState<string | null>(null);
 
@@ -156,17 +157,17 @@ function PainelIdentidade() {
   const isIdv = isIdvService(currentProject); 
   const isAgency = currentProject?.isAgency === true;
 
-  // Tabs disponíveis (Filtra 'identidade' se for agência)
+  // Tabs disponÃƒÂ­veis (Filtra 'identidade' se for agÃƒÂªncia)
   const igTabs = [
-    { id: 'calendario', label: 'Analytics & Calendário', icon: <CalendarDays size={18} /> },
-    { id: 'posts', label: 'Peças Gráficas', icon: <LayoutDashboard size={18} /> },
+    { id: 'calendario', label: 'Analytics & CalendÃƒÂ¡rio', icon: <CalendarDays size={18} /> },
+    { id: 'posts', label: 'PeÃƒÂ§as GrÃƒÂ¡ficas', icon: <LayoutDashboard size={18} /> },
     { id: 'identidade', label: 'Diretrizes & Briefing', icon: <Target size={18} /> },
-    { id: 'missoes', label: 'Solicitações e Arquivos', icon: <Camera size={18} /> },
+    { id: 'missoes', label: 'SolicitaÃƒÂ§ÃƒÂµes e Arquivos', icon: <Camera size={18} /> },
   ].filter(tab => !(isAgency && tab.id === 'identidade'));
 
   useDynamicTitle({
     projectName: currentProject?.profiles?.nome,
-    tabName: isAgency ? "Agência B2B" : (isIdv ? "Identidade Visual" : "Gestão de Projeto")
+    tabName: isAgency ? "AgÃƒÂªncia B2B" : (isIdv ? "Identidade Visual" : "GestÃƒÂ£o de Projeto")
   });
 
   useEffect(() => {
@@ -277,7 +278,7 @@ function PainelIdentidade() {
 
   const handleReturnBriefing = async () => {
     if (!activeProjectId || !clientBriefing) return;
-    if (!window.confirm("Deseja solicitar uma revisão do briefing para o cliente? Ele precisará revisar e reenviar o documento.")) return;
+    if (!window.confirm("Deseja solicitar uma revisÃƒÂ£o do briefing para o cliente? Ele precisarÃƒÂ¡ revisar e reenviar o documento.")) return;
     
     setClientBriefing(null);
     setIsBriefingModalOpen(false);
@@ -287,15 +288,15 @@ function PainelIdentidade() {
       if (currentProject?.client_id) {
         await NotificationEngine.notifyUser(
           currentProject.client_id,
-          "⚠️ Briefing Devolvido (Revisão Necessária)",
-          "A equipe analisou o seu Briefing e solicita mais profundidade nas respostas. Por favor, revise-o no Meu Espaço.",
+          "Ã¢Å¡Â Ã¯Â¸Â Briefing Devolvido (RevisÃƒÂ£o NecessÃƒÂ¡ria)",
+          "A equipe analisou o seu Briefing e solicita mais profundidade nas respostas. Por favor, revise-o no Meu EspaÃƒÂ§o.",
           "action",
           "/"
         );
       }
-      showToast("Solicitação de revisão enviada ao cliente.");
+      showToast("SolicitaÃƒÂ§ÃƒÂ£o de revisÃƒÂ£o enviada ao cliente.");
     } catch (e) {
-      showToast("Erro ao processar devolução de briefing.");
+      showToast("Erro ao processar devoluÃƒÂ§ÃƒÂ£o de briefing.");
     }
   };
 
@@ -309,14 +310,14 @@ function PainelIdentidade() {
         }
       }
     } catch (error) {
-      console.error("Erro na automação do Diário de Bordo:", error);
+      console.error("Erro na automaÃƒÂ§ÃƒÂ£o do DiÃƒÂ¡rio de Bordo:", error);
     }
   };
 
   const handleGenerateBriefingInsight = async () => {
     if (!activeProjectId || !clientBriefing) return;
     setIsGeneratingBriefingInsight(true);
-    showToast("Assistente Estratégico: Analisando o briefing...");
+    showToast("Assistente EstratÃƒÂ©gico: Analisando o briefing...");
     try {
       const res = await fetch('/api/insights/briefing', {
         method: 'POST',
@@ -335,15 +336,15 @@ function PainelIdentidade() {
       refreshGlobalData();
       
       await NotificationEngine.notifyManagement(
-        "🧠 Assistente Estratégico: Análise Concluída",
-        `O relatório de inteligência estratégica do cliente ${currentProject?.profiles?.nome} está pronto a ser consultado.`,
+        "Ã°Å¸Â§Â  Assistente EstratÃƒÂ©gico: AnÃƒÂ¡lise ConcluÃƒÂ­da",
+        `O relatÃƒÂ³rio de inteligÃƒÂªncia estratÃƒÂ©gica do cliente ${currentProject?.profiles?.nome} estÃƒÂ¡ pronto a ser consultado.`,
         "success",
         "/admin/projetos"
       );
 
-      showToast("Análise Estratégica gerada com sucesso! ✨");
+      showToast("AnÃƒÂ¡lise EstratÃƒÂ©gica gerada com sucesso! Ã¢Å“Â¨");
     } catch (e) {
-      showToast("Erro ao processar análise da IA.");
+      showToast("Erro ao processar anÃƒÂ¡lise da IA.");
     } finally {
       setIsGeneratingBriefingInsight(false);
     }
@@ -352,7 +353,7 @@ function PainelIdentidade() {
   const handleGenerateCuradoriaInsight = async () => {
     if (!activeProjectId || adminRefs.length === 0) return;
     setIsGeneratingCuradoriaInsight(true);
-    showToast("Assistente de Design: Analisando direções visuais...");
+    showToast("Assistente de Design: Analisando direÃƒÂ§ÃƒÂµes visuais...");
     try {
       const res = await fetch('/api/insights/curadoria', {
         method: 'POST',
@@ -371,15 +372,15 @@ function PainelIdentidade() {
       refreshGlobalData(); 
       
       await NotificationEngine.notifyManagement(
-        "🎨 Assistente de Design: Análise Concluída",
-        `O relatório semiótico para o projeto de ${currentProject?.profiles?.nome} foi compilado.`,
+        "Ã°Å¸Å½Â¨ Assistente de Design: AnÃƒÂ¡lise ConcluÃƒÂ­da",
+        `O relatÃƒÂ³rio semiÃƒÂ³tico para o projeto de ${currentProject?.profiles?.nome} foi compilado.`,
         "success",
         "/admin/projetos"
       );
 
-      showToast("Análise Visual gerada com sucesso! ✨");
+      showToast("AnÃƒÂ¡lise Visual gerada com sucesso! Ã¢Å“Â¨");
     } catch (e) {
-      showToast("Erro ao processar análise da IA.");
+      showToast("Erro ao processar anÃƒÂ¡lise da IA.");
     } finally {
       setIsGeneratingCuradoriaInsight(false);
     }
@@ -387,12 +388,12 @@ function PainelIdentidade() {
 
   const handleDownloadBriefingPDF = async () => {
     if (!clientBriefing) {
-      showToast("Erro: O conteúdo do Briefing ainda não foi carregado.");
+      showToast("Erro: O conteÃƒÂºdo do Briefing ainda nÃƒÂ£o foi carregado.");
       return;
     }
     
     setIsGeneratingPDF(true);
-    showToast("Gerando PDF Estratégico...");
+    showToast("Gerando PDF EstratÃƒÂ©gico...");
     
     try {
       const { pdf } = await import('@react-pdf/renderer');
@@ -408,9 +409,9 @@ function PainelIdentidade() {
       link.click();
       URL.revokeObjectURL(url);
 
-      showToast("PDF Estratégico exportado com sucesso!");
+      showToast("PDF EstratÃƒÂ©gico exportado com sucesso!");
     } catch (error) {
-      showToast("Erro crítico ao gerar o arquivo vetorial.");
+      showToast("Erro crÃƒÂ­tico ao gerar o arquivo vetorial.");
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -465,7 +466,7 @@ function PainelIdentidade() {
     if (!file || !activeProjectId) return;
 
     setIsUploadingAsset(true);
-    showToast("Enviando arquivo para o espaço seguro...");
+    showToast("Enviando arquivo para o espaÃƒÂ§o seguro...");
 
     try {
       const fileExt = file.name.split('.').pop();
@@ -494,13 +495,13 @@ function PainelIdentidade() {
       if (currentProject?.client_id) {
         await NotificationEngine.notifyUser(
           currentProject.client_id,
-          "📦 Novo Material Disponível",
-          `A equipe adicionou o arquivo final "${file.name}" ao seu espaço.`,
+          "Ã°Å¸â€œÂ¦ Novo Material DisponÃƒÂ­vel",
+          `A equipe adicionou o arquivo final "${file.name}" ao seu espaÃƒÂ§o.`,
           "info",
           "/"
         );
       }
-      showToast("✨ Arquivo adicionado aos Materiais Finais!");
+      showToast("Ã¢Å“Â¨ Arquivo adicionado aos Materiais Finais!");
     } catch (error: any) {
       showToast("Erro ao fazer upload do arquivo.");
     } finally {
@@ -546,8 +547,8 @@ function PainelIdentidade() {
       if (currentProject?.client_id) {
         await NotificationEngine.notifyUser(
           currentProject.client_id,
-          "📜 Contrato Disponível",
-          "A cópia digital do seu contrato assinado já está disponível no seu espaço.",
+          "Ã°Å¸â€œÅ“ Contrato DisponÃƒÂ­vel",
+          "A cÃƒÂ³pia digital do seu contrato assinado jÃƒÂ¡ estÃƒÂ¡ disponÃƒÂ­vel no seu espaÃƒÂ§o.",
           "info",
           "/"
         );
@@ -601,26 +602,26 @@ function PainelIdentidade() {
 
   const handleMarkAsDelivered = async () => {
     if (!activeProjectId) return;
-    if (!window.confirm("Deseja marcar este projeto como ENTREGUE? O cliente terá 15 dias de acesso ao painel antes do arquivamento.")) return;
+    if (!window.confirm("Deseja marcar este projeto como ENTREGUE? O cliente terÃƒÂ¡ 15 dias de acesso ao painel antes do arquivamento.")) return;
 
     try {
       await updateProjectAction(activeProjectId, { status: 'delivered', delivered_at: new Date().toISOString() });
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(currentProject.client_id, "🎉 Projeto Entregue!", "Você terá 15 dias de acesso ao Meu Espaço para fazer o download final dos seus materiais.", "success", "/");
+        await NotificationEngine.notifyUser(currentProject.client_id, "Ã°Å¸Å½â€° Projeto Entregue!", "VocÃƒÂª terÃƒÂ¡ 15 dias de acesso ao Meu EspaÃƒÂ§o para fazer o download final dos seus materiais.", "success", "/");
       }
-      showToast("Projeto marcado como Entregue! A contagem regressiva de 15 dias começou.");
+      showToast("Projeto marcado como Entregue! A contagem regressiva de 15 dias comeÃƒÂ§ou.");
       refreshGlobalData();
     } catch (error) { showToast("Erro ao marcar projeto como entregue."); }
   };
 
   const handleForceArchive = async () => {
     if (!activeProjectId) return;
-    if (!window.confirm("ATENÇÃO: O cliente perderá acesso IMEDIATO ao painel e canais deste projeto. Deseja prosseguir?")) return;
+    if (!window.confirm("ATENÃƒâ€¡ÃƒÆ’O: O cliente perderÃƒÂ¡ acesso IMEDIATO ao painel e canais deste projeto. Deseja prosseguir?")) return;
 
     try {
       await updateProjectAction(activeProjectId, { status: 'archived' });
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(currentProject.client_id, "🔒 Acesso Fechado", "O seu projeto foi arquivado. O seu acesso ao painel foi encerrado. Obrigado por confiar na Liz Design.", "info");
+        await NotificationEngine.notifyUser(currentProject.client_id, "Ã°Å¸â€â€™ Acesso Fechado", "O seu projeto foi arquivado. O seu acesso ao painel foi encerrado. Obrigado por confiar na Liz Design.", "info");
       }
       showToast("Projeto Arquivado com sucesso!");
       refreshGlobalData();
@@ -629,12 +630,12 @@ function PainelIdentidade() {
 
   const handleReactivateProject = async () => {
     if (!activeProjectId) return;
-    if (!window.confirm("Deseja REATIVAR este projeto? O cliente voltará a ter acesso total ao painel.")) return;
+    if (!window.confirm("Deseja REATIVAR este projeto? O cliente voltarÃƒÂ¡ a ter acesso total ao painel.")) return;
 
     try {
       await updateProjectAction(activeProjectId, { status: 'active', delivered_at: null });
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(currentProject.client_id, "🔓 Operação Reativada", "O seu projeto voltou a ficar ativo. Você tem acesso total restaurado ao seu espaço.", "success", "/");
+        await NotificationEngine.notifyUser(currentProject.client_id, "Ã°Å¸â€â€œ OperaÃƒÂ§ÃƒÂ£o Reativada", "O seu projeto voltou a ficar ativo. VocÃƒÂª tem acesso total restaurado ao seu espaÃƒÂ§o.", "success", "/");
       }
       showToast("Projeto Reativado com sucesso!");
       refreshGlobalData();
@@ -645,6 +646,7 @@ function PainelIdentidade() {
 
   // PAINEL DE CURADORIA
   const [showRefsPanel, setShowRefsPanel] = useState(false);
+  const [showTerritoriesPanel, setShowTerritoriesPanel] = useState(false);
   const [clientMoodboard, setClientMoodboard] = useState<string[]>([]);
   const [adminRefs, setAdminRefs] = useState<any[]>([]);
   const [activeEvalIndex, setActiveEvalIndex] = useState(0);
@@ -692,11 +694,11 @@ function PainelIdentidade() {
 
   const handleAddAdminRef = async () => {
     if (!newRefTitle || newRefImageFiles.length === 0 || !activeProjectId) {
-      showToast("Adicione um título e pelo menos uma imagem.");
+      showToast("Adicione um tÃƒÂ­tulo e pelo menos uma imagem.");
       return;
     }
     setIsSendingRef(true);
-    showToast("Enviando Direções Visuais para o cliente...");
+    showToast("Enviando DireÃƒÂ§ÃƒÂµes Visuais para o cliente...");
 
     try {
       const uploadPromises = newRefImageFiles.map(async (file) => {
@@ -726,27 +728,27 @@ function PainelIdentidade() {
       }
       
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(currentProject.client_id, "🧭 Nova Direção Visual (Moodboard)", "A equipe enviou referências e um novo caminho criativo para a sua marca. Analise e compartilhe a sua opinião no Meu Espaço.", "action", "/");
+        await NotificationEngine.notifyUser(currentProject.client_id, "Ã°Å¸Â§Â­ Nova DireÃƒÂ§ÃƒÂ£o Visual (Moodboard)", "A equipe enviou referÃƒÂªncias e um novo caminho criativo para a sua marca. Analise e compartilhe a sua opiniÃƒÂ£o no Meu EspaÃƒÂ§o.", "action", "/");
       }
 
-      showToast("Direção visual enviada com sucesso!");
+      showToast("DireÃƒÂ§ÃƒÂ£o visual enviada com sucesso!");
       setNewRefTitle("");
       setNewRefImageFiles([]);
       setNewRefImagePreviews([]);
     } catch (error) {
-      showToast("Erro ao enviar Direção Visual.");
+      showToast("Erro ao enviar DireÃƒÂ§ÃƒÂ£o Visual.");
     } finally {
       setIsSendingRef(false);
     }
   };
 
   const removeAdminRef = async (id: string) => {
-    const confirm = window.confirm("Remover esta direção visual permanentemente?");
+    const confirm = window.confirm("Remover esta direÃƒÂ§ÃƒÂ£o visual permanentemente?");
     if (!confirm) return;
     setAdminRefs(adminRefs.filter(ref => ref.id !== id));
     setActiveEvalIndex(0); 
-    showToast("Direção visual removida.");
-    try { await supabase.from('design_directions').delete().eq('id', id); } catch (error) { showToast("Erro ao excluir direção no banco."); }
+    showToast("DireÃƒÂ§ÃƒÂ£o visual removida.");
+    try { await supabase.from('design_directions').delete().eq('id', id); } catch (error) { showToast("Erro ao excluir direÃƒÂ§ÃƒÂ£o no banco."); }
   };
 
   if (isGlobalLoading || isLocalLoading) {
@@ -776,16 +778,16 @@ function PainelIdentidade() {
               <div className="p-6 border-b border-white/40 flex justify-between items-center bg-white/60 backdrop-blur-xl shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center border border-white shadow-inner"><FileText size={18} className="text-[var(--color-atelier-terracota)]" /></div>
-                  <span className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Briefing Estratégico</span>
+                  <span className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Briefing EstratÃƒÂ©gico</span>
                 </div>
                 <div className="flex items-center gap-3">
                   
                   <button onClick={handleReturnBriefing} disabled={!clientBriefing} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-red-500 hover:text-white transition-all shadow-sm disabled:opacity-50">
-                    <RotateCcw size={14} /> Solicitar Revisão
+                    <RotateCcw size={14} /> Solicitar RevisÃƒÂ£o
                   </button>
                   
                   <button onClick={handleGenerateBriefingInsight} disabled={isGeneratingBriefingInsight || !clientBriefing} className="bg-white border border-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-terracota)] px-4 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm disabled:opacity-50">
-                    {isGeneratingBriefingInsight ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Gerar Análise (IA)
+                    {isGeneratingBriefingInsight ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Gerar AnÃƒÂ¡lise (IA)
                   </button>
 
                   <button onClick={handleDownloadBriefingPDF} disabled={isGeneratingPDF || !clientBriefing} className="bg-[var(--color-atelier-grafite)] text-white px-5 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-md disabled:opacity-50 hover:-translate-y-0.5 disabled:hover:translate-y-0">
@@ -814,7 +816,7 @@ function PainelIdentidade() {
                       <div className="mb-10 bg-white/80 p-8 rounded-[2rem] border border-[var(--color-atelier-terracota)]/20 shadow-sm relative overflow-hidden">
                         <div className="absolute left-0 top-0 h-full w-1.5 bg-[var(--color-atelier-terracota)]"></div>
                         <h3 className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] mb-4 flex items-center gap-2">
-                          <Sparkles size={14}/> Diagnóstico de Marca (Assistente IA)
+                          <Sparkles size={14}/> DiagnÃƒÂ³stico de Marca (Assistente IA)
                         </h3>
                         <div className="font-roboto text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed whitespace-pre-wrap font-medium">
                            {briefingAiInsight}
@@ -826,7 +828,7 @@ function PainelIdentidade() {
                       <div>
                         <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">1. Dados & Contato</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <InfoBlock label="Nome do Responsável" value={clientBriefing.nome} />
+                          <InfoBlock label="Nome do ResponsÃƒÂ¡vel" value={clientBriefing.nome} />
                           <InfoBlock label="WhatsApp" value={clientBriefing.whatsapp} />
                           <InfoBlock label="E-mail de Contato" value={clientBriefing.email} />
                         </div>
@@ -838,36 +840,36 @@ function PainelIdentidade() {
                           <InfoBlock label="Nome a ser utilizado no Logotipo" value={clientBriefing.nome_logo} />
                           <InfoBlock label="Significado da Escolha do Nome" value={clientBriefing.significado_nome} />
                           <div className="grid grid-cols-2 gap-4">
-                            <InfoBlock label="Tagline (Subtítulo)" value={clientBriefing.tagline} />
+                            <InfoBlock label="Tagline (SubtÃƒÂ­tulo)" value={clientBriefing.tagline} />
                             <InfoBlock label="Slogan da Empresa" value={clientBriefing.slogan} />
                           </div>
-                          <InfoBlock label="Produtos ou Serviços Oferecidos" value={clientBriefing.produtos_servicos} />
+                          <InfoBlock label="Produtos ou ServiÃƒÂ§os Oferecidos" value={clientBriefing.produtos_servicos} />
                         </div>
                       </div>
 
                       <div>
-                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">3. Essência & História</h3>
+                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">3. EssÃƒÂªncia & HistÃƒÂ³ria</h3>
                         <div className="flex flex-col gap-4">
-                          <InfoBlock label="Por que a empresa foi aberta? Qual a motivação?" value={clientBriefing.motivo_abertura} />
-                          <InfoBlock label="Propósito principal além de lucrar" value={clientBriefing.proposito} />
+                          <InfoBlock label="Por que a empresa foi aberta? Qual a motivaÃƒÂ§ÃƒÂ£o?" value={clientBriefing.motivo_abertura} />
+                          <InfoBlock label="PropÃƒÂ³sito principal alÃƒÂ©m de lucrar" value={clientBriefing.proposito} />
                           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                             <InfoBlock label="Tempo de Mercado" value={clientBriefing.tempo_mercado} />
                             <InfoBlock label="A Marca em Emojis" value={clientBriefing.emoji} />
-                            <InfoBlock label="Música que a define" value={clientBriefing.musica} />
+                            <InfoBlock label="MÃƒÂºsica que a define" value={clientBriefing.musica} />
                           </div>
                           <InfoBlock label="O Sentimento que a marca vende" value={clientBriefing.sentimento} />
-                          <InfoBlock label="Visão de Futuro (Em 5 Anos)" value={clientBriefing.visao_5_anos} />
+                          <InfoBlock label="VisÃƒÂ£o de Futuro (Em 5 Anos)" value={clientBriefing.visao_5_anos} />
                         </div>
                       </div>
 
                       <div>
-                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">4. Público Alvo</h3>
+                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">4. PÃƒÂºblico Alvo</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-                          <InfoBlock label="Gênero" value={clientBriefing.genero === 'Outro' ? clientBriefing.genero_outro : clientBriefing.genero} />
+                          <InfoBlock label="GÃƒÂªnero" value={clientBriefing.genero === 'Outro' ? clientBriefing.genero_outro : clientBriefing.genero} />
                           <InfoBlock label="Classe Social" value={clientBriefing.classe === 'Outro' ? clientBriefing.classe_outro : clientBriefing.classe} />
                           <InfoBlock label="Idade" value={clientBriefing.idade === 'Outro' ? clientBriefing.idade_outro : clientBriefing.idade} />
                         </div>
-                        <InfoBlock label="Resumo Comportamental do Público" value={clientBriefing.resumo_publico} />
+                        <InfoBlock label="Resumo Comportamental do PÃƒÂºblico" value={clientBriefing.resumo_publico} />
                       </div>
 
                       <div>
@@ -875,27 +877,27 @@ function PainelIdentidade() {
                         <div className="flex flex-col gap-4">
                           <InfoBlock label="Concorrentes Principais" value={clientBriefing.concorrentes_links} />
                           <InfoBlock label="Diferencial Competitivo" value={clientBriefing.diferencial} />
-                          <InfoBlock label="O que definitivamente NÃO fazer (Vícios da concorrência)" value={clientBriefing.nao_fazer} />
-                          <InfoBlock label="Referências Visuais do Cliente" value={clientBriefing.referencias} />
+                          <InfoBlock label="O que definitivamente NÃƒÆ’O fazer (VÃƒÂ­cios da concorrÃƒÂªncia)" value={clientBriefing.nao_fazer} />
+                          <InfoBlock label="ReferÃƒÂªncias Visuais do Cliente" value={clientBriefing.referencias} />
                         </div>
                       </div>
 
                       <div>
-                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">6. Personalidade e Estética</h3>
+                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">6. Personalidade e EstÃƒÂ©tica</h3>
                         <div className="flex flex-col gap-4">
                           <InfoBlock label="Sentimento Exigido da Marca" value={clientBriefing.sentimento_marca} />
-                          <InfoBlock label="A Missão Oficial" value={clientBriefing.missao} />
+                          <InfoBlock label="A MissÃƒÂ£o Oficial" value={clientBriefing.missao} />
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2 bg-white/60 p-6 rounded-3xl border border-white shadow-sm">
                             <div>
-                              <p className="font-roboto text-[10px] uppercase font-bold text-[var(--color-atelier-terracota)] mb-2 flex items-center gap-1.5"><CheckCircle2 size={12}/> Adjetivos Positivos (A Marca É)</p>
+                              <p className="font-roboto text-[10px] uppercase font-bold text-[var(--color-atelier-terracota)] mb-2 flex items-center gap-1.5"><CheckCircle2 size={12}/> Adjetivos Positivos (A Marca Ãƒâ€°)</p>
                               <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)] leading-relaxed">
                                 {clientBriefing.adjetivos_positivos?.join(", ")} {clientBriefing.adjetivos_positivos_outro && `, ${clientBriefing.adjetivos_positivos_outro}`}
                               </p>
                               <p className="mt-3 text-[13px] text-[var(--color-atelier-grafite)] bg-white/80 p-3 rounded-xl border border-white"><strong>Top 3:</strong> <br/><span className="font-medium">{clientBriefing.top_3_adjetivos}</span></p>
                             </div>
                             <div>
-                              <p className="font-roboto text-[10px] uppercase font-bold text-red-600 mb-2 flex items-center gap-1.5"><X size={12}/> Adjetivos Negativos (A Marca NÃO É)</p>
+                              <p className="font-roboto text-[10px] uppercase font-bold text-red-600 mb-2 flex items-center gap-1.5"><X size={12}/> Adjetivos Negativos (A Marca NÃƒÆ’O Ãƒâ€°)</p>
                               <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)] leading-relaxed">
                                 {clientBriefing.adjetivos_negativos?.join(", ")} {clientBriefing.adjetivos_negativos_outro && `, ${clientBriefing.adjetivos_negativos_outro}`}
                               </p>
@@ -905,17 +907,17 @@ function PainelIdentidade() {
                       </div>
 
                       <div>
-                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">7. Restrições e Direções Visuais</h3>
+                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">7. RestriÃƒÂ§ÃƒÂµes e DireÃƒÂ§ÃƒÂµes Visuais</h3>
                         <div className="flex flex-col gap-4">
-                          <InfoBlock label="Pedido de Símbolo Específico" value={clientBriefing.simbolo} />
+                          <InfoBlock label="Pedido de SÃƒÂ­mbolo EspecÃƒÂ­fico" value={clientBriefing.simbolo} />
                           <div className="grid grid-cols-2 gap-4">
                             <InfoBlock label="Cores Desejadas" value={clientBriefing.cor_desejada} />
-                            <InfoBlock label="Cores Bloqueadas (Não usar)" value={clientBriefing.cor_nao_desejada} />
+                            <InfoBlock label="Cores Bloqueadas (NÃƒÂ£o usar)" value={clientBriefing.cor_nao_desejada} />
                           </div>
-                          <InfoBlock label="Onde a Identidade será mais aplicada?" value={clientBriefing.onde_verao} />
+                          <InfoBlock label="Onde a Identidade serÃƒÂ¡ mais aplicada?" value={clientBriefing.onde_verao} />
                           
                           <div className="mt-4 p-6 border border-white bg-white/40 rounded-3xl shadow-sm">
-                            <InfoBlock label="Sobre o Logotipo Atual (O que gosta/não gosta)" value={clientBriefing.logo_atual} />
+                            <InfoBlock label="Sobre o Logotipo Atual (O que gosta/nÃƒÂ£o gosta)" value={clientBriefing.logo_atual} />
                             {clientBriefing.logo_atual_url && (
                               <div className="mt-4">
                                 <p className="font-roboto text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/50 mb-2">Logotipo Antigo Anexado:</p>
@@ -927,10 +929,10 @@ function PainelIdentidade() {
                       </div>
 
                       <div>
-                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">8. Considerações Finais</h3>
+                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">8. ConsideraÃƒÂ§ÃƒÂµes Finais</h3>
                         <div className="flex flex-col gap-4">
                           <InfoBlock label="Por que escolheu a Liz Design?" value={clientBriefing.motivo_escolha} />
-                          <InfoBlock label="Observações e Extensões" value={clientBriefing.ideias_livres} />
+                          <InfoBlock label="ObservaÃƒÂ§ÃƒÂµes e ExtensÃƒÂµes" value={clientBriefing.ideias_livres} />
                         </div>
                       </div>
                     </div>
@@ -938,8 +940,8 @@ function PainelIdentidade() {
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full opacity-50">
                     <FileText size={48} className="mb-4 text-[var(--color-atelier-grafite)]" />
-                    <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Briefing não encontrado.</h2>
-                    <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/70 font-medium">O cliente ainda não preencheu o formulário estratégico.</p>
+                    <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Briefing nÃƒÂ£o encontrado.</h2>
+                    <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/70 font-medium">O cliente ainda nÃƒÂ£o preencheu o formulÃƒÂ¡rio estratÃƒÂ©gico.</p>
                   </div>
                 )}
               </div>
@@ -949,7 +951,7 @@ function PainelIdentidade() {
       </AnimatePresence>
 
       {/* ==========================================
-          CABEÇALHO PRINCIPAL DO ESTÚDIO
+          CABEÃƒâ€¡ALHO PRINCIPAL DO ESTÃƒÅ¡DIO
           ========================================== */}
       <header className="flex justify-between items-end shrink-0 animate-[fadeInUp_0.5s_ease-out] relative z-20">
         <div className="flex items-center gap-6">
@@ -1017,7 +1019,7 @@ function PainelIdentidade() {
                         onClick={() => { 
                           setActiveProjectId(p.id); 
                           setIsClientMenuOpen(false); 
-                          showToast(`Acessando espaço de ${p.profiles?.nome}...`); 
+                          showToast(`Acessando espaÃƒÂ§o de ${p.profiles?.nome}...`); 
                         }}
                         className={`px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors ${p.id === activeProjectId ? 'bg-[var(--color-atelier-terracota)]/5' : 'hover:bg-white'}`}
                       >
@@ -1039,11 +1041,14 @@ function PainelIdentidade() {
           </div>
         </div>
 
-        {/* 🟢 RENDERIZAÇÃO CONDICIONAL: Botões IDV ou Menu Instagram / Agência */}
+        {/* Ã°Å¸Å¸Â¢ RENDERIZAÃƒâ€¡ÃƒÆ’O CONDICIONAL: BotÃƒÂµes IDV ou Menu Instagram / AgÃƒÂªncia */}
         {isIdv && !isAgency ? (
           <div className="flex gap-3 relative z-10 shrink-0">
             <button onClick={() => setShowRefsPanel(true)} className="glass-panel bg-white/60 px-5 py-3 rounded-[1.2rem] font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-white transition-all flex items-center gap-2 shadow-sm border border-white hover:text-[var(--color-atelier-terracota)]">
-              <Compass size={14} /> Referências Visuais
+              <Compass size={14} /> ReferÃƒÂªncias Visuais
+            </button>
+            <button onClick={() => setShowTerritoriesPanel(true)} className="glass-panel bg-white/60 px-5 py-3 rounded-[1.2rem] font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-white transition-all flex items-center gap-2 shadow-sm border border-white hover:text-[var(--color-atelier-terracota)]">
+              <MapPin size={14} /> TerritÃ³rios Visuais
             </button>
             <button onClick={() => setIsBriefingModalOpen(true)} className="glass-panel bg-[var(--color-atelier-grafite)] px-5 py-3 rounded-[1.2rem] font-roboto text-[10px] font-bold uppercase tracking-widest text-white hover:bg-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2 shadow-sm border border-transparent hover:-translate-y-0.5">
               <FileText size={14} /> Ver Briefing
@@ -1052,7 +1057,7 @@ function PainelIdentidade() {
         ) : (
           <div className="flex items-center gap-3 relative z-10 shrink-0">
             
-            {/* Filtro de Subclientes se for Agência */}
+            {/* Filtro de Subclientes se for AgÃƒÂªncia */}
             {isAgency && agencySubclients.length > 0 && (
               <div className="relative flex items-center h-12 bg-white/70 backdrop-blur-xl border border-white shadow-sm rounded-full px-4">
                  <span className="font-roboto text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/50 mr-2 border-r border-[var(--color-atelier-grafite)]/10 pr-2">Subcliente</span>
@@ -1114,7 +1119,7 @@ function PainelIdentidade() {
       </header>
 
       {/* ==========================================
-          MESA DE TRABALHO DINÂMICA (IDV ou INSTAGRAM/B2B)
+          MESA DE TRABALHO DINÃƒâ€šMICA (IDV ou INSTAGRAM/B2B)
           ========================================== */}
       {isIdv && !isAgency ? (
         <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0 animate-[fadeInUp_0.8s_ease-out_0.2s_both] relative z-10">
@@ -1125,7 +1130,7 @@ function PainelIdentidade() {
               
               <div className="flex justify-between items-center mb-8 pb-4 border-b border-[var(--color-atelier-grafite)]/10 shrink-0">
                 <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
-                  <Settings2 size={20} className="text-[var(--color-atelier-terracota)]" /> Gestão do Projeto
+                  <Settings2 size={20} className="text-[var(--color-atelier-terracota)]" /> GestÃƒÂ£o do Projeto
                 </h3>
                 <div className="flex items-center gap-2">
                   {isCofreUnlocked ? (
@@ -1152,15 +1157,15 @@ function PainelIdentidade() {
                    <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2"><Sparkles size={14} className="text-[var(--color-atelier-terracota)]" /> Fase Atual</label>
                    <select value={currentProject?.fase || 'onboarding'} onChange={handleStageChange} className="w-full bg-white px-4 py-3 rounded-xl text-[13px] font-bold text-[var(--color-atelier-terracota)] outline-none cursor-pointer border border-transparent focus:border-[var(--color-atelier-terracota)]/30 shadow-sm transition-colors">
                       <option value="onboarding">0. ONBOARDING (Ready Gate)</option>
-                      <option value="pesquisa">1. DISCOVER (Imersão)</option>
-                      <option value="direcionamento">2. DEFINE (Direção Visual)</option>
-                      <option value="processo">3. DEVELOP (Construção Técnica)</option>
-                      <option value="qa">4. QA (Revisão Criativa)</option>
-                      <option value="apresentacao">5. PRESENT (Apresentação Oficial)</option>
-                      <option value="client_review">🔒 GATE 2: Client Review (48h)</option>
+                      <option value="pesquisa">1. DISCOVER (ImersÃƒÂ£o)</option>
+                      <option value="direcionamento">2. DEFINE (DireÃƒÂ§ÃƒÂ£o Visual)</option>
+                      <option value="processo">3. DEVELOP (ConstruÃƒÂ§ÃƒÂ£o TÃƒÂ©cnica)</option>
+                      <option value="qa">4. QA (RevisÃƒÂ£o Criativa)</option>
+                      <option value="apresentacao">5. PRESENT (ApresentaÃƒÂ§ÃƒÂ£o Oficial)</option>
+                      <option value="client_review">Ã°Å¸â€â€™ GATE 2: Client Review (48h)</option>
                       <option value="refinamento">6. REFINE (Ajustes Consolidados)</option>
-                      <option value="entrega">7. DELIVER (Exportação e Cofre)</option>
-                      <option value="ativacao">8. ACTIVATE (Pós-Entrega)</option>
+                      <option value="entrega">7. DELIVER (ExportaÃƒÂ§ÃƒÂ£o e Cofre)</option>
+                      <option value="ativacao">8. ACTIVATE (PÃƒÂ³s-Entrega)</option>
                    </select>
                 </div>
 
@@ -1184,7 +1189,7 @@ function PainelIdentidade() {
                        <input type="checkbox" checked={currentProject?.ready_checklist?.assets || false} readOnly /> Materiais Recebidos
                      </div>
                      <div className="flex items-center gap-2 text-[11px] font-roboto font-bold text-[var(--color-atelier-grafite)]/70">
-                       <input type="checkbox" checked={currentProject?.ready_checklist?.meeting_scheduled || false} readOnly /> Reunião Agendada
+                       <input type="checkbox" checked={currentProject?.ready_checklist?.meeting_scheduled || false} readOnly /> ReuniÃƒÂ£o Agendada
                      </div>
                    </div>
                 </div>
@@ -1212,7 +1217,7 @@ function PainelIdentidade() {
 
                                 <RevealCeremonyAdmin project={currentProject} onUpdate={refreshGlobalData} />
                 
-                {/* Botões de Ação Rápida */}
+                {/* BotÃƒÂµes de AÃƒÂ§ÃƒÂ£o RÃƒÂ¡pida */}
                 <button onClick={handleGenerateIDVTasks} disabled={isGeneratingIDVTasks} className="w-full bg-[var(--color-atelier-rose)] text-[var(--color-atelier-terracota)] rounded-[1.2rem] py-3 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all flex items-center justify-center gap-2 shadow-sm mb-2 border border-[var(--color-atelier-terracota)]/20">
                   {isGeneratingIDVTasks ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} 
                   Gerar Trilha da Marca (AIDV)
@@ -1273,7 +1278,7 @@ function PainelIdentidade() {
             </div>
           </div>
 
-          {/* 3. COLUNA DIREITA: DIÁRIO (MÓDULO EXTRAÍDO) */}
+          {/* 3. COLUNA DIREITA: DIÃƒÂRIO (MÃƒâ€œDULO EXTRAÃƒÂDO) */}
           <div className="w-full lg:w-1/3 h-[500px] lg:h-full shrink-0">
               <DiaryModule 
                  activeProjectId={activeProjectId} 
@@ -1289,6 +1294,40 @@ function PainelIdentidade() {
         </div>
       )}
 
+      
+      {/* ==========================================
+          PAINEL DESLIZANTE (TERRITÃ“RIOS VISUAIS)
+          ========================================== */}
+      <AnimatePresence>
+        {isIdv && showTerritoriesPanel && (
+          <div className="fixed inset-0 z-[100] flex justify-end">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowTerritoriesPanel(false)} className="absolute inset-0 bg-[var(--color-atelier-grafite)]/40 backdrop-blur-md cursor-pointer"></motion.div>
+            
+            <motion.div
+              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
+              className="relative w-full max-w-[900px] h-full bg-[var(--color-atelier-creme)] shadow-[-20px_0_50px_rgba(122,116,112,0.2)] flex flex-col border-l border-white overflow-hidden"
+            >
+              <div className="p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 backdrop-blur-xl flex justify-between items-start shrink-0 z-20">
+                <div>
+                  <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-3">Painel de TerritÃ³rios</h2>
+                  <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-2">
+                    Projeto: {currentProject?.profiles?.nome}
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button onClick={() => setShowTerritoriesPanel(false)} className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-red-500 transition-all shadow-sm border border-white">
+                    <X size={20} />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                <AdminTerritoriesManager projectId={activeProjectId} currentUser={null} />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* ==========================================
           PAINEL DESLIZANTE (CURADORIA VISUAL)
           ========================================== */}
@@ -1303,14 +1342,14 @@ function PainelIdentidade() {
             >
               <div className="p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 backdrop-blur-xl flex justify-between items-start shrink-0 z-20">
                 <div>
-                  <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-3">Avaliações do Cliente</h2>
+                  <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-3">AvaliaÃƒÂ§ÃƒÂµes do Cliente</h2>
                   <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-2">
-                    Projeto: {currentProject?.profiles?.nome} • {adminRefs.length} Direções
+                    Projeto: {currentProject?.profiles?.nome} Ã¢â‚¬Â¢ {adminRefs.length} DireÃƒÂ§ÃƒÂµes
                   </p>
                 </div>
                 <div className="flex gap-3">
 
-                  {/* BOTÃO DE CÉREBRO DA IA DA CURADORIA */}
+                  {/* BOTÃƒÆ’O DE CÃƒâ€°REBRO DA IA DA CURADORIA */}
                   <button onClick={handleGenerateCuradoriaInsight} disabled={isGeneratingCuradoriaInsight || adminRefs.length === 0} className="bg-white border border-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-terracota)] px-4 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:border-[var(--color-atelier-terracota)] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm disabled:opacity-50">
                     {isGeneratingCuradoriaInsight ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Analisar com IA
                   </button>
@@ -1327,12 +1366,12 @@ function PainelIdentidade() {
 
               <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-8 gap-8 relative z-10">
                 
-                {/* Exibição em Tempo Real do Insight da IA da Curadoria */}
+                {/* ExibiÃƒÂ§ÃƒÂ£o em Tempo Real do Insight da IA da Curadoria */}
                 {curadoriaAiInsight && (
                   <div className="mb-4 bg-white/80 p-8 rounded-[2rem] border border-[var(--color-atelier-terracota)]/20 shadow-sm relative overflow-hidden">
                     <div className="absolute left-0 top-0 h-full w-1.5 bg-[var(--color-atelier-terracota)]"></div>
                     <h3 className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] mb-4 flex items-center gap-2">
-                      <Sparkles size={14}/> Análise Semiótica (Direção de Arte)
+                      <Sparkles size={14}/> AnÃƒÂ¡lise SemiÃƒÂ³tica (DireÃƒÂ§ÃƒÂ£o de Arte)
                     </h3>
                     <div className="font-roboto text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed whitespace-pre-wrap font-medium">
                         {curadoriaAiInsight}
@@ -1346,7 +1385,7 @@ function PainelIdentidade() {
                     <h3 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Moodboard do Cliente</h3>
                   </div>
                   {clientMoodboard.length === 0 ? (
-                    <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 italic font-medium">O cliente ainda não adicionou referências ao Brandbook.</p>
+                    <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 italic font-medium">O cliente ainda nÃƒÂ£o adicionou referÃƒÂªncias ao Brandbook.</p>
                   ) : (
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       {clientMoodboard.map((img, i) => (
@@ -1361,11 +1400,11 @@ function PainelIdentidade() {
                 <section>
                   <div className="flex items-center gap-2 mb-6 pb-2 border-b border-[var(--color-atelier-grafite)]/5">
                     <Sparkles size={16} className="text-[var(--color-atelier-terracota)]" />
-                    <h3 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Direções Enviadas e Avaliações</h3>
+                    <h3 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">DireÃƒÂ§ÃƒÂµes Enviadas e AvaliaÃƒÂ§ÃƒÂµes</h3>
                   </div>
                   
                   {adminRefs.length === 0 ? (
-                    <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 italic mb-6 font-medium">Nenhuma direção visual enviada ainda.</p>
+                    <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 italic mb-6 font-medium">Nenhuma direÃƒÂ§ÃƒÂ£o visual enviada ainda.</p>
                   ) : (
                     <>
                       <div className="flex overflow-x-auto custom-scrollbar gap-3 pb-4 shrink-0 -mx-2 px-2">
@@ -1388,7 +1427,7 @@ function PainelIdentidade() {
                               <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-1">{adminRefs[activeEvalIndex].title}</h3>
                               <div className="flex items-center gap-2">
                                 <span className={`border px-5 py-2 rounded-[1rem] text-[11px] uppercase tracking-widest font-bold font-roboto shadow-sm ${adminRefs[activeEvalIndex].score > 0 ? 'bg-[var(--color-atelier-terracota)] text-white border-transparent' : 'bg-white text-[var(--color-atelier-grafite)]/40 border-white'}`}>
-                                  {adminRefs[activeEvalIndex].score > 0 ? `Nota: ${adminRefs[activeEvalIndex].score}/10` : 'Avaliação Pendente'}
+                                  {adminRefs[activeEvalIndex].score > 0 ? `Nota: ${adminRefs[activeEvalIndex].score}/10` : 'AvaliaÃƒÂ§ÃƒÂ£o Pendente'}
                                 </span>
                               </div>
                             </div>
@@ -1407,13 +1446,13 @@ function PainelIdentidade() {
                             <div className="flex flex-col pt-4 flex-1 w-full">
                               <div className="flex flex-col gap-4 w-full bg-white/80 p-6 rounded-3xl mb-4 border border-white shadow-sm">
                                 <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] border-b border-[var(--color-atelier-grafite)]/5 pb-2">Feedback do Cliente (Matriz)</span>
-                                <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Atmosfera:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q1 || "Não respondido."}</span></p>
-                                <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Tipografia:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q2 || "Não respondido."}</span></p>
-                                <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Cores:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q3 || "Não respondido."}</span></p>
-                                <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Elementos:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q4 || "Não respondido."}</span></p>
+                                <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Atmosfera:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q1 || "NÃƒÂ£o respondido."}</span></p>
+                                <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Tipografia:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q2 || "NÃƒÂ£o respondido."}</span></p>
+                                <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Cores:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q3 || "NÃƒÂ£o respondido."}</span></p>
+                                <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Elementos:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q4 || "NÃƒÂ£o respondido."}</span></p>
                               </div>
 
-                              <button onClick={() => removeAdminRef(adminRefs[activeEvalIndex].id)} className="self-end px-4 py-2 bg-white border border-transparent hover:border-red-100 hover:bg-red-50 rounded-xl text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-600 transition-colors flex items-center gap-1 shadow-sm"><X size={12} /> Excluir Direção</button>
+                              <button onClick={() => removeAdminRef(adminRefs[activeEvalIndex].id)} className="self-end px-4 py-2 bg-white border border-transparent hover:border-red-100 hover:bg-red-50 rounded-xl text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-600 transition-colors flex items-center gap-1 shadow-sm"><X size={12} /> Excluir DireÃƒÂ§ÃƒÂ£o</button>
                             </div>
                           </div>
                         </motion.div>
@@ -1425,7 +1464,7 @@ function PainelIdentidade() {
                 <div className="mt-2 border-t border-[var(--color-atelier-grafite)]/10 pt-8">
                   <div className="flex items-center gap-2 mb-6">
                     <div className="w-8 h-8 rounded-full bg-[var(--color-atelier-terracota)] text-white flex items-center justify-center shadow-md"><Plus size={14} strokeWidth={3} /></div>
-                    <h3 className="font-roboto text-[13px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Nova Direção Visual</h3>
+                    <h3 className="font-roboto text-[13px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Nova DireÃƒÂ§ÃƒÂ£o Visual</h3>
                   </div>
                   <div className="bg-white/80 p-8 rounded-[2rem] border border-white shadow-sm">
                     <div className="flex flex-col gap-5">
@@ -1445,12 +1484,12 @@ function PainelIdentidade() {
                              </div>
                            </div>
                          ) : (
-                           <><UploadCloud size={28} className="mb-3 text-[var(--color-atelier-grafite)]/40 group-hover:text-[var(--color-atelier-terracota)] transition-colors" /><span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 group-hover:text-[var(--color-atelier-terracota)] transition-colors">Upload das Referências Gráficas</span></>
+                           <><UploadCloud size={28} className="mb-3 text-[var(--color-atelier-grafite)]/40 group-hover:text-[var(--color-atelier-terracota)] transition-colors" /><span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 group-hover:text-[var(--color-atelier-terracota)] transition-colors">Upload das ReferÃƒÂªncias GrÃƒÂ¡ficas</span></>
                          )}
                        </label>
 
                        <div className="flex flex-col sm:flex-row gap-4">
-                         <input type="text" value={newRefTitle} onChange={(e) => setNewRefTitle(e.target.value)} disabled={isSendingRef} placeholder="Título da Rota (Ex: Direção Clean & Minimalista)" className="flex-1 bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-2xl px-5 py-4 text-[13px] font-bold outline-none shadow-sm disabled:opacity-50 transition-colors" />
+                         <input type="text" value={newRefTitle} onChange={(e) => setNewRefTitle(e.target.value)} disabled={isSendingRef} placeholder="TÃƒÂ­tulo da Rota (Ex: DireÃƒÂ§ÃƒÂ£o Clean & Minimalista)" className="flex-1 bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-2xl px-5 py-4 text-[13px] font-bold outline-none shadow-sm disabled:opacity-50 transition-colors" />
                          <button onClick={handleAddAdminRef} disabled={isSendingRef || newRefImageFiles.length === 0} className="px-10 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-2xl font-roboto text-[11px] font-bold uppercase tracking-[0.1em] hover:bg-[var(--color-atelier-terracota)] transition-all shadow-md shrink-0 disabled:opacity-50 flex items-center justify-center gap-2 hover:-translate-y-0.5 disabled:hover:translate-y-0 mt-4 sm:mt-0">
                            {isSendingRef ? <Loader2 size={16} className="animate-spin" /> : <Send size={16}/>} Enviar
                          </button>
@@ -1475,3 +1514,6 @@ export default function ProjetosAdminPage() {
     </Suspense>
   );
 }
+
+
+

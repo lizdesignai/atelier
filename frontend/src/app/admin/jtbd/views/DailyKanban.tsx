@@ -3,7 +3,7 @@
 // src/app/admin/jtbd/views/DailyKanban.tsx
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, AlertTriangle, CheckCircle2, Image as ImageIcon, PlayCircle, FileText, User, Briefcase } from "lucide-react";
+import { Clock, AlertTriangle, CheckCircle2, Image as ImageIcon, PlayCircle, FileText, User, Briefcase, X } from "lucide-react";
 import TaskCard from "../components/TaskCard";
 import { supabase } from "../../../../lib/supabase";
 import ClientAssetsModal from "../../../../components/ClientAssetsModal";
@@ -49,6 +49,9 @@ export default function DailyKanban({
   // ==========================================================================
   const [activeTaskModal, setActiveTaskModal] = useState<{task: any, isFocus: boolean, isReview: boolean, isCompleted: boolean} | null>(null);
   const [activeAssetsTask, setActiveAssetsTask] = useState<any | null>(null);
+  const [reviewFilter, setReviewFilter] = useState<'team' | 'mine'>('team');
+  const [showArchiveModal, setShowArchiveModal] = useState(false);
+  const [archiveSearch, setArchiveSearch] = useState('');
 
   useEffect(() => {
     const handleOpenModal = (e: CustomEvent) => {
@@ -62,6 +65,13 @@ export default function DailyKanban({
 
   // 🟢 UNIFICAÇÃO DA FILA: Junta as tarefas pendentes com as em andamento
   const activeQueueTasks = [...inProgressTasks, ...pendingTasks];
+  
+  const visibleReviewTasks = isAdminOrManager ? reviewTasks.filter(t => reviewFilter === 'mine' ? t.assigned_to === currentUser?.id : t.assigned_to !== currentUser?.id) : reviewTasks;
+  const todaysCompleted = completedTasks.filter(t => {
+    const d = t.completed_at ? new Date(t.completed_at) : (t.updated_at ? new Date(t.updated_at) : new Date(t.deadline));
+    const diffTime = new Date().getTime() - d.getTime();
+      return diffTime <= 48 * 60 * 60 * 1000;
+  });
 
   // ==========================================================================
   // MOTORES DE INTERCEPTAÇÃO: KANBAN -> COCKPIT CLIENTE
@@ -293,14 +303,14 @@ export default function DailyKanban({
           opacity: 1, 
           y: 0, 
           filter: "blur(0px)",
-          ...(isLive ? { backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] } : {}) 
+           
         }}
         exit={{ opacity: 0, scale: 0.9, filter: "blur(5px)", transition: { duration: 0.2 } }}
         
         transition={{ 
           layout: { type: "spring", stiffness: 350, damping: 28, mass: 0.8 }, 
           opacity: { duration: 0.3 },
-          ...(isLive ? { backgroundPosition: { duration: 3, repeat: Infinity, ease: "linear" } } : {})
+          
         }}
         
         whileHover={{ y: -4, scale: 1.02 }}
@@ -321,12 +331,12 @@ export default function DailyKanban({
           }
           e.dataTransfer.setData("taskId", task.id);
         }}
-        style={isLive ? { backgroundImage: 'linear-gradient(270deg, #3b82f6, #06b6d4, #3b82f6)', backgroundSize: '200% 200%' } : {}}
+        
         className={`shrink-0 flex flex-col relative w-full mb-4 group/wrapper 
-          ${isLive ? 'p-[3px] rounded-[1.4rem] shadow-[0_0_20px_rgba(59,130,246,0.4)]' : 'rounded-[1.4rem] cursor-grab active:cursor-grabbing'}
+          ${isLive ? 'rounded-[1.4rem]' : 'rounded-[1.4rem] cursor-grab active:cursor-grabbing'}
         `}
       >
-        <div className={`flex flex-col relative w-full h-full ${isLive ? 'bg-white rounded-[1.3rem] overflow-hidden' : ''}`}>
+        <div className={`flex flex-col relative w-full h-full ${isLive ? 'rounded-[1.3rem] overflow-hidden' : ''}`}>
           
           {/* 🟢 Capa da Arte Visual Integrada Estilo Trello (Miniatura do Kanban) */}
           {task.attachment_url && (
@@ -399,7 +409,7 @@ export default function DailyKanban({
             <div className="relative z-10 flex flex-col h-full p-6">
               <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
-                  <PlayCircle size={20} className="text-[var(--color-atelier-grafite)]/50"/> {selectedClient ? 'Fila do Cliente' : 'Fila de Trabalho'}
+                  <PlayCircle size={20} className="text-[var(--color-atelier-grafite)]/50"/> {selectedClient ? 'Fila do Cliente' : 'Fila'}
                 </h3>
                 <span className="bg-white px-3 py-1 rounded-lg text-[11px] font-bold text-[var(--color-atelier-grafite)]/60 shadow-sm border border-[var(--color-atelier-grafite)]/5">
                   {activeQueueTasks.length}
@@ -443,25 +453,28 @@ export default function DailyKanban({
             <div className="relative z-10 flex flex-col h-full p-6">
               <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-orange-200/50 pb-4">
                 <h3 className="font-elegant text-2xl text-orange-900 flex items-center gap-2">
-                  <AlertTriangle size={20} className="text-orange-500"/> Revisão Interna
-                </h3>
+                  <AlertTriangle size={20} className="text-orange-500"/> Revisão</h3>
                 <div className="flex items-center gap-2">
-                  {isAdminOrManager && handleBatchComplete && reviewTasks.length > 0 && (
-                    <button
-                      onClick={() => handleBatchComplete(reviewTasks)}
-                      className="bg-green-500 hover:bg-green-600 text-white text-[11px] font-bold px-3 py-1 rounded-lg shadow-sm transition-colors uppercase"
-                    >
-                      Aprovar Todas
-                    </button>
-                  )}
+                  
+                    
+                    {isAdminOrManager && (
+                      <div className="flex bg-white rounded-lg p-0.5 border border-orange-200 items-center">
+                        <button onClick={() => setReviewFilter('mine')} className={`px-2 py-1 text-[9px] font-bold rounded-md transition-colors uppercase ${reviewFilter === 'mine' ? 'bg-orange-100 text-orange-800' : 'text-gray-400'}`}>Minhas</button>
+                        <button onClick={() => setReviewFilter('team')} className={`px-2 py-1 text-[9px] font-bold rounded-md transition-colors uppercase ${reviewFilter === 'team' ? 'bg-orange-100 text-orange-800' : 'text-gray-400'}`}>Equipe</button>
+                        {handleBatchComplete && visibleReviewTasks.length > 0 && (
+                          <button onClick={() => handleBatchComplete(visibleReviewTasks)} className="ml-1 px-2 py-1 text-[9px] font-bold rounded-md bg-green-500 hover:bg-green-600 text-white transition-colors uppercase shadow-sm">A-ALL</button>
+                        )}
+                      </div>
+                    )}
+  
                   <span className="bg-white px-3 py-1 rounded-lg text-[11px] font-bold text-orange-600 shadow-sm border border-orange-200">
-                    {reviewTasks.length}
+                    {visibleReviewTasks.length}
                   </span>
                 </div>
               </div>
               <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pr-3 flex flex-col pt-2 pb-4">
                 <AnimatePresence mode="popLayout">
-                  {reviewTasks.length === 0 ? (
+                  {visibleReviewTasks.length === 0 ? (
                     <motion.div 
                       initial={{ opacity: 0, scale: 0.9 }} 
                       animate={{ opacity: 1, scale: 1 }} 
@@ -498,7 +511,7 @@ export default function DailyKanban({
               
               <div className="flex-1 overflow-y-auto overflow-x-hidden custom-scrollbar pr-3 flex flex-col pt-2 pb-4">
                 <AnimatePresence mode="popLayout">
-                  {completedTasks.length === 0 ? (
+                  {todaysCompleted.length === 0 ? (
                     <motion.div 
                       initial={{ opacity: 0, scale: 0.9 }} 
                       animate={{ opacity: 1, scale: 1 }} 
@@ -512,7 +525,12 @@ export default function DailyKanban({
                     completedTasks.map(task => renderTask(task, false, false, true))
                   )}
                 </AnimatePresence>
-              </div>
+              
+                </div>
+                <div className="flex justify-center mt-4 shrink-0 pb-6">
+                   <button onClick={() => setShowArchiveModal(true)} className="px-5 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-grafite)] bg-white/50 hover:bg-white transition-all shadow-sm border border-transparent hover:border-gray-200">Ver Arquivados</button>
+                </div>
+         
             </div>
           </div>
 
@@ -521,7 +539,39 @@ export default function DailyKanban({
       </div>
 
       {/* ==========================================================================
-          O MODAL MESTRE (RENDERIZADO FORA DAS COLUNAS PARA NÃO BUGAR)
+          
+        <AnimatePresence>
+          {showArchiveModal && (
+            <motion.div initial={{opacity:0}} animate={{opacity:1}} exit={{opacity:0}} className="fixed inset-0 z-[100] bg-black/40 backdrop-blur-sm flex items-center justify-center p-4">
+               <motion.div initial={{scale:0.95, y:20}} animate={{scale:1, y:0}} exit={{scale:0.95, y:20}} className="bg-white rounded-[2.5rem] shadow-2xl w-full max-w-3xl h-[80vh] flex flex-col overflow-hidden relative">
+                  <div className="flex justify-between items-center p-6 border-b border-[var(--color-atelier-grafite)]/10 shrink-0">
+                     <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Arquivo de Tarefas</h3>
+                     <div className="flex items-center gap-4">
+                       <input type="text" placeholder="Pesquisar cliente ou data..." value={archiveSearch} onChange={e=>setArchiveSearch(e.target.value)} className="text-xs px-4 py-2 rounded-xl border border-gray-200 outline-none focus:border-[var(--color-atelier-terracota)]" />
+                       <button onClick={()=>setShowArchiveModal(false)} className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors"><X size={16}/></button>
+                     </div>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50 flex flex-col gap-3 custom-scrollbar">
+                     {completedTasks.filter(t => t.title.toLowerCase().includes(archiveSearch.toLowerCase()) || (t.projects?.profiles?.nome || '').toLowerCase().includes(archiveSearch.toLowerCase()) || (t.completed_at || '').includes(archiveSearch)).map(task => (
+                        <div key={task.id} className="bg-white p-5 rounded-[1.5rem] border border-gray-100 shadow-sm flex items-center justify-between hover:shadow-md transition-shadow">
+                           <div>
+                              <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 mb-1">{task.projects?.profiles?.nome || 'Studio Veronna'}</p>
+                              <h4 className="text-sm font-bold text-[var(--color-atelier-grafite)]">{task.title}</h4>
+                           </div>
+                           <div className="flex items-center gap-4">
+                              <span className="text-xs text-gray-500 bg-gray-100 px-3 py-1.5 rounded-xl font-bold">{(task.completed_at ? new Date(task.completed_at) : (task.updated_at ? new Date(task.updated_at) : new Date(task.deadline))).toLocaleDateString()}</span>
+                           </div>
+                        </div>
+                     ))}
+                     {completedTasks.filter(t => t.title.toLowerCase().includes(archiveSearch.toLowerCase()) || (t.projects?.profiles?.nome || '').toLowerCase().includes(archiveSearch.toLowerCase()) || (t.completed_at || '').includes(archiveSearch)).length === 0 && (
+                        <div className="m-auto text-gray-400 text-sm font-bold opacity-50">Nenhuma tarefa encontrada.</div>
+                     )}
+                  </div>
+               </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+  O MODAL MESTRE (RENDERIZADO FORA DAS COLUNAS PARA NÃO BUGAR)
           ========================================================================== */}
       <AnimatePresence>
         {activeTaskModal && (

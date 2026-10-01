@@ -24,9 +24,61 @@ export function BrandDNACuradoria({ projectId, clientProfile }: { projectId: str
       
   const [activeTab, setActiveTab] = useState<"direcoes" | "moodboard">("direcoes");
   
-  // Estados do Moodboard
+    // Estados do Moodboard e Preferências
   const [clientMoodboard, setClientMoodboard] = useState<string[]>([]);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSavingPrefs, setIsSavingPrefs] = useState(false);
+  const [preferences, setPreferences] = useState({
+    logo_atual_url: '',
+    cor_desejada: '',
+    cor_nao_desejada: '',
+    concorrentes: ''
+  });
+  
+  const handlePrefChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setPreferences(prev => ({ ...prev, [e.target.name]: e.target.value }));
+  };
+  
+  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !projectId) return;
+    setIsSavingPrefs(true);
+    window.dispatchEvent(new CustomEvent('showToast', { detail: 'Fazendo upload do material existente...' }));
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${projectId}_logo_${Date.now()}.${fileExt}`;
+      const { error } = await supabase.storage.from('briefing_assets').upload(fileName, file);
+      if (!error) {
+        const { data } = supabase.storage.from('briefing_assets').getPublicUrl(fileName);
+        const newPrefs = { ...preferences, logo_atual_url: data.publicUrl };
+        setPreferences(newPrefs);
+        window.dispatchEvent(new CustomEvent('showToast', { detail: 'Material enviado com sucesso!' }));
+        await savePreferences(newPrefs);
+      }
+    } catch (err) {
+      window.dispatchEvent(new CustomEvent('showToast', { detail: 'Erro no upload.' }));
+    } finally {
+      setIsSavingPrefs(false);
+    }
+  };
+  
+  const savePreferences = async (prefsToSave = preferences) => {
+    setIsSavingPrefs(true);
+    try {
+      const { data: brief } = await supabase.from('client_briefings').select('*').eq('project_id', projectId).single();
+      const currentAnswers = brief?.answers || {};
+      await supabase.from('client_briefings').upsert({
+        project_id: projectId,
+        client_id: clientProfile?.id,
+        answers: { ...currentAnswers, ...prefsToSave }
+      }, { onConflict: 'project_id' });
+      window.dispatchEvent(new CustomEvent('showToast', { detail: 'Preferências salvas com sucesso!' }));
+    } catch (e) {
+      window.dispatchEvent(new CustomEvent('showToast', { detail: 'Erro ao salvar preferências.' }));
+    } finally {
+      setIsSavingPrefs(false);
+    }
+  };
 
   // Estados das Direções do Designer (Carrossel)
   const [directions, setDirections] = useState<any[]>([]);
@@ -46,6 +98,17 @@ export function BrandDNACuradoria({ projectId, clientProfile }: { projectId: str
         .select('moodboard_urls')
         .eq('project_id', projectId)
         .single();
+        
+      // Busca briefing fields
+      const { data: brief } = await supabase.from('client_briefings').select('*').eq('project_id', projectId).single();
+      if (brief && brief.answers) {
+        setPreferences({
+          logo_atual_url: brief.answers.logo_atual_url || '',
+          cor_desejada: brief.answers.cor_desejada || '',
+          cor_nao_desejada: brief.answers.cor_nao_desejada || '',
+          concorrentes: brief.answers.concorrentes || ''
+        });
+      }
       
       if (strategicData && strategicData.moodboard_urls) {
         setClientMoodboard(strategicData.moodboard_urls);
@@ -189,7 +252,7 @@ export function BrandDNACuradoria({ projectId, clientProfile }: { projectId: str
   }
 
   return (
-    <div className="relative z-10 max-w-[1500px] mx-auto min-h-[500px] flex flex-col overflow-hidden pb-6 px-4 md:px-0">
+    <div className="relative z-10 w-full min-h-[500px] flex flex-col overflow-hidden pb-6">
       
       {/* CABEÇALHO */}
       <header className="mb-6 flex flex-col md:flex-row md:items-end justify-between gap-4 md:gap-0 animate-[fadeInUp_0.8s_cubic-bezier(0.16,1,0.3,1)] shrink-0 mt-6 md:mt-0">
@@ -204,18 +267,18 @@ export function BrandDNACuradoria({ projectId, clientProfile }: { projectId: str
         </div>
         
         {/* Alternador de Abas */}
-        <div className="flex bg-white/60 backdrop-blur-xl p-1.5 rounded-[1.5rem] shadow-sm border border-white w-full md:w-auto">
-          <button onClick={() => setActiveTab("direcoes")} className={`flex-1 py-3 px-6 rounded-[1.2rem] font-roboto text-[10px] md:text-[11px] uppercase tracking-widest font-bold transition-all ${activeTab === "direcoes" ? "bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] shadow-md" : "text-[var(--color-atelier-grafite)]/60 hover:bg-white hover:text-[var(--color-atelier-terracota)]"}`}>
+        <div className="flex bg-white/60 backdrop-blur-xl p-1 rounded-full shadow-sm border border-white w-full md:w-auto">
+          <button onClick={() => setActiveTab("direcoes")} className={`flex-1 py-1 px-3 rounded-full font-roboto text-[8px] md:text-[9px] uppercase tracking-widest font-bold transition-all ${activeTab === "direcoes" ? "bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] shadow-md" : "text-[var(--color-atelier-grafite)]/60 hover:bg-white hover:text-[var(--color-atelier-terracota)]"}`}>
             Diretrizes de Marca
           </button>
-          <button onClick={() => setActiveTab("moodboard")} className={`flex-1 py-3 px-6 rounded-[1.2rem] font-roboto text-[10px] md:text-[11px] uppercase tracking-widest font-bold transition-all ${activeTab === "moodboard" ? "bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] shadow-md" : "text-[var(--color-atelier-grafite)]/60 hover:bg-white hover:text-[var(--color-atelier-terracota)]"}`}>
+          <button onClick={() => setActiveTab("moodboard")} className={`flex-1 py-1 px-3 rounded-full font-roboto text-[8px] md:text-[9px] uppercase tracking-widest font-bold transition-all ${activeTab === "moodboard" ? "bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] shadow-md" : "text-[var(--color-atelier-grafite)]/60 hover:bg-white hover:text-[var(--color-atelier-terracota)]"}`}>
             Referências Visuais
           </button>
         </div>
       </header>
 
       {/* GRID PRINCIPAL NO-SCROLL (Divisão 3/9) */}
-      <div className="flex gap-6 flex-1 min-h-0">
+      <div className="flex gap-6 flex-1 min-h-0 w-full max-w-[1400px] mx-auto">
         
         {/* ==========================================
             COLUNA ESQUERDA: MOODBOARD DO CLIENTE
@@ -241,7 +304,72 @@ export function BrandDNACuradoria({ projectId, clientProfile }: { projectId: str
               </label>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-8">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-8 flex flex-col gap-10">
+              {/* === NOVOS CAMPOS: PREFERÊNCIAS VISUAIS === */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-8 pb-8 border-b border-[var(--color-atelier-grafite)]/10">
+                {/* 1. Material Existente */}
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <label className="font-roboto text-[11px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/70 block mb-1">1. Material Existente</label>
+                    <p className="text-xs text-[var(--color-atelier-grafite)]/50 mb-2">Se você já possui um logotipo ou paleta atual, anexe aqui.</p>
+                  </div>
+                  <label className="border-2 border-dashed border-[var(--color-atelier-grafite)]/20 rounded-2xl p-6 flex flex-col items-center justify-center cursor-pointer hover:bg-[var(--color-atelier-grafite)]/5 transition-colors group h-[120px]">
+                    {preferences.logo_atual_url ? (
+                      <div className="flex flex-col items-center gap-2 text-[var(--color-atelier-terracota)]">
+                        <CheckCircle2 size={24} />
+                        <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-center">Material<br/>Anexado</span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-2 text-[var(--color-atelier-grafite)]/40 group-hover:text-[var(--color-atelier-grafite)]/60">
+                        <UploadCloud size={24} />
+                        <span className="font-roboto text-[10px] uppercase tracking-widest font-bold">Fazer Upload</span>
+                      </div>
+                    )}
+                    <input type="file" accept="image/*,.pdf,.ai,.eps" className="hidden" onChange={handleLogoUpload} disabled={isSavingPrefs} />
+                  </label>
+                </div>
+
+                {/* 2. Direcionamento Cromático */}
+                <div className="flex flex-col gap-4">
+                  <div>
+                    <label className="font-roboto text-[11px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/70 block mb-1">2. Direcionamento Cromático</label>
+                    <p className="text-xs text-[var(--color-atelier-grafite)]/50 mb-2">Quais cores você gosta e quais você evita?</p>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <input 
+                      type="text" name="cor_desejada" value={preferences.cor_desejada} onChange={handlePrefChange} onBlur={() => savePreferences()}
+                      placeholder="Ex: Tons quentes, terrosos, verde escuro..." 
+                      className="w-full bg-white/50 border border-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/30"
+                    />
+                    <input 
+                      type="text" name="cor_nao_desejada" value={preferences.cor_nao_desejada} onChange={handlePrefChange} onBlur={() => savePreferences()}
+                      placeholder="Ex: Evito vermelho vivo, neon, rosa..." 
+                      className="w-full bg-white/50 border border-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/30"
+                    />
+                  </div>
+                </div>
+
+                {/* 3. Concorrentes */}
+                <div className="flex flex-col gap-4 md:col-span-2">
+                  <div>
+                    <label className="font-roboto text-[11px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/70 block mb-1">3. Referências de Concorrentes</label>
+                    <p className="text-xs text-[var(--color-atelier-grafite)]/50 mb-2">Cole links ou descreva concorrentes diretos e o que você acha da marca deles.</p>
+                  </div>
+                  <textarea 
+                    name="concorrentes" value={preferences.concorrentes} onChange={handlePrefChange} onBlur={() => savePreferences()}
+                    placeholder="Ex: Marca X (gosto do minimalismo deles), Marca Y (acho muito poluída)..." 
+                    className="w-full h-24 bg-white/50 border border-white rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/30 resize-none custom-scrollbar"
+                  />
+                </div>
+              </div>
+
+              {/* 4. Mural de Referências (Grid de Imagens) */}
+              <div className="flex flex-col gap-4">
+                <div>
+                  <label className="font-roboto text-[11px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/70 block mb-1">4. Mural de Imagens</label>
+                  <p className="text-xs text-[var(--color-atelier-grafite)]/50">Imagens que representam a estética desejada.</p>
+                </div>
+
               {clientMoodboard.length === 0 ? (
                 <div className="flex flex-col items-center justify-center h-full opacity-40 bg-white/30 rounded-[2rem] border border-white p-10">
                   <ImageIcon size={48} className="mb-4 text-[var(--color-atelier-terracota)]" />
@@ -263,6 +391,7 @@ export function BrandDNACuradoria({ projectId, clientProfile }: { projectId: str
                 </div>
               )}
             </div>
+              </div>
           </motion.div>
         )}
 

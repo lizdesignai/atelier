@@ -207,14 +207,9 @@ export default function LoginPage() {
       const role = data.user?.role || 'client';
       
       setIsSuccessState(true);
-      setTimeout(() => {
-        const hasSeenOnboarding = localStorage.getItem("has_seen_onboarding");
-        if (!hasSeenOnboarding) {
-          router.push("/onboarding");
-        } else {
+              setTimeout(() => {
           router.push(role === 'client' ? "/" : role === 'contador' ? "/admin/financeiro" : "/admin/jtbd");
-        }
-      }, 1800);
+        }, 1800);
 
     } catch (error: any) {
       showToast(error.message);
@@ -252,14 +247,9 @@ export default function LoginPage() {
       const role = data.user?.role || 'client';
       
       setIsSuccessState(true);
-      setTimeout(() => {
-        const hasSeenOnboarding = localStorage.getItem("has_seen_onboarding");
-        if (!hasSeenOnboarding) {
-          router.push("/onboarding");
-        } else {
+              setTimeout(() => {
           router.push(role === 'client' ? "/" : role === 'contador' ? "/admin/financeiro" : "/admin/jtbd");
-        }
-      }, 1800);
+        }, 1800);
 
     } catch (error: any) {
       showToast(error.message);

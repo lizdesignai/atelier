@@ -10,7 +10,8 @@ import {
   Compass, LayoutDashboard, FolderKanban, Users, MessageCircle, 
   Globe2, CheckCircle2, DollarSign, Sparkles, Briefcase, 
   Crosshair, LogOut, Activity, Crown, Grid, Menu, X, FileText,
-  Eye, Target, TrendingUp, Archive
+  Eye, Target, TrendingUp, Archive,
+  Search, Hammer, Presentation, Package
 } from "lucide-react";
 import { supabase } from "../../lib/supabase"; 
 import { useDynamicTitle } from "../../hooks/useDynamicTitle"; 
@@ -27,6 +28,12 @@ interface AppSidebarProps {
 
 // Dicionário de Rotas para os Títulos das Abas do Navegador
 const ROUTE_NAMES: Record<string, string> = {
+  '/projeto/descobrir': 'Descobrir',
+  '/projeto/direcionar': 'Direcionar',
+  '/projeto/construir': 'Construir',
+  '/projeto/revelar': 'Revelar',
+  '/projeto/refinar': 'Refinar',
+  '/projeto/ativar': 'Ativar',
   '/admin': 'QG da Liziane',
   '/cockpit': 'Inicial',
   '/brandbook': 'Brandbook',
@@ -48,6 +55,7 @@ const ROUTE_NAMES: Record<string, string> = {
 export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: AppSidebarProps) {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [clientServiceType, setClientServiceType] = useState<string>("Identidade Visual");
+  const [idvPhase, setIdvPhase] = useState<string>("onboarding");
   const [isProjectArchived, setIsProjectArchived] = useState(false);
   const [isReady, setIsReady] = useState(false);
   const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
@@ -111,6 +119,10 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
         setClientServiceType(service);
 
         const isIdv = service === "Identidade Visual";
+
+        if (isIdv && project?.idv_phase) {
+          setIdvPhase(project.idv_phase);
+        }
 
         if (project) {
           if (project.status === 'archived' && !isIdv) {
@@ -208,6 +220,14 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   // 🟢 MOBILE BOTTOM NAVIGATION CONFIGURATION
   // ====================================================
 
+  const IDV_PHASE_ORDER = ['onboarding', 'discover', 'define', 'develop', 'qa', 'present', 'client_review', 'refine', 'deliver', 'activate'];
+  const isStageUnlocked = (stageKey: string) => {
+    const currentIndex = IDV_PHASE_ORDER.indexOf(idvPhase);
+    const stageIndex = IDV_PHASE_ORDER.indexOf(stageKey);
+    if (stageIndex === -1) return false;
+    return currentIndex >= stageIndex;
+  };
+
   const mobileMainItems: Array<{ href: string; icon: React.ReactNode; label: string; badge?: number }> = isContador ? [
     { href: '/admin/financeiro', icon: <DollarSign size={20} strokeWidth={1.5} />, label: 'Finanças' },
     { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
@@ -229,6 +249,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : [
     { href: '/', icon: <Home size={20} strokeWidth={1.5} />, label: 'Meu Projeto' },
+    { href: '/projeto/descobrir', icon: <Search size={20} strokeWidth={1.5} />, label: 'Fases' },
     
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
@@ -265,6 +286,12 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : [
     { href: '/', icon: <Home size={20} strokeWidth={1.5} />, label: 'Meu Projeto' },
+    { href: '/projeto/descobrir', icon: <Search size={20} strokeWidth={1.5} />, label: 'Descobrir' },
+    ...(isStageUnlocked('define') ? [{ href: '/projeto/direcionar', icon: <Compass size={20} strokeWidth={1.5} />, label: 'Direcionar' }] : []),
+    ...(isStageUnlocked('develop') ? [{ href: '/projeto/construir', icon: <Hammer size={20} strokeWidth={1.5} />, label: 'Construir' }] : []),
+    ...(isStageUnlocked('present') ? [{ href: '/projeto/revelar', icon: <Presentation size={20} strokeWidth={1.5} />, label: 'Revelar' }] : []),
+    ...(isStageUnlocked('refine') ? [{ href: '/projeto/refinar', icon: <Sparkles size={20} strokeWidth={1.5} />, label: 'Refinar' }] : []),
+    ...(isStageUnlocked('deliver') ? [{ href: '/projeto/ativar', icon: <Package size={20} strokeWidth={1.5} />, label: 'Ativar' }] : []),
     { href: '/brandbook', icon: <Sparkles size={20} strokeWidth={1.5} />, label: 'Brand Lab' },
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
@@ -363,6 +390,39 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               ) : (
                 <>
                   <NavItem href="/" icon={<Home size={18} strokeWidth={1.5} />} label="Meu Projeto" collapsed={isCollapsed} active={pathname === '/'} />
+                  
+                  <div className="flex items-center justify-center my-3 opacity-20">
+                    <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
+                  </div>
+                  
+                  {/* Stages unlock progressively based on idv_phase */}
+                  <NavItem 
+                    href="/projeto/descobrir" 
+                    icon={<Search size={18} strokeWidth={1.5} />} 
+                    label="Descobrir" 
+                    collapsed={isCollapsed} 
+                    active={pathname === '/projeto/descobrir'} 
+                  />
+                  
+                  {isStageUnlocked('define') && (
+                    <NavItem href="/projeto/direcionar" icon={<Compass size={18} strokeWidth={1.5} />} label="Direcionar" collapsed={isCollapsed} active={pathname === '/projeto/direcionar'} />
+                  )}
+                  
+                  {isStageUnlocked('develop') && (
+                    <NavItem href="/projeto/construir" icon={<Hammer size={18} strokeWidth={1.5} />} label="Construir" collapsed={isCollapsed} active={pathname === '/projeto/construir'} />
+                  )}
+                  
+                  {isStageUnlocked('present') && (
+                    <NavItem href="/projeto/revelar" icon={<Presentation size={18} strokeWidth={1.5} />} label="Revelar" collapsed={isCollapsed} active={pathname === '/projeto/revelar'} />
+                  )}
+                  
+                  {isStageUnlocked('refine') && (
+                    <NavItem href="/projeto/refinar" icon={<Sparkles size={18} strokeWidth={1.5} />} label="Refinar" collapsed={isCollapsed} active={pathname === '/projeto/refinar'} />
+                  )}
+                  
+                  {isStageUnlocked('deliver') && (
+                    <NavItem href="/projeto/ativar" icon={<Package size={18} strokeWidth={1.5} />} label="Ativar" collapsed={isCollapsed} active={pathname === '/projeto/ativar'} />
+                  )}
                                     
                 </>
               )}
