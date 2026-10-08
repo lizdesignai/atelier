@@ -146,7 +146,7 @@ export class TaskController {
       updates.status = finalStatus;
 
       // Update Database
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('tasks')
         .update(updates)
         .eq('id', id)
@@ -157,7 +157,41 @@ export class TaskController {
         `)
         .single();
         
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'PGRST116') {
+          try {
+            const { neon } = require('@neondatabase/serverless');
+            const rawSql = neon(process.env.POSTGRES_URL!);
+            
+            const setClauses = [];
+            const values = [];
+            let i = 1;
+            for (const [key, value] of Object.entries(updates)) {
+              if (value !== undefined) {
+                setClauses.push(`${key} = $${i}`);
+                values.push(Array.isArray(value) ? JSON.stringify(value) : value);
+                i++;
+              }
+            }
+            values.push(id);
+            
+            if (setClauses.length > 0) {
+              const query = `UPDATE tasks SET ${setClauses.join(', ')} WHERE id = $${i} RETURNING *`;
+              const resData = await (rawSql as any).query(query, values);
+              data = resData[0] || updates;
+              error = null;
+            } else {
+              data = updates;
+              error = null;
+            }
+          } catch (neonErr: any) {
+            console.error('Neon fallback failed for status update:', neonErr);
+            throw neonErr;
+          }
+        } else {
+          throw error;
+        }
+      }
 
       // Retorna resposta de sucesso imediatamente ao cliente
       res.status(200).json({ data });
@@ -289,16 +323,55 @@ export class TaskController {
         .from('tasks')
         .select('assigned_to')
         .eq('id', id)
-        .single();
+        .single(); // we'll catch the error below
         
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('tasks')
         .update(updates)
         .eq('id', id)
         .select('*, projects(profiles(nome), type, service_type), agency_subclients(name)')
         .single();
         
-      if (error) throw error;
+      if (error) {
+        if (error.code === 'PGRST116') {
+          // Fallback para Neon caso a tarefa não exista no Supabase antigo
+          try {
+            const { neon } = require('@neondatabase/serverless');
+            const rawSql = neon(process.env.POSTGRES_URL!);
+            
+            if (updates.deadline === '') updates.deadline = null;
+            if (updates.urgency === '') updates.urgency = null;
+            if (updates.assigned_to === 'none' || updates.assigned_to === '') updates.assigned_to = null;
+            
+            const setClauses = [];
+            const values = [];
+            let i = 1;
+            for (const [key, value] of Object.entries(updates)) {
+              if (value !== undefined) {
+                setClauses.push(`${key} = $${i}`);
+                values.push(Array.isArray(value) ? JSON.stringify(value) : value);
+                i++;
+              }
+            }
+            values.push(id);
+            
+            if (setClauses.length > 0) {
+              const query = `UPDATE tasks SET ${setClauses.join(', ')} WHERE id = $${i} RETURNING *`;
+              const resData = await (rawSql as any).query(query, values);
+              data = resData[0] || updates;
+              error = null;
+            } else {
+              data = updates;
+              error = null;
+            }
+          } catch (neonErr: any) {
+            console.error('Neon fallback failed:', neonErr);
+            throw neonErr;
+          }
+        } else {
+          throw error;
+        }
+      }
       
       // If assignment changed and is now assigned to someone, notify them
       if (updates.assigned_to && existingTask && existingTask.assigned_to !== updates.assigned_to) {
@@ -325,8 +398,8 @@ export class TaskController {
       await redis.del('analytics:dashboard').catch(() => {});
       return res.status(200).json({ data });
     } catch (error: any) {
-      console.error('Error updating task:', error.message);
-      return res.status(500).json({ error: 'Internal Server Error' });
+      console.error('Error updating task:', error);
+      return res.status(500).json({ error: error.message || 'Internal Server Error', details: error });
     }
   }
 

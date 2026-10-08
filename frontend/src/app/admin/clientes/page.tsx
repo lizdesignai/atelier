@@ -94,6 +94,7 @@ export default function BaseClientesPage() {
   // ESTADOS DO MÓDULO TRELLO
   const [isTrelloModalOpen, setIsTrelloModalOpen] = useState(false);
   const [activeTrelloEntity, setActiveTrelloEntity] = useState<any>(null);
+  const [accessPopupData, setAccessPopupData] = useState<{ email: string, pass: string, nome: string } | null>(null);
 
   useEffect(() => {
     if (isGlobalLoading) return;
@@ -1116,7 +1117,7 @@ export default function BaseClientesPage() {
                             className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)]"
                           />
                         </div>
-                        <p className="text-xs text-[var(--color-atelier-terracota)]/80 italic ml-1">O usuário será criado automaticamente com a senha padrão: Atelier2026!</p>
+                        <p className="text-xs text-[var(--color-atelier-terracota)]/80 italic ml-1">O usuário será criado com uma senha segura e aleatória. Use a opção "Enviar Acesso" para visualizar.</p>
                       </div>
                     )}
                   </div>

@@ -1,16 +1,12 @@
 "use client";
+import { ProjectAssetsManager } from '../../../components/admin/ProjectAssetsManager';
+
 ﻿import { AdminTerritoriesManager } from "../../../components/admin/AdminTerritoriesManager";
 // src/app/admin/projetos/page.tsx
 
 import { useState, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { 
-  UploadCloud, Lock, Unlock, 
-  Image as ImageIcon, Send, FileText, CheckCircle2,
-  Settings2, Plus, ChevronDown, Calendar,
-  Compass, X, Sparkles, Download, Loader2, Trash2, Archive, Eye, RotateCcw, BrainCircuit,
-  LayoutDashboard, Target, CalendarDays, MapPin, Camera, AlertCircle
-} from "lucide-react";
+import { UploadCloud, Lock, Unlock, Image as ImageIcon, Send, FileText, CheckCircle2, Settings2, Plus, ChevronDown, Calendar, Compass, X, Sparkles, Download, Loader2, Trash2, Archive, Eye, RotateCcw, BrainCircuit, LayoutDashboard, Target, CalendarDays, MapPin, Camera, AlertCircle, ArrowRight, FolderKanban } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { updateProjectAction } from "../../actions/projects";
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // Ã°Å¸Â§Â  INJEÃƒâ€¡ÃƒÆ’O DA MEMÃƒâ€œRIA GLOBAL
@@ -18,13 +14,13 @@ import RevealCeremonyAdmin from "../../../components/admin/RevealCeremonyAdmin";
 import DiaryModule from "../../../components/admin/DiaryModule";
 import { NotificationEngine } from "../../../lib/NotificationEngine"; // Ã°Å¸â€â€ INJEÃƒâ€¡ÃƒÆ’O DO MOTOR DE NOTIFICAÃƒâ€¡Ãƒâ€¢ES
 
-// IMPORTAÃƒâ€¡ÃƒÆ’O EXTERNA: Traz apenas o Motor de GestÃƒÂ£o de Instagram
+// IMPORTAÃƒâ€¡ÃƒÆ’O EXTERNA: Traz apenas o Motor de Gestão de Instagram
 import { GerenciamentoWorkspace as ImportWorkspace } from "../gerenciamento/page";
 
-// ImportaÃƒÂ§ÃƒÂ£o do nosso Motor de AutomaÃƒÂ§ÃƒÂ£o
+// Importação do nosso Motor de Automação
 import { AtelierPMEngine } from "../../../lib/AtelierPMEngine";
 
-// Novo Hook de TÃƒÂ­tulo DinÃƒÂ¢mico
+// Novo Hook de Título Dinâmico
 import { useDynamicTitle } from "../../../hooks/useDynamicTitle"; 
 
 // ============================================================================
@@ -50,20 +46,20 @@ const isIdvService = (project: any) => {
 };
 
 const SEMIOTICS_MAP: Record<string, { A: string, B: string }> = {
-  lighting: { A: "Luz Natural (Acolhedor)", B: "Luz Dura & Sombras (CinemÃƒÂ¡tico)" },
+  lighting: { A: "Luz Natural (Acolhedor)", B: "Luz Dura & Sombras (Cinemático)" },
   framing: { A: "Macro/Detalhe (Intimista)", B: "Plano Aberto (Operacional)" },
-  presence: { A: "Movimento Real (CÃƒÂ¢ndido)", B: "Retrato Posado (Autoridade)" },
-  temperature: { A: "Tons Quentes (TradiÃƒÂ§ÃƒÂ£o)", B: "Tons Frios (Hiper-modernidade)" },
-  composition: { A: "Caos Criativo (AssimÃƒÂ©trico)", B: "Rigor TÃƒÂ©cnico (Simetria)" },
-  setting: { A: "Urbano/Rua (VivÃƒÂªncia)", B: "Interior Polido (Isolamento/Luxo)" },
-  post_prod: { A: "GranulaÃƒÂ§ÃƒÂ£o/AnalÃƒÂ³gico (Verdade)", B: "Nitidez 4K (SofisticaÃƒÂ§ÃƒÂ£o)" },
-  negative_space: { A: "InformaÃƒÂ§ÃƒÂ£o Densa (Complexidade)", B: "EspaÃƒÂ§o Vazio (Minimalismo)" }
+  presence: { A: "Movimento Real (Cândido)", B: "Retrato Posado (Autoridade)" },
+  temperature: { A: "Tons Quentes (Tradição)", B: "Tons Frios (Hiper-modernidade)" },
+  composition: { A: "Caos Criativo (Assimétrico)", B: "Rigor Técnico (Simetria)" },
+  setting: { A: "Urbano/Rua (Vivência)", B: "Interior Polido (Isolamento/Luxo)" },
+  post_prod: { A: "Granulação/Analógico (Verdade)", B: "Nitidez 4K (Sofisticação)" },
+  negative_space: { A: "Informação Densa (Complexidade)", B: "Espaço Vazio (Minimalismo)" }
 };
 
 const VOICE_MAP: Record<string, string> = {
   A: "Oculto/Educativo",
   B: "Estrategista Frio/Soberano",
-  C: "ImplacÃƒÂ¡vel/Agressivo"
+  C: "Implacável/Agressivo"
 };
 
 function InfoBlock({ label, value }: { label: string, value: any }) {
@@ -127,7 +123,7 @@ function PainelIdentidade() {
   // Ã°Å¸Å¸Â¢ ESTADO DO MENU INSTAGRAM E AGÃƒÅ NCIAS
   const [activeTab, setActiveTab] = useState<'calendario' | 'posts' | 'identidade' | 'missoes'>('calendario');
 
-  // LÃƒÂ³gica de Subclientes para AgÃƒÂªncias B2B
+  // Lógica de Subclientes para Agências B2B
   const [agencySubclients, setAgencySubclients] = useState<any[]>([]);
   const [activeSubclientId, setActiveSubclientId] = useState<string | null>(null);
 
@@ -157,17 +153,17 @@ function PainelIdentidade() {
   const isIdv = isIdvService(currentProject); 
   const isAgency = currentProject?.isAgency === true;
 
-  // Tabs disponÃƒÂ­veis (Filtra 'identidade' se for agÃƒÂªncia)
+  // Tabs disponíveis (Filtra 'identidade' se for agência)
   const igTabs = [
-    { id: 'calendario', label: 'Analytics & CalendÃƒÂ¡rio', icon: <CalendarDays size={18} /> },
-    { id: 'posts', label: 'PeÃƒÂ§as GrÃƒÂ¡ficas', icon: <LayoutDashboard size={18} /> },
+    { id: 'calendario', label: 'Analytics & Calendário', icon: <CalendarDays size={18} /> },
+    { id: 'posts', label: 'Peças Gráficas', icon: <LayoutDashboard size={18} /> },
     { id: 'identidade', label: 'Diretrizes & Briefing', icon: <Target size={18} /> },
-    { id: 'missoes', label: 'SolicitaÃƒÂ§ÃƒÂµes e Arquivos', icon: <Camera size={18} /> },
+    { id: 'missoes', label: 'Solicitações e Arquivos', icon: <Camera size={18} /> },
   ].filter(tab => !(isAgency && tab.id === 'identidade'));
 
   useDynamicTitle({
     projectName: currentProject?.profiles?.nome,
-    tabName: isAgency ? "AgÃƒÂªncia B2B" : (isIdv ? "Identidade Visual" : "GestÃƒÂ£o de Projeto")
+    tabName: isAgency ? "Agência B2B" : (isIdv ? "Identidade Visual" : "Gestão de Projeto")
   });
 
   useEffect(() => {
@@ -278,7 +274,7 @@ function PainelIdentidade() {
 
   const handleReturnBriefing = async () => {
     if (!activeProjectId || !clientBriefing) return;
-    if (!window.confirm("Deseja solicitar uma revisÃƒÂ£o do briefing para o cliente? Ele precisarÃƒÂ¡ revisar e reenviar o documento.")) return;
+    if (!window.confirm("Deseja solicitar uma revisão do briefing para o cliente? Ele precisará revisar e reenviar o documento.")) return;
     
     setClientBriefing(null);
     setIsBriefingModalOpen(false);
@@ -288,15 +284,15 @@ function PainelIdentidade() {
       if (currentProject?.client_id) {
         await NotificationEngine.notifyUser(
           currentProject.client_id,
-          "Ã¢Å¡Â Ã¯Â¸Â Briefing Devolvido (RevisÃƒÂ£o NecessÃƒÂ¡ria)",
-          "A equipe analisou o seu Briefing e solicita mais profundidade nas respostas. Por favor, revise-o no Meu EspaÃƒÂ§o.",
+          "Ã¢Å¡Â Ã¯Â¸Â Briefing Devolvido (Revisão Necessária)",
+          "A equipe analisou o seu Briefing e solicita mais profundidade nas respostas. Por favor, revise-o no Meu Espaço.",
           "action",
           "/"
         );
       }
-      showToast("SolicitaÃƒÂ§ÃƒÂ£o de revisÃƒÂ£o enviada ao cliente.");
+      showToast("Solicitação de revisão enviada ao cliente.");
     } catch (e) {
-      showToast("Erro ao processar devoluÃƒÂ§ÃƒÂ£o de briefing.");
+      showToast("Erro ao processar devolução de briefing.");
     }
   };
 
@@ -310,14 +306,14 @@ function PainelIdentidade() {
         }
       }
     } catch (error) {
-      console.error("Erro na automaÃƒÂ§ÃƒÂ£o do DiÃƒÂ¡rio de Bordo:", error);
+      console.error("Erro na automação do Diário de Bordo:", error);
     }
   };
 
   const handleGenerateBriefingInsight = async () => {
     if (!activeProjectId || !clientBriefing) return;
     setIsGeneratingBriefingInsight(true);
-    showToast("Assistente EstratÃƒÂ©gico: Analisando o briefing...");
+    showToast("Assistente Estratégico: Analisando o briefing...");
     try {
       const res = await fetch('/api/insights/briefing', {
         method: 'POST',
@@ -336,15 +332,15 @@ function PainelIdentidade() {
       refreshGlobalData();
       
       await NotificationEngine.notifyManagement(
-        "Ã°Å¸Â§Â  Assistente EstratÃƒÂ©gico: AnÃƒÂ¡lise ConcluÃƒÂ­da",
-        `O relatÃƒÂ³rio de inteligÃƒÂªncia estratÃƒÂ©gica do cliente ${currentProject?.profiles?.nome} estÃƒÂ¡ pronto a ser consultado.`,
+        "Ã°Å¸Â§Â  Assistente Estratégico: Análise Concluída",
+        `O relatório de inteligência estratégica do cliente ${currentProject?.profiles?.nome} está pronto a ser consultado.`,
         "success",
         "/admin/projetos"
       );
 
-      showToast("AnÃƒÂ¡lise EstratÃƒÂ©gica gerada com sucesso! Ã¢Å“Â¨");
+      showToast("Análise Estratégica gerada com sucesso! Ã¢Å“Â¨");
     } catch (e) {
-      showToast("Erro ao processar anÃƒÂ¡lise da IA.");
+      showToast("Erro ao processar análise da IA.");
     } finally {
       setIsGeneratingBriefingInsight(false);
     }
@@ -353,7 +349,7 @@ function PainelIdentidade() {
   const handleGenerateCuradoriaInsight = async () => {
     if (!activeProjectId || adminRefs.length === 0) return;
     setIsGeneratingCuradoriaInsight(true);
-    showToast("Assistente de Design: Analisando direÃƒÂ§ÃƒÂµes visuais...");
+    showToast("Assistente de Design: Analisando direções visuais...");
     try {
       const res = await fetch('/api/insights/curadoria', {
         method: 'POST',
@@ -372,15 +368,15 @@ function PainelIdentidade() {
       refreshGlobalData(); 
       
       await NotificationEngine.notifyManagement(
-        "Ã°Å¸Å½Â¨ Assistente de Design: AnÃƒÂ¡lise ConcluÃƒÂ­da",
-        `O relatÃƒÂ³rio semiÃƒÂ³tico para o projeto de ${currentProject?.profiles?.nome} foi compilado.`,
+        "Ã°Å¸Å½Â¨ Assistente de Design: Análise Concluída",
+        `O relatório semiótico para o projeto de ${currentProject?.profiles?.nome} foi compilado.`,
         "success",
         "/admin/projetos"
       );
 
-      showToast("AnÃƒÂ¡lise Visual gerada com sucesso! Ã¢Å“Â¨");
+      showToast("Análise Visual gerada com sucesso! Ã¢Å“Â¨");
     } catch (e) {
-      showToast("Erro ao processar anÃƒÂ¡lise da IA.");
+      showToast("Erro ao processar análise da IA.");
     } finally {
       setIsGeneratingCuradoriaInsight(false);
     }
@@ -388,12 +384,12 @@ function PainelIdentidade() {
 
   const handleDownloadBriefingPDF = async () => {
     if (!clientBriefing) {
-      showToast("Erro: O conteÃƒÂºdo do Briefing ainda nÃƒÂ£o foi carregado.");
+      showToast("Erro: O conteúdo do Briefing ainda não foi carregado.");
       return;
     }
     
     setIsGeneratingPDF(true);
-    showToast("Gerando PDF EstratÃƒÂ©gico...");
+    showToast("Gerando PDF Estratégico...");
     
     try {
       const { pdf } = await import('@react-pdf/renderer');
@@ -409,9 +405,9 @@ function PainelIdentidade() {
       link.click();
       URL.revokeObjectURL(url);
 
-      showToast("PDF EstratÃƒÂ©gico exportado com sucesso!");
+      showToast("PDF Estratégico exportado com sucesso!");
     } catch (error) {
-      showToast("Erro crÃƒÂ­tico ao gerar o arquivo vetorial.");
+      showToast("Erro crítico ao gerar o arquivo vetorial.");
     } finally {
       setIsGeneratingPDF(false);
     }
@@ -466,7 +462,7 @@ function PainelIdentidade() {
     if (!file || !activeProjectId) return;
 
     setIsUploadingAsset(true);
-    showToast("Enviando arquivo para o espaÃƒÂ§o seguro...");
+    showToast("Enviando arquivo para o espaço seguro...");
 
     try {
       const fileExt = file.name.split('.').pop();
@@ -495,8 +491,8 @@ function PainelIdentidade() {
       if (currentProject?.client_id) {
         await NotificationEngine.notifyUser(
           currentProject.client_id,
-          "Ã°Å¸â€œÂ¦ Novo Material DisponÃƒÂ­vel",
-          `A equipe adicionou o arquivo final "${file.name}" ao seu espaÃƒÂ§o.`,
+          "Ã°Å¸â€œÂ¦ Novo Material Disponível",
+          `A equipe adicionou o arquivo final "${file.name}" ao seu espaço.`,
           "info",
           "/"
         );
@@ -547,8 +543,8 @@ function PainelIdentidade() {
       if (currentProject?.client_id) {
         await NotificationEngine.notifyUser(
           currentProject.client_id,
-          "Ã°Å¸â€œÅ“ Contrato DisponÃƒÂ­vel",
-          "A cÃƒÂ³pia digital do seu contrato assinado jÃƒÂ¡ estÃƒÂ¡ disponÃƒÂ­vel no seu espaÃƒÂ§o.",
+          "Ã°Å¸â€œÅ“ Contrato Disponível",
+          "A cópia digital do seu contrato assinado já está disponível no seu espaço.",
           "info",
           "/"
         );
@@ -602,21 +598,21 @@ function PainelIdentidade() {
 
   const handleMarkAsDelivered = async () => {
     if (!activeProjectId) return;
-    if (!window.confirm("Deseja marcar este projeto como ENTREGUE? O cliente terÃƒÂ¡ 15 dias de acesso ao painel antes do arquivamento.")) return;
+    if (!window.confirm("Deseja marcar este projeto como ENTREGUE? O cliente terá 15 dias de acesso ao painel antes do arquivamento.")) return;
 
     try {
       await updateProjectAction(activeProjectId, { status: 'delivered', delivered_at: new Date().toISOString() });
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(currentProject.client_id, "Ã°Å¸Å½â€° Projeto Entregue!", "VocÃƒÂª terÃƒÂ¡ 15 dias de acesso ao Meu EspaÃƒÂ§o para fazer o download final dos seus materiais.", "success", "/");
+        await NotificationEngine.notifyUser(currentProject.client_id, "Ã°Å¸Å½â€° Projeto Entregue!", "Você terá 15 dias de acesso ao Meu Espaço para fazer o download final dos seus materiais.", "success", "/");
       }
-      showToast("Projeto marcado como Entregue! A contagem regressiva de 15 dias comeÃƒÂ§ou.");
+      showToast("Projeto marcado como Entregue! A contagem regressiva de 15 dias começou.");
       refreshGlobalData();
     } catch (error) { showToast("Erro ao marcar projeto como entregue."); }
   };
 
   const handleForceArchive = async () => {
     if (!activeProjectId) return;
-    if (!window.confirm("ATENÃƒâ€¡ÃƒÆ’O: O cliente perderÃƒÂ¡ acesso IMEDIATO ao painel e canais deste projeto. Deseja prosseguir?")) return;
+    if (!window.confirm("ATENÃƒâ€¡ÃƒÆ’O: O cliente perderá acesso IMEDIATO ao painel e canais deste projeto. Deseja prosseguir?")) return;
 
     try {
       await updateProjectAction(activeProjectId, { status: 'archived' });
@@ -630,12 +626,12 @@ function PainelIdentidade() {
 
   const handleReactivateProject = async () => {
     if (!activeProjectId) return;
-    if (!window.confirm("Deseja REATIVAR este projeto? O cliente voltarÃƒÂ¡ a ter acesso total ao painel.")) return;
+    if (!window.confirm("Deseja REATIVAR este projeto? O cliente voltará a ter acesso total ao painel.")) return;
 
     try {
       await updateProjectAction(activeProjectId, { status: 'active', delivered_at: null });
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(currentProject.client_id, "Ã°Å¸â€â€œ OperaÃƒÂ§ÃƒÂ£o Reativada", "O seu projeto voltou a ficar ativo. VocÃƒÂª tem acesso total restaurado ao seu espaÃƒÂ§o.", "success", "/");
+        await NotificationEngine.notifyUser(currentProject.client_id, "Ã°Å¸â€â€œ Operação Reativada", "O seu projeto voltou a ficar ativo. Você tem acesso total restaurado ao seu espaço.", "success", "/");
       }
       showToast("Projeto Reativado com sucesso!");
       refreshGlobalData();
@@ -694,11 +690,11 @@ function PainelIdentidade() {
 
   const handleAddAdminRef = async () => {
     if (!newRefTitle || newRefImageFiles.length === 0 || !activeProjectId) {
-      showToast("Adicione um tÃƒÂ­tulo e pelo menos uma imagem.");
+      showToast("Adicione um título e pelo menos uma imagem.");
       return;
     }
     setIsSendingRef(true);
-    showToast("Enviando DireÃƒÂ§ÃƒÂµes Visuais para o cliente...");
+    showToast("Enviando Direções Visuais para o cliente...");
 
     try {
       const uploadPromises = newRefImageFiles.map(async (file) => {
@@ -728,27 +724,27 @@ function PainelIdentidade() {
       }
       
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(currentProject.client_id, "Ã°Å¸Â§Â­ Nova DireÃƒÂ§ÃƒÂ£o Visual (Moodboard)", "A equipe enviou referÃƒÂªncias e um novo caminho criativo para a sua marca. Analise e compartilhe a sua opiniÃƒÂ£o no Meu EspaÃƒÂ§o.", "action", "/");
+        await NotificationEngine.notifyUser(currentProject.client_id, "Ã°Å¸Â§Â­ Nova Direção Visual (Moodboard)", "A equipe enviou referências e um novo caminho criativo para a sua marca. Analise e compartilhe a sua opinião no Meu Espaço.", "action", "/");
       }
 
-      showToast("DireÃƒÂ§ÃƒÂ£o visual enviada com sucesso!");
+      showToast("Direção visual enviada com sucesso!");
       setNewRefTitle("");
       setNewRefImageFiles([]);
       setNewRefImagePreviews([]);
     } catch (error) {
-      showToast("Erro ao enviar DireÃƒÂ§ÃƒÂ£o Visual.");
+      showToast("Erro ao enviar Direção Visual.");
     } finally {
       setIsSendingRef(false);
     }
   };
 
   const removeAdminRef = async (id: string) => {
-    const confirm = window.confirm("Remover esta direÃƒÂ§ÃƒÂ£o visual permanentemente?");
+    const confirm = window.confirm("Remover esta direção visual permanentemente?");
     if (!confirm) return;
     setAdminRefs(adminRefs.filter(ref => ref.id !== id));
     setActiveEvalIndex(0); 
-    showToast("DireÃƒÂ§ÃƒÂ£o visual removida.");
-    try { await supabase.from('design_directions').delete().eq('id', id); } catch (error) { showToast("Erro ao excluir direÃƒÂ§ÃƒÂ£o no banco."); }
+    showToast("Direção visual removida.");
+    try { await supabase.from('design_directions').delete().eq('id', id); } catch (error) { showToast("Erro ao excluir direção no banco."); }
   };
 
   if (isGlobalLoading || isLocalLoading) {
@@ -778,16 +774,16 @@ function PainelIdentidade() {
               <div className="p-6 border-b border-white/40 flex justify-between items-center bg-white/60 backdrop-blur-xl shrink-0">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-white flex items-center justify-center border border-white shadow-inner"><FileText size={18} className="text-[var(--color-atelier-terracota)]" /></div>
-                  <span className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Briefing EstratÃƒÂ©gico</span>
+                  <span className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Briefing Estratégico</span>
                 </div>
                 <div className="flex items-center gap-3">
                   
                   <button onClick={handleReturnBriefing} disabled={!clientBriefing} className="bg-red-50 border border-red-200 text-red-600 px-4 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-red-500 hover:text-white transition-all shadow-sm disabled:opacity-50">
-                    <RotateCcw size={14} /> Solicitar RevisÃƒÂ£o
+                    <RotateCcw size={14} /> Solicitar Revisão
                   </button>
                   
                   <button onClick={handleGenerateBriefingInsight} disabled={isGeneratingBriefingInsight || !clientBriefing} className="bg-white border border-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-terracota)] px-4 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm disabled:opacity-50">
-                    {isGeneratingBriefingInsight ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Gerar AnÃƒÂ¡lise (IA)
+                    {isGeneratingBriefingInsight ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Gerar Análise (IA)
                   </button>
 
                   <button onClick={handleDownloadBriefingPDF} disabled={isGeneratingPDF || !clientBriefing} className="bg-[var(--color-atelier-grafite)] text-white px-5 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-md disabled:opacity-50 hover:-translate-y-0.5 disabled:hover:translate-y-0">
@@ -816,7 +812,7 @@ function PainelIdentidade() {
                       <div className="mb-10 bg-white/80 p-8 rounded-[2rem] border border-[var(--color-atelier-terracota)]/20 shadow-sm relative overflow-hidden">
                         <div className="absolute left-0 top-0 h-full w-1.5 bg-[var(--color-atelier-terracota)]"></div>
                         <h3 className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] mb-4 flex items-center gap-2">
-                          <Sparkles size={14}/> DiagnÃƒÂ³stico de Marca (Assistente IA)
+                          <Sparkles size={14}/> Diagnóstico de Marca (Assistente IA)
                         </h3>
                         <div className="font-roboto text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed whitespace-pre-wrap font-medium">
                            {briefingAiInsight}
@@ -828,7 +824,7 @@ function PainelIdentidade() {
                       <div>
                         <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">1. Dados & Contato</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <InfoBlock label="Nome do ResponsÃƒÂ¡vel" value={clientBriefing.nome} />
+                          <InfoBlock label="Nome do Responsável" value={clientBriefing.nome} />
                           <InfoBlock label="WhatsApp" value={clientBriefing.whatsapp} />
                           <InfoBlock label="E-mail de Contato" value={clientBriefing.email} />
                         </div>
@@ -840,36 +836,36 @@ function PainelIdentidade() {
                           <InfoBlock label="Nome a ser utilizado no Logotipo" value={clientBriefing.nome_logo} />
                           <InfoBlock label="Significado da Escolha do Nome" value={clientBriefing.significado_nome} />
                           <div className="grid grid-cols-2 gap-4">
-                            <InfoBlock label="Tagline (SubtÃƒÂ­tulo)" value={clientBriefing.tagline} />
+                            <InfoBlock label="Tagline (Subtítulo)" value={clientBriefing.tagline} />
                             <InfoBlock label="Slogan da Empresa" value={clientBriefing.slogan} />
                           </div>
-                          <InfoBlock label="Produtos ou ServiÃƒÂ§os Oferecidos" value={clientBriefing.produtos_servicos} />
+                          <InfoBlock label="Produtos ou Serviços Oferecidos" value={clientBriefing.produtos_servicos} />
                         </div>
                       </div>
 
                       <div>
-                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">3. EssÃƒÂªncia & HistÃƒÂ³ria</h3>
+                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">3. Essência & História</h3>
                         <div className="flex flex-col gap-4">
-                          <InfoBlock label="Por que a empresa foi aberta? Qual a motivaÃƒÂ§ÃƒÂ£o?" value={clientBriefing.motivo_abertura} />
-                          <InfoBlock label="PropÃƒÂ³sito principal alÃƒÂ©m de lucrar" value={clientBriefing.proposito} />
+                          <InfoBlock label="Por que a empresa foi aberta? Qual a motivação?" value={clientBriefing.motivo_abertura} />
+                          <InfoBlock label="Propósito principal além de lucrar" value={clientBriefing.proposito} />
                           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
                             <InfoBlock label="Tempo de Mercado" value={clientBriefing.tempo_mercado} />
                             <InfoBlock label="A Marca em Emojis" value={clientBriefing.emoji} />
-                            <InfoBlock label="MÃƒÂºsica que a define" value={clientBriefing.musica} />
+                            <InfoBlock label="Música que a define" value={clientBriefing.musica} />
                           </div>
                           <InfoBlock label="O Sentimento que a marca vende" value={clientBriefing.sentimento} />
-                          <InfoBlock label="VisÃƒÂ£o de Futuro (Em 5 Anos)" value={clientBriefing.visao_5_anos} />
+                          <InfoBlock label="Visão de Futuro (Em 5 Anos)" value={clientBriefing.visao_5_anos} />
                         </div>
                       </div>
 
                       <div>
-                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">4. PÃƒÂºblico Alvo</h3>
+                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">4. Público Alvo</h3>
                         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mb-4">
-                          <InfoBlock label="GÃƒÂªnero" value={clientBriefing.genero === 'Outro' ? clientBriefing.genero_outro : clientBriefing.genero} />
+                          <InfoBlock label="Gênero" value={clientBriefing.genero === 'Outro' ? clientBriefing.genero_outro : clientBriefing.genero} />
                           <InfoBlock label="Classe Social" value={clientBriefing.classe === 'Outro' ? clientBriefing.classe_outro : clientBriefing.classe} />
                           <InfoBlock label="Idade" value={clientBriefing.idade === 'Outro' ? clientBriefing.idade_outro : clientBriefing.idade} />
                         </div>
-                        <InfoBlock label="Resumo Comportamental do PÃƒÂºblico" value={clientBriefing.resumo_publico} />
+                        <InfoBlock label="Resumo Comportamental do Público" value={clientBriefing.resumo_publico} />
                       </div>
 
                       <div>
@@ -877,16 +873,16 @@ function PainelIdentidade() {
                         <div className="flex flex-col gap-4">
                           <InfoBlock label="Concorrentes Principais" value={clientBriefing.concorrentes_links} />
                           <InfoBlock label="Diferencial Competitivo" value={clientBriefing.diferencial} />
-                          <InfoBlock label="O que definitivamente NÃƒÆ’O fazer (VÃƒÂ­cios da concorrÃƒÂªncia)" value={clientBriefing.nao_fazer} />
-                          <InfoBlock label="ReferÃƒÂªncias Visuais do Cliente" value={clientBriefing.referencias} />
+                          <InfoBlock label="O que definitivamente NÃƒÆ’O fazer (Vícios da concorrência)" value={clientBriefing.nao_fazer} />
+                          <InfoBlock label="Referências Visuais do Cliente" value={clientBriefing.referencias} />
                         </div>
                       </div>
 
                       <div>
-                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">6. Personalidade e EstÃƒÂ©tica</h3>
+                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">6. Personalidade e Estética</h3>
                         <div className="flex flex-col gap-4">
                           <InfoBlock label="Sentimento Exigido da Marca" value={clientBriefing.sentimento_marca} />
-                          <InfoBlock label="A MissÃƒÂ£o Oficial" value={clientBriefing.missao} />
+                          <InfoBlock label="A Missão Oficial" value={clientBriefing.missao} />
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2 bg-white/60 p-6 rounded-3xl border border-white shadow-sm">
                             <div>
@@ -907,17 +903,17 @@ function PainelIdentidade() {
                       </div>
 
                       <div>
-                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">7. RestriÃƒÂ§ÃƒÂµes e DireÃƒÂ§ÃƒÂµes Visuais</h3>
+                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">7. Restrições e Direções Visuais</h3>
                         <div className="flex flex-col gap-4">
-                          <InfoBlock label="Pedido de SÃƒÂ­mbolo EspecÃƒÂ­fico" value={clientBriefing.simbolo} />
+                          <InfoBlock label="Pedido de Símbolo Específico" value={clientBriefing.simbolo} />
                           <div className="grid grid-cols-2 gap-4">
                             <InfoBlock label="Cores Desejadas" value={clientBriefing.cor_desejada} />
-                            <InfoBlock label="Cores Bloqueadas (NÃƒÂ£o usar)" value={clientBriefing.cor_nao_desejada} />
+                            <InfoBlock label="Cores Bloqueadas (Não usar)" value={clientBriefing.cor_nao_desejada} />
                           </div>
-                          <InfoBlock label="Onde a Identidade serÃƒÂ¡ mais aplicada?" value={clientBriefing.onde_verao} />
+                          <InfoBlock label="Onde a Identidade será mais aplicada?" value={clientBriefing.onde_verao} />
                           
                           <div className="mt-4 p-6 border border-white bg-white/40 rounded-3xl shadow-sm">
-                            <InfoBlock label="Sobre o Logotipo Atual (O que gosta/nÃƒÂ£o gosta)" value={clientBriefing.logo_atual} />
+                            <InfoBlock label="Sobre o Logotipo Atual (O que gosta/não gosta)" value={clientBriefing.logo_atual} />
                             {clientBriefing.logo_atual_url && (
                               <div className="mt-4">
                                 <p className="font-roboto text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/50 mb-2">Logotipo Antigo Anexado:</p>
@@ -929,10 +925,10 @@ function PainelIdentidade() {
                       </div>
 
                       <div>
-                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">8. ConsideraÃƒÂ§ÃƒÂµes Finais</h3>
+                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">8. Considerações Finais</h3>
                         <div className="flex flex-col gap-4">
                           <InfoBlock label="Por que escolheu a Liz Design?" value={clientBriefing.motivo_escolha} />
-                          <InfoBlock label="ObservaÃƒÂ§ÃƒÂµes e ExtensÃƒÂµes" value={clientBriefing.ideias_livres} />
+                          <InfoBlock label="Observações e Extensões" value={clientBriefing.ideias_livres} />
                         </div>
                       </div>
                     </div>
@@ -940,8 +936,8 @@ function PainelIdentidade() {
                 ) : (
                   <div className="flex flex-col items-center justify-center h-full opacity-50">
                     <FileText size={48} className="mb-4 text-[var(--color-atelier-grafite)]" />
-                    <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Briefing nÃƒÂ£o encontrado.</h2>
-                    <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/70 font-medium">O cliente ainda nÃƒÂ£o preencheu o formulÃƒÂ¡rio estratÃƒÂ©gico.</p>
+                    <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Briefing não encontrado.</h2>
+                    <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/70 font-medium">O cliente ainda não preencheu o formulário estratégico.</p>
                   </div>
                 )}
               </div>
@@ -1019,7 +1015,7 @@ function PainelIdentidade() {
                         onClick={() => { 
                           setActiveProjectId(p.id); 
                           setIsClientMenuOpen(false); 
-                          showToast(`Acessando espaÃƒÂ§o de ${p.profiles?.nome}...`); 
+                          showToast(`Acessando espaço de ${p.profiles?.nome}...`); 
                         }}
                         className={`px-4 py-3 flex items-center gap-3 cursor-pointer transition-colors ${p.id === activeProjectId ? 'bg-[var(--color-atelier-terracota)]/5' : 'hover:bg-white'}`}
                       >
@@ -1040,254 +1036,125 @@ function PainelIdentidade() {
             </AnimatePresence>
           </div>
         </div>
-
-        {/* Ã°Å¸Å¸Â¢ RENDERIZAÃƒâ€¡ÃƒÆ’O CONDICIONAL: BotÃƒÂµes IDV ou Menu Instagram / AgÃƒÂªncia */}
-        {isIdv && !isAgency ? (
-          <div className="flex gap-3 relative z-10 shrink-0">
-            <button onClick={() => setShowRefsPanel(true)} className="glass-panel bg-white/60 px-5 py-3 rounded-[1.2rem] font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-white transition-all flex items-center gap-2 shadow-sm border border-white hover:text-[var(--color-atelier-terracota)]">
-              <Compass size={14} /> ReferÃƒÂªncias Visuais
-            </button>
-            <button onClick={() => setShowTerritoriesPanel(true)} className="glass-panel bg-white/60 px-5 py-3 rounded-[1.2rem] font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-white transition-all flex items-center gap-2 shadow-sm border border-white hover:text-[var(--color-atelier-terracota)]">
-              <MapPin size={14} /> TerritÃ³rios Visuais
-            </button>
-            <button onClick={() => setIsBriefingModalOpen(true)} className="glass-panel bg-[var(--color-atelier-grafite)] px-5 py-3 rounded-[1.2rem] font-roboto text-[10px] font-bold uppercase tracking-widest text-white hover:bg-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2 shadow-sm border border-transparent hover:-translate-y-0.5">
-              <FileText size={14} /> Ver Briefing
-            </button>
-          </div>
-        ) : (
-          <div className="flex items-center gap-3 relative z-10 shrink-0">
-            
-            {/* Filtro de Subclientes se for AgÃƒÂªncia */}
-            {isAgency && agencySubclients.length > 0 && (
-              <div className="relative flex items-center h-12 bg-white/70 backdrop-blur-xl border border-white shadow-sm rounded-full px-4">
-                 <span className="font-roboto text-[10px] uppercase font-bold text-[var(--color-atelier-grafite)]/50 mr-2 border-r border-[var(--color-atelier-grafite)]/10 pr-2">Subcliente</span>
-                 <select
-                   value={activeSubclientId || ""}
-                   onChange={(e) => setActiveSubclientId(e.target.value)}
-                   className="bg-transparent font-roboto text-[12px] font-bold text-[var(--color-atelier-grafite)] outline-none cursor-pointer pr-2 appearance-none min-w-[120px]"
-                 >
-                   {agencySubclients.map(sub => (
-                     <option key={sub.id} value={sub.id}>{sub.name}</option>
-                   ))}
-                 </select>
-                 <ChevronDown size={14} className="text-[var(--color-atelier-terracota)] pointer-events-none absolute right-4" />
-              </div>
-            )}
-            {isAgency && agencySubclients.length === 0 && (
-              <div className="flex items-center h-12 bg-red-50 text-red-500 border border-red-100 shadow-sm rounded-full px-4 font-roboto text-[11px] font-bold uppercase tracking-widest">
-                 <AlertCircle size={14} className="mr-2"/> Sem Subclientes
-              </div>
-            )}
-
-            <div className="flex items-center gap-1.5 p-1.5 bg-white/70 backdrop-blur-xl border border-white shadow-sm rounded-full">
-              {igTabs.map(tab => {
-                const isActive = activeTab === tab.id;
-                return (
-                  <button 
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id as any)}
-                    className={`relative flex items-center justify-center rounded-full transition-all duration-500 overflow-hidden
-                      ${isActive 
-                        ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md h-9 px-5' 
-                        : 'bg-transparent text-[var(--color-atelier-grafite)]/50 hover:bg-white hover:text-[var(--color-atelier-grafite)] hover:shadow-sm w-9 h-9'
-                      }
-                    `}
-                    title={!isActive ? tab.label : undefined}
-                  >
-                    <div className="shrink-0 relative z-10 flex items-center justify-center">
-                      {tab.icon}
-                    </div>
-                    
-                    <AnimatePresence>
-                      {isActive && (
-                        <motion.div 
-                          initial={{ width: 0, opacity: 0, paddingLeft: 0 }}
-                          animate={{ width: "auto", opacity: 1, paddingLeft: 8 }}
-                          exit={{ width: 0, opacity: 0, paddingLeft: 0 }}
-                          className="font-roboto text-[11px] font-bold uppercase tracking-widest whitespace-nowrap z-10"
-                        >
-                          {tab.label}
-                        </motion.div>
-                      )}
-                    </AnimatePresence>
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-        )}
       </header>
 
-      {/* ==========================================
-          MESA DE TRABALHO DINÃƒâ€šMICA (IDV ou INSTAGRAM/B2B)
-          ========================================== */}
-      {isIdv && !isAgency ? (
-        <div className="flex flex-col lg:flex-row gap-6 flex-1 min-h-0 animate-[fadeInUp_0.8s_ease-out_0.2s_both] relative z-10">
+
+        {/* Ã°Å¸Å¸Â¢ RENDERIZAÃƒâ€¡ÃƒÆ’O CONDICIONAL: Botões IDV ou Menu Instagram / Agência */}
+        {isIdv && !isAgency ? (
+        <div className="flex flex-col gap-6 flex-1 min-h-0 animate-[fadeInUp_0.8s_ease-out_0.2s_both] relative z-10 w-full max-w-6xl mx-auto">
           
-          {/* 1. COLUNA ESQUERDA: ENGENHARIA DO PROJETO */}
-          <div className="w-full lg:w-1/3 flex flex-col h-auto lg:h-full shrink-0">
-            <div className="glass-panel p-8 rounded-[2.5rem] bg-white/40 flex flex-col border border-white h-full shadow-sm hover:shadow-md transition-shadow">
-              
-              <div className="flex justify-between items-center mb-8 pb-4 border-b border-[var(--color-atelier-grafite)]/10 shrink-0">
-                <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
-                  <Settings2 size={20} className="text-[var(--color-atelier-terracota)]" /> GestÃƒÂ£o do Projeto
-                </h3>
+          {/* HEADER DASHBOARD */}
+          <div className="glass-panel p-6 rounded-[2.5rem] bg-white/40 border border-white flex flex-col md:flex-row items-center justify-between gap-6 shadow-sm">
+             <div className="flex items-center gap-4">
+                <div className="w-14 h-14 rounded-full bg-[var(--color-atelier-rose)] flex items-center justify-center text-[var(--color-atelier-terracota)]">
+                  <FolderKanban size={24} />
+                </div>
+                <div>
+                   <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">{currentProject?.profiles?.nome || 'Projeto IDV'}</h2>
+                   <div className="flex items-center gap-3 mt-1">
+                      <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Fase Atual:</span>
+                      <span className="bg-white px-3 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] border border-[var(--color-atelier-terracota)]/20 shadow-sm">{currentProject?.idv_phase || currentProject?.fase || 'onboarding'}</span>
+                   </div>
+                </div>
+             </div>
+
+             <div className="flex items-center gap-6">
+                {/* Deadline */}
+                <div className="flex flex-col items-end">
+                   <label className="font-roboto text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-1 flex items-center gap-1"><Calendar size={10} /> Deadline</label>
+                   <input type="date" value={deadlineDate} onChange={(e) => handleDeadlineChange(e.target.value)} className="bg-white/80 px-4 py-2 rounded-xl text-[12px] text-[var(--color-atelier-grafite)] outline-none cursor-pointer font-bold border border-transparent focus:border-[var(--color-atelier-terracota)]/30 shadow-sm transition-colors" />
+                </div>
+                {/* Ações Rápidas de Status */}
                 <div className="flex items-center gap-2">
-                  {isCofreUnlocked ? (
-                    <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-green-600 bg-green-50 px-2 py-1 rounded-lg border border-green-200 shadow-sm"><Unlock size={12}/> Aberto</span>
-                  ) : (
-                    <span className="flex items-center gap-1 text-[10px] uppercase font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-lg border border-orange-200 shadow-sm"><Lock size={12}/> Fechado</span>
-                  )}
-                </div>
-              </div>
-              
-              <div className="flex flex-col gap-5 flex-1 overflow-y-auto custom-scrollbar pr-2 pb-2">
-                
-                {/* Box: Deadline */}
-                <div className="bg-white/60 border border-white p-5 rounded-[1.5rem] shadow-sm flex flex-col gap-3 group transition-all hover:bg-white">
-                   <div className="flex items-center justify-between w-full">
-                     <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2"><Calendar size={14} className="text-[var(--color-atelier-terracota)]" /> Deadline</label>
-                     <span className="font-elegant text-3xl text-[var(--color-atelier-terracota)] leading-none">{deadlineDate ? daysLeft : "-"} <span className="text-[10px] uppercase font-bold opacity-40 font-roboto">Dias</span></span>
-                   </div>
-                   <input type="date" value={deadlineDate} onChange={(e) => handleDeadlineChange(e.target.value)} className="w-full bg-white px-4 py-3 rounded-xl text-[13px] text-[var(--color-atelier-grafite)] outline-none cursor-pointer font-bold border border-transparent focus:border-[var(--color-atelier-terracota)]/30 shadow-sm transition-colors" />
-                </div>
-
-                {/* Box: Fase Atual */}
-                <div className="bg-white/60 border border-white p-5 rounded-[1.5rem] shadow-sm flex flex-col gap-3 group transition-all hover:bg-white">
-                   <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2"><Sparkles size={14} className="text-[var(--color-atelier-terracota)]" /> Fase Atual</label>
-                   <select value={currentProject?.fase || 'onboarding'} onChange={handleStageChange} className="w-full bg-white px-4 py-3 rounded-xl text-[13px] font-bold text-[var(--color-atelier-terracota)] outline-none cursor-pointer border border-transparent focus:border-[var(--color-atelier-terracota)]/30 shadow-sm transition-colors">
-                      <option value="onboarding">0. ONBOARDING (Ready Gate)</option>
-                      <option value="pesquisa">1. DISCOVER (ImersÃƒÂ£o)</option>
-                      <option value="direcionamento">2. DEFINE (DireÃƒÂ§ÃƒÂ£o Visual)</option>
-                      <option value="processo">3. DEVELOP (ConstruÃƒÂ§ÃƒÂ£o TÃƒÂ©cnica)</option>
-                      <option value="qa">4. QA (RevisÃƒÂ£o Criativa)</option>
-                      <option value="apresentacao">5. PRESENT (ApresentaÃƒÂ§ÃƒÂ£o Oficial)</option>
-                      <option value="client_review">Ã°Å¸â€â€™ GATE 2: Client Review (48h)</option>
-                      <option value="refinamento">6. REFINE (Ajustes Consolidados)</option>
-                      <option value="entrega">7. DELIVER (ExportaÃƒÂ§ÃƒÂ£o e Cofre)</option>
-                      <option value="ativacao">8. ACTIVATE (PÃƒÂ³s-Entrega)</option>
-                   </select>
-                </div>
-
-                
-                {/* Box: Ready Gate */}
-                <div className="bg-white/60 border border-white p-5 rounded-[1.5rem] shadow-sm flex flex-col gap-3 group transition-all hover:bg-white">
-                   <div className="flex justify-between items-center w-full">
-                     <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2"><Lock size={14} className="text-[var(--color-atelier-terracota)]" /> Ready Gate</label>
-                   </div>
-                   <div className="flex flex-col gap-2 mt-2">
-                     <div className="flex items-center gap-2 text-[11px] font-roboto font-bold text-[var(--color-atelier-grafite)]/70">
-                       <input type="checkbox" checked={currentProject?.ready_checklist?.contract || false} readOnly /> Contrato Assinado
-                     </div>
-                     <div className="flex items-center gap-2 text-[11px] font-roboto font-bold text-[var(--color-atelier-grafite)]/70">
-                       <input type="checkbox" checked={currentProject?.ready_checklist?.payment || false} readOnly /> Pagamento Confirmado
-                     </div>
-                     <div className="flex items-center gap-2 text-[11px] font-roboto font-bold text-[var(--color-atelier-grafite)]/70">
-                       <input type="checkbox" checked={currentProject?.ready_checklist?.briefing || false} readOnly /> Briefing Preenchido
-                     </div>
-                     <div className="flex items-center gap-2 text-[11px] font-roboto font-bold text-[var(--color-atelier-grafite)]/70">
-                       <input type="checkbox" checked={currentProject?.ready_checklist?.assets || false} readOnly /> Materiais Recebidos
-                     </div>
-                     <div className="flex items-center gap-2 text-[11px] font-roboto font-bold text-[var(--color-atelier-grafite)]/70">
-                       <input type="checkbox" checked={currentProject?.ready_checklist?.meeting_scheduled || false} readOnly /> ReuniÃƒÂ£o Agendada
-                     </div>
-                   </div>
-                </div>
-
-                {/* Box: Contrato */}
-                <div className="bg-white/60 border border-white p-5 rounded-[1.5rem] shadow-sm flex flex-col gap-3 group transition-all hover:bg-white">
-                   <div className="flex justify-between items-center w-full">
-                     <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2"><FileText size={14} className="text-[var(--color-atelier-terracota)]" /> Contrato</label>
-                     {contractUrl && <CheckCircle2 size={14} className="text-green-500" />}
-                   </div>
-                   
-                   {!contractUrl ? (
-                      <label className="w-full bg-white/50 hover:bg-white border-2 border-dashed border-[var(--color-atelier-grafite)]/20 hover:border-[var(--color-atelier-terracota)]/40 rounded-xl px-4 py-4 flex items-center justify-center gap-2 cursor-pointer transition-colors group/upload shadow-sm">
-                        <input type="file" accept=".pdf" className="hidden" onChange={handleContractUpload} disabled={isUploadingContract} />
-                        {isUploadingContract ? <Loader2 size={16} className="animate-spin text-[var(--color-atelier-terracota)]" /> : <UploadCloud size={16} className="text-[var(--color-atelier-grafite)]/40 group-hover/upload:text-[var(--color-atelier-terracota)] transition-colors" />}
-                        <span className="font-roboto text-[11px] font-bold text-[var(--color-atelier-grafite)]/60 group-hover/upload:text-[var(--color-atelier-terracota)] transition-colors">{isUploadingContract ? "Processando..." : "Anexar Assinado (PDF)"}</span>
-                      </label>
+                   {currentProject.status === 'archived' ? (
+                     <button onClick={handleReactivateProject} className="w-10 h-10 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center hover:bg-blue-600 hover:text-white transition-all shadow-sm" title="Reativar"><RotateCcw size={16} /></button>
+                   ) : currentProject.status === 'delivered' ? (
+                     <button onClick={handleForceArchive} className="w-10 h-10 bg-orange-50 text-orange-600 rounded-full flex items-center justify-center hover:bg-orange-600 hover:text-white transition-all shadow-sm" title="Arquivar"><Archive size={16} /></button>
                    ) : (
-                      <div className="flex w-full gap-2">
-                        <button onClick={() => window.open(contractUrl, "_blank")} className="flex-1 bg-white border border-transparent shadow-sm rounded-xl py-3 flex items-center justify-center gap-2 hover:border-[var(--color-atelier-terracota)]/30 transition-colors"><Eye size={14} className="text-[var(--color-atelier-terracota)]" /><span className="font-roboto text-[11px] font-bold">Visualizar</span></button>
-                        <button onClick={() => { if(window.confirm("Deseja substituir este contrato?")) setContractUrl("") }} className="w-12 rounded-xl bg-white border border-transparent shadow-sm text-[var(--color-atelier-grafite)]/40 flex items-center justify-center hover:bg-red-50 hover:text-red-500 transition-colors"><X size={14}/></button>
-                      </div>
+                     <button onClick={handleMarkAsDelivered} className="w-10 h-10 bg-green-50 text-green-600 rounded-full flex items-center justify-center hover:bg-green-600 hover:text-white transition-all shadow-sm" title="Entregar"><CheckCircle2 size={16} /></button>
                    )}
+                   <button onClick={() => { setIsForceUnlocked(true); showToast("Acesso desbloqueado manualmente."); }} disabled={isCofreUnlocked} className="w-10 h-10 bg-[var(--color-atelier-grafite)]/5 text-[var(--color-atelier-grafite)] rounded-full flex items-center justify-center hover:bg-[var(--color-atelier-grafite)] hover:text-white disabled:opacity-30 transition-all shadow-sm" title="Liberar Acesso">
+                      {isCofreUnlocked ? <Unlock size={16} className="text-green-600" /> : <Lock size={16} />}
+                   </button>
                 </div>
+             </div>
+          </div>
 
-                                <RevealCeremonyAdmin project={currentProject} onUpdate={refreshGlobalData} />
+          {/* MAIN ACTIONS GRID */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+             
+             {/* 1. Briefing */}
+             <button onClick={() => setIsBriefingModalOpen(true)} className="glass-panel p-6 rounded-[2rem] bg-white/40 flex flex-col items-center justify-center text-center gap-4 border border-white shadow-sm hover:shadow-md hover:bg-white/80 transition-all group">
+               <div className="w-16 h-16 rounded-full bg-[var(--color-atelier-grafite)]/5 flex items-center justify-center text-[var(--color-atelier-grafite)] group-hover:scale-110 transition-transform">
+                 <FileText size={24} />
+               </div>
+               <div>
+                 <h4 className="font-elegant text-xl text-[var(--color-atelier-grafite)]">Briefing</h4>
+                 <p className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Ler & Ajustar</p>
+               </div>
+             </button>
+
+             {/* 2. Direcionar */}
+             <button onClick={() => setShowTerritoriesPanel(true)} className="glass-panel p-6 rounded-[2rem] bg-white/40 flex flex-col items-center justify-center text-center gap-4 border border-white shadow-sm hover:shadow-md hover:bg-white/80 transition-all group">
+               <div className="w-16 h-16 rounded-full bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-terracota)]/20 flex items-center justify-center text-[var(--color-atelier-terracota)] group-hover:scale-110 transition-transform">
+                 <Compass size={24} />
+               </div>
+               <div>
+                 <h4 className="font-elegant text-xl text-[var(--color-atelier-grafite)]">Direcionar</h4>
+                 <p className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Moodboards & Conceitos</p>
+               </div>
+             </button>
+
+             {/* 3. Materiais Finais */}
+             <ProjectAssetsManager projectId={activeProjectId} />
+
+             {/* 4. Enviar (Gerar Trilha) */}
+             <button onClick={handleGenerateIDVTasks} disabled={isGeneratingIDVTasks} className="glass-panel p-6 rounded-[2rem] bg-[var(--color-atelier-terracota)] flex flex-col items-center justify-center text-center gap-4 border border-[var(--color-atelier-terracota)]/20 shadow-md hover:shadow-xl hover:-translate-y-1 transition-all group disabled:opacity-70 disabled:hover:translate-y-0">
+               <div className="w-16 h-16 rounded-full bg-white/10 flex items-center justify-center text-white group-hover:scale-110 transition-transform">
+                 {isGeneratingIDVTasks ? <Loader2 size={24} className="animate-spin" /> : <ArrowRight size={24} />}
+               </div>
+               <div>
+                 <h4 className="font-elegant text-xl text-white">Enviar</h4>
+                 <p className="font-roboto text-[10px] text-white/70 uppercase tracking-widest font-bold mt-1">Propagar Etapa</p>
+               </div>
+             </button>
+
+          </div>
+
+          {/* SECONDARY ROW (Revelação & Contrato) */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+             {/* Revelação */}
+             <div className="glass-panel p-8 rounded-[2.5rem] bg-white/40 border border-white shadow-sm flex flex-col justify-center">
+                <RevealCeremonyAdmin project={currentProject} onUpdate={refreshGlobalData} />
+             </div>
+
+             {/* Contrato e Financeiro */}
+             <div className="glass-panel p-8 rounded-[2.5rem] bg-white/40 border border-white shadow-sm flex flex-col justify-center">
+                <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] mb-6 flex items-center gap-2">
+                  <FileText size={20} className="text-[var(--color-atelier-terracota)]" /> Documentos do Projeto
+                </h3>
                 
-                {/* BotÃƒÂµes de AÃƒÂ§ÃƒÂ£o RÃƒÂ¡pida */}
-                <button onClick={handleGenerateIDVTasks} disabled={isGeneratingIDVTasks} className="w-full bg-[var(--color-atelier-rose)] text-[var(--color-atelier-terracota)] rounded-[1.2rem] py-3 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all flex items-center justify-center gap-2 shadow-sm mb-2 border border-[var(--color-atelier-terracota)]/20">
-                  {isGeneratingIDVTasks ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} 
-                  Gerar Trilha da Marca (AIDV)
-                </button>
-                <div className="mt-4 grid grid-cols-2 gap-3 pt-6 border-t border-[var(--color-atelier-grafite)]/10 shrink-0">
-                  {currentProject.status === 'archived' ? (
-                     <button onClick={handleReactivateProject} className="bg-blue-600 text-white rounded-[1.2rem] py-3.5 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-blue-700 transition-all flex items-center justify-center gap-2 shadow-sm hover:-translate-y-0.5"><RotateCcw size={14} /> Reativar</button>
-                  ) : currentProject.status === 'delivered' ? (
-                     <button onClick={handleForceArchive} className="bg-orange-600 text-white rounded-[1.2rem] py-3.5 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-orange-700 transition-all flex items-center justify-center gap-2 shadow-sm hover:-translate-y-0.5"><Archive size={14} /> Arquivar</button>
-                  ) : (
-                     <button onClick={handleMarkAsDelivered} className="bg-green-600 text-white rounded-[1.2rem] py-3.5 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-green-700 transition-all flex items-center justify-center gap-2 shadow-sm hover:-translate-y-0.5"><CheckCircle2 size={14} /> Entregar</button>
-                  )}
-                  <button onClick={() => { setIsForceUnlocked(true); showToast("Acesso desbloqueado manualmente."); }} disabled={isCofreUnlocked} className="bg-[var(--color-atelier-grafite)] text-white rounded-[1.2rem] py-3.5 font-bold uppercase tracking-[0.1em] text-[9px] hover:bg-[var(--color-atelier-terracota)] transition-all disabled:opacity-50 flex items-center justify-center gap-2 shadow-sm hover:-translate-y-0.5 disabled:hover:translate-y-0"><Unlock size={14} /> Liberar Acesso</button>
-                </div>
-
-              </div>
-            </div>
-          </div>
-
-          {/* 2. COLUNA DO MEIO: MATERIAIS FINAIS / ATIVOS */}
-          <div className="w-full lg:w-1/3 flex flex-col h-[500px] lg:h-full shrink-0">
-            <div className="glass-panel p-8 rounded-[2.5rem] bg-white/40 flex flex-col border border-white h-full shadow-sm hover:shadow-md transition-shadow">
-              <div className="flex flex-col mb-6 shrink-0 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
-                <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><UploadCloud size={20} className="text-[var(--color-atelier-terracota)]" /> Materiais Finais</h3>
-                <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 mt-1 uppercase tracking-widest font-bold">Arquivos disponibilizados para o cliente no fim do projeto.</p>
-              </div>
-              
-              <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-4 pr-2">
-                <label className="w-full bg-white/60 hover:bg-white border-2 border-dashed border-[var(--color-atelier-terracota)]/20 hover:border-[var(--color-atelier-terracota)]/50 rounded-[1.5rem] p-8 flex flex-col items-center justify-center group cursor-pointer transition-all shrink-0 shadow-sm">
-                  <input type="file" onChange={handleAssetUpload} disabled={isUploadingAsset} className="hidden" />
-                  <div className="w-14 h-14 rounded-[1rem] bg-white border border-white shadow-inner flex items-center justify-center text-[var(--color-atelier-terracota)] mb-3 group-hover:scale-110 transition-transform">
-                    {isUploadingAsset ? <Loader2 size={24} className="animate-spin" /> : <Plus size={24} />}
-                  </div>
-                  <span className="block font-roboto font-bold text-[11px] text-[var(--color-atelier-grafite)] uppercase tracking-widest">{isUploadingAsset ? "Processando..." : "Adicionar Arquivo"}</span>
-                </label>
-
-                <AnimatePresence>
-                  {projectAssets.map(asset => (
-                    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95 }} key={asset.id} className="bg-white border border-[var(--color-atelier-grafite)]/5 rounded-[1.2rem] p-5 flex flex-col items-start shadow-sm hover:shadow-md hover:border-[var(--color-atelier-terracota)]/30 transition-all group shrink-0 relative overflow-hidden">
-                      <div className="absolute top-0 left-0 w-1.5 h-full bg-[var(--color-atelier-terracota)]/50"></div>
-                      <div className="flex items-center gap-3 overflow-hidden w-full mb-3 pl-2">
-                        <div className="w-10 h-10 rounded-xl bg-[var(--color-atelier-terracota)]/10 flex items-center justify-center text-[var(--color-atelier-terracota)] shrink-0 shadow-inner"><FileText size={16} /></div>
-                        <a href={asset.file_url} target="_blank" rel="noreferrer" className="block font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] hover:text-[var(--color-atelier-terracota)] transition-colors truncate leading-tight pr-2 w-full">{asset.file_name}</a>
+                 {!contractUrl ? (
+                    <label className="w-full h-full min-h-[100px] bg-white/60 hover:bg-white border-2 border-dashed border-[var(--color-atelier-grafite)]/20 rounded-[1.5rem] p-6 flex flex-col items-center justify-center cursor-pointer transition-all shadow-sm group">
+                      <input type="file" onChange={handleContractUpload} disabled={isUploadingContract} className="hidden" />
+                      {isUploadingContract ? <Loader2 size={24} className="animate-spin text-[var(--color-atelier-grafite)]/50" /> : <UploadCloud size={24} className="text-[var(--color-atelier-terracota)] mb-3 group-hover:scale-110 transition-transform" />}
+                      <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60">{isUploadingContract ? "Enviando..." : "Anexar Contrato Assinado (PDF)"}</span>
+                    </label>
+                 ) : (
+                    <div className="w-full bg-green-50 border border-green-200 p-6 rounded-[1.5rem] flex flex-col items-center justify-center gap-4 shadow-sm">
+                      <div className="w-12 h-12 rounded-full bg-green-100 flex items-center justify-center text-green-600"><CheckCircle2 size={24}/></div>
+                      <span className="font-roboto text-[12px] font-bold uppercase tracking-widest text-green-700">Contrato Vigente Anexado</span>
+                      <div className="flex gap-2 w-full mt-2">
+                        <a href={contractUrl} target="_blank" rel="noreferrer" className="flex-1 bg-white border border-green-200 text-green-700 py-3 rounded-xl text-[11px] font-bold uppercase tracking-widest text-center hover:bg-green-100 transition-colors">Visualizar</a>
+                        <button onClick={() => { if(window.confirm("Substituir contrato?")) setContractUrl("") }} className="px-5 rounded-xl bg-white border border-red-100 text-red-500 hover:bg-red-50 transition-colors text-[11px] font-bold uppercase tracking-widest">Remover</button>
                       </div>
-                      <div className="flex justify-between items-center w-full pl-2">
-                        <span className="block font-roboto text-[9px] text-[var(--color-atelier-grafite)]/40 font-bold uppercase tracking-widest bg-gray-50 px-2 py-1 rounded-md">{asset.file_size}</span>
-                        <button onClick={() => handleRemoveAsset(asset.id)} className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/30 hover:text-red-500 flex items-center gap-1 transition-colors shrink-0 bg-white border border-transparent hover:border-red-100 hover:bg-red-50 p-1.5 rounded-lg"><Trash2 size={12} /> Excluir</button>
-                      </div>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-                {projectAssets.length === 0 && !isUploadingAsset && (
-                  <div className="text-center p-6 text-[var(--color-atelier-grafite)]/30 font-roboto text-[11px] uppercase tracking-widest font-bold h-full flex flex-col items-center justify-center gap-3 opacity-60 bg-white/20 rounded-[1.5rem]">
-                    <UploadCloud size={32}/> Nenhum arquivo anexado.
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* 3. COLUNA DIREITA: DIÃƒÂRIO (MÃƒâ€œDULO EXTRAÃƒÂDO) */}
-          <div className="w-full lg:w-1/3 h-[500px] lg:h-full shrink-0">
-              <DiaryModule 
-                 activeProjectId={activeProjectId} 
-                 currentProject={currentProject} 
-                 onActivity={handleDiaryActivity} 
-              />
+                    </div>
+                 )}
+             </div>
           </div>
 
         </div>
+
       ) : (
         <div className="flex-1 flex flex-col min-h-0 animate-[fadeInUp_0.8s_ease-out_0.2s_both] relative z-10">
           <GerenciamentoWorkspace activeProjectId={activeProjectId} activeSubclientId={activeSubclientId} currentProject={currentProject} activeTab={activeTab} />
@@ -1309,7 +1176,7 @@ function PainelIdentidade() {
             >
               <div className="p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 backdrop-blur-xl flex justify-between items-start shrink-0 z-20">
                 <div>
-                  <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-3">Painel de TerritÃ³rios</h2>
+                  <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-3"><Compass size={24} className="text-[var(--color-atelier-terracota)]" /> Painel de Direcionar (Moodboards)</h2>
                   <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-2">
                     Projeto: {currentProject?.profiles?.nome}
                   </p>
@@ -1328,180 +1195,7 @@ function PainelIdentidade() {
         )}
       </AnimatePresence>
 
-      {/* ==========================================
-          PAINEL DESLIZANTE (CURADORIA VISUAL)
-          ========================================== */}
-      <AnimatePresence>
-        {isIdv && showRefsPanel && (
-          <div className="fixed inset-0 z-[100] flex justify-end">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setShowRefsPanel(false)} className="absolute inset-0 bg-[var(--color-atelier-grafite)]/40 backdrop-blur-md cursor-pointer"></motion.div>
-            
-            <motion.div
-              initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="relative w-full max-w-[850px] h-full bg-[var(--color-atelier-creme)] shadow-[-20px_0_50px_rgba(122,116,112,0.2)] flex flex-col border-l border-white overflow-hidden"
-            >
-              <div className="p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 backdrop-blur-xl flex justify-between items-start shrink-0 z-20">
-                <div>
-                  <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-3">AvaliaÃƒÂ§ÃƒÂµes do Cliente</h2>
-                  <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-2">
-                    Projeto: {currentProject?.profiles?.nome} Ã¢â‚¬Â¢ {adminRefs.length} DireÃƒÂ§ÃƒÂµes
-                  </p>
-                </div>
-                <div className="flex gap-3">
-
-                  {/* BOTÃƒÆ’O DE CÃƒâ€°REBRO DA IA DA CURADORIA */}
-                  <button onClick={handleGenerateCuradoriaInsight} disabled={isGeneratingCuradoriaInsight || adminRefs.length === 0} className="bg-white border border-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-terracota)] px-4 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:border-[var(--color-atelier-terracota)] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm disabled:opacity-50">
-                    {isGeneratingCuradoriaInsight ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Analisar com IA
-                  </button>
-
-                  <button onClick={handleDownloadCuradoriaPDF} disabled={isGeneratingCuradoriaPDF || adminRefs.length === 0} className="bg-[var(--color-atelier-grafite)] border border-transparent text-white px-5 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-atelier-terracota)] transition-all shadow-md disabled:opacity-50">
-                    {isGeneratingCuradoriaPDF ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} PDF Curadoria
-                  </button>
-
-                  <button onClick={() => setShowRefsPanel(false)} className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-red-500 transition-all shadow-sm border border-white">
-                    <X size={18} />
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-8 gap-8 relative z-10">
-                
-                {/* ExibiÃƒÂ§ÃƒÂ£o em Tempo Real do Insight da IA da Curadoria */}
-                {curadoriaAiInsight && (
-                  <div className="mb-4 bg-white/80 p-8 rounded-[2rem] border border-[var(--color-atelier-terracota)]/20 shadow-sm relative overflow-hidden">
-                    <div className="absolute left-0 top-0 h-full w-1.5 bg-[var(--color-atelier-terracota)]"></div>
-                    <h3 className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] mb-4 flex items-center gap-2">
-                      <Sparkles size={14}/> AnÃƒÂ¡lise SemiÃƒÂ³tica (DireÃƒÂ§ÃƒÂ£o de Arte)
-                    </h3>
-                    <div className="font-roboto text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed whitespace-pre-wrap font-medium">
-                        {curadoriaAiInsight}
-                    </div>
-                  </div>
-                )}
-
-                <section className="pb-8 border-b border-[var(--color-atelier-grafite)]/5">
-                  <div className="flex items-center gap-2 mb-6 pb-2 border-b border-[var(--color-atelier-grafite)]/5">
-                    <ImageIcon size={16} className="text-[var(--color-atelier-terracota)]" />
-                    <h3 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Moodboard do Cliente</h3>
-                  </div>
-                  {clientMoodboard.length === 0 ? (
-                    <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 italic font-medium">O cliente ainda nÃƒÂ£o adicionou referÃƒÂªncias ao Brandbook.</p>
-                  ) : (
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                      {clientMoodboard.map((img, i) => (
-                        <div key={i} className="aspect-square rounded-2xl overflow-hidden border-4 border-white shadow-sm group relative">
-                          <img src={img} onClick={() => window.open(img, "_blank")} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-pointer" alt="Ref Cliente" />
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </section>
-
-                <section>
-                  <div className="flex items-center gap-2 mb-6 pb-2 border-b border-[var(--color-atelier-grafite)]/5">
-                    <Sparkles size={16} className="text-[var(--color-atelier-terracota)]" />
-                    <h3 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">DireÃƒÂ§ÃƒÂµes Enviadas e AvaliaÃƒÂ§ÃƒÂµes</h3>
-                  </div>
-                  
-                  {adminRefs.length === 0 ? (
-                    <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 italic mb-6 font-medium">Nenhuma direÃƒÂ§ÃƒÂ£o visual enviada ainda.</p>
-                  ) : (
-                    <>
-                      <div className="flex overflow-x-auto custom-scrollbar gap-3 pb-4 shrink-0 -mx-2 px-2">
-                        {adminRefs.map((ref, index) => {
-                          const coverImage = ref.image_urls && ref.image_urls.length > 0 ? ref.image_urls[0] : ref.image_url;
-                          return (
-                            <button key={ref.id} onClick={() => setActiveEvalIndex(index)} className={`shrink-0 w-36 flex flex-col gap-3 p-3 rounded-[1.2rem] border transition-all cursor-pointer text-left ${activeEvalIndex === index ? 'bg-white border-[var(--color-atelier-terracota)]/40 shadow-md scale-[1.02]' : 'bg-white/50 border-transparent hover:bg-white/80'}`}>
-                              <div className="w-full h-20 rounded-xl overflow-hidden border border-white shadow-inner"><img src={coverImage} className="w-full h-full object-cover" alt={ref.title} /></div>
-                              <span className={`font-roboto text-[10px] uppercase tracking-widest font-bold truncate w-full pl-1 ${activeEvalIndex === index ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/60'}`}>{ref.title}</span>
-                            </button>
-                          )
-                        })}
-                      </div>
-
-                      {adminRefs[activeEvalIndex] && (
-                        <motion.div key={activeEvalIndex} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-6 mt-4">
-                          <div className="flex gap-6 items-start glass-panel bg-white/60 p-8 rounded-[2rem] border border-white shadow-sm flex-col">
-                            
-                            <div className="flex justify-between w-full items-start">
-                              <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-1">{adminRefs[activeEvalIndex].title}</h3>
-                              <div className="flex items-center gap-2">
-                                <span className={`border px-5 py-2 rounded-[1rem] text-[11px] uppercase tracking-widest font-bold font-roboto shadow-sm ${adminRefs[activeEvalIndex].score > 0 ? 'bg-[var(--color-atelier-terracota)] text-white border-transparent' : 'bg-white text-[var(--color-atelier-grafite)]/40 border-white'}`}>
-                                  {adminRefs[activeEvalIndex].score > 0 ? `Nota: ${adminRefs[activeEvalIndex].score}/10` : 'AvaliaÃƒÂ§ÃƒÂ£o Pendente'}
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 w-full">
-                              {(adminRefs[activeEvalIndex].image_urls && adminRefs[activeEvalIndex].image_urls.length > 0 
-                                  ? adminRefs[activeEvalIndex].image_urls 
-                                  : [adminRefs[activeEvalIndex].image_url]
-                               ).map((imgUrl: string, idx: number) => (
-                                <div key={idx} className="w-full aspect-square rounded-[1.2rem] overflow-hidden border-4 border-white shadow-sm cursor-pointer" onClick={() => window.open(imgUrl, "_blank")}>
-                                  <img src={imgUrl} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" alt="" />
-                                </div>
-                              ))}
-                            </div>
-
-                            <div className="flex flex-col pt-4 flex-1 w-full">
-                              <div className="flex flex-col gap-4 w-full bg-white/80 p-6 rounded-3xl mb-4 border border-white shadow-sm">
-                                <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] border-b border-[var(--color-atelier-grafite)]/5 pb-2">Feedback do Cliente (Matriz)</span>
-                                <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Atmosfera:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q1 || "NÃƒÂ£o respondido."}</span></p>
-                                <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Tipografia:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q2 || "NÃƒÂ£o respondido."}</span></p>
-                                <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Cores:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q3 || "NÃƒÂ£o respondido."}</span></p>
-                                <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Elementos:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q4 || "NÃƒÂ£o respondido."}</span></p>
-                              </div>
-
-                              <button onClick={() => removeAdminRef(adminRefs[activeEvalIndex].id)} className="self-end px-4 py-2 bg-white border border-transparent hover:border-red-100 hover:bg-red-50 rounded-xl text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-600 transition-colors flex items-center gap-1 shadow-sm"><X size={12} /> Excluir DireÃƒÂ§ÃƒÂ£o</button>
-                            </div>
-                          </div>
-                        </motion.div>
-                      )}
-                    </>
-                  )}
-                </section>
-
-                <div className="mt-2 border-t border-[var(--color-atelier-grafite)]/10 pt-8">
-                  <div className="flex items-center gap-2 mb-6">
-                    <div className="w-8 h-8 rounded-full bg-[var(--color-atelier-terracota)] text-white flex items-center justify-center shadow-md"><Plus size={14} strokeWidth={3} /></div>
-                    <h3 className="font-roboto text-[13px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Nova DireÃƒÂ§ÃƒÂ£o Visual</h3>
-                  </div>
-                  <div className="bg-white/80 p-8 rounded-[2rem] border border-white shadow-sm">
-                    <div className="flex flex-col gap-5">
-                       <label className="w-full min-h-[120px] rounded-2xl border-2 border-dashed border-[var(--color-atelier-terracota)]/20 hover:border-[var(--color-atelier-terracota)]/50 bg-white/50 cursor-pointer flex flex-col items-center justify-center transition-colors group relative p-6">
-                         <input type="file" accept="image/*" multiple className="hidden" onChange={handleMultiImageUploadRef} disabled={isSendingRef} />
-                         
-                         {newRefImagePreviews.length > 0 ? (
-                           <div className="flex flex-wrap gap-4 justify-center w-full relative z-20">
-                             {newRefImagePreviews.map((preview, i) => (
-                               <div key={i} className="w-24 h-24 rounded-xl overflow-hidden relative shadow-sm border-2 border-white">
-                                 <img src={preview} alt="Preview" className="w-full h-full object-cover" />
-                                 <button type="button" onClick={(e) => { e.preventDefault(); handleRemoveRefImage(i); }} className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500/90 backdrop-blur-md rounded-full text-white flex items-center justify-center hover:scale-110 shadow-sm border border-white/20"><X size={12}/></button>
-                               </div>
-                             ))}
-                             <div className="w-24 h-24 rounded-xl border-2 border-dashed border-[var(--color-atelier-grafite)]/20 flex flex-col items-center justify-center text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] transition-colors">
-                               <Plus size={24}/>
-                             </div>
-                           </div>
-                         ) : (
-                           <><UploadCloud size={28} className="mb-3 text-[var(--color-atelier-grafite)]/40 group-hover:text-[var(--color-atelier-terracota)] transition-colors" /><span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 group-hover:text-[var(--color-atelier-terracota)] transition-colors">Upload das ReferÃƒÂªncias GrÃƒÂ¡ficas</span></>
-                         )}
-                       </label>
-
-                       <div className="flex flex-col sm:flex-row gap-4">
-                         <input type="text" value={newRefTitle} onChange={(e) => setNewRefTitle(e.target.value)} disabled={isSendingRef} placeholder="TÃƒÂ­tulo da Rota (Ex: DireÃƒÂ§ÃƒÂ£o Clean & Minimalista)" className="flex-1 bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-2xl px-5 py-4 text-[13px] font-bold outline-none shadow-sm disabled:opacity-50 transition-colors" />
-                         <button onClick={handleAddAdminRef} disabled={isSendingRef || newRefImageFiles.length === 0} className="px-10 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-2xl font-roboto text-[11px] font-bold uppercase tracking-[0.1em] hover:bg-[var(--color-atelier-terracota)] transition-all shadow-md shrink-0 disabled:opacity-50 flex items-center justify-center gap-2 hover:-translate-y-0.5 disabled:hover:translate-y-0 mt-4 sm:mt-0">
-                           {isSendingRef ? <Loader2 size={16} className="animate-spin" /> : <Send size={16}/>} Enviar
-                         </button>
-                       </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      
 
     </div>
   );

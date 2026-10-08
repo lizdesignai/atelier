@@ -36,8 +36,11 @@ export default function RevelarPage() {
 
   if (!project) return <div className="p-8 text-[var(--color-atelier-grafite)]">Nenhum projeto ativo encontrado.</div>;
 
-  const isUnlocked = project.idv_phase === 'present' || project.idv_phase === 'client_review' || project.idv_phase === 'refine' || project.idv_phase === 'deliver' || project.idv_phase === 'activate';
-  const showReviewGate = project.idv_phase === 'client_review';
+  
+  const isPastMeetingDate = project.meeting_date && new Date().getTime() >= new Date(project.meeting_date).getTime();
+  const isUnlocked = isPastMeetingDate || project.idv_phase === 'client_review' || project.idv_phase === 'refine' || project.idv_phase === 'deliver' || project.idv_phase === 'activate';
+
+  const showReviewGate = (project.idv_phase === 'present' && isPastMeetingDate) || project.idv_phase === 'client_review';
 
   return (
     <div className="flex flex-col h-[calc(100vh-80px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6 overflow-y-auto custom-scrollbar">
@@ -60,8 +63,17 @@ export default function RevelarPage() {
         />
         {showReviewGate && (
           <ClientReviewGate
-            onDecision={async (decision) => {
-              // Handle decision
+            onDecision={async (decision, feedback) => {
+              try {
+                const { submitClientReviewAction } = await import('../../actions/clientProject');
+                const result = await submitClientReviewAction(project.id, decision, feedback);
+                if (result.success) {
+                  window.dispatchEvent(new CustomEvent('showToast', { detail: 'Avaliação enviada com sucesso!' }));
+                  setTimeout(() => window.location.href = result.nextPhase === 'deliver' ? '/projeto/ativar' : '/projeto/refinar', 1000);
+                }
+              } catch (e) {
+                window.dispatchEvent(new CustomEvent('showToast', { detail: 'Erro ao enviar avaliação.' }));
+              }
             }}
             pdfUrl={project.presentation_url}
           />

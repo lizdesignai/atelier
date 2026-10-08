@@ -7,7 +7,9 @@ import { cookies } from 'next/headers';
 import { getDb } from '@/lib/db';
 import { verifyToken, hashPassword, COOKIE_NAME } from '@/lib/auth';
 
+const generateRandomPassword = () => Array.from(crypto.getRandomValues(new Uint32Array(10))).map(x => 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#'[x % 64]).join('');
 const DEFAULT_PASSWORD = 'Atelier2026!';
+
 
 export async function POST(request: Request) {
   try {

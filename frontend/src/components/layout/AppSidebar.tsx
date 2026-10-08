@@ -286,11 +286,8 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : [
     { href: '/', icon: <Home size={20} strokeWidth={1.5} />, label: 'Meu Projeto' },
-    { href: '/projeto/descobrir', icon: <Search size={20} strokeWidth={1.5} />, label: 'Descobrir' },
     ...(isStageUnlocked('define') ? [{ href: '/projeto/direcionar', icon: <Compass size={20} strokeWidth={1.5} />, label: 'Direcionar' }] : []),
-    ...(isStageUnlocked('develop') ? [{ href: '/projeto/construir', icon: <Hammer size={20} strokeWidth={1.5} />, label: 'Construir' }] : []),
     ...(isStageUnlocked('present') ? [{ href: '/projeto/revelar', icon: <Presentation size={20} strokeWidth={1.5} />, label: 'Revelar' }] : []),
-    ...(isStageUnlocked('refine') ? [{ href: '/projeto/refinar', icon: <Sparkles size={20} strokeWidth={1.5} />, label: 'Refinar' }] : []),
     ...(isStageUnlocked('deliver') ? [{ href: '/projeto/ativar', icon: <Package size={20} strokeWidth={1.5} />, label: 'Ativar' }] : []),
     { href: '/brandbook', icon: <Sparkles size={20} strokeWidth={1.5} />, label: 'Brand Lab' },
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
@@ -370,9 +367,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
                 <>
                   <NavItem href="/mapa" icon={<Home size={18} strokeWidth={1.5} />} label="Visão Geral" collapsed={isCollapsed} active={pathname === '/mapa'} />
                   
-                  <div className="flex items-center justify-center my-3 opacity-20">
-                    <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
-                  </div>
+
                   
                   <NavItem href="/mapa/sprint/0" icon={<Target size={18} strokeWidth={1.5} />} label="Baseline" collapsed={isCollapsed} active={pathname === '/mapa/sprint/0'} />
                   <NavItem href="/mapa/sprint/1" icon={<Crosshair size={18} strokeWidth={1.5} />} label="Clareza" collapsed={isCollapsed} active={pathname === '/mapa/sprint/1'} />
@@ -381,9 +376,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
                   <NavItem href="/mapa/sprint/4" icon={<Target size={18} strokeWidth={1.5} />} label="Conversão" collapsed={isCollapsed} active={pathname === '/mapa/sprint/4'} />
                   <NavItem href="/mapa/sprint/5" icon={<TrendingUp size={18} strokeWidth={1.5} />} label="Revalidação" collapsed={isCollapsed} active={pathname === '/mapa/sprint/5'} />
                   
-                  <div className="flex items-center justify-center my-3 opacity-20">
-                    <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
-                  </div>
+
                   
                   <NavItem href="/mapa/cofre" icon={<Archive size={18} strokeWidth={1.5} />} label="Cofre de Evidências" collapsed={isCollapsed} active={pathname === '/mapa/cofre'} />
                 </>
@@ -391,45 +384,22 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
                 <>
                   <NavItem href="/" icon={<Home size={18} strokeWidth={1.5} />} label="Meu Projeto" collapsed={isCollapsed} active={pathname === '/'} />
                   
-                  <div className="flex items-center justify-center my-3 opacity-20">
-                    <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
-                  </div>
                   
                   {/* Stages unlock progressively based on idv_phase */}
-                  <NavItem 
-                    href="/projeto/descobrir" 
-                    icon={<Search size={18} strokeWidth={1.5} />} 
-                    label="Descobrir" 
-                    collapsed={isCollapsed} 
-                    active={pathname === '/projeto/descobrir'} 
-                  />
                   
-                  {isStageUnlocked('define') && (
-                    <NavItem href="/projeto/direcionar" icon={<Compass size={18} strokeWidth={1.5} />} label="Direcionar" collapsed={isCollapsed} active={pathname === '/projeto/direcionar'} />
-                  )}
                   
-                  {isStageUnlocked('develop') && (
-                    <NavItem href="/projeto/construir" icon={<Hammer size={18} strokeWidth={1.5} />} label="Construir" collapsed={isCollapsed} active={pathname === '/projeto/construir'} />
-                  )}
                   
-                  {isStageUnlocked('present') && (
-                    <NavItem href="/projeto/revelar" icon={<Presentation size={18} strokeWidth={1.5} />} label="Revelar" collapsed={isCollapsed} active={pathname === '/projeto/revelar'} />
-                  )}
                   
-                  {isStageUnlocked('refine') && (
-                    <NavItem href="/projeto/refinar" icon={<Sparkles size={18} strokeWidth={1.5} />} label="Refinar" collapsed={isCollapsed} active={pathname === '/projeto/refinar'} />
-                  )}
                   
-                  {isStageUnlocked('deliver') && (
-                    <NavItem href="/projeto/ativar" icon={<Package size={18} strokeWidth={1.5} />} label="Ativar" collapsed={isCollapsed} active={pathname === '/projeto/ativar'} />
-                  )}
+                  
+                  
+                  
+                  
                                     
                 </>
               )}
               
-              <div className="flex items-center justify-center my-3 opacity-20">
-                <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
-              </div>
+
               
               
               <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
@@ -442,9 +412,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               <NavItem href="/admin/financeiro" icon={<DollarSign size={18} strokeWidth={1.5} />} label="Financeiro" collapsed={isCollapsed} active={pathname === '/admin/financeiro'} />
               <NavItem href="/admin/fio" icon={<MessageCircle size={18} strokeWidth={1.5} />} label="Sintonia" collapsed={isCollapsed} active={pathname === '/admin/fio'} badge={globalUnreadCount} />
               
-              <div className="flex items-center justify-center my-3 opacity-20">
-                <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
-              </div>
+
 
               <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
             </>
@@ -458,17 +426,13 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               {/* Visto por todos */}
               <NavItem href="/admin/jtbd" icon={<Crosshair size={18} strokeWidth={1.5} />} label="Focus" collapsed={isCollapsed} active={pathname === '/admin/jtbd'} />
               
-              <div className="flex items-center justify-center my-3 opacity-20">
-                <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
-              </div>
+
 
               <NavItem href="/admin/projetos" icon={<FolderKanban size={18} strokeWidth={1.5} />} label="Studio Veronna" collapsed={isCollapsed} active={pathname === '/admin/projetos'} />
               <NavItem href="/admin/fio" icon={<MessageCircle size={18} strokeWidth={1.5} />} label="Sintonia" collapsed={isCollapsed} active={pathname === '/admin/fio'} badge={globalUnreadCount} />
               <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
               
-              <div className="flex items-center justify-center my-3 opacity-20">
-                <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
-              </div>
+
               
               {/* Visto apenas por Gestor e Admin */}
               {isManagerOrAdmin && (

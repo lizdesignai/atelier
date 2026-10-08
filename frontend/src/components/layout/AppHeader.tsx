@@ -7,7 +7,8 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
 import { 
   Bell, CheckCircle2, 
-  Circle, Info, AlertTriangle, ShieldCheck, Music, Settings
+  Circle, Info, AlertTriangle, ShieldCheck, Music, Settings,
+  LayoutDashboard, BrainCircuit, Activity, Users, DollarSign, Target, Crown
 } from "lucide-react";
 import { useProfile } from "../../hooks/useProfile";
 import DailyJamDropdown from "./DailyJamDropdown";
@@ -27,6 +28,7 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isJamOpen, setIsJamOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -149,6 +151,56 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
             transition={{ duration: 0.4, ease: "easeOut" }}
             className="flex items-center gap-3 bg-white/60 backdrop-blur-xl border border-white/60 shadow-[0_4px_20px_rgba(0,0,0,0.04)] p-1.5 px-3 rounded-full pointer-events-auto hover:bg-white/80 transition-colors"
           >
+            {/* MENU DE TELAS (APPS) */}
+            <div className="relative">
+              <button 
+                onClick={() => { setIsNavMenuOpen(!isNavMenuOpen); setIsDropdownOpen(false); setIsProfileDropdownOpen(false); setIsJamOpen(false); }}
+                className="relative w-8 h-8 rounded-full bg-white border border-[var(--color-atelier-grafite)]/5 flex items-center justify-center text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-terracota)] hover:shadow-sm transition-all"
+                title="Menu de Telas"
+              >
+                <LayoutDashboard size={14} />
+              </button>
+              
+              <AnimatePresence>
+                {isNavMenuOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.98 }} 
+                    animate={{ opacity: 1, y: 8, scale: 1 }} 
+                    exit={{ opacity: 0, y: -5, scale: 0.98 }}
+                    transition={{ type: "spring", stiffness: 400, damping: 30 }}
+                    className="absolute right-0 top-full mt-2 w-56 bg-white/95 backdrop-blur-2xl border border-white/40 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.1)] flex flex-col p-2 z-50 pointer-events-auto"
+                  >
+                    <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 px-3 pt-1 pb-2 block">
+                      Aplicativos
+                    </span>
+                    <button onClick={() => { setIsNavMenuOpen(false); router.push('/admin/analytics'); }} className="text-left px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors flex items-center gap-2">
+                      <BrainCircuit size={14} /> Analytics
+                    </button>
+                    {userProfile?.role === 'admin' && (
+                      <button onClick={() => { setIsNavMenuOpen(false); router.push('/admin'); }} className="text-left px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors flex items-center gap-2">
+                        <Crown size={14} /> QG da Liziane
+                      </button>
+                    )}
+                    <button onClick={() => { setIsNavMenuOpen(false); router.push('/admin/gestao'); }} className="text-left px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors flex items-center gap-2">
+                      <Activity size={14} /> Produtividade
+                    </button>
+                    <button onClick={() => { setIsNavMenuOpen(false); router.push('/admin/clientes'); }} className="text-left px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors flex items-center gap-2">
+                      <Users size={14} /> Clientes
+                    </button>
+                    <button onClick={() => { setIsNavMenuOpen(false); router.push('/admin/analytics/idv'); }} className="text-left px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors flex items-center gap-2">
+                      <Target size={14} /> IDV Intelligence
+                    </button>
+                    {userProfile?.role === 'admin' && (
+                      <button onClick={() => { setIsNavMenuOpen(false); router.push('/admin/financeiro'); }} className="text-left px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors flex items-center gap-2">
+                        <DollarSign size={14} /> Financeiro
+                      </button>
+                    )}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+            
+            <div className="w-px h-4 bg-[var(--color-atelier-grafite)]/10"></div>
             
             {/* SINO DE NOTIFICAÇÕES */}
             <button 

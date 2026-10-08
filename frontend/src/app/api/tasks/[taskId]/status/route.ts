@@ -84,59 +84,80 @@ export async function PATCH(
     const task = result[0];
 
     // ==========================================
-    // IDV AUTOMATION: STAGE-GATE & PHASE UPDATE
+    // IDV AUTOMATION: PROGRESS & PHASE SYNC
     // ==========================================
-    if (requestedStatus === 'completed' && task.task_type === 'gate' && task.project_id) {
-       // Destravar tarefas que dependem deste gate (draft -> pending)
-       const unlockQuery = `
+    if (['completed', 'done', 'approved'].includes(requestedStatus) && task.project_id) {
+       
+       // 1. Desbloquear tarefas dependentes (caso ainda existam fluxos de dependência)
+       await (sql as any).query(`
          UPDATE tasks 
          SET status = 'pending', updated_at = NOW() 
-         WHERE depends_on = $1 AND status = 'draft' 
-         RETURNING stage
-       `;
-       const unlockedTasks = await (sql as any).query(unlockQuery, [task.id]);
+         WHERE depends_on = $1 AND status = 'draft'
+       `, [task.id]);
 
-       if (unlockedTasks && unlockedTasks.length > 0) {
-         const nextPhaseIdv = unlockedTasks[0].stage; // ex: 'develop', 'present'
-         
-         // Mapear idv_phase para a fase do admin
-         const phaseMap: Record<string, string> = {
-           'onboarding': 'onboarding',
-           'discover': 'pesquisa',
-           'define': 'direcionamento',
-           'develop': 'processo',
-           'qa': 'qa',
-           'present': 'apresentacao',
-           'client_review': 'client_review',
-           'refine': 'refinamento',
-           'deliver': 'entrega',
-           'activate': 'ativacao'
-         };
-         
-         const nextFaseAdmin = phaseMap[nextPhaseIdv] || nextPhaseIdv;
+       // 2. Descobrir qual é a próxima tarefa pendente para definir a fase do projeto
+       const nextTaskRes = await (sql as any).query(`
+         SELECT stage FROM tasks 
+         WHERE project_id = $1 
+           AND status NOT IN ('completed', 'done', 'approved', 'archived')
+           AND stage IS NOT NULL
+           AND stage IN ('onboarding', 'discover', 'define', 'develop', 'qa', 'present', 'client_review', 'refine', 'deliver', 'activate')
+         ORDER BY deadline ASC, created_at ASC
+         LIMIT 1
+       `, [task.project_id]);
 
+       if (nextTaskRes && nextTaskRes.length > 0) {
+         const nextPhaseIdv = nextTaskRes[0].stage; // ex: 'develop', 'present'
+         
+         // Verificar a fase atual do projeto para não regredir e para disparar notificação só se mudar
+         const projectRes = await (sql as any).query(`SELECT idv_phase, client_id FROM projects WHERE id = $1`, [task.project_id]);
+         const currentPhaseIdv = projectRes?.[0]?.idv_phase;
+         const clientId = projectRes?.[0]?.client_id;
+
+         if (currentPhaseIdv !== nextPhaseIdv) {
+           const phaseMap: Record<string, string> = {
+             'onboarding': 'onboarding',
+             'discover': 'pesquisa',
+             'define': 'direcionamento',
+             'develop': 'processo',
+             'qa': 'qa',
+             'present': 'apresentacao',
+             'client_review': 'client_review',
+             'refine': 'refinamento',
+             'deliver': 'entrega',
+             'activate': 'ativacao'
+           };
+           
+           const nextFaseAdmin = phaseMap[nextPhaseIdv] || nextPhaseIdv;
+
+           await (sql as any).query(`
+             UPDATE projects 
+             SET idv_phase = $1, fase = $2, updated_at = NOW() 
+             WHERE id = $3
+           `, [nextPhaseIdv, nextFaseAdmin, task.project_id]);
+
+           // Notificar cliente sobre o avanço de fase
+           if (clientId) {
+              try {
+                await NotificationEngine.notifyUser(
+                   clientId,
+                   "✨ Nova Fase do Projeto!",
+                   `A etapa anterior foi concluída e seu projeto avançou para a fase de ${nextFaseAdmin.toUpperCase()}. Acesse seu Bastidor para acompanhar.`,
+                   "success",
+                   "/"
+                );
+              } catch (notifyErr) {
+                console.warn('Failed to notify client about phase change:', notifyErr);
+              }
+           }
+         }
+       } else {
+         // Não há mais tarefas pendentes! Projeto pode estar na fase final.
          await (sql as any).query(`
            UPDATE projects 
-           SET idv_phase = $1, fase = $2, updated_at = NOW() 
-           WHERE id = $3
-         `, [nextPhaseIdv, nextFaseAdmin, task.project_id]);
-
-         // Notificar cliente se o gate representar um avanço visível
-         try {
-           const projectRes = await (sql as any).query(`SELECT client_id FROM projects WHERE id = $1`, [task.project_id]);
-           const clientId = projectRes?.[0]?.client_id;
-           if (clientId) {
-              await NotificationEngine.notifyUser(
-                 clientId,
-                 "✨ Nova Fase do Projeto!",
-                 `Seu projeto avançou para a fase de ${nextPhaseIdv}. Acompanhe os detalhes no seu painel.`,
-                 "success",
-                 "/"
-              );
-           }
-         } catch (notifyErr) {
-           console.warn('Failed to notify client about phase change:', notifyErr);
-         }
+           SET idv_phase = 'deliver', fase = 'entrega', updated_at = NOW() 
+           WHERE id = $1 AND idv_phase != 'deliver'
+         `, [task.project_id]);
        }
     }
 

@@ -25,10 +25,7 @@ const RoutingEngine = dynamic(() => import("./views/RoutingEngine"), { ssr: fals
 const LiveExecutionBar = dynamic(() => import("./components/LiveExecutionBar"), { ssr: false });
 const AnalyticsModals = dynamic(() => import("./components/AnalyticsModals"), { ssr: false });
 
-const AdminDashboard = dynamic(() => import("../page"), { ssr: false });
-const ProdutividadePage = dynamic(() => import("../gestao/page"), { ssr: false });
-const ClientesPage = dynamic(() => import("../clientes/page"), { ssr: false });
-const FinanceiroPage = dynamic(() => import("../financeiro/page"), { ssr: false });
+// Removed unused page imports
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -419,9 +416,9 @@ export default function AnalyticsPage() {
           title: editingTask.title,
           description: editingTask.description,
           caption: editingTask.caption,
-          urgency: editingTask.urgency,
-          deadline: editingTask.deadline,
-          assigned_to: editingTask.assigned_to || null,
+          urgency: editingTask.urgency || null,
+          deadline: editingTask.deadline || null,
+          assigned_to: (!editingTask.assigned_to || editingTask.assigned_to === 'none') ? null : editingTask.assigned_to,
           external_links: editingTask.external_links || [],
           media_assets: editingTask.media_assets || [],
           attachment_url: editingTask.attachment_url || null
@@ -1139,118 +1136,21 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
         {/* HEADER CONTROLS (AVATAR & COMPACT VERTICAL MENU) */}
         <div className="flex items-center gap-3 shrink-0">
           
-          {/* PÍLULA: MENU DE TELAS E AVATAR FUNDIDOS */}
-          <div className="relative flex items-center bg-white/60 border border-white/50 rounded-full shadow-sm p-1">
-            <button 
-              onClick={() => setIsNavMenuOpen(!isNavMenuOpen)}
-              className={`flex items-center justify-center w-8 h-8 rounded-full transition-all ${isNavMenuOpen ? 'bg-white shadow-sm' : 'hover:bg-white/80'}`}
-              title="Menu de Telas"
+          {/* AÇÕES EM LOTE HEADER TOGGLE */}
+          <div className="flex items-center gap-2 bg-white/60 border border-white/50 rounded-full shadow-sm px-3 py-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-atelier-grafite)]">Ações em Lote</span>
+            <button
+              onClick={() => { setIsBulkMode(!isBulkMode); setSelectedTaskIds([]); setSelectedRuleIds([]); }}
+              className={`w-9 h-5 rounded-full flex items-center px-0.5 transition-colors ${isBulkMode ? 'bg-[var(--color-atelier-terracota)]' : 'bg-gray-300'}`}
             >
-              <LayoutDashboard size={14} className="text-[var(--color-atelier-terracota)]" />
+              <motion.div
+                layout
+                className="w-4 h-4 bg-white rounded-full shadow-sm"
+                initial={false}
+                animate={{ x: isBulkMode ? 16 : 0 }}
+                transition={{ type: "spring", stiffness: 500, damping: 30 }}
+              />
             </button>
-
-            {/* DROPDOWN VERTICAL */}
-            <AnimatePresence>
-              {isNavMenuOpen && (
-                <>
-                  <div className="fixed inset-0 z-40" onClick={() => setIsNavMenuOpen(false)} />
-                  <motion.div
-                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    className="absolute right-0 top-full mt-3 w-64 bg-white/95 backdrop-blur-2xl border border-white rounded-3xl p-3 shadow-2xl z-50 flex flex-col gap-1.5"
-                  >
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 px-3 pt-1 block">
-                      Alternar Visualização
-                    </span>
-
-                    {/* OPÇÕES DE NAVEGAÇÃO DE TELAS */}
-                    <button
-                      onClick={() => { setActiveView('analytics'); setIsNavMenuOpen(false); }}
-                      className={`flex items-center gap-3 p-2.5 rounded-2xl transition-all ${activeView === 'analytics' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'hover:bg-gray-100 text-[var(--color-atelier-grafite)]/70'}`}
-                    >
-                      <BrainCircuit size={16} className={activeView === 'analytics' ? 'text-white' : 'text-[var(--color-atelier-terracota)]'} />
-                      <span className="font-bold text-[11px] uppercase tracking-wider">Analytics</span>
-                    </button>
-
-                    {userRole === 'admin' && (
-                      <button
-                        onClick={() => { setActiveView('dona'); setIsNavMenuOpen(false); }}
-                        className={`flex items-center gap-3 p-2.5 rounded-2xl transition-all ${activeView === 'dona' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'hover:bg-gray-100 text-[var(--color-atelier-grafite)]/70'}`}
-                      >
-                        <Crown size={16} className={activeView === 'dona' ? 'text-white' : 'text-[var(--color-atelier-terracota)]'} />
-                        <span className="font-bold text-[11px] uppercase tracking-wider">QG da Liziane</span>
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => { setActiveView('produtividade'); setIsNavMenuOpen(false); }}
-                      className={`flex items-center gap-3 p-2.5 rounded-2xl transition-all ${activeView === 'produtividade' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'hover:bg-gray-100 text-[var(--color-atelier-grafite)]/70'}`}
-                    >
-                      <Activity size={16} className={activeView === 'produtividade' ? 'text-white' : 'text-[var(--color-atelier-terracota)]'} />
-                      <span className="font-bold text-[11px] uppercase tracking-wider">Produtividade</span>
-                    </button>
-
-                    <button
-                      onClick={() => { setActiveView('clientes'); setIsNavMenuOpen(false); }}
-                      className={`flex items-center gap-3 p-2.5 rounded-2xl transition-all ${activeView === 'clientes' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'hover:bg-gray-100 text-[var(--color-atelier-grafite)]/70'}`}
-                    >
-                      <Users size={16} className={activeView === 'clientes' ? 'text-white' : 'text-[var(--color-atelier-terracota)]'} />
-                      <span className="font-bold text-[11px] uppercase tracking-wider">Clientes</span>
-                    </button>
-
-                    <Link
-                      href="/admin/analytics/idv"
-                      className={`flex items-center gap-3 p-2.5 rounded-2xl transition-all hover:bg-gray-100 text-[var(--color-atelier-grafite)]/70`}
-                    >
-                      <Target size={16} className="text-[var(--color-atelier-terracota)]" />
-                      <span className="font-bold text-[11px] uppercase tracking-wider">IDV Intelligence</span>
-                    </Link>
-
-                    {userRole === 'admin' && (
-                      <button
-                        onClick={() => { setActiveView('financeiro'); setIsNavMenuOpen(false); }}
-                        className={`flex items-center gap-3 p-2.5 rounded-2xl transition-all ${activeView === 'financeiro' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'hover:bg-gray-100 text-[var(--color-atelier-grafite)]/70'}`}
-                      >
-                        <DollarSign size={16} className={activeView === 'financeiro' ? 'text-white' : 'text-[var(--color-atelier-terracota)]'} />
-                        <span className="font-bold text-[11px] uppercase tracking-wider">Financeiro</span>
-                      </button>
-                    )}
-
-                    <div className="h-px bg-gray-200/60 my-1" />
-
-                    {/* AÇÕES EM LOTE DENTRO DO MENU */}
-                    <div className="flex items-center justify-between p-2.5 rounded-2xl bg-gray-50/80 border border-gray-100">
-                      <div className="flex flex-col">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-atelier-grafite)]">Ações em Lote</span>
-                        <span className="text-[8px] text-gray-400 font-medium">Seleção múltipla</span>
-                      </div>
-                      <button
-                        onClick={() => { setIsBulkMode(!isBulkMode); setSelectedTaskIds([]); setSelectedRuleIds([]); }}
-                        className={`w-9 h-5 rounded-full flex items-center px-0.5 transition-colors ${isBulkMode ? 'bg-[var(--color-atelier-terracota)]' : 'bg-gray-300'}`}
-                      >
-                        <motion.div
-                          layout
-                          className="w-4 h-4 bg-white rounded-full shadow-sm"
-                          initial={false}
-                          animate={{ x: isBulkMode ? 16 : 0 }}
-                          transition={{ type: "spring", stiffness: 500, damping: 30 }}
-                        />
-                      </button>
-                    </div>
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
-
-            {/* AVATAR DO PERFIL (DENTRO DA PÍLULA) */}
-            <Link href="/perfil" className="w-8 h-8 rounded-full bg-gray-100 border border-white/60 shadow-[0_2px_10px_rgba(0,0,0,0.05)] flex items-center justify-center overflow-hidden active:scale-95 transition-transform shrink-0 ml-1">
-              {profile?.avatar_url ? (
-                <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-              ) : (
-                <span className="font-elegant text-sm text-[var(--color-atelier-terracota)] uppercase">{profile?.nome?.charAt(0) || "U"}</span>
-              )}
-            </Link>
           </div>
 
         </div>
@@ -1329,29 +1229,6 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
             </motion.div>
           )}
 
-          {activeView === 'dona' && (
-            <motion.div key="dona" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-auto md:h-full md:absolute md:inset-0 overflow-y-auto custom-scrollbar">
-              <AdminDashboard />
-            </motion.div>
-          )}
-
-          {activeView === 'produtividade' && (
-            <motion.div key="produtividade" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-full absolute inset-0 overflow-y-auto md:overflow-hidden">
-              <ProdutividadePage />
-            </motion.div>
-          )}
-
-          {activeView === 'clientes' && (
-            <motion.div key="clientes" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-full absolute inset-0 overflow-y-auto md:overflow-hidden">
-              <ClientesPage />
-            </motion.div>
-          )}
-
-          {activeView === 'financeiro' && (
-            <motion.div key="financeiro" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-full absolute inset-0 overflow-y-auto md:overflow-hidden">
-              <FinanceiroPage />
-            </motion.div>
-          )}
         </AnimatePresence>
       </div>
 

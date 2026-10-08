@@ -5,7 +5,7 @@ dotenv.config({ path: path.resolve(__dirname, '.env') });
 
 async function run() {
   const sql = neon(process.env.POSTGRES_URL!);
-  const tasks = await sql`SELECT * FROM tasks WHERE id = '54dc04e4-cc50-4e9d-8bdb-2bf7ab37bad9'`;
-  console.log('Tasks in Neon:', tasks);
+  const res = await (sql as any)("SELECT * FROM tasks WHERE id = $1", ["54dc04e4-cc50-4e9d-8bdb-2bf7ab37bad9"]);
+  console.log(res);
 }
 run();

@@ -1,3 +1,4 @@
+"use client";
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Presentation, Link as LinkIcon, Calendar, Loader2, UploadCloud, CheckCircle2 } from 'lucide-react';
@@ -33,13 +34,12 @@ export default function RevealCeremonyAdmin({ project, onUpdate }: RevealCeremon
     if (!project) return;
     setIsSaving(true);
     try {
-      const { error } = await supabase.from('projects').update({
+      const { updateProjectAction } = await import('../../app/actions/projects');
+      await updateProjectAction(project.id, {
         meeting_date: meetingDate,
         meeting_link: meetingLink,
         presentation_url: presentationUrl
-      }).eq('id', project.id);
-      
-      if (error) throw error;
+      });
       window.dispatchEvent(new CustomEvent('showToast', { detail: 'Cerimônia de Revelação atualizada!' }));
       if (onUpdate) onUpdate();
     } catch (err) {
@@ -65,11 +65,10 @@ export default function RevealCeremonyAdmin({ project, onUpdate }: RevealCeremon
       
       const { data: urlData } = supabase.storage.from('idv_assets').getPublicUrl(filePath);
       
-      const { error } = await supabase.from('projects').update({
+      const { updateProjectAction } = await import('../../app/actions/projects');
+      await updateProjectAction(project.id, {
         presentation_url: urlData.publicUrl
-      }).eq('id', project.id);
-      
-      if (error) throw error;
+      });
       
       setPresentationUrl(urlData.publicUrl);
       window.dispatchEvent(new CustomEvent('showToast', { detail: 'Apresentação enviada com sucesso!' }));
@@ -86,7 +85,7 @@ export default function RevealCeremonyAdmin({ project, onUpdate }: RevealCeremon
     <div className="bg-white/60 border border-white p-5 rounded-[1.5rem] shadow-sm flex flex-col gap-3 group transition-all hover:bg-white mt-4">
       <div className="flex justify-between items-center w-full">
         <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2">
-          <Presentation size={14} className="text-[var(--color-atelier-terracota)]" /> Cerimônia & Gate 2
+          <Presentation size={14} className="text-[var(--color-atelier-terracota)]" /> Revelação
         </label>
         {presentationUrl && <CheckCircle2 size={14} className="text-green-500" />}
       </div>

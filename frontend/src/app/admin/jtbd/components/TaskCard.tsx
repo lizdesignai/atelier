@@ -1,5 +1,7 @@
 "use client";
 import { AdminTerritoriesManager } from "../../../../components/admin/AdminTerritoriesManager";
+import RevealCeremonyAdmin from "../../../../components/admin/RevealCeremonyAdmin";
+import { getProjectByIdAction } from "../../../../app/actions/projects";
 
 // src/app/admin/jtbd/components/TaskCard.tsx
 import { useState, useEffect } from "react";
@@ -55,6 +57,7 @@ export default function TaskCard({
   // ESTADOS LOCAIS
   // ==========================================
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [taskProject, setTaskProject] = useState<any>(null);
   const [localDeadline, setLocalDeadline] = useState(task.internal_deadline || task.deadline);
   const [isSavingDeadline, setIsSavingDeadline] = useState(false);
   const [isUploading, setIsUploading] = useState(false); 
@@ -146,6 +149,12 @@ export default function TaskCard({
   const isDelayed = !isCompleted && effectiveDisplayDate && new Date(effectiveDisplayDate) < new Date();
 
   // Verifica se a query pai já trouxe o social_post, senão busca
+  useEffect(() => {
+    if (isModalOpen && task.project_id && (task.title?.toLowerCase().includes('cerimônia') || task.title?.toLowerCase().includes('apresentação'))) {
+      getProjectByIdAction(task.project_id).then(setTaskProject).catch(console.error);
+    }
+  }, [isModalOpen, task.project_id, task.title]);
+
   useEffect(() => {
     if (task.id && !task.attachment_url) {
       if (task.social_posts && Array.isArray(task.social_posts) && task.social_posts.length > 0) {
@@ -441,10 +450,17 @@ export default function TaskCard({
         {task.urgency && !isCompleted && !isFocus && <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500 z-20"></div>}
 
         
-              {/* TERRITORIES VIEW IF TASK IS ABOUT TERRITORIES */}
-              {(task.title?.toLowerCase().includes('território') || task.title?.toLowerCase().includes('direcionar') || task.title?.toLowerCase().includes('direção')) && (
+                            {/* TERRITORIES VIEW IF TASK IS ABOUT TERRITORIES */}
+              {(task.title?.toLowerCase().includes('território') || task.title?.toLowerCase().includes('direcionar') || task.title?.toLowerCase().includes('direção') || task.title?.toLowerCase().includes('curadoria')) && (
                 <div className="mt-6 pt-6 border-t border-gray-100 flex flex-col gap-5 shrink-0 order-5">
                    <AdminTerritoriesManager projectId={task.project_id} taskId={task.id} currentUser={null} />
+                </div>
+              )}
+
+              {/* REVEAL CEREMONY IF TASK IS ABOUT PRESENTATION */}
+              {(task.title?.toLowerCase().includes('cerimônia') || task.title?.toLowerCase().includes('apresentação')) && taskProject && (
+                <div className="mt-6 pt-6 border-t border-gray-100 flex flex-col gap-5 shrink-0 order-5">
+                   <RevealCeremonyAdmin project={taskProject} onUpdate={() => getProjectByIdAction(task.project_id).then(setTaskProject)} />
                 </div>
               )}
 

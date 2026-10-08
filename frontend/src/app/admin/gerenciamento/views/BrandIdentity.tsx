@@ -1,3 +1,4 @@
+"use client";
 // src/app/admin/gerenciamento/views/BrandIdentity.tsx
 import { useState, useEffect } from "react";
 import { supabase } from "../../../../lib/supabase";

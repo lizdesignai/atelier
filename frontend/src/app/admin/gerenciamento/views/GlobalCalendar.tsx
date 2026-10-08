@@ -1,3 +1,4 @@
+"use client";
 // src/app/admin/gerenciamento/views/GlobalCalendar.tsx
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";

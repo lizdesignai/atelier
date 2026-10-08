@@ -59,3 +59,21 @@ export async function updateProjectAction(id: string, updateData: any) {
     throw new Error('Falha ao atualizar projeto');
   }
 }
+export async function getProjectByIdAction(id: string) {
+  const user = await getAuthUser();
+  if (!user) throw new Error("Não autenticado");
+
+  const sql = getDb();
+  try {
+    const result = await sql`
+      SELECT p.*, json_build_object('nome', pr.nome, 'avatar_url', pr.avatar_url, 'empresa', pr.empresa) as profiles
+      FROM projects p
+      LEFT JOIN profiles pr ON p.client_id = pr.id
+      WHERE p.id = ${id}
+    `;
+    return result[0] || null;
+  } catch (error) {
+    console.error('[actions/projects] Erro ao buscar projeto por ID:', error);
+    throw new Error('Falha ao buscar projeto');
+  }
+}

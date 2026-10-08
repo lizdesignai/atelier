@@ -11,6 +11,11 @@ import {
 import { supabase } from "../lib/supabase"; 
 import { IDV_FLOW_PIPELINE } from "./admin/analytics/constants";
 import Link from "next/link";
+import { X } from "lucide-react";
+import DescobrirPage from "./projeto/descobrir/page";
+import DirecionarPage from "./projeto/direcionar/page";
+import RevelarPage from "./projeto/revelar/page";
+
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -46,6 +51,9 @@ export default function Home() {
   const router = useRouter();
 
   const [isLoading, setIsLoading] = useState(true);
+  const [isDescobrirModalOpen, setIsDescobrirModalOpen] = useState(false);
+  const [isDirecionarModalOpen, setIsDirecionarModalOpen] = useState(false);
+  const [isRevelarModalOpen, setIsRevelarModalOpen] = useState(false);
   const [clientProfile, setClientProfile] = useState<any>(null);
   const [activeProject, setActiveProject] = useState<any>(null);
   const [dbTasks, setDbTasks] = useState<any[]>([]);
@@ -110,7 +118,7 @@ export default function Home() {
 
           const { data: projectTasks } = await supabase
             .from('tasks')
-            .select('title, status, stage, task_type')
+            .select('title, status, stage, task_type, is_adhoc, deadline')
             .eq('project_id', proj.id);
           if (projectTasks) setDbTasks(projectTasks);
         }
@@ -126,6 +134,9 @@ export default function Home() {
     const channel = supabase
       .channel('tasks-realtime')
       .on('postgres_changes', { event: '*', schema: 'public', table: 'tasks' }, () => {
+        fetchDashboardData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => {
         fetchDashboardData();
       })
       .subscribe();
@@ -174,6 +185,43 @@ export default function Home() {
               Sinta-se em casa, {clientProfile?.nome?.split(' ')[0] || "Cliente"}!
             </h1>
           </div>
+        </div>
+        
+        {/* ACTION BUTTONS (Modals) */}
+        <div className="flex gap-4 mt-2">
+          
+          <button 
+            onClick={() => { if (['discover', 'define', 'develop', 'qa', 'present', 'client_review', 'refine', 'deliver', 'activate'].includes(activeProject?.idv_phase)) setIsDescobrirModalOpen(true); }}
+            className={`px-6 py-3 rounded-2xl font-roboto text-[11px] uppercase tracking-widest font-bold shadow-sm transition-all flex items-center gap-2 ${
+              ['discover', 'define', 'develop', 'qa', 'present', 'client_review', 'refine', 'deliver', 'activate'].includes(activeProject?.idv_phase)
+              ? 'bg-[var(--color-atelier-terracota)] text-white hover:-translate-y-0.5' 
+              : 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-70'
+            }`}
+          >
+            <Search size={16} /> Descobrir
+          </button>
+
+          <button 
+            onClick={() => { if (activeProject?.idv_phase === 'define') setIsDirecionarModalOpen(true); }}
+            className={`px-6 py-3 rounded-2xl font-roboto text-[11px] uppercase tracking-widest font-bold shadow-sm transition-all flex items-center gap-2 ${
+              activeProject?.idv_phase === 'define' 
+              ? 'bg-[var(--color-atelier-terracota)] text-white hover:-translate-y-0.5' 
+              : 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-70'
+            }`}
+          >
+            <Compass size={16} /> Acessar Painel de Direção Visual
+          </button>
+          
+          <button 
+            onClick={() => { if (['present', 'client_review'].includes(activeProject?.idv_phase)) setIsRevelarModalOpen(true); }}
+            className={`px-6 py-3 rounded-2xl font-roboto text-[11px] uppercase tracking-widest font-bold shadow-sm transition-all flex items-center gap-2 ${
+              ['present', 'client_review'].includes(activeProject?.idv_phase)
+              ? 'bg-[var(--color-atelier-terracota)] text-white hover:-translate-y-0.5' 
+              : 'bg-gray-100 text-gray-400 cursor-not-allowed opacity-70'
+            }`}
+          >
+            <Presentation size={16} /> Revelar & Aprovação
+          </button>
         </div>
       </header>
 
@@ -300,18 +348,55 @@ export default function Home() {
 
             <div className="flex-1 overflow-y-auto custom-scrollbar px-4 py-5">
               <div className="relative pl-5 flex flex-col justify-between h-full min-h-fit">
-                {pipeline.map((task: any, idx: number) => {
-                  const dbTask = dbTasks.find(t => t.title === task.title);
-                  const isDone = dbTask && ['completed', 'done', 'approved', 'archived'].includes(dbTask.status);
-                  const isWorking = dbTask && ['in_progress', 'em_andamento'].includes(dbTask.status);
-                  const isLast = idx === pipeline.length - 1;
+                                {(() => {
+                  // Filtra ad-hocs e gates
+                  let visibleTasks = dbTasks.filter(t => t.is_adhoc !== true && t.task_type !== 'gate');
+                  
+                  // Ordem das fases do projeto IDV
+                  const STAGE_ORDER = ['onboarding', 'discover', 'define', 'develop', 'qa', 'present', 'client_review', 'refine', 'deliver', 'activate'];
+                  
+                  visibleTasks = visibleTasks.sort((a, b) => {
+                    // 1. Ordena pela Fase Cronológica (Stage)
+                    const stageA = STAGE_ORDER.indexOf(a.stage);
+                    const stageB = STAGE_ORDER.indexOf(b.stage);
+                    const sA = stageA === -1 ? 99 : stageA;
+                    const sB = stageB === -1 ? 99 : stageB;
+                    if (sA !== sB) return sA - sB;
+                    
+                    // 2. Ordena por Prazo (Deadline), jogando as que não tem prazo pro final daquela fase
+                    const d1 = a.deadline ? new Date(a.deadline).getTime() : 9999999999999;
+                    const d2 = b.deadline ? new Date(b.deadline).getTime() : 9999999999999;
+                    if (d1 !== d2) return d1 - d2;
+                    
+                    // 3. Se empatar, tarefas já concluídas aparecem antes das pendentes
+                    const aDone = ['completed', 'done', 'approved', 'archived'].includes(a.status) ? -1 : 1;
+                    const bDone = ['completed', 'done', 'approved', 'archived'].includes(b.status) ? -1 : 1;
+                    return aDone - bDone;
+                  });
+                  
+                  // Fallback para exibir pipeline vazia se o projeto ainda não tiver tarefas geradas
+                  const tasksToRender = visibleTasks.length > 0 ? visibleTasks : pipeline;
+                  
+                  return tasksToRender.map((taskOrDbTask: any, idx: number) => {
+                    // Se estivermos usando as tarefas do DB, usamos ela própria, senão (fallback) não encontraremos match preciso
+                    const dbTask = visibleTasks.length > 0 ? taskOrDbTask : undefined;
+                    
+                    const isDone = dbTask && ['completed', 'done', 'approved', 'archived'].includes(dbTask.status);
+                    const isWorking = dbTask && ['in_progress', 'em_andamento'].includes(dbTask.status);
+                    const isLast = idx === tasksToRender.length - 1;
+                    const taskTitle = taskOrDbTask.title;
                   
                   return (
                     <div key={idx} className="relative flex-1 min-h-[42px]">
+                      {/* Segmento de Fundo: Linha cinza base conectando todos os pontos */}
+                      {!isLast && (
+                        <div className="absolute left-[3px] top-[14px] bottom-[-6px] w-[2px] bg-[var(--color-atelier-grafite)]/10 rounded-full"></div>
+                      )}
+                      
                       {/* Segmento de linha — só aparece se ESTE ponto já foi concluído */}
                       {!isLast && (
                         <div 
-                          className="absolute left-[4px] top-[20px] bottom-0 w-[2px] rounded-full transition-all duration-1000 ease-out"
+                          className="absolute left-[3px] top-[14px] bottom-[-6px] w-[2px] rounded-full transition-all duration-1000 ease-out"
                           style={{ 
                             backgroundColor: isDone ? 'var(--color-atelier-terracota)' : 'transparent',
                             opacity: isDone ? 1 : 0,
@@ -327,7 +412,7 @@ export default function Home() {
                       }>
                         {/* Ponto */}
                         <div 
-                          className="shrink-0 mt-[2px] relative z-10 rounded-full transition-all duration-500"
+                          className="shrink-0 mt-[4px] relative z-10 rounded-full transition-all duration-500"
                           style={{
                             width: isDone || isWorking ? '10px' : '8px',
                             height: isDone || isWorking ? '10px' : '8px',
@@ -353,12 +438,13 @@ export default function Home() {
                               ? "text-[var(--color-atelier-grafite)] font-semibold" 
                               : "text-[var(--color-atelier-grafite)]")
                         }>
-                          {task.title}
+                          {taskTitle}
                         </span>
                       </div>
                     </div>
                   );
-                })}
+                });
+                })()}
               </div>
 
               {pipeline.length === 0 && (
@@ -372,6 +458,58 @@ export default function Home() {
         </div>
 
       </div>
+    
+      {/* MODALS */}
+      <AnimatePresence>
+        
+        {isDescobrirModalOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-8">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsDescobrirModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer"></motion.div>
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-6xl h-full max-h-[90vh] bg-[#F0EBE1] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-white">
+              <div className="absolute top-6 right-6 z-[210]">
+                <button onClick={() => setIsDescobrirModalOpen(false)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-red-500 shadow-sm border border-[var(--color-atelier-grafite)]/5 transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto relative z-[205]">
+                <DescobrirPage />
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {isDirecionarModalOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-8">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsDirecionarModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer"></motion.div>
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-6xl h-full max-h-[90vh] bg-[#F0EBE1] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-white">
+              <div className="absolute top-6 right-6 z-[210]">
+                <button onClick={() => setIsDirecionarModalOpen(false)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-red-500 shadow-sm border border-[var(--color-atelier-grafite)]/5 transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto relative z-[205]">
+                <DirecionarPage />
+              </div>
+            </motion.div>
+          </div>
+        )}
+
+        {isRevelarModalOpen && (
+          <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-8">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsRevelarModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer"></motion.div>
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-6xl h-full max-h-[90vh] bg-[#F0EBE1] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-white">
+              <div className="absolute top-6 right-6 z-[210]">
+                <button onClick={() => setIsRevelarModalOpen(false)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-red-500 shadow-sm border border-[var(--color-atelier-grafite)]/5 transition-colors">
+                  <X size={20} />
+                </button>
+              </div>
+              <div className="flex-1 overflow-auto relative z-[205]">
+                <RevelarPage />
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
