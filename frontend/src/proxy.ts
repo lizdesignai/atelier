@@ -23,6 +23,9 @@ const PUBLIC_ROUTES = [
   '/api/webhooks',
   '/api/public-onboarding',
   '/api/pesquisas',
+  '/api/storage',
+  '/api/sync-instagram',
+  '/uploads',
 ];
 
 function getJwtSecretBytes(): Uint8Array {
@@ -65,7 +68,7 @@ export async function proxy(request: NextRequest) {
           if (payload.type === 'session') {
             const role = payload.role as string;
             const url = request.nextUrl.clone();
-            url.pathname = role === 'client' ? '/' : role === 'contador' ? '/admin/financeiro' : '/admin/fio';
+            url.pathname = role === 'client' ? '/' : role === 'contador' ? '/admin/financeiro' : '/admin/jtbd';
             return NextResponse.redirect(url);
           }
         } catch {

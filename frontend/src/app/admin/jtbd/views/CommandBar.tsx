@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Eye, EyeOff, CheckCircle2, Flame, ShieldAlert } from "lucide-react";
+import { normalizeImageUrl } from "@/lib/imageUtils";
 
 interface CommandBarProps {
   isAdminOrManager: boolean;
@@ -69,11 +70,15 @@ export default function CommandBar({
                         : 'bg-white text-[var(--color-atelier-grafite)]/60 hover:bg-gray-50 border-[var(--color-atelier-grafite)]/10'
                     }`}
                   >
-                    <div className="w-5 h-5 rounded-full bg-[var(--color-atelier-creme)] overflow-hidden shrink-0 flex items-center justify-center text-[8px] font-bold text-[var(--color-atelier-terracota)] border border-white">
-                      {member.avatar_url ? (
-                        <img src={member.avatar_url} alt={member.nome} className="w-full h-full object-cover"/>
-                      ) : (
-                        member.nome.charAt(0)
+                    <div className="w-5 h-5 rounded-full bg-[var(--color-atelier-creme)] overflow-hidden shrink-0 flex items-center justify-center text-[8px] font-bold text-[var(--color-atelier-terracota)] border border-white relative">
+                      <span className="leading-none select-none">{member.nome.charAt(0)}</span>
+                      {member.avatar_url && (
+                        <img 
+                          src={normalizeImageUrl(member.avatar_url)} 
+                          alt={member.nome} 
+                          className="absolute inset-0 w-full h-full object-cover"
+                          onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }}
+                        />
                       )}
                     </div>
                     <span className="font-roboto text-[11px] font-bold">

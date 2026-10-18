@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { NotificationEngine } from "../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
+import { normalizeImageUrl, handleAvatarError } from "../../lib/imageUtils";
 
 // Função para disparar os Toasts Globais
 const showToast = (message: string) => {
@@ -429,7 +430,7 @@ export default function CanaisClientePage() {
                   >
                     <div className={`w-10 h-10 rounded-[1rem] shrink-0 flex items-center justify-center overflow-hidden border shadow-sm ${isMe ? 'border-white bg-[var(--color-atelier-grafite)] text-white' : 'border-[var(--color-atelier-terracota)]/20 bg-white text-[var(--color-atelier-terracota)]'}`}>
                       {msg.profiles?.avatar_url ? (
-                        <img src={msg.profiles.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                        <img src={normalizeImageUrl(msg.profiles.avatar_url)} alt="Avatar" className="w-full h-full object-cover" onError={(e) => handleAvatarError(e, msg.profiles?.nome)} />
                       ) : (
                         <span className="font-elegant font-bold text-xl">{msg.profiles?.nome?.charAt(0) || "A"}</span>
                       )}
@@ -447,7 +448,7 @@ export default function CanaisClientePage() {
                           className="mb-3 rounded-[1.5rem] overflow-hidden border-[4px] border-white shadow-sm max-w-sm cursor-pointer hover:shadow-md hover:scale-[1.02] transition-all"
                         >
                           {msg.attachment_url.match(/\.(jpeg|jpg|gif|png|webp)$/i) ? (
-                            <img src={msg.attachment_url} alt="Anexo" className="w-full max-h-[300px] object-cover" />
+                            <img src={normalizeImageUrl(msg.attachment_url)} alt="Anexo" className="w-full max-h-[300px] object-cover" />
                           ) : (
                             <div className="bg-white/80 px-8 py-6 flex flex-col items-center justify-center gap-2 text-[var(--color-atelier-terracota)]">
                               <FileText size={32} />

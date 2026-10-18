@@ -30,7 +30,7 @@ export class ManagementController {
       const todayEndIso = todayEnd.toISOString();
 
       const [team, sessions, tasks] = await Promise.all([
-        sql`SELECT id, nome, avatar_url, role, current_status FROM profiles WHERE role IN ('colaborador', 'gestor', 'admin')`,
+        sql`SELECT id, nome, avatar_url, role, current_status, contract_status FROM profiles WHERE role IN ('colaborador', 'gestor', 'admin') AND (contract_status IS NULL OR contract_status != 'dismissed')`,
         sql`
           SELECT 
             ws.id, ws.user_id, ws.start_time, ws.end_time, ws.duration_minutes, ws.task_id,

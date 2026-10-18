@@ -6,7 +6,7 @@ import {
   Users, Target, RotateCcw, Clock, 
   FileText, Copy, CheckCircle2, AlertTriangle, 
   TrendingUp, TrendingDown, Loader2, X, DollarSign,
-  Briefcase, CheckSquare, AlertCircle, Save, Edit3, PieChart, UserCheck, PauseCircle, Play, Activity, Layers, UserPlus
+  Briefcase, CheckSquare, AlertCircle, Save, Edit3, PieChart, UserCheck, PauseCircle, Play, Activity, Layers, UserPlus, UserX
 } from "lucide-react";
 import CollaboratorAssignmentModal from "../components/CollaboratorAssignmentModal";
 import NovoColaboradorModal from "../components/NovoColaboradorModal";
@@ -153,8 +153,11 @@ export default function WorkforceDashboard({ currentUser, activeTab = 'workforce
         };
       });
 
-      // Ordenar por Status (Online primeiro) e depois SLA
+      // Ordenar por Contrato (Ativo primeiro, Pausado, Demitido), Status e SLA
       const sortedStats = stats.sort((a, b) => {
+        const contractRank: Record<string, number> = { 'active': 1, 'paused': 2, 'dismissed': 3 };
+        const cDiff = (contractRank[a.contractStatus] || 1) - (contractRank[b.contractStatus] || 1);
+        if (cDiff !== 0) return cDiff;
         const rank: Record<string, number> = { 'online': 1, 'idle': 2, 'offline': 3 };
         const statusDiff = (rank[a.current_status || 'offline'] || 3) - (rank[b.current_status || 'offline'] || 3);
         if (statusDiff !== 0) return statusDiff;
@@ -247,17 +250,15 @@ export default function WorkforceDashboard({ currentUser, activeTab = 'workforce
   const handleToggleContractStatus = async (memberId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'paused' ? 'active' : 'paused';
     try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ contract_status: newStatus })
-        .eq('id', memberId);
+      const res = await fetch(`/api/admin/collaborators/${memberId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contract_status: newStatus }),
+      });
 
-      if (error) {
-        if (error.code === '42703' || error.message?.includes('contract_status')) {
-          alert("A coluna 'contract_status' ainda não existe na tabela 'profiles' no Supabase. Por favor execute o seguinte SQL no Supabase:\n\nALTER TABLE profiles ADD COLUMN IF NOT EXISTS contract_status text DEFAULT 'active';");
-          return;
-        }
-        throw error;
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || 'Falha ao alterar status');
       }
       
       setTeamStats(prev => prev.map(m => m.id === memberId ? { ...m, contractStatus: newStatus } : m));
@@ -265,9 +266,73 @@ export default function WorkforceDashboard({ currentUser, activeTab = 'workforce
       window.dispatchEvent(new CustomEvent("showToast", { 
         detail: newStatus === 'paused' ? "Contrato pausado por sazonalidade!" : "Contrato reativado com sucesso!" 
       }));
-    } catch (e) {
+    } catch (e: any) {
       console.error("Erro ao alterar status do contrato:", e);
-      window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao alterar status do contrato." }));
+      window.dispatchEvent(new CustomEvent("showToast", { detail: e.message || "Erro ao alterar status do contrato." }));
+    }
+  };
+
+  // ==========================================================================
+  // DEMITIR / DESLIGAR COLABORADOR
+  // ==========================================================================
+  const handleDismissCollaborator = async (memberId: string, memberName: string) => {
+    const confirm = window.confirm(
+      `Tem certeza que deseja demitir/desligar ${memberName}?\n\nO colaborador será desligado da equipe, perderá o acesso e deixará de receber demandas ativas.`
+    );
+    if (!confirm) return;
+
+    try {
+      const res = await fetch(`/api/admin/collaborators/${memberId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contract_status: 'dismissed' }),
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || 'Falha ao demitir colaborador');
+      }
+
+      setTeamStats(prev => prev.map(m => m.id === memberId ? { ...m, contractStatus: 'dismissed', current_status: 'offline' } : m));
+      window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
+      window.dispatchEvent(new CustomEvent("showToast", { 
+        detail: `Colaborador ${memberName} demitido/desligado da equipe.` 
+      }));
+    } catch (e: any) {
+      console.error("Erro ao demitir colaborador:", e);
+      window.dispatchEvent(new CustomEvent("showToast", { detail: e.message || "Erro ao demitir colaborador." }));
+    }
+  };
+
+  // ==========================================================================
+  // RECONTRATAR / REATIVAR COLABORADOR DEMITIDO
+  // ==========================================================================
+  const handleRehireCollaborator = async (memberId: string, memberName: string) => {
+    const confirm = window.confirm(
+      `Deseja recontratar e reativar ${memberName} na equipe?`
+    );
+    if (!confirm) return;
+
+    try {
+      const res = await fetch(`/api/admin/collaborators/${memberId}/status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ contract_status: 'active' }),
+      });
+
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        throw new Error(json.error || 'Falha ao recontratar colaborador');
+      }
+
+      setTeamStats(prev => prev.map(m => m.id === memberId ? { ...m, contractStatus: 'active' } : m));
+      window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
+      window.dispatchEvent(new CustomEvent("showToast", { 
+        detail: `Colaborador ${memberName} reativado com sucesso na equipe!` 
+      }));
+    } catch (e: any) {
+      console.error("Erro ao recontratar colaborador:", e);
+      window.dispatchEvent(new CustomEvent("showToast", { detail: e.message || "Erro ao reativar colaborador." }));
     }
   };
 
@@ -410,6 +475,9 @@ ${qualidadeText}
                       {member.contractStatus === 'paused' && (
                         <span className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 shrink-0">Pausado</span>
                       )}
+                      {member.contractStatus === 'dismissed' && (
+                        <span className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-red-100 text-red-800 shrink-0">Demitido</span>
+                      )}
                     </div>
                     <span className="text-[9px] uppercase tracking-widest text-gray-400 truncate">{member.role}</span>
                   </div>
@@ -445,6 +513,11 @@ ${qualidadeText}
                             <PauseCircle size={12} /> Contrato Pausado
                           </span>
                         )}
+                        {selectedMember.contractStatus === 'dismissed' && (
+                          <span className="bg-red-100 text-red-800 border border-red-300 text-[10px] font-extrabold uppercase px-2.5 py-1 rounded-full flex items-center gap-1 shadow-sm">
+                            <UserX size={12} /> Colaborador Demitido
+                          </span>
+                        )}
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">
                         <span className="bg-gray-100 px-2 py-1 rounded-md">{selectedMember.role}</span>
@@ -456,25 +529,45 @@ ${qualidadeText}
                   
                   {/* Painel Financeiro Direto e Atribuição */}
                   <div className="flex flex-wrap items-center gap-3">
-                    <button
-                      onClick={() => handleToggleContractStatus(selectedMember.id, selectedMember.contractStatus)}
-                      className={`text-xs font-bold uppercase tracking-wider px-4 py-3 rounded-[1.5rem] transition-all flex items-center gap-2 shadow-sm shrink-0 border ${
-                        selectedMember.contractStatus === 'paused'
-                          ? 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600'
-                          : 'bg-white text-gray-700 border-gray-200 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200'
-                      }`}
-                      title={selectedMember.contractStatus === 'paused' ? "Reativar Contrato do Colaborador" : "Pausar Contrato por Sazonalidade"}
-                    >
-                      {selectedMember.contractStatus === 'paused' ? (
-                        <>
-                          <Play size={16} /> Reativar Contrato
-                        </>
-                      ) : (
-                        <>
-                          <PauseCircle size={16} className="text-amber-600" /> Pausar Contrato
-                        </>
-                      )}
-                    </button>
+                    {selectedMember.contractStatus === 'dismissed' ? (
+                      <button
+                        onClick={() => handleRehireCollaborator(selectedMember.id, selectedMember.nome)}
+                        className="text-xs font-bold uppercase tracking-wider px-4 py-3 rounded-[1.5rem] transition-all flex items-center gap-2 shadow-sm shrink-0 border bg-emerald-600 text-white border-emerald-700 hover:bg-emerald-700 active:scale-95"
+                        title="Recontratar e reativar colaborador"
+                      >
+                        <UserCheck size={16} /> Recontratar Colaborador
+                      </button>
+                    ) : (
+                      <>
+                        <button
+                          onClick={() => handleToggleContractStatus(selectedMember.id, selectedMember.contractStatus)}
+                          className={`text-xs font-bold uppercase tracking-wider px-4 py-3 rounded-[1.5rem] transition-all flex items-center gap-2 shadow-sm shrink-0 border active:scale-95 ${
+                            selectedMember.contractStatus === 'paused'
+                              ? 'bg-amber-500 text-white border-amber-600 hover:bg-amber-600'
+                              : 'bg-white text-gray-700 border-gray-200 hover:bg-amber-50 hover:text-amber-700 hover:border-amber-200'
+                          }`}
+                          title={selectedMember.contractStatus === 'paused' ? "Reativar Contrato do Colaborador" : "Pausar Contrato por Sazonalidade"}
+                        >
+                          {selectedMember.contractStatus === 'paused' ? (
+                            <>
+                              <Play size={16} /> Reativar Contrato
+                            </>
+                          ) : (
+                            <>
+                              <PauseCircle size={16} className="text-amber-600" /> Pausar Contrato
+                            </>
+                          )}
+                        </button>
+
+                        <button
+                          onClick={() => handleDismissCollaborator(selectedMember.id, selectedMember.nome)}
+                          className="text-xs font-bold uppercase tracking-wider px-4 py-3 rounded-[1.5rem] transition-all flex items-center gap-2 shadow-sm shrink-0 border bg-red-50 text-red-600 border-red-200 hover:bg-red-600 hover:text-white active:scale-95"
+                          title="Demitir e desligar colaborador da equipe"
+                        >
+                          <UserX size={16} /> Demitir Colaborador
+                        </button>
+                      </>
+                    )}
                     <button
                       onClick={() => setIsAssignmentModalOpen(true)}
                       className="bg-[var(--color-atelier-terracota)] text-white text-xs font-bold uppercase tracking-wider px-4 py-3 rounded-[1.5rem] hover:bg-[#9b836b] transition-all flex items-center gap-2 shadow-sm shrink-0"

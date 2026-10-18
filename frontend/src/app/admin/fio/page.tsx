@@ -327,6 +327,7 @@ export default function FioPage() {
   const [currentUser, setCurrentUser] = useState<ProfileData | null>(null);
   const [allProfiles, setAllProfiles] = useState<ProfileData[]>([]);
   const [clients, setClients] = useState<any[]>([]);
+  const [projects, setProjects] = useState<any[]>([]);
 
   // Fios (Channels)
   const [fios, setFios] = useState<FioChannel[]>([]);
@@ -383,8 +384,14 @@ export default function FioPage() {
           console.error("Erro ao carregar clientes", e);
         }
 
+        // Carrega projetos para vincular aos canais dos clientes
+        const { data: projectsData } = await supabase
+          .from("projects")
+          .select("id, client_id, service_type, type, status");
+        if (projectsData) setProjects(projectsData);
+
         // Fetch or create Fio channels
-        await loadFios();
+        await loadFios(profile as ProfileData);
 
         // Fetch unread counts
         const { data: unreadData } = await supabase.rpc("get_unread_counts_per_channel");
@@ -402,14 +409,27 @@ export default function FioPage() {
     boot();
   }, []);
 
-  const loadFios = async () => {
+  const loadFios = async (overrideUser?: ProfileData | null) => {
+    const user = overrideUser || currentUser;
+    const isManagerOrAdmin = user?.role === "admin" || user?.role === "gestor";
+    // Exclusividade: apenas gestor e admin têm acesso aos canais dos clientes
+    const allowedTypes = isManagerOrAdmin ? ["fio_geral", "fio_cliente"] : ["fio_geral"];
+
     // Get existing fio channels
-    let { data: fioChannels } = await supabase.from("channels").select("*").in("type", ["fio_geral", "fio_cliente"]).order("created_at", { ascending: true });
+    let { data: fioChannels } = await supabase
+      .from("channels")
+      .select("*")
+      .in("type", allowedTypes)
+      .order("created_at", { ascending: true });
 
     // Ensure the general channel exists
     let generalChannel = fioChannels?.find((c: any) => c.type === "fio_geral");
     if (!generalChannel) {
-      const { data: newCh } = await supabase.from("channels").insert({ name: "operacao-atelier", type: "fio_geral", is_private: false }).select().single();
+      const { data: newCh } = await supabase
+        .from("channels")
+        .insert({ name: "operacao-atelier", type: "fio_geral", is_private: false })
+        .select()
+        .single();
       generalChannel = newCh;
       fioChannels = [generalChannel, ...(fioChannels || [])];
     }
@@ -579,7 +599,8 @@ export default function FioPage() {
       // General Channel Notifications (Fio Cliente)
       const currentFio = fios.find(f => f.id === activeFioId);
       if (currentFio && currentFio.type === "fio_cliente") {
-        const clientId = currentFio.project_id;
+        const proj = projects.find((p: any) => p.id === currentFio.project_id);
+        const clientId = proj?.client_id || currentFio.project_id;
         
         import("../../../lib/NotificationEngine").then(({ NotificationEngine }) => {
           if (currentUser.id === clientId) {
@@ -744,8 +765,15 @@ export default function FioPage() {
   });
 
   const getClientNameForFio = (fio: FioChannel) => {
-    const client = clients.find((c: any) => c.id === fio.project_id);
-    return client ? client.nome : fio.name;
+    const proj = projects.find((p: any) => p.id === fio.project_id);
+    if (proj) {
+      const client = clients.find((c: any) => c.id === proj.client_id);
+      if (client?.nome) return client.nome;
+    }
+    const directClient = clients.find((c: any) => c.id === fio.project_id);
+    if (directClient?.nome) return directClient.nome;
+
+    return fio.name.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' ');
   };
 
   const getMoodGradient = (mood?: string) => {
@@ -903,42 +931,40 @@ export default function FioPage() {
             </>
           )}
 
-          {/* Fios de Clientes */}
-          <div className="mt-4">
-            <span className="text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/30 px-2 mb-2 block">Clientes</span>
-
-            {/* Existing client fios */}
-            {fiosCliente.map((fio) => (
-              <button
-                key={fio.id}
-                onClick={() => setActiveFioId(fio.id)}
-                className={`w-full text-left px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all border mb-1 ${
-                  activeFioId === fio.id
-                    ? "bg-white text-[var(--color-atelier-grafite)] border-[var(--color-atelier-terracota)]/30 shadow-sm"
-                    : "bg-transparent text-[var(--color-atelier-grafite)]/70 border-transparent hover:bg-white/60"
-                }`}
-              >
-                <Hash size={14} className="text-gray-400 shrink-0" />
-                <span className="font-bold text-[11px] truncate flex-1">{getClientNameForFio(fio)}</span>
-                {(unreadCounts[fio.id] || 0) > 0 && (
-                  <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
-                    {unreadCounts[fio.id]}
-                  </span>
-                )}
-              </button>
-            ))}
-
-            {/* Botão Criar Novo Canal */}
-            <button
-              onClick={() => showToast('Ferramenta de criação de canais em desenvolvimento!')}
-              className="w-full text-left px-3.5 py-3 rounded-xl flex items-center gap-3 transition-all border border-dashed border-[var(--color-atelier-grafite)]/20 hover:border-[var(--color-atelier-terracota)]/40 hover:bg-[var(--color-atelier-terracota)]/5 text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-terracota)] mt-3"
-            >
-              <div className="w-6 h-6 rounded-lg bg-[var(--color-atelier-grafite)]/5 flex items-center justify-center shrink-0">
-                <span className="font-bold text-[16px] leading-none mb-0.5">+</span>
+          {/* Fios de Clientes - Exclusivo para Gestor e Admin */}
+          {(currentUser?.role === 'admin' || currentUser?.role === 'gestor') && (
+            <div className="mt-4">
+              <div className="flex items-center justify-between px-2 mb-2">
+                <span className="text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">
+                  Canais de Clientes ({fiosCliente.length})
+                </span>
+                <span className="text-[8px] uppercase tracking-wider font-extrabold text-[var(--color-atelier-terracota)] bg-[var(--color-atelier-terracota)]/10 px-1.5 py-0.5 rounded">
+                  Gestão & Admin
+                </span>
               </div>
-              <span className="font-bold text-[11px] uppercase tracking-widest truncate flex-1">Criar Novo Canal</span>
-            </button>
-          </div>
+
+              {/* Existing client fios */}
+              {fiosCliente.map((fio) => (
+                <button
+                  key={fio.id}
+                  onClick={() => setActiveFioId(fio.id)}
+                  className={`w-full text-left px-3.5 py-2.5 rounded-xl flex items-center gap-3 transition-all border mb-1 cursor-pointer ${
+                    activeFioId === fio.id
+                      ? "bg-white text-[var(--color-atelier-grafite)] border-[var(--color-atelier-terracota)]/30 shadow-sm"
+                      : "bg-transparent text-[var(--color-atelier-grafite)]/70 border-transparent hover:bg-white/60"
+                  }`}
+                >
+                  <Hash size={14} className="text-gray-400 shrink-0" />
+                  <span className="font-bold text-[11px] truncate flex-1">{getClientNameForFio(fio)}</span>
+                  {(unreadCounts[fio.id] || 0) > 0 && (
+                    <span className="bg-red-500 text-white text-[9px] font-bold px-1.5 py-0.5 rounded-full shadow-sm">
+                      {unreadCounts[fio.id]}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
         </aside>
       </div>

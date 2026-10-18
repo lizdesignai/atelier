@@ -95,6 +95,12 @@ class NeonProxyBuilder implements PromiseLike<any> {
     return this._execute().then(onfulfilled, onrejected);
   }
 
+  catch<TResult = never>(
+    onrejected?: ((reason: any) => TResult | PromiseLike<TResult>) | undefined | null
+  ): PromiseLike<any | TResult> {
+    return this._execute().then(undefined, onrejected);
+  }
+
   private async _execute(): Promise<{data: any; error: any; count?: number}> {
     try {
       const res = await fetch('/api/db/query', {
@@ -225,6 +231,28 @@ supabase.auth.getSession = async () => {
   }
 };
 
+// @ts-ignore
+supabase.auth.getUser = async () => {
+  try {
+    const { data, error } = await supabase.auth.getSession();
+    if (error || !data?.session?.user) {
+      return { data: { user: null }, error: null };
+    }
+    return { data: { user: data.session.user }, error: null };
+  } catch (error: any) {
+    return { data: { user: null }, error: null };
+  }
+};
+
+// @ts-ignore
+supabase.auth.signOut = async () => {
+  try {
+    const baseUrl = typeof window !== 'undefined' ? '' : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    await fetch(`${baseUrl}/api/auth/logout`, { method: 'POST' });
+  } catch {}
+  return { error: null };
+};
+
 // @ts-ignore - No-op for auth state changes (auth is handled by our JWT system)
 supabase.auth.onAuthStateChange = (_callback: any) => {
   return { data: { subscription: { unsubscribe: () => {} } } };
@@ -273,14 +301,25 @@ supabase.storage.from = (bucket: string) => {
       }
     },
     getPublicUrl: (path: string, _options?: any) => {
-      const effectiveBaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_PUBLIC_SUPABASE_URL.includes('placeholder'))
-        ? process.env.NEXT_PUBLIC_SUPABASE_URL
-        : 'https://tmmptilchainrsptwsxc.supabase.co';
+      if (!path) return { data: { publicUrl: '' } };
+      if (path.startsWith('/api/storage/file/') || path.startsWith('/uploads/')) {
+        return { data: { publicUrl: path } };
+      }
+      if (path.startsWith('http://') || path.startsWith('https://')) {
+        // Se for URL antiga do Supabase, roteia via endpoint interno seguro
+        if (path.includes('supabase.co/storage/v1/object/public/')) {
+          const match = path.match(/storage\/v1\/object\/public\/([^/]+)\/(.+)$/);
+          if (match) {
+            return { data: { publicUrl: `/api/storage/file/${match[1]}/${match[2]}` } };
+          }
+        }
+        return { data: { publicUrl: path } };
+      }
 
       const cleanPath = (path || '').replace(/^\/+/, '');
       return {
         data: {
-          publicUrl: `${effectiveBaseUrl}/storage/v1/object/public/${bucket}/${cleanPath}`
+          publicUrl: `/api/storage/file/${bucket}/${cleanPath}`
         }
       };
     }

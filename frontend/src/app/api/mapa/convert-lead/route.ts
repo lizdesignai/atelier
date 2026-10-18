@@ -2,7 +2,21 @@ import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import bcrypt from 'bcryptjs';
 
-const DEFAULT_PASSWORD = 'Atelier2026!'; // Senha padrão para novos clientes do mapa
+function generateRandomClientPassword(length = 10): string {
+  const letters = 'abcdefghijkmnopqrstuvwxyz';
+  const uppers = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const digits = '23456789';
+  const specials = '!@#$%&*';
+  let pass = '';
+  pass += uppers[Math.floor(Math.random() * uppers.length)];
+  pass += digits[Math.floor(Math.random() * digits.length)];
+  pass += specials[Math.floor(Math.random() * specials.length)];
+  const all = letters + uppers + digits + specials;
+  for (let i = 3; i < length; i++) {
+    pass += all[Math.floor(Math.random() * all.length)];
+  }
+  return pass.split('').sort(() => 0.5 - Math.random()).join('');
+}
 
 export async function POST(request: Request) {
   try {
@@ -22,13 +36,14 @@ export async function POST(request: Request) {
       await sql`DELETE FROM leads WHERE email = ${email}`;
     }
 
-    // 2. Criar ou Atualizar Profile na tabela profiles
+    // 2. Criar ou Atualizar Profile na tabela profiles com senha aleatória
+    const chosenPassword = generateRandomClientPassword();
+    const passwordHash = await bcrypt.hash(chosenPassword, 12);
+
     let users = await sql`SELECT id FROM profiles WHERE email = ${email}`;
     let clientId;
 
     if (users.length === 0) {
-      // Cria o hash da senha padrão
-      const passwordHash = await bcrypt.hash(DEFAULT_PASSWORD, 12);
       const empresa = nicho || 'Cliente Mapa';
 
       const result = await sql`
@@ -39,8 +54,8 @@ export async function POST(request: Request) {
       clientId = result[0].id;
     } else {
       clientId = users[0].id;
-      // Atualizar role se estiver como 'lead'
-      await sql`UPDATE profiles SET role = 'client', status = 'active' WHERE id = ${clientId}`;
+      // Atualizar role e senha
+      await sql`UPDATE profiles SET role = 'client', status = 'active', password_hash = ${passwordHash} WHERE id = ${clientId}`;
     }
 
     // 3. Criar Projeto "O Mapa" para entrar no faturamento
@@ -72,7 +87,7 @@ export async function POST(request: Request) {
       message: 'Lead convertido com sucesso em cliente do Mapa!', 
       data: {
         login: email,
-        senha_padrao: DEFAULT_PASSWORD
+        senha_padrao: chosenPassword
       }
     });
 

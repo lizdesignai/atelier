@@ -10,6 +10,7 @@ import { supabase } from "../../../../lib/supabase";
 import ClientAssetsModal from "../../../../components/ClientAssetsModal";
 import { NotificationEngine } from "../../../../lib/NotificationEngine";
 import { formatForDateTimeLocal, parseFromDateTimeLocal } from "../../../../lib/dateUtils";
+import { normalizeImageUrl, handleAvatarError } from "../../../../lib/imageUtils";
 import { 
   Clock, Target, Activity, Flame, ArrowRight, 
   Loader2, PlayCircle, PauseCircle, ChevronRight, 
@@ -205,7 +206,7 @@ export default function TaskCard({
     };
   }, [task.status, task.started_at]);
 
-  const displayImageUrl = task.attachment_url || relatedPost?.image_url;
+  const displayImageUrl = normalizeImageUrl(task.attachment_url || relatedPost?.image_url);
   const isRejectedByClient = relatedPost?.status === 'needs_revision';
   const isPdf = displayImageUrl?.toLowerCase().includes('.pdf');
 
@@ -453,7 +454,7 @@ export default function TaskCard({
                             {/* TERRITORIES VIEW IF TASK IS ABOUT TERRITORIES */}
               {(task.title?.toLowerCase().includes('território') || task.title?.toLowerCase().includes('direcionar') || task.title?.toLowerCase().includes('direção') || task.title?.toLowerCase().includes('curadoria')) && (
                 <div className="mt-6 pt-6 border-t border-gray-100 flex flex-col gap-5 shrink-0 order-5">
-                   <AdminTerritoriesManager projectId={task.project_id} taskId={task.id} currentUser={null} />
+                   <AdminTerritoriesManager projectId={task.project_id} taskId={task.id} currentUser={currentUser} />
                 </div>
               )}
 
@@ -473,7 +474,7 @@ export default function TaskCard({
                 <span className="font-bold text-[10px] uppercase tracking-widest text-[var(--color-atelier-grafite)]">Documento PDF</span>
               </div>
             ) : (
-              <img src={displayImageUrl} alt="Cover" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-95" />
+              <img src={displayImageUrl} alt="Cover" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 opacity-95" onError={(e) => { (e.currentTarget as HTMLElement).style.display = "none"; }} />
             )}
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent"></div>
             <div className="absolute bottom-3 left-4 right-4 flex justify-between items-end">
@@ -851,11 +852,26 @@ export default function TaskCard({
                           <div key={msg.id} className={`flex flex-col gap-1 w-full max-w-[85%] ${msg.role === 'admin' ? 'mr-auto' : 'ml-auto items-end'} group`}>
                             <div className="flex items-center gap-2 w-full">
                               {msg.authorAvatar ? (
-                                <img src={msg.authorAvatar} alt={msg.authorName} className="w-5 h-5 rounded-full object-cover shrink-0" />
+                                <img src={normalizeImageUrl(msg.authorAvatar)} alt={msg.authorName} className="w-5 h-5 rounded-full object-cover shrink-0" onError={(e) => handleAvatarError(e, msg.authorName)} />
                               ) : (
                                 <UserCircle2 size={14} className="text-gray-400 shrink-0" />
                               )}
-                              <span className={`text-[10px] font-bold uppercase tracking-widest truncate ${msg.role === 'admin' ? 'text-[var(--color-atelier-terracota)]' : 'text-blue-500'}`}>{msg.authorName}</span>
+                              <span className={`text-[10px] font-bold uppercase tracking-widest truncate ${
+                                (msg.role === 'client' || msg.role === 'cliente') ? 'text-emerald-800 bg-emerald-100/90 px-2 py-0.5 rounded-md border border-emerald-300' :
+                                msg.role === 'admin' ? 'text-[var(--color-atelier-terracota)]' : 'text-blue-500'
+                              }`}>
+                                {(msg.role === 'client' || msg.role === 'cliente') ? '🟢 CLIENTE' : msg.authorName}
+                              </span>
+                              {msg.adjustType && (
+                                <span className="text-[9px] font-bold uppercase tracking-wider bg-red-100 text-red-800 px-2 py-0.5 rounded-md border border-red-200">
+                                  Revisão: {msg.adjustType}
+                                </span>
+                              )}
+                              {msg.isCommentOnly && (
+                                <span className="text-[9px] font-bold uppercase tracking-wider bg-blue-100 text-blue-800 px-2 py-0.5 rounded-md">
+                                  Comentário
+                                </span>
+                              )}
                               <span className="text-[9px] text-gray-400 shrink-0">{new Date(msg.createdAt).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'})}</span>
                               
                               <button 
@@ -866,7 +882,13 @@ export default function TaskCard({
                                 <RotateCcw size={10} className={msg.role === 'collab' ? 'rotate-180' : ''}/> Responder
                               </button>
                             </div>
-                            <div className={`p-3 rounded-2xl text-[13px] font-medium shadow-sm whitespace-pre-wrap ${msg.role === 'admin' ? 'bg-orange-50 border border-orange-100/50 text-orange-900 rounded-tl-sm' : 'bg-blue-50 border border-blue-100/50 text-blue-900 rounded-tr-sm'}`}>
+                            <div className={`p-3 rounded-2xl text-[13px] font-medium shadow-sm whitespace-pre-wrap ${
+                              (msg.role === 'client' || msg.role === 'cliente')
+                                ? 'bg-emerald-50 border border-emerald-200 text-emerald-950 rounded-tl-sm shadow-xs'
+                                : msg.role === 'admin' 
+                                ? 'bg-orange-50 border border-orange-100/50 text-orange-900 rounded-tl-sm' 
+                                : 'bg-blue-50 border border-blue-100/50 text-blue-900 rounded-tr-sm'
+                            }`}>
                               {msg.replyTo && (
                                 <div className="mb-2 p-2 rounded-lg bg-black/5 border-l-2 border-black/20 text-[11px] opacity-70 flex flex-col gap-0.5 max-w-full">
                                   <span className="font-bold truncate">{msg.replyTo.authorName}</span>
@@ -958,10 +980,10 @@ export default function TaskCard({
                                   {asset.type === 'video' ? (
                                      <video src={asset.url} className="w-full h-full object-cover" />
                                   ) : (
-                                     <img src={asset.url} alt="Arte" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                                     <img src={normalizeImageUrl(asset.url)} alt="Arte" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" onError={(e) => { (e.currentTarget as HTMLElement).style.display = "none"; }} />
                                   )}
                                   <div className="absolute inset-0 bg-black/20 md:bg-black/0 md:group-hover:bg-black/40 transition-colors flex items-center justify-center gap-2 pointer-events-auto">
-                                    <a href={asset.url} target="_blank" rel="noreferrer" className="bg-white/95 backdrop-blur-md p-2 rounded-full text-[var(--color-atelier-grafite)] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 shadow-xl" title="Visualizar">
+                                    <a href={normalizeImageUrl(asset.url)} target="_blank" rel="noreferrer" className="bg-white/95 backdrop-blur-md p-2 rounded-full text-[var(--color-atelier-grafite)] opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-all duration-300 shadow-xl" title="Visualizar">
                                        <Eye size={14} />
                                     </a>
                                   </div>
@@ -998,7 +1020,7 @@ export default function TaskCard({
                                 </div>
                               ) : (
                                 <div className={`w-full h-48 sm:h-56 rounded-[1.5rem] overflow-hidden border border-gray-200 shadow-sm relative group cursor-pointer bg-gray-100 ${isRejectedByClient ? 'border-red-300 ring-2 ring-red-500/20' : ''}`} onClick={() => setIsLightboxOpen(true)}>
-                                  <img src={displayImageUrl!} alt="Arte Anexada" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                                  <img src={displayImageUrl!} alt="Arte Anexada" className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" onError={(e) => { (e.currentTarget as HTMLElement).style.display = "none"; }} />
                                   <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center pointer-events-none md:group-hover:pointer-events-auto">
                                     <div className="bg-white/95 backdrop-blur-md px-4 py-2.5 rounded-full text-[var(--color-atelier-grafite)] opacity-0 group-hover:opacity-100 transition-all duration-300 shadow-xl transform translate-y-4 group-hover:translate-y-0 flex items-center gap-2">
                                        <ZoomIn size={16} /> <span className="text-[10px] font-bold uppercase tracking-widest">Expandir</span>

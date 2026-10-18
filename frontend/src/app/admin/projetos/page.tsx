@@ -1,7 +1,6 @@
 "use client";
 import { ProjectAssetsManager } from '../../../components/admin/ProjectAssetsManager';
-
-﻿import { AdminTerritoriesManager } from "../../../components/admin/AdminTerritoriesManager";
+import { AdminTerritoriesManager } from "../../../components/admin/AdminTerritoriesManager";
 // src/app/admin/projetos/page.tsx
 
 import { useState, useEffect, Suspense } from "react";
@@ -640,9 +639,9 @@ function PainelIdentidade() {
 
   const isCofreUnlocked = (daysLeft === 0 && deadlineDate !== "") || isForceUnlocked;
 
-  // PAINEL DE CURADORIA
-  const [showRefsPanel, setShowRefsPanel] = useState(false);
+  // PAINEL DE CURADORIA & TERRITÓRIOS
   const [showTerritoriesPanel, setShowTerritoriesPanel] = useState(false);
+  const [direcionarTab, setDirecionarTab] = useState<'curadoria' | 'territorios'>('curadoria');
   const [clientMoodboard, setClientMoodboard] = useState<string[]>([]);
   const [adminRefs, setAdminRefs] = useState<any[]>([]);
   const [activeEvalIndex, setActiveEvalIndex] = useState(0);
@@ -654,7 +653,7 @@ function PainelIdentidade() {
   const [isSendingRef, setIsSendingRef] = useState(false);
 
   useEffect(() => {
-    if (!showRefsPanel || !activeProjectId) return;
+    if (!showTerritoriesPanel || !activeProjectId) return;
     const fetchCuradoria = async () => {
       const [ { data: strategicData }, { data: directionsData } ] = await Promise.all([
         supabase.from('strategic_answers').select('moodboard_urls').eq('project_id', activeProjectId).maybeSingle(),
@@ -672,7 +671,7 @@ function PainelIdentidade() {
       }
     };
     fetchCuradoria();
-  }, [showRefsPanel, activeProjectId]);
+  }, [showTerritoriesPanel, activeProjectId]);
 
   const handleMultiImageUploadRef = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
@@ -1101,7 +1100,7 @@ function PainelIdentidade() {
                </div>
                <div>
                  <h4 className="font-elegant text-xl text-[var(--color-atelier-grafite)]">Direcionar</h4>
-                 <p className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Moodboards & Conceitos</p>
+                 <p className="font-roboto text-[10px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">Curadoria & Territórios</p>
                </div>
              </button>
 
@@ -1163,7 +1162,8 @@ function PainelIdentidade() {
 
       
       {/* ==========================================
-          PAINEL DESLIZANTE (TERRITÃ“RIOS VISUAIS)
+      {/* ==========================================
+          PAINEL DESLIZANTE (DIRECIONAR / CURADORIA & TERRITÓRIOS)
           ========================================== */}
       <AnimatePresence>
         {isIdv && showTerritoriesPanel && (
@@ -1172,24 +1172,218 @@ function PainelIdentidade() {
             
             <motion.div
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="relative w-full max-w-[900px] h-full bg-[var(--color-atelier-creme)] shadow-[-20px_0_50px_rgba(122,116,112,0.2)] flex flex-col border-l border-white overflow-hidden"
+              className="relative w-full max-w-[950px] h-full bg-[var(--color-atelier-creme)] shadow-[-20px_0_50px_rgba(122,116,112,0.2)] flex flex-col border-l border-white overflow-hidden"
             >
-              <div className="p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 backdrop-blur-xl flex justify-between items-start shrink-0 z-20">
+              <div className="p-6 md:p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/70 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 z-20">
                 <div>
-                  <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-3"><Compass size={24} className="text-[var(--color-atelier-terracota)]" /> Painel de Direcionar (Moodboards)</h2>
-                  <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-2">
-                    Projeto: {currentProject?.profiles?.nome}
+                  <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-3">
+                    <Compass size={24} className="text-[var(--color-atelier-terracota)]" /> 
+                    {direcionarTab === 'curadoria' ? 'Curadoria Visual' : 'Territórios Visuais'}
+                  </h2>
+                  <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">
+                    Projeto: {currentProject?.profiles?.nome} {direcionarTab === 'curadoria' && `• ${adminRefs.length} Direções`}
                   </p>
                 </div>
-                <div className="flex gap-2">
-                  <button onClick={() => setShowTerritoriesPanel(false)} className="w-10 h-10 rounded-xl bg-white flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-red-500 transition-all shadow-sm border border-white">
-                    <X size={20} />
+
+                <div className="flex flex-wrap items-center gap-2">
+                  {/* Alternador de Tabs */}
+                  <div className="flex items-center gap-1 bg-[var(--color-atelier-grafite)]/5 p-1 rounded-2xl border border-[var(--color-atelier-grafite)]/10">
+                    <button
+                      onClick={() => setDirecionarTab('curadoria')}
+                      className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest font-roboto transition-all flex items-center gap-1.5 ${
+                        direcionarTab === 'curadoria'
+                          ? 'bg-white text-[var(--color-atelier-terracota)] shadow-sm'
+                          : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
+                      }`}
+                    >
+                      <ImageIcon size={13} /> Curadoria
+                    </button>
+                    <button
+                      onClick={() => setDirecionarTab('territorios')}
+                      className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest font-roboto transition-all flex items-center gap-1.5 ${
+                        direcionarTab === 'territorios'
+                          ? 'bg-white text-[var(--color-atelier-terracota)] shadow-sm'
+                          : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
+                      }`}
+                    >
+                      <Sparkles size={13} /> Territórios
+                    </button>
+                  </div>
+
+                  {direcionarTab === 'curadoria' && (
+                    <>
+                      {/* BOTÃO DE CÉREBRO DA IA DA CURADORIA */}
+                      <button 
+                        onClick={handleGenerateCuradoriaInsight} 
+                        disabled={isGeneratingCuradoriaInsight || adminRefs.length === 0} 
+                        className="bg-white border border-[var(--color-atelier-terracota)]/20 text-[var(--color-atelier-terracota)] px-3.5 py-2 rounded-[1rem] flex items-center gap-1.5 font-roboto text-[10px] uppercase tracking-widest font-bold hover:border-[var(--color-atelier-terracota)] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm disabled:opacity-50"
+                      >
+                        {isGeneratingCuradoriaInsight ? <Loader2 size={13} className="animate-spin" /> : <BrainCircuit size={13} />} Analisar IA
+                      </button>
+
+                      <button 
+                        onClick={handleDownloadCuradoriaPDF} 
+                        disabled={isGeneratingCuradoriaPDF || adminRefs.length === 0} 
+                        className="bg-[var(--color-atelier-grafite)] border border-transparent text-white px-4 py-2 rounded-[1rem] flex items-center gap-1.5 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-atelier-terracota)] transition-all shadow-md disabled:opacity-50"
+                      >
+                        {isGeneratingCuradoriaPDF ? <Loader2 size={13} className="animate-spin" /> : <Download size={13} />} PDF
+                      </button>
+                    </>
+                  )}
+
+                  <button 
+                    onClick={() => setShowTerritoriesPanel(false)} 
+                    className="w-9 h-9 rounded-xl bg-white flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-red-500 transition-all shadow-sm border border-white"
+                  >
+                    <X size={18} />
                   </button>
                 </div>
               </div>
-              <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
-                <AdminTerritoriesManager projectId={activeProjectId} currentUser={null} />
-              </div>
+
+              {direcionarTab === 'territorios' ? (
+                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                  <AdminTerritoriesManager projectId={activeProjectId} currentUser={null} />
+                </div>
+              ) : (
+                <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col p-8 gap-8 relative z-10">
+                  
+                  {/* Exibição em Tempo Real do Insight da IA da Curadoria */}
+                  {curadoriaAiInsight && (
+                    <div className="bg-white/80 p-8 rounded-[2rem] border border-[var(--color-atelier-terracota)]/20 shadow-sm relative overflow-hidden">
+                      <div className="absolute left-0 top-0 h-full w-1.5 bg-[var(--color-atelier-terracota)]"></div>
+                      <h3 className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] mb-4 flex items-center gap-2">
+                        <Sparkles size={14}/> Análise Semiótica (Direção de Arte)
+                      </h3>
+                      <div className="font-roboto text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed whitespace-pre-wrap font-medium">
+                          {curadoriaAiInsight}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Moodboard do Cliente */}
+                  <section className="pb-8 border-b border-[var(--color-atelier-grafite)]/5">
+                    <div className="flex items-center gap-2 mb-6 pb-2 border-b border-[var(--color-atelier-grafite)]/5">
+                      <ImageIcon size={16} className="text-[var(--color-atelier-terracota)]" />
+                      <h3 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Moodboard do Cliente</h3>
+                    </div>
+                    {clientMoodboard.length === 0 ? (
+                      <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 italic font-medium">O cliente ainda não adicionou referências ao Brandbook.</p>
+                    ) : (
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        {clientMoodboard.map((img, i) => (
+                          <div key={i} className="aspect-square rounded-2xl overflow-hidden border-4 border-white shadow-sm group relative">
+                            <img src={img} onClick={() => window.open(img, "_blank")} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 cursor-pointer" alt="Ref Cliente" />
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </section>
+
+                  {/* Direções Enviadas e Avaliações */}
+                  <section>
+                    <div className="flex items-center gap-2 mb-6 pb-2 border-b border-[var(--color-atelier-grafite)]/5">
+                      <Sparkles size={16} className="text-[var(--color-atelier-terracota)]" />
+                      <h3 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Direções Enviadas e Avaliações</h3>
+                    </div>
+                    
+                    {adminRefs.length === 0 ? (
+                      <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 italic mb-6 font-medium">Nenhuma direção visual enviada ainda.</p>
+                    ) : (
+                      <>
+                        <div className="flex overflow-x-auto custom-scrollbar gap-3 pb-4 shrink-0 -mx-2 px-2">
+                          {adminRefs.map((ref, index) => {
+                            const coverImage = ref.image_urls && ref.image_urls.length > 0 ? ref.image_urls[0] : ref.image_url;
+                            return (
+                              <button key={ref.id} onClick={() => setActiveEvalIndex(index)} className={`shrink-0 w-36 flex flex-col gap-3 p-3 rounded-[1.2rem] border transition-all cursor-pointer text-left ${activeEvalIndex === index ? 'bg-white border-[var(--color-atelier-terracota)]/40 shadow-md scale-[1.02]' : 'bg-white/50 border-transparent hover:bg-white/80'}`}>
+                                <div className="w-full h-20 rounded-xl overflow-hidden border border-white shadow-inner"><img src={coverImage} className="w-full h-full object-cover" alt={ref.title} /></div>
+                                <span className={`font-roboto text-[10px] uppercase tracking-widest font-bold truncate w-full pl-1 ${activeEvalIndex === index ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/60'}`}>{ref.title}</span>
+                              </button>
+                            )
+                          })}
+                        </div>
+
+                        {adminRefs[activeEvalIndex] && (
+                          <motion.div key={activeEvalIndex} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-6 mt-4">
+                            <div className="flex gap-6 items-start glass-panel bg-white/60 p-8 rounded-[2rem] border border-white shadow-sm flex-col">
+                              
+                              <div className="flex justify-between w-full items-start">
+                                <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-1">{adminRefs[activeEvalIndex].title}</h3>
+                                <div className="flex items-center gap-2">
+                                  <span className={`border px-5 py-2 rounded-[1rem] text-[11px] uppercase tracking-widest font-bold font-roboto shadow-sm ${adminRefs[activeEvalIndex].score > 0 ? 'bg-[var(--color-atelier-terracota)] text-white border-transparent' : 'bg-white text-[var(--color-atelier-grafite)]/40 border-white'}`}>
+                                    {adminRefs[activeEvalIndex].score > 0 ? `Nota: ${adminRefs[activeEvalIndex].score}/10` : 'Avaliação Pendente'}
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-4 w-full">
+                                {(adminRefs[activeEvalIndex].image_urls && adminRefs[activeEvalIndex].image_urls.length > 0 
+                                    ? adminRefs[activeEvalIndex].image_urls 
+                                    : [adminRefs[activeEvalIndex].image_url]
+                                 ).map((imgUrl: string, idx: number) => (
+                                  <div key={idx} className="w-full aspect-square rounded-[1.2rem] overflow-hidden border-4 border-white shadow-sm cursor-pointer" onClick={() => window.open(imgUrl, "_blank")}>
+                                    <img src={imgUrl} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" alt="" />
+                                  </div>
+                                ))}
+                              </div>
+
+                              <div className="flex flex-col pt-4 flex-1 w-full">
+                                <div className="flex flex-col gap-4 w-full bg-white/80 p-6 rounded-3xl mb-4 border border-white shadow-sm">
+                                  <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] border-b border-[var(--color-atelier-grafite)]/5 pb-2">Feedback do Cliente (Matriz)</span>
+                                  <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Atmosfera:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q1 || "Não respondido."}</span></p>
+                                  <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Tipografia:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q2 || "Não respondido."}</span></p>
+                                  <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Cores:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q3 || "Não respondido."}</span></p>
+                                  <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Elementos:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q4 || "Não respondido."}</span></p>
+                                </div>
+
+                                <button onClick={() => removeAdminRef(adminRefs[activeEvalIndex].id)} className="self-end px-4 py-2 bg-white border border-transparent hover:border-red-100 hover:bg-red-50 rounded-xl text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-600 transition-colors flex items-center gap-1 shadow-sm"><X size={12} /> Excluir Direção</button>
+                              </div>
+                            </div>
+                          </motion.div>
+                        )}
+                      </>
+                    )}
+                  </section>
+
+                  {/* Upload de Nova Direção Visual (Curadoria) */}
+                  <div className="mt-2 border-t border-[var(--color-atelier-grafite)]/10 pt-8">
+                    <div className="flex items-center gap-2 mb-6">
+                      <div className="w-8 h-8 rounded-full bg-[var(--color-atelier-terracota)] text-white flex items-center justify-center shadow-md"><Plus size={14} strokeWidth={3} /></div>
+                      <h3 className="font-roboto text-[13px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Nova Direção Visual (Curadoria)</h3>
+                    </div>
+                    <div className="bg-white/80 p-8 rounded-[2rem] border border-white shadow-sm">
+                      <div className="flex flex-col gap-5">
+                         <label className="w-full min-h-[120px] rounded-2xl border-2 border-dashed border-[var(--color-atelier-terracota)]/20 hover:border-[var(--color-atelier-terracota)]/50 bg-white/50 cursor-pointer flex flex-col items-center justify-center transition-colors group relative p-6">
+                           <input type="file" accept="image/*" multiple className="hidden" onChange={handleMultiImageUploadRef} disabled={isSendingRef} />
+                           
+                           {newRefImagePreviews.length > 0 ? (
+                             <div className="flex flex-wrap gap-4 justify-center w-full relative z-20">
+                               {newRefImagePreviews.map((preview, i) => (
+                                 <div key={i} className="w-24 h-24 rounded-xl overflow-hidden relative shadow-sm border-2 border-white">
+                                   <img src={preview} alt="Preview" className="w-full h-full object-cover" />
+                                   <button type="button" onClick={(e) => { e.preventDefault(); handleRemoveRefImage(i); }} className="absolute top-1.5 right-1.5 w-6 h-6 bg-red-500/90 backdrop-blur-md rounded-full text-white flex items-center justify-center hover:scale-110 shadow-sm border border-white/20"><X size={12}/></button>
+                                 </div>
+                               ))}
+                               <div className="w-24 h-24 rounded-xl border-2 border-dashed border-[var(--color-atelier-grafite)]/20 flex flex-col items-center justify-center text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] transition-colors">
+                                 <Plus size={24}/>
+                               </div>
+                             </div>
+                           ) : (
+                             <><UploadCloud size={28} className="mb-3 text-[var(--color-atelier-grafite)]/40 group-hover:text-[var(--color-atelier-terracota)] transition-colors" /><span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 group-hover:text-[var(--color-atelier-terracota)] transition-colors">Upload das Referências Gráficas</span></>
+                           )}
+                         </label>
+
+                         <div className="flex flex-col sm:flex-row gap-4">
+                           <input type="text" value={newRefTitle} onChange={(e) => setNewRefTitle(e.target.value)} disabled={isSendingRef} placeholder="Título da Rota (Ex: Direção Clean & Minimalista)" className="flex-1 bg-white border border-white focus:border-[var(--color-atelier-terracota)]/40 rounded-2xl px-5 py-4 text-[13px] font-bold outline-none shadow-sm disabled:opacity-50 transition-colors" />
+                           <button onClick={handleAddAdminRef} disabled={isSendingRef || newRefImageFiles.length === 0} className="px-10 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-2xl font-roboto text-[11px] font-bold uppercase tracking-[0.1em] hover:bg-[var(--color-atelier-terracota)] transition-all shadow-md shrink-0 disabled:opacity-50 flex items-center justify-center gap-2 hover:-translate-y-0.5 disabled:hover:translate-y-0 mt-4 sm:mt-0">
+                             {isSendingRef ? <Loader2 size={16} className="animate-spin" /> : <Send size={16}/>} Enviar
+                           </button>
+                         </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              )}
             </motion.div>
           </div>
         )}

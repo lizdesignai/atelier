@@ -1,10 +1,12 @@
 "use client";
 import React, { useEffect, useState } from 'react';
-import { supabase } from '../../../../lib/supabase';
-import { Target, Clock, ArrowRight, Loader2, Sparkles, Map, Hammer, Presentation, Rocket, PieChart, Activity } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { dbSelect } from '../../../../lib/dbClient';
+import { Target, Clock, ArrowRight, ArrowLeft, Loader2, Sparkles, Map, Hammer, Presentation, Rocket, PieChart, Activity } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart as RechartsPie, Pie } from 'recharts';
 
 export default function IDVMetricsPage() {
+  const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [idvProjects, setIdvProjects] = useState<any[]>([]);
   const [territories, setTerritories] = useState<any[]>([]);
@@ -14,19 +16,17 @@ export default function IDVMetricsPage() {
   }, []);
 
   const fetchData = async () => {
-    const { data: projects } = await supabase
-      .from('projects')
-      .select('*, profiles(nome)')
-      .eq('service_type', 'Identidade Visual');
+    try {
+      const projects = await dbSelect('projects', { service_type: 'Identidade Visual' });
+      const terrs = await dbSelect('territory_evaluations', {});
 
-    const { data: terrs } = await supabase
-      .from('territory_evaluations')
-      .select('*');
-
-    if (projects) setIdvProjects(projects);
-    if (terrs) setTerritories(terrs);
-    
-    setIsLoading(false);
+      if (projects) setIdvProjects(projects);
+      if (terrs) setTerritories(terrs);
+    } catch (e) {
+      console.error('Erro ao buscar métricas IDV do Neon:', e);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (isLoading) {
@@ -72,7 +72,10 @@ export default function IDVMetricsPage() {
       
       <header className="flex justify-between items-end border-b border-[var(--color-atelier-grafite)]/10 pb-6">
         <div>
-          <h1 className="font-elegant text-5xl text-[var(--color-atelier-grafite)] mb-2 flex items-center gap-4">
+          <button onClick={() => router.push('/admin/analytics')} className="flex items-center gap-2 text-[10px] text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-terracota)] transition-colors mb-4 font-bold tracking-widest uppercase">
+              <ArrowLeft size={14} /> Voltar para Analytics
+            </button>
+            <h1 className="font-elegant text-5xl text-[var(--color-atelier-grafite)] mb-2 flex items-center gap-4">
             <Activity className="text-[var(--color-atelier-terracota)]" size={36} />
             IDV Intelligence
           </h1>

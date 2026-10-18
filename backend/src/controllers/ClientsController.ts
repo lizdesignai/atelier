@@ -76,7 +76,7 @@ export class ClientsController {
             CASE WHEN pr.id IS NOT NULL THEN json_build_object('nome', pr.nome, 'avatar_url', pr.avatar_url, 'empresa', pr.empresa) ELSE null END as profiles
           FROM projects p
           LEFT JOIN profiles pr ON p.client_id = pr.id
-          WHERE p.status IN ('active', 'delivered')
+          WHERE p.status IN ('active', 'delivered', 'archived', 'completed', 'paused')
         `
       ]);
 

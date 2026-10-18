@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { Target, Activity, Clock, CheckCircle2, Eye } from 'lucide-react';
+import { getSafeAvatarUrl } from '@/lib/imageUtils';
 
 interface PersonalDeskProps {
   viewedUser: any;
@@ -25,6 +27,7 @@ export default function PersonalDesk({
   isViewingSelf,
   allUserTasks = []
 }: PersonalDeskProps) {
+  const [avatarError, setAvatarError] = useState(false);
   // Current playing task (in_progress)
   const currentTask = allUserTasks.find((t) => t.status === 'in_progress');
 
@@ -58,12 +61,13 @@ export default function PersonalDesk({
     <div className="shrink-0 flex flex-col w-full animate-[fadeInUp_0.5s_ease-out]">
       <div className="w-full relative overflow-hidden rounded-[2.5rem] min-h-[370px] p-6 md:p-8 flex flex-col justify-between border border-white/10">
         {/* Full Card Background: Avatar or Rich Terracotta/Charcoal Gradient */}
-        {viewedUser?.avatar_url ? (
+        {viewedUser?.avatar_url && !avatarError ? (
           <>
             <img
-              src={viewedUser.avatar_url}
+              src={getSafeAvatarUrl(viewedUser.avatar_url, userName)}
               alt={userName}
               className="absolute inset-0 w-full h-full object-cover pointer-events-none"
+              onError={() => setAvatarError(true)}
             />
             <div className="absolute inset-0 bg-gradient-to-b from-transparent via-black/60 to-black/95 pointer-events-none" />
           </>

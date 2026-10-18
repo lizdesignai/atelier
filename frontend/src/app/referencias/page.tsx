@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
 import { NotificationEngine } from "../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
+import { normalizeImageUrl } from "../../lib/imageUtils";
 import { 
   ChevronLeft, ChevronRight, Plus, Image as ImageIcon, 
   Sparkles, Fingerprint, Type, Palette, Target, CheckCircle2,
@@ -71,7 +72,7 @@ export default function ReferenciasPage() {
         .single();
       
       if (strategicData && strategicData.moodboard_urls) {
-        setClientMoodboard(strategicData.moodboard_urls);
+        setClientMoodboard(strategicData.moodboard_urls.map((u: string) => normalizeImageUrl(u)));
       }
 
       // 4. Busca as Direções de Design enviadas pelo Admin
@@ -352,10 +353,10 @@ export default function ReferenciasPage() {
                         className="w-full h-full rounded-[2.5rem] overflow-hidden border-[6px] border-white shadow-[0_20px_50px_rgba(122,116,112,0.1)] relative bg-gray-50"
                       >
                         <img 
-                          src={currentRef?.image_url} 
+                          src={normalizeImageUrl(currentRef?.image_url)} 
                           alt={currentRef?.title} 
                           className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform duration-[2s]" 
-                          onClick={() => window.open(currentRef?.image_url, "_blank")}
+                          onClick={() => window.open(normalizeImageUrl(currentRef?.image_url), "_blank")}
                         />
                         <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent pointer-events-none"></div>
                       </motion.div>

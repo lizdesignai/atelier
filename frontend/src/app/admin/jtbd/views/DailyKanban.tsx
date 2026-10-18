@@ -7,6 +7,7 @@ import { Clock, AlertTriangle, CheckCircle2, Image as ImageIcon, PlayCircle, Fil
 import TaskCard from "../components/TaskCard";
 import { supabase } from "../../../../lib/supabase";
 import ClientAssetsModal from "../../../../components/ClientAssetsModal";
+import { normalizeImageUrl } from "../../../../lib/imageUtils";
 
 interface DailyKanbanProps {
   pendingTasks: any[];
@@ -130,6 +131,7 @@ export default function DailyKanban({
 
       for (const file of files) {
         const isVideo = file.type.startsWith('video/');
+        const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf');
         const bucket = isVideo ? 'community_videos' : 'community_images';
         
         const fileExt = file.name.split('.').pop();
@@ -142,10 +144,10 @@ export default function DailyKanban({
         const { data: publicUrlData } = supabase.storage.from(bucket).getPublicUrl(filePath);
         const fileUrl = publicUrlData.publicUrl;
 
-        newMediaAssets.push({ type: isVideo ? 'video' : 'image', url: fileUrl });
+        newMediaAssets.push({ type: isVideo ? 'video' : isPdf ? 'pdf' : 'image', url: fileUrl });
         
-        // Mantém attachment_url para retrocompatibilidade
-        if (!mainAttachmentUrl && !isVideo) {
+        // Mantém attachment_url para retrocompatibilidade e visualização direta
+        if (!mainAttachmentUrl) {
           mainAttachmentUrl = fileUrl;
         }
       }
@@ -231,7 +233,7 @@ export default function DailyKanban({
                   <span className="font-bold text-[8px] uppercase tracking-widest text-gray-600">Doc. PDF</span>
                 </div>
               ) : (
-                <img src={task.attachment_url} className="w-full h-full object-cover opacity-90 group-hover/completed:scale-105 transition-transform duration-700" alt="Capa" />
+                <img src={normalizeImageUrl(task.attachment_url)} className="w-full h-full object-cover opacity-90 group-hover/completed:scale-105 transition-transform duration-700" alt="Capa" onError={(e) => { (e.currentTarget as HTMLElement).style.display = 'none'; }} />
               )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/40 to-transparent pointer-events-none"></div>
               <div className="absolute top-2 right-2 bg-green-500/90 backdrop-blur-md text-white text-[8px] font-bold uppercase tracking-widest px-2 py-1 rounded shadow-sm flex items-center gap-1">
@@ -255,7 +257,7 @@ export default function DailyKanban({
                  {/* Colaborador */}
                  <div className="flex items-center gap-1.5" title={`Feito por ${assignee.nome}`}>
                    {assignee.avatar_url ? (
-                     <img src={assignee.avatar_url} className="w-5 h-5 rounded-full object-cover border border-gray-200" alt={assignee.nome} />
+                     <img src={assignee.avatar_url} className="w-5 h-5 rounded-full object-cover border border-gray-200" alt={assignee.nome} onError={(e) => { (e.currentTarget as HTMLElement).style.display = "none"; }} />
                    ) : (
                      <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
                        <User size={10} className="text-gray-400" />
@@ -272,7 +274,7 @@ export default function DailyKanban({
                    onClick={(e) => { e.stopPropagation(); setActiveAssetsTask(task); }}
                  >
                    {clientAvatar ? (
-                     <img src={clientAvatar} className="w-5 h-5 rounded-full object-cover border border-gray-200" alt={clientName} />
+                     <img src={clientAvatar} className="w-5 h-5 rounded-full object-cover border border-gray-200" alt={clientName} onError={(e) => { (e.currentTarget as HTMLElement).style.display = "none"; }} />
                    ) : (
                      <div className="w-5 h-5 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
                        <Briefcase size={10} className="text-gray-400 group-hover/client:text-[var(--color-atelier-terracota)]" />
@@ -352,7 +354,7 @@ export default function DailyKanban({
                    <span className="font-bold text-[9px] uppercase tracking-widest text-[var(--color-atelier-grafite)]">Doc. PDF</span>
                  </div>
                ) : (
-                 <img src={task.attachment_url} className="w-full h-full object-cover opacity-90 group-hover/wrapper:scale-105 transition-transform duration-500" alt="Capa Visual" />
+                 <img src={task.attachment_url} className="w-full h-full object-cover opacity-90 group-hover/wrapper:scale-105 transition-transform duration-500" alt="Capa Visual" onError={(e) => { (e.currentTarget as HTMLElement).style.display = "none"; }} />
                )}
                
                <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent pointer-events-none"></div>

@@ -1,12 +1,16 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Grid, CheckCircle2, AlertCircle, CalendarClock, MessageSquare, Loader2, X, 
   ChevronRight, ChevronLeft, Heart, Bookmark, Share2, MoreHorizontal, RefreshCw, Edit3, Sparkles, Pencil
 } from "lucide-react";
-import { supabase } from "../../lib/supabase";
+import { dbSelect, dbSelectOne } from "../../lib/dbClient";
+import { useProfile } from "../../hooks/useProfile";
+import { normalizeImageUrl, handleAvatarError, handleImageFallbackError } from "../../lib/imageUtils";
+import { getProductTypeFromProject } from "@/lib/productHelper";
 
 // Mock data fallback com legendas simuladas
 const MOCK_POSTS = [
@@ -53,6 +57,8 @@ const showToast = (message: string) => {
 };
 
 export default function SimuladorFeedPage() {
+  const router = useRouter();
+  const { data: userProfile, isLoading: isProfileLoading } = useProfile();
   const [isLoading, setIsLoading] = useState(true);
   const [clientProfile, setClientProfile] = useState<any>(null);
   const [projectId, setProjectId] = useState<string | null>(null);
@@ -85,67 +91,82 @@ export default function SimuladorFeedPage() {
   // Estado para modal de expansão de post (Vislumbre)
   const [expandedPostIndex, setExpandedPostIndex] = useState<number | null>(null);
 
-  // Busca do perfil do cliente e dados salvos no Supabase
+  // Busca do perfil do cliente e dados salvos no Neon
   useEffect(() => {
     const fetchData = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        setSessionUserId(session.user.id);
-        
-        // Buscar perfil
-        const { data: profile } = await supabase.from('profiles').select('nome, avatar_url').eq('id', session.user.id).single();
-        if (profile) setClientProfile(profile);
+      if (userProfile?.id) {
+        setSessionUserId(userProfile.id);
+        setClientProfile(userProfile);
 
         // Buscar projeto ativo do cliente com fallback seguro
         let activeProjId: string | null = null;
-        const { data: proj } = await supabase.from('projects').select('id').eq('client_id', session.user.id).in('status', ['active', 'delivered']).limit(1).maybeSingle();
-        if (proj) {
-          activeProjId = proj.id;
-        } else {
-          const { data: prof } = await supabase.from('profiles').select('project_id').eq('id', session.user.id).maybeSingle();
-          if (prof?.project_id) {
-            activeProjId = prof.project_id;
-          } else {
-            const { data: fallbackProj } = await supabase.from('projects').select('id').limit(1).maybeSingle();
-            if (fallbackProj) activeProjId = fallbackProj.id;
+        try {
+          const userProjects = await dbSelect('projects', { client_id: userProfile.id });
+          const activeProj = userProjects.find((p: any) => p.status === 'active' || p.status === 'delivered');
+          
+          if (activeProj && userProfile.role === 'client') {
+            const productType = getProductTypeFromProject(activeProj);
+            if (productType === 'idv') {
+              router.replace('/');
+              return;
+            }
+            if (productType === 'mapa') {
+              router.replace('/mapa');
+              return;
+            }
           }
-        }
 
-        if (activeProjId) {
-          setProjectId(activeProjId);
-          
-          // Buscar perfil salvo em instagram_profiles
-          const { data: igProfile } = await supabase.from('instagram_profiles').select('*').eq('project_id', activeProjId).maybeSingle();
-          if (igProfile && igProfile.username) {
-            setInstagramData(igProfile);
-            setInputUsername(igProfile.username);
+          if (activeProj) {
+            activeProjId = activeProj.id;
+          } else if ((userProfile as any).project_id) {
+            activeProjId = (userProfile as any).project_id;
+          } else {
+            const allProjects = await dbSelect('projects', {});
+            if (allProjects.length > 0) activeProjId = allProjects[0].id;
           }
-          
-          // Buscar posts salvos da raspagem do instagram
-          const { data: dbPosts } = await supabase.from('instagram_feed_posts').select('*').eq('project_id', activeProjId).order('display_order', { ascending: true });
-          
-          // Buscar posts criados pelo Atelier (social_posts aprovados)
-          const { data: atelierPosts } = await supabase.from('social_posts').select('*').eq('project_id', activeProjId).eq('status', 'approved').order('created_at', { ascending: false });
-          
-          let combinedPosts: Array<{image: string, caption: string}> = [];
-          
-          if (atelierPosts && atelierPosts.length > 0) {
-            combinedPosts = [...combinedPosts, ...atelierPosts.map(p => ({ image: p.image_url, caption: p.caption || "" }))];
+
+          if (activeProjId) {
+            setProjectId(activeProjId);
+            
+            // Buscar perfil salvo em instagram_profiles
+            const igProfile = await dbSelectOne('instagram_profiles', { project_id: activeProjId });
+            if (igProfile && igProfile.username) {
+              setInstagramData(igProfile);
+              setInputUsername(igProfile.username);
+            }
+            
+            // Buscar posts salvos da raspagem do instagram
+            const dbPosts = await dbSelect('instagram_feed_posts', { project_id: activeProjId });
+            
+            // Buscar posts criados pelo Atelier (social_posts aprovados)
+            const atelierPosts = await dbSelect('social_posts', { project_id: activeProjId, status: 'approved' });
+            
+            let combinedPosts: Array<{image: string, caption: string}> = [];
+            
+            if (atelierPosts && atelierPosts.length > 0) {
+              combinedPosts = [...combinedPosts, ...atelierPosts.map((p: any) => ({ image: p.image_url, caption: p.caption || "" }))];
+            }
+            
+            if (dbPosts && dbPosts.length > 0) {
+              const sortedDbPosts = [...dbPosts].sort((a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0));
+              combinedPosts = [...combinedPosts, ...sortedDbPosts.map((p: any) => ({ image: p.image_url, caption: p.caption || "" }))];
+            }
+            
+            if (combinedPosts.length > 0) {
+              setFeedPosts(combinedPosts);
+            }
           }
-          
-          if (dbPosts && dbPosts.length > 0) {
-            combinedPosts = [...combinedPosts, ...dbPosts.map(p => ({ image: p.image_url, caption: p.caption || "" }))];
-          }
-          
-          if (combinedPosts.length > 0) {
-            setFeedPosts(combinedPosts);
-          }
+        } catch (err) {
+          console.error("Erro ao carregar simulador feed:", err);
         }
       }
-      setTimeout(() => setIsLoading(false), 600);
+      setTimeout(() => setIsLoading(false), 500);
     };
-    fetchData();
-  }, []);
+
+    if (!isProfileLoading) {
+      fetchData();
+    }
+  }, [userProfile, isProfileLoading]);
 
   // Sincronizar Username com Apify e salvar no Supabase
   const handleSyncInstagram = async (targetUsername?: string) => {
@@ -175,9 +196,10 @@ export default function SimuladorFeedPage() {
 
         // Re-buscar posts do banco caso tenham sido sincronizados
         if (projectId) {
-          const { data: dbPosts } = await supabase.from('instagram_feed_posts').select('*').eq('project_id', projectId).order('display_order', { ascending: true });
+          const dbPosts = await dbSelect('instagram_feed_posts', { project_id: projectId });
           if (dbPosts && dbPosts.length > 0) {
-            setFeedPosts(dbPosts.map(p => ({ image: p.image_url, caption: p.caption || "" })));
+            const sorted = [...dbPosts].sort((a: any, b: any) => (a.display_order ?? 0) - (b.display_order ?? 0));
+            setFeedPosts(sorted.map((p: any) => ({ image: p.image_url, caption: p.caption || "" })));
           }
         }
       } else {
@@ -273,7 +295,13 @@ export default function SimuladorFeedPage() {
               <div className="p-[2px] bg-gradient-to-tr from-amber-400 via-rose-500 to-purple-600 rounded-full shrink-0">
                 <div className="w-18 h-18 md:w-20 md:h-20 rounded-full overflow-hidden border-2 border-white bg-gray-100 flex items-center justify-center">
                   {clientProfile?.avatar_url || instagramData?.avatar_url ? (
-                    <img src={clientProfile?.avatar_url || instagramData?.avatar_url} referrerPolicy="no-referrer" alt="Perfil" className="w-full h-full object-cover" />
+                    <img 
+                      src={normalizeImageUrl(clientProfile?.avatar_url || instagramData?.avatar_url)} 
+                      referrerPolicy="no-referrer" 
+                      alt="Perfil" 
+                      className="w-full h-full object-cover"
+                      onError={(e) => handleAvatarError(e, clientProfile?.nome || instagramData?.full_name)}
+                    />
                   ) : (
                     <span className="font-elegant text-2xl font-bold text-[var(--color-atelier-grafite)]">
                       {(clientProfile?.nome || instagramData?.full_name || "C").charAt(0)}
@@ -385,9 +413,14 @@ export default function SimuladorFeedPage() {
                 className="aspect-square relative group overflow-hidden bg-gray-200 cursor-pointer"
               >
                 <img 
-                  src={post.image} 
+                  src={normalizeImageUrl(post.image)} 
                   alt={`Publicação ${i + 1}`}
+                  referrerPolicy="no-referrer"
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  onError={(e) => {
+                    const fallback = MOCK_POSTS[i % MOCK_POSTS.length].image;
+                    handleImageFallbackError(e, fallback);
+                  }}
                 />
                 <div className="absolute inset-0 bg-black/0 group-hover:bg-black/25 transition-colors duration-300 flex items-center justify-center">
                   <span className="opacity-0 group-hover:opacity-100 text-white font-roboto text-[10px] uppercase font-bold tracking-widest bg-black/40 backdrop-blur-md px-2.5 py-1 rounded-full">
@@ -455,9 +488,14 @@ export default function SimuladorFeedPage() {
               {/* Imagem Expandida */}
               <div className="w-full md:w-3/5 bg-black flex items-center justify-center overflow-hidden max-h-[50vh] md:max-h-[80vh]">
                 <img 
-                  src={invertedPosts[expandedPostIndex].image} 
+                  src={normalizeImageUrl(invertedPosts[expandedPostIndex].image)} 
                   alt="Post Expandido" 
+                  referrerPolicy="no-referrer"
                   className="w-full h-full object-contain"
+                  onError={(e) => {
+                    const fallback = MOCK_POSTS[expandedPostIndex % MOCK_POSTS.length].image;
+                    handleImageFallbackError(e, fallback);
+                  }}
                 />
               </div>
 
@@ -468,7 +506,12 @@ export default function SimuladorFeedPage() {
                   <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
                     <div className="w-10 h-10 rounded-full overflow-hidden bg-gray-100 border border-gray-200 shrink-0">
                       {clientProfile?.avatar_url ? (
-                        <img src={clientProfile.avatar_url} className="w-full h-full object-cover" />
+                        <img 
+                          src={normalizeImageUrl(clientProfile.avatar_url)} 
+                          alt={clientProfile.nome || ""}
+                          onError={(e) => handleAvatarError(e, clientProfile.nome)}
+                          className="w-full h-full object-cover" 
+                        />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center font-bold text-xs bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-grafite)]">
                           {clientProfile?.nome?.charAt(0) || "C"}

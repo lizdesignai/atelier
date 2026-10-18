@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import { supabase } from '../config/supabase';
+import { neon } from '@neondatabase/serverless';
 import { NotificationService } from '../services/NotificationService';
 import { redis } from '../config/redis';
 
@@ -8,17 +8,17 @@ export class TaskController {
   // GET /api/v1/tasks
   static async getTasks(req: Request, res: Response) {
     try {
+      const sql = neon(process.env.POSTGRES_URL!);
       const fifteenDaysAgo = new Date();
       fifteenDaysAgo.setDate(fifteenDaysAgo.getDate() - 15);
 
-      const { data, error } = await supabase
-        .from('tasks')
-        .select('id, project_id, assigned_to, title, description, caption, external_links, media_assets, status, deadline, created_at, completed_at, actual_time, estimated_time, stage, task_type, attachment_url')
-        .gte('created_at', fifteenDaysAgo.toISOString())
-        .order('deadline', { ascending: true })
-        .limit(300); // Evita unbounded result sets
-
-      if (error) throw error;
+      const data = await sql`
+        SELECT id, project_id, assigned_to, title, description, caption, external_links, media_assets, status, deadline, created_at, completed_at, actual_time, estimated_time, stage, task_type, attachment_url
+        FROM tasks
+        WHERE created_at >= ${fifteenDaysAgo.toISOString()}
+        ORDER BY deadline ASC
+        LIMIT 300
+      `;
       
       return res.status(200).json({ data });
     } catch (error: any) {
@@ -30,18 +30,20 @@ export class TaskController {
   // POST /api/v1/tasks
   static async createTask(req: Request, res: Response) {
     try {
+      const sql = neon(process.env.POSTGRES_URL!);
       const taskData = { ...req.body };
 
       // Auto-assign collaborator if assigned_to is not manually specified
       if (!taskData.assigned_to && (taskData.project_id || taskData.subclient_id)) {
         try {
-          let query = supabase.from('collaborator_assignments').select('collaborator_id');
+          let assignment: any = null;
           if (taskData.project_id) {
-            query = query.eq('project_id', taskData.project_id);
+            const resAssignments = await sql`SELECT collaborator_id FROM collaborator_assignments WHERE project_id = ${taskData.project_id} LIMIT 1`;
+            assignment = resAssignments[0];
           } else if (taskData.subclient_id) {
-            query = query.eq('subclient_id', taskData.subclient_id);
+            const resAssignments = await sql`SELECT collaborator_id FROM collaborator_assignments WHERE subclient_id = ${taskData.subclient_id} LIMIT 1`;
+            assignment = resAssignments[0];
           }
-          const { data: assignment } = await query.limit(1).maybeSingle();
           if (assignment?.collaborator_id) {
             taskData.assigned_to = assignment.collaborator_id;
           }
@@ -50,19 +52,40 @@ export class TaskController {
         }
       }
 
-      const { data, error } = await supabase
-        .from('tasks')
-        .insert(taskData)
-        .select('*, projects(profiles(nome), type, service_type), agency_subclients(name)')
-        .single();
+      const keys = Object.keys(taskData);
+      const cols = keys.map(k => `"${k}"`).join(', ');
+      const placeholders = keys.map((_, idx) => `$${idx + 1}`).join(', ');
+      const values = keys.map(k => {
+        const v = taskData[k];
+        return (Array.isArray(v) || (typeof v === 'object' && v !== null)) ? JSON.stringify(v) : v;
+      });
+
+      const insertQuery = `INSERT INTO tasks (${cols}) VALUES (${placeholders}) RETURNING *`;
+      const inserted = await (sql as any).query(insertQuery, values);
+      const data = inserted[0];
       
-      if (error) throw error;
-      
-      if (data.assigned_to) {
+      if (data?.assigned_to) {
         (async () => {
           try {
-            const { data: collab } = await supabase.from('profiles').select('email, nome').eq('id', data.assigned_to).single();
-            const projName = data.agency_subclients?.name || data.projects?.profiles?.nome || data.projects?.type || 'Projeto';
+            const collabRes = await sql`SELECT email, nome FROM profiles WHERE id = ${data.assigned_to} LIMIT 1`;
+            const collab = collabRes[0];
+
+            let projName = 'Projeto';
+            if (data.subclient_id) {
+              const subRes = await sql`SELECT name FROM agency_subclients WHERE id = ${data.subclient_id} LIMIT 1`;
+              if (subRes[0]?.name) projName = subRes[0].name;
+            } else if (data.project_id) {
+              const projRes = await sql`
+                SELECT p.type, pr.nome 
+                FROM projects p 
+                LEFT JOIN profiles pr ON pr.id = p.client_id 
+                WHERE p.id = ${data.project_id} 
+                LIMIT 1
+              `;
+              if (projRes[0]?.nome || projRes[0]?.type) {
+                projName = projRes[0].nome || projRes[0].type;
+              }
+            }
             
             if (collab?.email) {
               await NotificationService.sendNotification({
@@ -76,13 +99,9 @@ export class TaskController {
             }
 
             // Notifica também os gestores
-            const { data: managers } = await supabase
-              .from('profiles')
-              .select('email')
-              .in('role', ['admin', 'gestor']);
-
+            const managers = await sql`SELECT email FROM profiles WHERE role IN ('admin', 'gestor')`;
             if (managers && managers.length > 0) {
-              const managerEmails = managers.map(m => m.email);
+              const managerEmails = managers.map((m: any) => m.email);
               await NotificationService.sendNotification({
                 to: managerEmails,
                 type: 'demand_sent',
@@ -110,6 +129,7 @@ export class TaskController {
   // PATCH /api/v1/tasks/:id/status
   static async updateTaskStatus(req: Request, res: Response) {
     try {
+      const sql = neon(process.env.POSTGRES_URL!);
       const { id } = req.params;
       const { requestedStatus, task } = req.body;
 
@@ -124,8 +144,6 @@ export class TaskController {
       const now = new Date();
       let finalStatus = requestedStatus;
       let updates: any = {};
-
-      // Lógica de Roteamento para aprovação do cliente pode ser estendida aqui
 
       // Lógica de Motor de Tempo (started_at e actual_time)
       if (finalStatus === 'in_progress') {
@@ -145,53 +163,22 @@ export class TaskController {
 
       updates.status = finalStatus;
 
-      // Update Database
-      let { data, error } = await supabase
-        .from('tasks')
-        .update(updates)
-        .eq('id', id)
-        .select(`
-          *,
-          projects(type, service_type, client_id, profiles(nome)),
-          agency_subclients(name)
-        `)
-        .single();
-        
-      if (error) {
-        if (error.code === 'PGRST116') {
-          try {
-            const { neon } = require('@neondatabase/serverless');
-            const rawSql = neon(process.env.POSTGRES_URL!);
-            
-            const setClauses = [];
-            const values = [];
-            let i = 1;
-            for (const [key, value] of Object.entries(updates)) {
-              if (value !== undefined) {
-                setClauses.push(`${key} = $${i}`);
-                values.push(Array.isArray(value) ? JSON.stringify(value) : value);
-                i++;
-              }
-            }
-            values.push(id);
-            
-            if (setClauses.length > 0) {
-              const query = `UPDATE tasks SET ${setClauses.join(', ')} WHERE id = $${i} RETURNING *`;
-              const resData = await (rawSql as any).query(query, values);
-              data = resData[0] || updates;
-              error = null;
-            } else {
-              data = updates;
-              error = null;
-            }
-          } catch (neonErr: any) {
-            console.error('Neon fallback failed for status update:', neonErr);
-            throw neonErr;
-          }
-        } else {
-          throw error;
+      // Update Database no Neon
+      const setClauses: string[] = [];
+      const values: any[] = [];
+      let i = 1;
+      for (const [key, value] of Object.entries(updates)) {
+        if (value !== undefined) {
+          setClauses.push(`"${key}" = $${i}`);
+          values.push(value);
+          i++;
         }
       }
+      values.push(id);
+
+      const updateQuery = `UPDATE tasks SET ${setClauses.join(', ')} WHERE id = $${i} RETURNING *`;
+      const resData = await (sql as any).query(updateQuery, values);
+      const data = resData[0] || { ...task, ...updates };
 
       // Retorna resposta de sucesso imediatamente ao cliente
       res.status(200).json({ data });
@@ -200,9 +187,7 @@ export class TaskController {
       if (['in_progress', 'paused', 'review', 'completed'].includes(finalStatus)) {
         (async () => {
           try {
-            const { data: profiles } = await supabase
-              .from('profiles')
-              .select('email, role, id');
+            const profiles = await sql`SELECT email, role, id FROM profiles`;
 
             let recipients = profiles
               ?.filter((p: any) => ['admin', 'gestor'].includes(p.role) || p.id === data.assigned_to)
@@ -230,9 +215,6 @@ export class TaskController {
                     req.body.task?.projects?.profiles?.nome ||
                     req.body.task?.projects?.service_type ||
                     req.body.task?.projects?.type ||
-                    data.projects?.profiles?.nome ||
-                    data.projects?.service_type ||
-                    data.projects?.type ||
                     'Projeto Não Especificado'
                   ),
                  mediaUrl: data.attachment_url || req.body.task?.attachment_url ? String(data.attachment_url || req.body.task?.attachment_url) : undefined,
@@ -244,6 +226,7 @@ export class TaskController {
           }
         })();
       }
+      await redis.del('analytics:dashboard').catch(() => {});
       return;
     } catch (error: any) {
       console.error('Error updating task status:', error.message);
@@ -254,6 +237,7 @@ export class TaskController {
   // GET /api/v1/tasks/:id/email-action?action=approve
   static async handleEmailAction(req: Request, res: Response) {
     try {
+      const sql = neon(process.env.POSTGRES_URL!);
       const { id } = req.params;
       const { action } = req.query;
 
@@ -262,29 +246,25 @@ export class TaskController {
       }
 
       // Fetch task to check client_id routing
-      const { data: task, error: fetchError } = await supabase
-        .from('tasks')
-        .select(`*, projects(client_id)`)
-        .eq('id', id)
-        .single();
+      const tasks = await sql`
+        SELECT t.*, p.client_id 
+        FROM tasks t 
+        LEFT JOIN projects p ON p.id = t.project_id 
+        WHERE t.id = ${id} 
+        LIMIT 1
+      `;
 
-      if (fetchError || !task) {
+      if (!tasks || tasks.length === 0) {
         return res.status(404).send("Tarefa não encontrada.");
       }
 
+      const task = tasks[0];
       let finalStatus = 'completed';
-      if (!task.projects?.client_id) {
+      if (!task.client_id) {
         finalStatus = 'pending_client_approval';
       }
 
-      const { error: updateError } = await supabase
-        .from('tasks')
-        .update({ status: finalStatus, updated_at: new Date().toISOString() })
-        .eq('id', id);
-
-      if (updateError) {
-        throw updateError;
-      }
+      await sql`UPDATE tasks SET status = ${finalStatus}, updated_at = NOW() WHERE id = ${id}`;
 
       const successHtml = `
         <!DOCTYPE html>
@@ -315,71 +295,66 @@ export class TaskController {
   // PATCH /api/v1/tasks/:id
   static async updateTask(req: Request, res: Response) {
     try {
+      const sql = neon(process.env.POSTGRES_URL!);
       const { id } = req.params;
-      const updates = req.body;
+      const updates = { ...req.body };
       
       // Get the existing task to check if assigned_to changes
-      const { data: existingTask } = await supabase
-        .from('tasks')
-        .select('assigned_to')
-        .eq('id', id)
-        .single(); // we'll catch the error below
-        
-      let { data, error } = await supabase
-        .from('tasks')
-        .update(updates)
-        .eq('id', id)
-        .select('*, projects(profiles(nome), type, service_type), agency_subclients(name)')
-        .single();
-        
-      if (error) {
-        if (error.code === 'PGRST116') {
-          // Fallback para Neon caso a tarefa não exista no Supabase antigo
-          try {
-            const { neon } = require('@neondatabase/serverless');
-            const rawSql = neon(process.env.POSTGRES_URL!);
-            
-            if (updates.deadline === '') updates.deadline = null;
-            if (updates.urgency === '') updates.urgency = null;
-            if (updates.assigned_to === 'none' || updates.assigned_to === '') updates.assigned_to = null;
-            
-            const setClauses = [];
-            const values = [];
-            let i = 1;
-            for (const [key, value] of Object.entries(updates)) {
-              if (value !== undefined) {
-                setClauses.push(`${key} = $${i}`);
-                values.push(Array.isArray(value) ? JSON.stringify(value) : value);
-                i++;
-              }
-            }
-            values.push(id);
-            
-            if (setClauses.length > 0) {
-              const query = `UPDATE tasks SET ${setClauses.join(', ')} WHERE id = $${i} RETURNING *`;
-              const resData = await (rawSql as any).query(query, values);
-              data = resData[0] || updates;
-              error = null;
-            } else {
-              data = updates;
-              error = null;
-            }
-          } catch (neonErr: any) {
-            console.error('Neon fallback failed:', neonErr);
-            throw neonErr;
-          }
-        } else {
-          throw error;
+      const existingRes = await sql`
+        SELECT id, assigned_to, title, description, project_id, subclient_id 
+        FROM tasks 
+        WHERE id = ${id} 
+        LIMIT 1
+      `;
+      const existingTask = existingRes[0];
+      
+      if (updates.deadline === '') updates.deadline = null;
+      if (updates.urgency === '') updates.urgency = null;
+      if (updates.assigned_to === 'none' || updates.assigned_to === '') updates.assigned_to = null;
+      
+      const setClauses: string[] = [];
+      const values: any[] = [];
+      let i = 1;
+      for (const [key, value] of Object.entries(updates)) {
+        if (value !== undefined) {
+          setClauses.push(`"${key}" = $${i}`);
+          values.push(Array.isArray(value) || (typeof value === 'object' && value !== null) ? JSON.stringify(value) : value);
+          i++;
         }
+      }
+      values.push(id);
+      
+      let data: any = { id, ...updates };
+      if (setClauses.length > 0) {
+        const query = `UPDATE tasks SET ${setClauses.join(', ')} WHERE id = $${i} RETURNING *`;
+        const resData = await (sql as any).query(query, values);
+        data = resData[0] || data;
       }
       
       // If assignment changed and is now assigned to someone, notify them
       if (updates.assigned_to && existingTask && existingTask.assigned_to !== updates.assigned_to) {
         (async () => {
           try {
-            const { data: collab } = await supabase.from('profiles').select('email, nome').eq('id', updates.assigned_to).single();
+            const collabRes = await sql`SELECT email, nome FROM profiles WHERE id = ${updates.assigned_to} LIMIT 1`;
+            const collab = collabRes[0];
             if (collab?.email) {
-              const projName = data.agency_subclients?.name || data.projects?.profiles?.nome || data.projects?.type || 'Projeto';
+              let projName = 'Projeto';
+              if (data.subclient_id) {
+                const subRes = await sql`SELECT name FROM agency_subclients WHERE id = ${data.subclient_id} LIMIT 1`;
+                if (subRes[0]?.name) projName = subRes[0].name;
+              } else if (data.project_id) {
+                const projRes = await sql`
+                  SELECT p.type, pr.nome 
+                  FROM projects p 
+                  LEFT JOIN profiles pr ON pr.id = p.client_id 
+                  WHERE p.id = ${data.project_id} 
+                  LIMIT 1
+                `;
+                if (projRes[0]?.nome || projRes[0]?.type) {
+                  projName = projRes[0].nome || projRes[0].type;
+                }
+              }
+
               await NotificationService.sendNotification({
                 to: collab.email,
                 type: 'task_assigned',
@@ -398,7 +373,7 @@ export class TaskController {
       await redis.del('analytics:dashboard').catch(() => {});
       return res.status(200).json({ data });
     } catch (error: any) {
-      console.error('Error updating task:', error);
+      console.error('Error updating task in Neon:', error);
       return res.status(500).json({ error: error.message || 'Internal Server Error', details: error });
     }
   }
@@ -406,15 +381,14 @@ export class TaskController {
   // DELETE /api/v1/tasks/:id
   static async deleteTask(req: Request, res: Response) {
     try {
+      const sql = neon(process.env.POSTGRES_URL!);
       const { id } = req.params;
-      const { error } = await supabase.from('tasks').delete().eq('id', id);
-      
-      if (error) throw error;
+      await sql`DELETE FROM tasks WHERE id = ${id}`;
       
       await redis.del('analytics:dashboard').catch(() => {});
       return res.status(204).send();
     } catch (error: any) {
-      console.error('Error deleting task:', error.message);
+      console.error('Error deleting task from Neon:', error.message);
       return res.status(500).json({ error: 'Internal Server Error' });
     }
   }

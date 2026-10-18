@@ -4,12 +4,14 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../../lib/supabase";
+import { dbInsert } from "../../../lib/dbClient";
 import { AtelierPMEngine } from "../../../lib/AtelierPMEngine"; 
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // 🧠 INJEÇÃO DA MEMÓRIA GLOBAL
 import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
-import { BrainCircuit, Loader2, X, Cpu, Play, CheckSquare, Check, Activity, FolderKanban, GitMerge, Crown, DollarSign, Users, SlidersHorizontal, LayoutDashboard, Target } from "lucide-react";
+import { BrainCircuit, Loader2, X, Cpu, Play, CheckSquare, Check, Activity, FolderKanban, GitMerge, Crown, DollarSign, Users, SlidersHorizontal, LayoutDashboard, Target, Plus } from "lucide-react";
 import Link from "next/link";
 import { useProfile } from "../../../hooks/useProfile";
+import { normalizeImageUrl } from "../../../lib/imageUtils";
 // Importações do Núcleo Estático
 import { 
   TASK_TYPES_IDV, TASK_TYPES_IG, ALL_SKILLS, 
@@ -32,6 +34,7 @@ const showToast = (message: string) => {
 };
 
 const groupTasksByStage = (projectTasks: any[], isIdv: boolean = false) => {
+  const filteredTasks = (projectTasks || []).filter(t => !t.title?.trim().toUpperCase().startsWith('GATE'));
   if (isIdv) {
       const stageTitles: Record<string, string> = {
         'discover': 'Fase 1: Discover (Briefing & Pesquisa)',
@@ -50,7 +53,7 @@ const groupTasksByStage = (projectTasks: any[], isIdv: boolean = false) => {
       });
       stages['Outras Demandas'] = [];
       
-      projectTasks.forEach(t => {
+      filteredTasks.forEach(t => {
         const sName = stageTitles[t.stage] || t.stage || 'Outras Demandas';
         if (!stages[sName]) stages[sName] = [];
         stages[sName].push(t);
@@ -64,19 +67,39 @@ const groupTasksByStage = (projectTasks: any[], isIdv: boolean = false) => {
     }
 
   const stages: Record<string, any[]> = {
-     "Planejamento/Copywriting": [],
-     "Captação": [],
-     "Reunião": [],
-     "Posts e Reels": []
+     "Planejamento & Copywriting": [],
+     "Captação & Mídia": [],
+     "Design & Produção": [],
+     "Reuniões": [],
+     "Estratégia & Setup": [],
+     "Demandas Pontuais": [],
+     "Outras Atividades": []
   };
 
   projectTasks.forEach(t => {
-    let stageName = "Posts e Reels";
+    let stageName = "Design & Produção";
+    const lowerTitle = (t.title || "").toLowerCase();
+    const taskType = (t.task_type || "").toLowerCase();
+    const stage = (t.stage || "").toLowerCase();
+
+    if (taskType === 'meeting' || lowerTitle.includes('reunião') || lowerTitle.includes('reuniao') || stage.includes('reunião') || stage.includes('reuniao')) {
+      stageName = "Reuniões";
+    } else if (taskType === 'captacao' || lowerTitle.includes('captação') || lowerTitle.includes('captacao') || stage.includes('logística') || stage.includes('logistica')) {
+      stageName = "Captação & Mídia";
+    } else if (taskType === 'planning' || stage.includes('planejamento') || stage.includes('copywriting') || lowerTitle.includes('roteiro') || lowerTitle.includes('pauta')) {
+      stageName = "Planejamento & Copywriting";
+    } else if (taskType === 'setup' || stage.includes('setup') || stage.includes('estratégia') || stage.includes('estrategia') || lowerTitle.includes('setup') || lowerTitle.includes('onboarding')) {
+      stageName = "Estratégia & Setup";
+    } else if (stage.includes('pontual') || lowerTitle.includes('pontual') || stage === 'demanda pontual') {
+      stageName = "Demandas Pontuais";
+    } else if (taskType === 'design' || stage.includes('post') || stage.includes('reel') || lowerTitle.includes('post') || lowerTitle.includes('carrossel') || lowerTitle.includes('reels')) {
+      stageName = "Design & Produção";
+    } else {
+      stageName = t.stage || "Outras Atividades";
+      if (!stages[stageName]) stages[stageName] = [];
+    }
     
-    if (t.task_type === 'meeting' || t.title?.includes('REUNIÃO')) stageName = "Reunião";
-    else if (t.task_type === 'captacao' || t.title?.includes('CAPTAÇÃO') || t.stage === 'Logística Externa' || t.stage === 'Logística') stageName = "Captação";
-    else if (t.stage === 'Planejamento' || t.stage === 'Copywriting' || t.task_type === 'planning') stageName = "Planejamento/Copywriting";
-    
+    if (!stages[stageName]) stages[stageName] = [];
     stages[stageName].push(t);
   });
 
@@ -91,6 +114,12 @@ const groupTasksByStage = (projectTasks: any[], isIdv: boolean = false) => {
 const isIdvService = (project: any) => {
   if (!project) return false;
   return project.service_type === 'Identidade Visual' || project.type?.includes('Identidade Visual');
+};
+
+const isMapaService = (project: any) => {
+  if (!project) return false;
+  const raw = `${project.service_type || ''} ${project.type || ''} ${project.service || ''} ${project.product || ''}`.toLowerCase();
+  return raw.includes('mapa');
 };
 
 export default function AnalyticsPage() {
@@ -221,8 +250,9 @@ export default function AnalyticsPage() {
           };
         });
 
-        const standardTasks = mappedTasks.filter((t: any) => (t.project_id !== null || t.agency_id !== null) && t.status !== 'archived');
-        const engineAlerts = mappedTasks.filter((t: any) => t.project_id === null && t.agency_id === null && t.status !== 'archived');
+        const isGateTask = (title?: string) => typeof title === 'string' && title.trim().toUpperCase().startsWith('GATE');
+        const standardTasks = mappedTasks.filter((t: any) => (t.project_id !== null || t.agency_id !== null) && t.status !== 'archived' && !isGateTask(t.title));
+        const engineAlerts = mappedTasks.filter((t: any) => t.project_id === null && t.agency_id === null && t.status !== 'archived' && !isGateTask(t.title));
 
         setTasks(standardTasks);
         setSystemAlerts(engineAlerts);
@@ -235,9 +265,10 @@ export default function AnalyticsPage() {
 
         setSelectedEntityId(prev => {
           if (prev) return prev;
-          if (validProjects.length > 0) {
+          const initialProjects = validProjects.filter(p => !isMapaService(p));
+          if (initialProjects.length > 0) {
             setSelectedEntityType('project');
-            return validProjects[0].id;
+            return initialProjects[0].id;
           } else if (data.agencies && data.agencies.length > 0) {
             setSelectedEntityType('agency');
             return data.agencies[0].id;
@@ -279,8 +310,9 @@ export default function AnalyticsPage() {
             };
           });
 
-          const standardTasks = mappedTasks.filter((t: any) => (t.project_id !== null || t.agency_id !== null) && t.status !== 'archived');
-          const engineAlerts = mappedTasks.filter((t: any) => t.project_id === null && t.agency_id === null && t.status !== 'archived');
+          const isGateTask = (title?: string) => typeof title === 'string' && title.trim().toUpperCase().startsWith('GATE');
+          const standardTasks = mappedTasks.filter((t: any) => (t.project_id !== null || t.agency_id !== null) && t.status !== 'archived' && !isGateTask(t.title));
+          const engineAlerts = mappedTasks.filter((t: any) => t.project_id === null && t.agency_id === null && t.status !== 'archived' && !isGateTask(t.title));
 
           setTasks(standardTasks);
           setSystemAlerts(engineAlerts);
@@ -681,6 +713,16 @@ export default function AnalyticsPage() {
         estimated_time: 120
       });
       if (error) throw error;
+
+      // Agenda (QG da Liziane): grava o mesmo compromisso para aparecer em /admin/agenda
+      const captacaoResp = team.find((m: any) => m.id === captacaoForm.assigneeId)?.nome || '';
+      const { error: agendaErrC } = await dbInsert('prospect_meetings', {
+        title: `[CAPTAÇÃO] ${captacaoForm.title}`,
+        meeting_date: new Date(captacaoForm.date).toISOString(),
+        status: 'scheduled',
+        notes: `Responsável: ${captacaoResp}\nLocal: ${captacaoForm.location}\n${captacaoForm.notes}`.trim(),
+      });
+      if (agendaErrC) showToast("Captação criada, mas não foi possível registrá-la na Agenda.");
       
       await NotificationEngine.notifyUser(
         captacaoForm.assigneeId,
@@ -737,6 +779,16 @@ export default function AnalyticsPage() {
         estimated_time: 60
       });
       if (error) throw error;
+
+      // Agenda (QG da Liziane): grava o mesmo compromisso para aparecer em /admin/agenda
+      const reuniaoResp = team.find((m: any) => m.id === reuniaoForm.assigneeId)?.nome || '';
+      const { error: agendaErrR } = await dbInsert('prospect_meetings', {
+        title: `[REUNIÃO] ${reuniaoForm.title}`,
+        meeting_date: new Date(reuniaoForm.date).toISOString(),
+        status: 'scheduled',
+        notes: `Responsável: ${reuniaoResp}\nLink/Local: ${reuniaoForm.link}\n${reuniaoForm.notes}`.trim(),
+      });
+      if (agendaErrR) showToast("Reunião criada, mas não foi possível registrá-la na Agenda.");
       
       await NotificationEngine.notifyUser(
         reuniaoForm.assigneeId,
@@ -1053,7 +1105,15 @@ export default function AnalyticsPage() {
 const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
       return da - db;
     });
-  const activeProjectsList = validProjects.filter(p => p.status === 'active');
+  const hasDeliveryDeadline = (p: any) => {
+    return Boolean(p.data_limite || p.delivery_target_date || p.deadline || p.contract_end);
+  };
+
+  const activeProjectsList = validProjects.filter(p => {
+    if (p.status !== 'active') return false;
+    if (isIdvService(p)) return hasDeliveryDeadline(p);
+    return true;
+  });
   const liveTasks = tasks.filter(t => t.status === 'in_progress');
 
   const selectedEntityData = selectedEntityType === 'project' 
@@ -1064,9 +1124,47 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
   const currentTaskTypes = isIdvService(routeProjObj) ? TASK_TYPES_IDV : TASK_TYPES_IG;
 
   const unifiedWallet = [
-    ...validProjects.filter(p => p.status === 'active').map(p => ({ id: p.id, name: p.profiles?.nome, type: 'project', label: isIdvService(p) ? 'IDV' : 'Instagram', avatar_url: p.profiles?.avatar_url, trello_url: p.trello_url, trello_sync_list_ids: p.trello_sync_list_ids })),
-    ...agencies.map(a => ({ id: a.id, name: a.name, type: 'agency', label: 'Studio Veronna', avatar_url: null, trello_url: a.trello_url }))
+    ...validProjects.filter(p => {
+      if (p.status !== 'active') return false;
+      if (isMapaService(p)) return false;
+      if (isIdvService(p)) return hasDeliveryDeadline(p);
+      return true;
+    }).map(p => ({ 
+      id: p.id, 
+      name: p.profiles?.nome, 
+      type: 'project', 
+      label: isIdvService(p) ? 'IDV' : 'Instagram', 
+      avatar_url: normalizeImageUrl(p.profiles?.avatar_url), 
+      trello_url: p.trello_url, 
+      trello_sync_list_ids: p.trello_sync_list_ids,
+      service_type: p.service_type,
+      data_limite: p.data_limite,
+      delivery_target_date: p.delivery_target_date,
+      deadline: p.deadline,
+      contract_end: p.contract_end,
+      idv_product: p.idv_product,
+      idv_complexity: p.idv_complexity,
+      fase: p.fase
+    })),
+    ...agencies.map(a => ({ 
+      id: a.id, 
+      name: a.name, 
+      type: 'agency', 
+      label: 'Studio Veronna', 
+      avatar_url: null, 
+      trello_url: a.trello_url 
+    }))
   ].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+
+  useEffect(() => {
+    if (unifiedWallet.length > 0 && selectedEntityId) {
+      const exists = unifiedWallet.some(item => item.id === selectedEntityId);
+      if (!exists) {
+        setSelectedEntityId(unifiedWallet[0].id);
+        setSelectedEntityType(unifiedWallet[0].type as any);
+      }
+    }
+  }, [unifiedWallet, selectedEntityId]);
 
   if (isGlobalLoading || isLocalLoading) return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
@@ -1136,6 +1234,20 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
         {/* HEADER CONTROLS (AVATAR & COMPACT VERTICAL MENU) */}
         <div className="flex items-center gap-3 shrink-0">
           
+          {/* NOVA REUNIÃO / NOVA CAPTAÇÃO */}
+          <button
+            onClick={() => setIsReuniaoModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white/70 border border-white/60 rounded-full shadow-sm text-[10px] font-bold uppercase tracking-wider text-[var(--color-atelier-grafite)] hover:bg-white active:scale-95 transition-all"
+          >
+            <Plus size={14} className="text-[var(--color-atelier-terracota)]" /> <span className="hidden sm:inline">Reunião</span>
+          </button>
+          <button
+            onClick={() => setIsCaptacaoModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-2 bg-white/70 border border-white/60 rounded-full shadow-sm text-[10px] font-bold uppercase tracking-wider text-[var(--color-atelier-grafite)] hover:bg-white active:scale-95 transition-all"
+          >
+            <Target size={14} className="text-[var(--color-atelier-terracota)]" /> <span className="hidden sm:inline">Captação</span>
+          </button>
+
           {/* AÇÕES EM LOTE HEADER TOGGLE */}
           <div className="flex items-center gap-2 bg-white/60 border border-white/50 rounded-full shadow-sm px-3 py-1.5">
             <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-atelier-grafite)]">Ações em Lote</span>
@@ -1196,6 +1308,7 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
 
               <div className="flex-1 min-w-0 h-full">
                 <ProjectsManager 
+                  refreshGlobalData={refreshGlobalData}
                   unifiedWallet={unifiedWallet}
                   selectedEntityId={selectedEntityId}
                   setSelectedEntityId={setSelectedEntityId}

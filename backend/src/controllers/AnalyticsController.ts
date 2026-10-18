@@ -50,6 +50,7 @@ export class AnalyticsController {
             t.attachment_url, t.subclient_id, t.agency_id,
             CASE WHEN p.id IS NOT NULL THEN
               json_build_object(
+                'id', p.id,
                 'type', p.type,
                 'service_type', p.service_type,
                 'profiles', CASE WHEN pr.id IS NOT NULL THEN json_build_object('nome', pr.nome, 'avatar_url', pr.avatar_url) ELSE null END
@@ -62,7 +63,7 @@ export class AnalyticsController {
           LEFT JOIN projects p ON t.project_id = p.id
           LEFT JOIN profiles pr ON p.client_id = pr.id
           LEFT JOIN agency_subclients asb ON t.subclient_id = asb.id
-          WHERE t.status != 'completed' OR t.completed_at >= ${fifteenDaysAgo.toISOString()}
+          WHERE t.status != 'archived' AND (t.status != 'completed' OR t.completed_at >= ${fifteenDaysAgo.toISOString()})
           ORDER BY t.deadline ASC
         `,
         sql`SELECT id, name, status, financial_value, billing_date, created_at, trello_url FROM agencies WHERE status = 'active'`,

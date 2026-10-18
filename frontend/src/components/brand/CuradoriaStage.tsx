@@ -3,7 +3,7 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Target, CheckCircle2, Loader2, UploadCloud, Send, ImageIcon, Image as LucideImage, Sparkles, Map, MousePointerClick } from "lucide-react";
-import { supabase } from "../../lib/supabase";
+import { dbUpsertBy, uploadFile } from "../../lib/dbClient";
 
 const ADJETIVOS_LIST = [
   "Elegante", "Acessível", "Confiável", "Amigável", "Criativa", "Divertida", "Formal", 
@@ -66,11 +66,10 @@ export function CuradoriaStage({ projectId, clientId, projectData, briefingData,
         setIsUploadingLogo(true);
         const fileExt = logoFile.name.split('.').pop();
         const fileName = `${projectId}_logo_antigo_${Date.now()}.${fileExt}`;
-        const { error: uploadError } = await supabase.storage.from('briefing_assets').upload(fileName, logoFile);
-        
-        if (!uploadError) {
-          const { data } = supabase.storage.from('briefing_assets').getPublicUrl(fileName);
-          finalLogoUrl = data.publicUrl;
+        try {
+          finalLogoUrl = await uploadFile('briefing_assets', fileName, logoFile);
+        } catch (uploadErr) {
+          console.error('Falha no upload do logo:', uploadErr);
         }
         setIsUploadingLogo(false);
       }
@@ -81,14 +80,13 @@ export function CuradoriaStage({ projectId, clientId, projectData, briefingData,
         logo_atual_url: finalLogoUrl 
       };
 
-      const { error } = await supabase.from('client_briefings').upsert({
+      const { error } = await dbUpsertBy('client_briefings', 'project_id', {
         project_id: projectId,
         client_id: clientId,
         answers: finalData,
-        is_completed: true // Marca como concluído a curadoria
-      }, { onConflict: 'project_id' });
+      });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       setIsSuccess(true);
       setTimeout(() => {

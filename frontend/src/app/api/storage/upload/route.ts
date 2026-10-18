@@ -1,30 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@supabase/supabase-js';
+import { getDb } from '@/lib/db';
+import fs from 'fs';
+import pathModule from 'path';
 
 export async function POST(req: NextRequest) {
   try {
-    const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-
-    if (!supabaseUrl || !serviceKey) {
-      return NextResponse.json(
-        { error: { message: 'Configuração de armazenamento (Supabase URL / Service Key) ausente no servidor.' } },
-        { status: 500 }
-      );
-    }
-
-    const supabaseServer = createClient(supabaseUrl, serviceKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-    });
-
     const formData = await req.formData();
     const bucket = formData.get('bucket') as string;
     const path = formData.get('path') as string;
     const file = formData.get('file') as File | Blob | null;
-    const upsertParam = formData.get('upsert');
     const contentTypeParam = formData.get('contentType') as string | null;
 
     if (!bucket || !path || !file) {
@@ -38,27 +22,40 @@ export async function POST(req: NextRequest) {
     const arrayBuffer = await file.arrayBuffer();
     const buffer = Buffer.from(arrayBuffer);
     const contentType = contentTypeParam || (file as File).type || 'application/octet-stream';
-    const isUpsert = String(upsertParam) === 'true';
+    const safeFileName = pathModule.basename(cleanPath);
 
-    const { data, error } = await supabaseServer.storage
-      .from(bucket)
-      .upload(cleanPath, buffer, {
-        contentType,
-        upsert: isUpsert,
-      });
-
-    if (error) {
-      console.error(`[StorageUpload] Erro ao enviar para bucket "${bucket}":`, error.message);
-      return NextResponse.json({ error: { message: error.message } }, { status: 400 });
+    // 1. Gravar no Neon PostgreSQL (tabela storage_objects)
+    try {
+      const sql = getDb();
+      await sql`
+        DELETE FROM storage_objects 
+        WHERE bucket_name = ${bucket} AND (file_name = ${cleanPath} OR file_name = ${safeFileName})
+      `;
+      await sql`
+        INSERT INTO storage_objects (bucket_name, file_name, file_data, mime_type, size)
+        VALUES (${bucket}, ${cleanPath}, ${buffer}, ${contentType}, ${buffer.length})
+      `;
+    } catch (neonErr: any) {
+      console.warn('[StorageUpload] Aviso ao persistir no Neon storage_objects:', neonErr?.message);
     }
 
-    const { data: urlData } = supabaseServer.storage.from(bucket).getPublicUrl(cleanPath);
+    // 2. Gravar em cache local no disco (public/uploads/[bucket])
+    try {
+      const uploadDir = pathModule.join(process.cwd(), 'public', 'uploads', bucket);
+      await fs.promises.mkdir(uploadDir, { recursive: true });
+      const filePath = pathModule.join(uploadDir, safeFileName);
+      await fs.promises.writeFile(filePath, buffer);
+    } catch (diskErr: any) {
+      console.warn('[StorageUpload] Aviso ao salvar no disco local:', diskErr?.message);
+    }
+
+    const publicUrl = `/api/storage/file/${bucket}/${cleanPath}`;
 
     return NextResponse.json({
       data: {
         path: cleanPath,
         fullPath: `${bucket}/${cleanPath}`,
-        publicUrl: urlData.publicUrl,
+        publicUrl,
       },
       error: null,
     });

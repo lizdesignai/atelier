@@ -17,13 +17,17 @@ export function AdminTerritoriesManager({ projectId, taskId, currentUser }: { pr
 
   useEffect(() => {
     if (!currentUser) {
-      supabase.auth.getUser().then(({ data }) => {
-        if (data?.user) {
-          supabase.from('profiles').select('role').eq('id', data.user.id).single().then(res => {
-            if (res.data) setUserRole(res.data.role);
-          });
+      (async () => {
+        try {
+          const { data } = await supabase.auth.getUser();
+          if (data?.user) {
+            const res: any = await supabase.from('profiles').select('role').eq('id', data.user.id).single();
+            if (res?.data) setUserRole(res.data.role);
+          }
+        } catch (err) {
+          console.warn('[AdminTerritoriesManager] User/Profile fetch error:', err);
         }
-      });
+      })();
     }
   }, [currentUser]);
 

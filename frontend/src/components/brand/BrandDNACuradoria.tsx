@@ -4,8 +4,9 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "../../lib/supabase";
+
 import { NotificationEngine } from "../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
+import { dbSelect, dbSelectOne, dbUpdate, dbUpsertBy, uploadFile } from "../../lib/dbClient";
 import { 
   ChevronLeft, ChevronRight, Plus, Image as ImageIcon, 
   Sparkles, Fingerprint, Type, Palette, Target, CheckCircle2,
@@ -18,7 +19,7 @@ const showToast = (message: string) => {
 
 export function BrandDNACuradoria({ projectId, clientProfile }: { projectId: string | null; clientProfile: any; }) {
   // ==========================================
-  // ESTADOS DO SUPABASE E DADOS
+  // ESTADOS E DADOS
   // ==========================================
   const [isLoading, setIsLoading] = useState(true);
       
@@ -47,10 +48,15 @@ export function BrandDNACuradoria({ projectId, clientProfile }: { projectId: str
     try {
       const fileExt = file.name.split('.').pop();
       const fileName = `${projectId}_logo_${Date.now()}.${fileExt}`;
-      const { error } = await supabase.storage.from('briefing_assets').upload(fileName, file);
-      if (!error) {
-        const { data } = supabase.storage.from('briefing_assets').getPublicUrl(fileName);
-        const newPrefs = { ...preferences, logo_atual_url: data.publicUrl };
+      const formData = new FormData();
+        formData.append('bucket', 'briefing_assets');
+        formData.append('path', fileName);
+        formData.append('file', file);
+        const uploadRes = await fetch('/api/storage/upload', { method: 'POST', body: formData });
+        const uploadData = await uploadRes.json();
+        
+        if (uploadRes.ok && uploadData.data?.publicUrl) {
+          const newPrefs = { ...preferences, logo_atual_url: uploadData.data.publicUrl };
         setPreferences(newPrefs);
         window.dispatchEvent(new CustomEvent('showToast', { detail: 'Material enviado com sucesso!' }));
         await savePreferences(newPrefs);
@@ -65,13 +71,15 @@ export function BrandDNACuradoria({ projectId, clientProfile }: { projectId: str
   const savePreferences = async (prefsToSave = preferences) => {
     setIsSavingPrefs(true);
     try {
-      const { data: brief } = await supabase.from('client_briefings').select('*').eq('project_id', projectId).single();
+      const brief = await dbSelectOne('client_briefings', { project_id: projectId });
       const currentAnswers = brief?.answers || {};
-      await supabase.from('client_briefings').upsert({
+
+      const { error: saveError } = await dbUpsertBy('client_briefings', 'project_id', {
         project_id: projectId,
         client_id: clientProfile?.id,
-        answers: { ...currentAnswers, ...prefsToSave }
-      }, { onConflict: 'project_id' });
+        answers: { ...currentAnswers, ...prefsToSave },
+      });
+      if (saveError) throw new Error(saveError.message);
       window.dispatchEvent(new CustomEvent('showToast', { detail: 'Preferências salvas com sucesso!' }));
     } catch (e) {
       window.dispatchEvent(new CustomEvent('showToast', { detail: 'Erro ao salvar preferências.' }));
@@ -93,14 +101,10 @@ export function BrandDNACuradoria({ projectId, clientProfile }: { projectId: str
       if (!projectId) return;
 
       // 3. Busca o Moodboard (strategic_answers)
-      const { data: strategicData } = await supabase
-        .from('strategic_answers')
-        .select('moodboard_urls')
-        .eq('project_id', projectId)
-        .single();
-        
+      const strategicData = await dbSelectOne('strategic_answers', { project_id: projectId }, 'moodboard_urls');
+
       // Busca briefing fields
-      const { data: brief } = await supabase.from('client_briefings').select('*').eq('project_id', projectId).single();
+      const brief = await dbSelectOne('client_briefings', { project_id: projectId });
       if (brief && brief.answers) {
         setPreferences({
           logo_atual_url: brief.answers.logo_atual_url || '',
@@ -115,11 +119,7 @@ export function BrandDNACuradoria({ projectId, clientProfile }: { projectId: str
       }
 
       // 4. Busca as Direções de Design enviadas pelo Admin
-      const { data: directionsData } = await supabase
-        .from('design_directions')
-        .select('*')
-        .eq('project_id', projectId)
-        .order('created_at', { ascending: true });
+      const directionsData = await dbSelect('design_directions', { project_id: projectId }, { orderBy: 'created_at', ascending: true });
 
       if (directionsData) {
         setDirections(directionsData);
@@ -146,18 +146,16 @@ export function BrandDNACuradoria({ projectId, clientProfile }: { projectId: str
       const fileName = `${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
       const filePath = `${projectId}/${fileName}`;
 
-      const { error: uploadError } = await supabase.storage.from('moodboard').upload(filePath, file);
-      if (uploadError) throw uploadError;
-
-      const { data: publicUrlData } = supabase.storage.from('moodboard').getPublicUrl(filePath);
-      const newUrls = [...clientMoodboard, publicUrlData.publicUrl];
+      const publicUrl = await uploadFile('moodboard', filePath, file);
+      const newUrls = [...clientMoodboard, publicUrl];
 
       // Atualiza ou insere as URLs na tabela
-      const { error: dbError } = await supabase
-        .from('strategic_answers')
-        .upsert({ project_id: projectId, moodboard_urls: newUrls }, { onConflict: 'project_id' });
+      const { error: dbError } = await dbUpsertBy('strategic_answers', 'project_id', {
+        project_id: projectId,
+        moodboard_urls: newUrls,
+      });
 
-      if (dbError) throw dbError;
+      if (dbError) throw new Error(dbError.message);
 
       // 🔔 NOTIFICAÇÃO: Gestão (Avisa que o cliente injetou uma nova referência no seu Brandbook)
       await NotificationEngine.notifyManagement(
@@ -209,15 +207,12 @@ export function BrandDNACuradoria({ projectId, clientProfile }: { projectId: str
     showToast("Enviando matriz de avaliação para a equipe...");
 
     try {
-      const { error } = await supabase
-        .from('design_directions')
-        .update({ 
-          score: currentDir.score || 0, 
-          feedback: currentDir.feedback 
-        })
-        .eq('id', currentDir.id);
+      const { error } = await dbUpdate('design_directions', { id: currentDir.id }, {
+        score: currentDir.score || 0,
+        feedback: currentDir.feedback,
+      });
 
-      if (error) throw error;
+      if (error) throw new Error(error.message);
 
       // 🔔 NOTIFICAÇÃO: Gestão (Avisa que o cliente preencheu a matriz de feedback)
       await NotificationEngine.notifyManagement(

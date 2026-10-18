@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState } from 'react';
+import { getSafeAvatarUrl, handleAvatarError } from '@/lib/imageUtils';
 
 interface UserAvatarProps {
   profile: {
@@ -12,6 +13,8 @@ interface UserAvatarProps {
 }
 
 export default function UserAvatar({ profile, size = 'md', className = '' }: UserAvatarProps) {
+  const [imgError, setImgError] = useState(false);
+
   const sizeClasses = {
     sm: 'w-8 h-8 text-xs',
     md: 'w-10 h-10 text-sm',
@@ -27,7 +30,8 @@ export default function UserAvatar({ profile, size = 'md', className = '' }: Use
     zen: '🧘'
   };
 
-  const initial = profile?.nome?.charAt(0)?.toUpperCase() || '?';
+  const name = profile?.nome || 'Atelier';
+  const initial = name.charAt(0)?.toUpperCase() || '?';
   const moodEmoji = profile?.current_mood ? moodMap[profile.current_mood.toLowerCase()] : null;
 
   const emojiSizeMap = {
@@ -37,19 +41,19 @@ export default function UserAvatar({ profile, size = 'md', className = '' }: Use
   };
   const currentEmojiConfig = emojiSizeMap[size];
 
+  const resolvedAvatarUrl = getSafeAvatarUrl(profile?.avatar_url, name);
+
   return (
     <div className="relative inline-flex shrink-0">
       <div className={`shrink-0 rounded-full bg-[var(--color-atelier-terracota)]/20 border border-[var(--color-atelier-terracota)]/30 overflow-hidden flex items-center justify-center font-bold text-white/80 uppercase shadow-inner ${sizeClasses[size]} ${className}`}>
-        {profile?.avatar_url ? (
+        {resolvedAvatarUrl && !imgError ? (
           <img 
-            src={profile.avatar_url} 
-            alt={profile.nome || 'Avatar'} 
+            src={resolvedAvatarUrl} 
+            alt={name} 
             className="w-full h-full object-cover"
             onError={(e) => {
-              (e.target as HTMLImageElement).style.display = 'none';
-              if ((e.target as HTMLImageElement).parentElement) {
-                (e.target as HTMLImageElement).parentElement!.innerText = initial;
-              }
+              handleAvatarError(e, name);
+              setImgError(false);
             }}
           />
         ) : (

@@ -3,14 +3,15 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
+import { usePathname, useRouter } from "next/navigation";
 import { 
   Home, Compass, Lock, MessageSquare, Globe2, LogOut, Menu, X, Target, 
   Crosshair, Eye, Crown, TrendingUp, Archive, DollarSign, MessageCircle,
-  Activity, Users, FolderKanban, FileText, LayoutDashboard, Briefcase, Grid
+  Activity, Users, FolderKanban, FileText, LayoutDashboard, Briefcase, Grid, Calendar
 } from 'lucide-react';
 import { useSession } from '../../hooks/useSession';
 import { useProjects } from '../../hooks/useProjects';
+import { getProductTypeFromProject, getClientServiceLabel } from '@/lib/productHelper';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function MobileSidebar({ userRole, handleLogout }: { userRole: string, handleLogout?: () => void }) {
@@ -38,17 +39,15 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
 
     const fetchSidebarData = async () => {
       if (isClient) {
-        const project = projects?.find(p => p.client_id === session?.user?.id) || projects?.[0];
+        const project = projects?.find(p => p.client_id === session?.user?.id && p.status === 'active')
+                     || projects?.find(p => p.client_id === session?.user?.id)
+                     || projects?.[0];
         let shouldArchive = false;
 
-        const rawService = project?.service_type || project?.type || project?.service || "";
-        const isInstagram = rawService === "Gestão de Instagram" || rawService.toLowerCase().includes("instagram");
-        const isMapa = rawService === "O Mapa" || rawService.toLowerCase() === "o mapa" || rawService.toLowerCase() === "mapa";
+        const productType = getProductTypeFromProject(project);
+        const service = getClientServiceLabel(productType);
         
-        let service = "Identidade Visual";
-        if (isInstagram) service = "Gestão de Instagram";
-        if (isMapa) {
-          service = "O Mapa";
+        if (productType === 'mapa') {
           // Buscar progresso atual do mapa
           try {
             const res = await fetch('/api/mapa/progress');
@@ -85,6 +84,12 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
     fetchSidebarData();
   }, [session, projects, isClient]);
 
+  const activeClientProject = projects?.find((p: any) => p.client_id === session?.user?.id && p.status === 'active')
+                           || projects?.find((p: any) => p.client_id === session?.user?.id)
+                           || projects?.[0];
+  const isInstagramClient = isClient && (clientServiceType === "Gestão de Instagram" || getProductTypeFromProject(activeClientProject) === 'instagram');
+
+  if (isClient) return null;
   if (isClient && isProjectArchived) return null;
   if (isContador && !isReady) return null;
 
@@ -129,7 +134,7 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : clientServiceType === "Gestão de Instagram" ? [
     { href: '/cockpit', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
-    { href: '/simulador-feed', icon: <Grid size={20} strokeWidth={1.5} />, label: 'Feed' },
+
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : [
@@ -166,7 +171,7 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : clientServiceType === "Gestão de Instagram" ? [
     { href: '/cockpit', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
-    { href: '/simulador-feed', icon: <Grid size={20} strokeWidth={1.5} />, label: 'Feed' },
+
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : [

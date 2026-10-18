@@ -9,12 +9,14 @@ import dynamic from "next/dynamic";
 import AppSidebar from "../components/layout/AppSidebar";
 import MobileSidebar from "../components/layout/MobileSidebar";
 import AppHeader from "../components/layout/AppHeader"; 
+import InstagramClientNavPill from "../components/layout/InstagramClientNavPill";
 import { GlobalStoreProvider } from "../contexts/GlobalStore";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "../lib/queryClient";
 
 // Carregamento dinâmico do CommandPalette para diminuir o bundle inicial
 const CommandPalette = dynamic(() => import("../components/global/CommandPalette"), { ssr: false });
+const ClientProjectChatWidget = dynamic(() => import("../components/chat/ClientProjectChatWidget"), { ssr: false });
 
 export const triggerToast = (message: string) => {
   if (typeof window !== "undefined") {
@@ -170,7 +172,8 @@ export default function ClientShell({ children }: { children: React.ReactNode })
         setUserRole(role);
 
         if (isLoginPage) {
-          router.replace(role === "client" ? "/" : role === "contador" ? "/admin/financeiro" : "/admin/jtbd");
+          const destination = data.redirectUrl || data.user?.redirectUrl || (role === "client" ? "/" : role === "contador" ? "/admin/financeiro" : "/admin/jtbd");
+          router.replace(destination);
         }
 
         timer = setTimeout(() => setIsInitializing(false), 500);
@@ -204,7 +207,8 @@ export default function ClientShell({ children }: { children: React.ReactNode })
       <GlobalStoreProvider>
         <GlobalToast />
         
-        {!isLoginPage && <CommandPalette />}
+        {!isLoginPage && pathname !== "/cockpit" && <InstagramClientNavPill />}
+        {!isLoginPage && <ClientProjectChatWidget />}
 
         <div className="flex flex-1 w-full h-full relative">
           {!isLoginPage && (

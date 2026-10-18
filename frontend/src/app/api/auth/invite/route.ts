@@ -7,7 +7,11 @@ import { cookies } from 'next/headers';
 import { getDb } from '@/lib/db';
 import { verifyToken, hashPassword, COOKIE_NAME } from '@/lib/auth';
 
-const generateRandomPassword = () => Array.from(crypto.getRandomValues(new Uint32Array(10))).map(x => 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#'[x % 64]).join('');
+const generateRandomClientPassword = (length = 10) => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%';
+  const bytes = crypto.getRandomValues(new Uint8Array(length));
+  return Array.from(bytes).map(b => chars[b % chars.length]).join('');
+};
 const DEFAULT_PASSWORD = 'Atelier2026!';
 
 
@@ -97,7 +101,56 @@ export async function POST(request: Request) {
 
     if (existing.length > 0) {
       if (body.allowExisting || body.skipProjectCreation) {
-        if (empresa || nome) {
+        let passwordToReturn: string | undefined = undefined;
+
+        if (body.regeneratePassword || body.generatePassword || (typeof body.password === 'string' && body.password.trim().length >= 6)) {
+          const newPassword = (typeof body.password === 'string' && body.password.trim().length >= 6)
+            ? body.password.trim()
+            : generateRandomClientPassword();
+
+          const newHash = await hashPassword(newPassword);
+
+          await sql`
+            UPDATE profiles 
+            SET password_hash = ${newHash},
+                empresa = COALESCE(${empresa || null}, empresa),
+                nome = COALESCE(${nome ? nome.trim() : null}, nome)
+            WHERE id = ${existing[0].id}
+          `;
+
+          passwordToReturn = newPassword;
+
+          // Disparar email com a nova senha se Resend estiver configurado
+          try {
+            const { Resend } = require('resend');
+            const { sendEmailSafely, buildAppLikeEmail } = require('@/lib/resend');
+            const resendApiKey = process.env.RESEND_API_KEY;
+            
+            if (resendApiKey) {
+              const resend = new Resend(resendApiKey);
+              const loginUrl = process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://atelier.lizdesign.com.br';
+              const targetName = nome?.trim() || existing[0].nome || 'Cliente';
+
+              const emailHtml = buildAppLikeEmail(
+                '✨',
+                'Seu Acesso ao Atelier',
+                `<p>Olá <strong>${targetName}</strong>,</p>
+                 <p>Seu acesso exclusivo à plataforma do Atelier foi atualizado. A partir de agora, você acompanhará todo o desenvolvimento do seu projeto por aqui.</p>
+                 <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0;">
+                   <p style="margin: 0 0 10px 0;"><strong>Seu E-mail:</strong> ${cleanEmail}</p>
+                   <p style="margin: 0;"><strong>Sua Senha de Acesso:</strong> ${newPassword}</p>
+                 </div>
+                 <p><em>Recomendamos que você altere esta senha no seu primeiro acesso nas configurações.</em></p>`,
+                'Acessar Meu Painel',
+                loginUrl
+              );
+
+              await sendEmailSafely(resend, cleanEmail, 'Seu Acesso ao Atelier', emailHtml, 'Auth Regenerate');
+            }
+          } catch (emailErr) {
+            console.error('[Auth Invite] Erro ao enviar email de nova senha:', emailErr);
+          }
+        } else if (empresa || nome) {
           await sql`
             UPDATE profiles 
             SET empresa = COALESCE(${empresa || null}, empresa),
@@ -118,7 +171,8 @@ export async function POST(request: Request) {
               cargo: existing[0].cargo,
               instagram: existing[0].instagram,
             },
-            message: 'Usuário existente recuperado com sucesso.',
+            defaultPassword: passwordToReturn,
+            message: passwordToReturn ? `Acesso gerado com sucesso. Senha: ${passwordToReturn}` : 'Usuário existente recuperado com sucesso.',
             isExisting: true,
           },
           { status: 200 }
@@ -131,25 +185,29 @@ export async function POST(request: Request) {
       );
     }
 
-    // Tratar senha (customizada ou padrão Atelier2026!)
-    const chosenPassword = (typeof password === 'string' && password.trim().length >= 6)
-      ? password.trim()
-      : DEFAULT_PASSWORD;
+    // Tratar senha (customizada, aleatória para clientes, ou padrão Atelier2026! para equipe)
+    let chosenPassword = DEFAULT_PASSWORD;
+    if (typeof password === 'string' && password.trim().length >= 6) {
+      chosenPassword = password.trim();
+    } else if (userRole === 'client') {
+      chosenPassword = generateRandomClientPassword();
+    }
 
     // Gerar ID e hash da senha
     const userId = crypto.randomUUID();
     const passwordHash = await hashPassword(chosenPassword);
 
-    // Tratar o instagram
+    // Tratar o instagram e username
     let cleanInstagram = (instagram || '').trim();
-    if (cleanInstagram && !cleanInstagram.startsWith('@') && !cleanInstagram.includes('instagram.com/')) {
-      cleanInstagram = `@${cleanInstagram}`;
+    const cleanUsername = cleanInstagram.replace(/^@/, '').replace(/.*instagram\.com\//, '').replace(/\/.*$/, '').trim();
+    if (cleanUsername) {
+      cleanInstagram = `@${cleanUsername}`;
     }
 
     // Inserir perfil básico
     await sql`
-      INSERT INTO profiles (id, email, nome, role, empresa, instagram, password_hash, created_at)
-      VALUES (${userId}, ${cleanEmail}, ${nome.trim()}, ${userRole}, ${empresa || null}, ${cleanInstagram || null}, ${passwordHash}, NOW())
+      INSERT INTO profiles (id, email, nome, role, empresa, instagram, username, password_hash, created_at)
+      VALUES (${userId}, ${cleanEmail}, ${nome.trim()}, ${userRole}, ${empresa || null}, ${cleanInstagram || null}, ${cleanUsername || null}, ${passwordHash}, NOW())
     `;
 
     // Tratar campos adicionais de colaborador
@@ -196,14 +254,144 @@ export async function POST(request: Request) {
       }
     }
 
-    // Se for client, criar projeto inicial
-    if (userRole === 'client' && empresa && !body.skipProjectCreation) {
-      const projectId = crypto.randomUUID();
-      await sql`
-        INSERT INTO projects (id, client_id, name, status, created_at)
-        VALUES (${projectId}, ${userId}, ${`Projeto ${empresa.trim()}`}, 'active', NOW())
+    // Se for client, criar projeto inicial com pipeline de tarefas se ainda não existir ativo
+    if (userRole === 'client' && !body.skipProjectCreation) {
+      const existingActiveProject = await sql`
+        SELECT id FROM projects WHERE client_id = ${userId} AND status = 'active' LIMIT 1
       `;
+
+      if (existingActiveProject.length === 0) {
+        const projectId = crypto.randomUUID();
+        const serviceType = body.service_type || body.servico || 'Identidade Visual';
+        const projectType = body.project_package || body.type || serviceType;
+        const initialIdvPhase = serviceType === 'Identidade Visual' ? 'discover' : null;
+        const initialProgress = serviceType === 'Identidade Visual' ? 14 : 0;
+        const baseDate = new Date();
+        const targetDeliveryDate = new Date(baseDate.getTime() + (21 * 24 * 60 * 60 * 1000));
+
+        await sql`
+          INSERT INTO projects (
+            id,
+            client_id,
+            service_type,
+            type,
+            status,
+            phase,
+            fase,
+            idv_phase,
+            progress,
+            financial_value,
+            data_limite,
+            delivery_target_date,
+            created_at
+          )
+          VALUES (
+            ${projectId},
+            ${userId},
+            ${serviceType},
+            ${projectType},
+            'active',
+            'Mesa de Trabalho',
+            ${initialIdvPhase || 'reuniao'},
+            ${initialIdvPhase},
+            ${initialProgress},
+            ${body.financial_value ? Number(body.financial_value) : 0},
+            ${targetDeliveryDate.toISOString()},
+            ${targetDeliveryDate.toISOString()},
+            NOW()
+          )
+        `;
+
+        // Gerar pipeline de tarefas
+        const IDV_PIPELINE = [
+          { stage: "onboarding", type: "setup", title: "Formulário de cadastro & Contrato", daysOffset: 0, estTime: 30 },
+          { stage: "onboarding", type: "setup", title: "Onboarding do Cliente", daysOffset: 1, estTime: 15 },
+          { stage: "discover", type: "reuniao", title: "Reunião de Briefing", daysOffset: 2, estTime: 60 },
+          { stage: "discover", type: "copy", title: "Análise do Briefing + Brand Snapshot", daysOffset: 3, estTime: 45 },
+          { stage: "define", type: "copy", title: "Acompanhar Brand Lab do Cliente", daysOffset: 4, estTime: 30 },
+          { stage: "define", type: "design", title: "Compilar Brand DNA", daysOffset: 5, estTime: 60 },
+          { stage: "define", type: "design", title: "Desenvolver Território A", daysOffset: 6, estTime: 180 },
+          { stage: "define", type: "design", title: "Desenvolver Território B", daysOffset: 7, estTime: 180 },
+          { stage: "define", type: "copy", title: "Enviar Territórios para Avaliação", daysOffset: 8, estTime: 30 },
+          { stage: "develop", type: "design", title: "Desenvolvimento do Símbolo", daysOffset: 9, estTime: 180 },
+          { stage: "develop", type: "design", title: "Tipografia & Paleta Cromática", daysOffset: 10, estTime: 120 },
+          { stage: "develop", type: "design", title: "Sistema Gráfico & Aplicações", daysOffset: 11, estTime: 240 },
+          { stage: "present", type: "design", title: "Montagem da Apresentação Narrativa", daysOffset: 14, estTime: 120 },
+          { stage: "present", type: "reuniao", title: "Reunião de Apresentação", daysOffset: 15, estTime: 60 },
+          { stage: "deliver", type: "design", title: "Brand Starter Kit + Asset Library", daysOffset: 16, estTime: 90 },
+          { stage: "deliver", type: "setup", title: "Checklist de Ativação + Handover", daysOffset: 17, estTime: 60 }
+        ];
+
+      const IG_SETUP = [
+        { stage: "Setup Inicial", type: "setup", title: "Assinatura do contrato & Pagamento", daysOffset: 0, estTime: 30 },
+        { stage: "Imersão", type: "reuniao", title: "Reunião de briefing", daysOffset: 2, estTime: 60 },
+        { stage: "Estratégia", type: "copy", title: "Estudo de marca, Persona, Tom de voz", daysOffset: 5, estTime: 180 },
+        { stage: "Estratégia", type: "design", title: "Alinhamento Visual (Estilo do Feed)", daysOffset: 7, estTime: 120 },
+        { stage: "Estratégia", type: "copy", title: "Calendário Editorial de Conteúdos", daysOffset: 10, estTime: 90 },
+        { stage: "Aprovação", type: "setup", title: "Agendamento Sistêmico & Aprovação do Cliente", daysOffset: 15, estTime: 60 },
+        { stage: "Relatório", type: "setup", title: "Geração de Relatório Mensal", daysOffset: 25, estTime: 60 }
+      ];
+
+      const pipeline = serviceType === 'Identidade Visual' ? IDV_PIPELINE : IG_SETUP;
+
+      const COMPLETED_IDV_TASKS = [
+        "Formulário de cadastro & Contrato",
+        "Onboarding do Cliente",
+        "Reunião de Briefing"
+      ];
+
+      for (let index = 0; index < pipeline.length; index++) {
+        const t = pipeline[index];
+        const isAutoCompleted = serviceType === 'Identidade Visual' && COMPLETED_IDV_TASKS.includes(t.title);
+        const isNextTask = serviceType === 'Identidade Visual' 
+          ? t.title === "Análise do Briefing + Brand Snapshot"
+          : index === 0;
+
+        const taskDeadline = new Date(baseDate);
+        taskDeadline.setDate(taskDeadline.getDate() + Math.round(t.daysOffset));
+        const isIgPiece = serviceType === 'Gestão de Instagram' && (t.type === 'design' || t.type === 'video');
+
+        await sql`
+          INSERT INTO tasks (
+            project_id,
+            client_id,
+            title,
+            stage,
+            task_type,
+            status,
+            completed_at,
+            priority_score,
+            assigned_to,
+            deadline,
+            estimated_time,
+            is_blocked,
+            ig_is_piece,
+            ig_format,
+            ig_publish_status,
+            created_at
+          )
+          VALUES (
+            ${projectId},
+            ${userId},
+            ${t.title},
+            ${t.stage},
+            ${t.type},
+            ${isAutoCompleted ? 'completed' : (isNextTask ? 'in_progress' : 'pending')},
+            ${isAutoCompleted ? new Date().toISOString() : null},
+            ${isNextTask ? 1000 : (100 - index)},
+            NULL,
+            ${taskDeadline.toISOString()},
+            ${t.estTime},
+            ${!isAutoCompleted && !isNextTask},
+            ${isIgPiece},
+            ${isIgPiece ? 'Reels' : null},
+            ${isIgPiece ? 'in_production' : null},
+            NOW()
+          )
+        `;
+      }
     }
+  }
 
     // DISPARAR EMAIL DE BOAS VINDAS COM CREDENCIAIS
     try {

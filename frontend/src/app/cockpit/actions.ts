@@ -2,7 +2,14 @@
 
 import { getDb } from '@/lib/db';
 
-export async function fetchCockpitTasks(projectId: string, clientId: string | undefined, startRange: string, endRange: string, _timestamp: number) {
+export async function fetchCockpitTasks(
+  projectId: string, 
+  clientId: string | undefined, 
+  startRange: string, 
+  endRange: string, 
+  _timestamp: number,
+  cycleId?: string
+) {
   try {
     const sql = getDb();
     
@@ -11,11 +18,18 @@ export async function fetchCockpitTasks(projectId: string, clientId: string | un
       FROM tasks t
       LEFT JOIN profiles p ON t.assigned_to = p.id
       WHERE (
-        (t.deadline >= $1 AND t.deadline <= $2)
-        OR (t.created_at >= $1 AND t.created_at <= $2)
-        OR t.deadline IS NULL
+        ($5::text IS NOT NULL AND t.cycle_id::text = $5::text)
+        OR (
+          ($5::text IS NULL OR t.cycle_id IS NULL OR t.cycle_id::text = $5::text)
+          AND (
+            (t.deadline >= $1 AND t.deadline <= $2)
+            OR (t.created_at >= $1 AND t.created_at <= $2)
+            OR t.deadline IS NULL
+          )
+        )
       )
       AND t.status != 'archived'
+      AND (t.is_adhoc IS NOT TRUE)
     `;
     const params: any[] = [startRange, endRange];
 
@@ -32,7 +46,7 @@ export async function fetchCockpitTasks(projectId: string, clientId: string | un
 
     baseQuery += ` ORDER BY t.deadline ASC NULLS LAST`;
 
-    const data = await (sql as any).query(baseQuery, params);
+    const data = await (sql as any).query(baseQuery, [...params, cycleId || null]);
     
     return data || [];
   } catch (err) {
@@ -40,3 +54,4 @@ export async function fetchCockpitTasks(projectId: string, clientId: string | un
     return [];
   }
 }
+

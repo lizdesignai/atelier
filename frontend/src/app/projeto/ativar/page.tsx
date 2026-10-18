@@ -1,8 +1,10 @@
 "use client";
+import { dbSelect } from "../../../lib/dbClient";
 import { useState, useEffect } from "react";
 import { Loader2, Package, Download } from "lucide-react";
-import { supabase } from "../../../lib/supabase";
 import { ActivationChecklist } from "../../../components/brand/ActivationChecklist";
+
+import { getClientActiveProjectAction } from "../../actions/clientProject";
 
 export default function AtivarPage() {
   const [isLoading, setIsLoading] = useState(true);
@@ -11,28 +13,32 @@ export default function AtivarPage() {
   const [checklist, setChecklist] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetch = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) return;
-      const { data: prof } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-      if (prof) setProfile(prof);
-      const { data: proj } = await supabase.from('projects').select('*').eq('client_id', session.user.id).in('status', ['active','delivered','completed']).order('created_at', { ascending: false }).limit(1).maybeSingle();
-      if (proj) {
-        setProject(proj);
-        const { data: items } = await supabase.from('activation_checklist').select('*').eq('project_id', proj.id);
-        if (items) setChecklist(items);
+    const fetchPageData = async () => {
+      try {
+        const authRes = await fetch('/api/auth/me');
+        const authData = await authRes.json();
+        if (authData.authenticated) setProfile(authData.user);
+        
+        const proj = await getClientActiveProjectAction();
+        if (proj) {
+          setProject(proj);
+          const data = await dbSelect('activation_checklist', { project_id: proj.id });
+          if (data.length) setChecklist(data);
+        }
+      } catch (err) {
+        console.error(err);
       }
       setIsLoading(false);
     };
-    fetch();
+    fetchPageData();
   }, []);
 
   if (isLoading) return <div className="flex items-center justify-center h-screen bg-[#F0EBE1]"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)] opacity-50" /></div>;
 
-  if (!project) return <div className="p-8 text-[var(--color-atelier-grafite)]">Nenhum projeto ativo encontrado.</div>;
+  if (!project) return <div className="p-6 md:p-8 text-[var(--color-atelier-grafite)]">Nenhum projeto ativo encontrado.</div>;
 
   return (
-    <div className="flex flex-col h-[calc(100vh-80px)] max-w-[1400px] mx-auto relative z-10 pb-6 gap-6 overflow-y-auto custom-scrollbar">
+    <div className="flex flex-col h-[calc(100vh-80px)] w-full max-w-[1400px] mx-auto px-5 md:px-8 lg:px-12 relative z-10 pb-12 gap-6 overflow-y-auto custom-scrollbar">
       <header className="pt-6 flex flex-col gap-2 shrink-0 animate-[fadeInUp_0.8s_ease-out]">
         <div className="flex items-center gap-3">
           <Package size={24} className="text-[var(--color-atelier-terracota)]" />
@@ -43,7 +49,7 @@ export default function AtivarPage() {
       
       <div className="flex flex-col md:flex-row gap-6">
         {project.presentation_url && (
-          <a href={project.presentation_url} target="_blank" rel="noopener noreferrer" className="flex-1 glass-panel p-6 rounded-[2rem] flex items-center justify-between group hover:bg-white/40 transition-colors">
+          <a href={project.presentation_url} target="_blank" rel="noopener noreferrer" className="flex-1 glass-panel p-5 sm:p-6 rounded-[2rem] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 group hover:bg-white/40 transition-colors">
             <div>
               <h3 className="font-elegant text-xl text-[var(--color-atelier-grafite)]">Apresentação Final</h3>
               <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/70">Baixar o PDF da apresentação</p>
@@ -53,7 +59,7 @@ export default function AtivarPage() {
         )}
         
         {project.brand_os_url && (
-          <a href={project.brand_os_url} target="_blank" rel="noopener noreferrer" className="flex-1 glass-panel p-6 rounded-[2rem] flex items-center justify-between group hover:bg-white/40 transition-colors">
+          <a href={project.brand_os_url} target="_blank" rel="noopener noreferrer" className="flex-1 glass-panel p-5 sm:p-6 rounded-[2rem] flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-4 group hover:bg-white/40 transition-colors">
             <div>
               <h3 className="font-elegant text-xl text-[var(--color-atelier-grafite)]">Brand OS</h3>
               <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/70">Acessar os ativos da marca</p>

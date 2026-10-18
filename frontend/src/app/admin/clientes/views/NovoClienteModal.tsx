@@ -8,7 +8,7 @@ import { supabase } from "../../../../lib/supabase";
 interface NovoClienteModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
+  onSuccess?: (credentials?: { email: string; pass: string; nome: string; service: string }) => void;
 }
 
 export default function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoClienteModalProps) {
@@ -52,6 +52,8 @@ export default function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoCli
           empresa,
           role: newRole,
           instagram: cleanInstagram,
+          service_type: servico,
+          skipProjectCreation: false
         }),
       });
 
@@ -61,8 +63,15 @@ export default function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoCli
         throw new Error(data.error || 'Erro ao criar cliente');
       }
 
-      showToast("Cliente criado com sucesso!");
-      onSuccess();
+      showToast("Cliente e projeto criados com sucesso!");
+      if (onSuccess) {
+        onSuccess(data.defaultPassword ? {
+          email: cleanEmail,
+          pass: data.defaultPassword,
+          nome,
+          service: servico
+        } : undefined);
+      }
       onClose();
       
       // Limpar formulário

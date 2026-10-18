@@ -5,6 +5,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getDb } from '@/lib/db';
 import { verifyToken, COOKIE_NAME } from '@/lib/auth';
+import { getProductTypeFromProject, getProductRedirectUrl, ProductType } from '@/lib/productHelper';
 
 export async function GET() {
   try {
@@ -57,8 +58,32 @@ export async function GET() {
 
     const user = users[0];
 
+    let redirectUrl = '/';
+    let productType: ProductType = 'idv';
+    let activeProject = null;
+
+    if (user.role === 'client') {
+      const activeProjects = await sql`
+        SELECT * FROM projects
+        WHERE client_id = ${user.id}
+        AND status IN ('active', 'delivered', 'completed')
+        ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, created_at DESC
+        LIMIT 1
+      `;
+      activeProject = activeProjects[0] || null;
+      productType = getProductTypeFromProject(activeProject);
+      redirectUrl = getProductRedirectUrl(productType);
+    } else if (user.role === 'contador') {
+      redirectUrl = '/admin/financeiro';
+    } else {
+      redirectUrl = '/admin/jtbd';
+    }
+
     return NextResponse.json({
       authenticated: true,
+      redirectUrl,
+      productType,
+      activeProject,
       user: {
         id: user.id,
         email: user.email,
@@ -75,6 +100,8 @@ export async function GET() {
         nif: user.nif,
         endereco: user.endereco,
         created_at: user.created_at,
+        productType,
+        redirectUrl,
       },
     });
   } catch (error: any) {

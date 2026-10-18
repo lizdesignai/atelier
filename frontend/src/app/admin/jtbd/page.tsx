@@ -525,7 +525,7 @@ export default function JTBDPage() {
           }
         }
         // Se for a tela inicial sem filtro de data, exibimos as prÃ³ximas demandas em aberto
-        return t.status !== 'completed' && t.status !== 'pending_client_approval';
+        return t.status !== 'completed' && t.status !== 'pending_client_approval' && t.status !== 'archived';
       }).slice(0, selectedDate ? undefined : 10) // Limitadas a 10 prioridades
     : allUserTasks.filter(t => {
         if (selectedClient) {
@@ -545,8 +545,7 @@ export default function JTBDPage() {
   const currentMonth = now.getMonth();
   const currentYear = now.getFullYear();
 
-  const completedTasks = allUserTasks
-    .filter(t => t.status === 'completed' || t.status === 'pending_client_approval')
+  const completedTasks = allUserTasks.filter(t => t.status === 'completed' || t.status === 'pending_client_approval' || t.status === 'archived')
     .filter(t => {
       const dateToCheck = t.completed_at ? new Date(t.completed_at) : (t.updated_at ? new Date(t.updated_at) : new Date(t.deadline));
       return dateToCheck.getMonth() === currentMonth && dateToCheck.getFullYear() === currentYear;

@@ -205,11 +205,12 @@ export default function LoginPage() {
 
       // Login bem-sucedido (sem MFA)
       const role = data.user?.role || 'client';
+      const destination = data.redirectUrl || data.user?.redirectUrl || (role === 'client' ? "/" : role === 'contador' ? "/admin/financeiro" : "/admin/jtbd");
       
       setIsSuccessState(true);
-              setTimeout(() => {
-          router.push(role === 'client' ? "/" : role === 'contador' ? "/admin/financeiro" : "/admin/jtbd");
-        }, 1800);
+      setTimeout(() => {
+        router.push(destination);
+      }, 1800);
 
     } catch (error: any) {
       showToast(error.message);
@@ -245,11 +246,12 @@ export default function LoginPage() {
       }
 
       const role = data.user?.role || 'client';
+      const destination = data.redirectUrl || data.user?.redirectUrl || (role === 'client' ? "/" : role === 'contador' ? "/admin/financeiro" : "/admin/jtbd");
       
       setIsSuccessState(true);
-              setTimeout(() => {
-          router.push(role === 'client' ? "/" : role === 'contador' ? "/admin/financeiro" : "/admin/jtbd");
-        }, 1800);
+      setTimeout(() => {
+        router.push(destination);
+      }, 1800);
 
     } catch (error: any) {
       showToast(error.message);

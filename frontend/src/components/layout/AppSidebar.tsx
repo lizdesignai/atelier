@@ -11,7 +11,7 @@ import {
   Globe2, CheckCircle2, DollarSign, Sparkles, Briefcase, 
   Crosshair, LogOut, Activity, Crown, Grid, Menu, X, FileText,
   Eye, Target, TrendingUp, Archive,
-  Search, Hammer, Presentation, Package
+  Search, Hammer, Presentation, Package, Calendar
 } from "lucide-react";
 import { supabase } from "../../lib/supabase"; 
 import { useDynamicTitle } from "../../hooks/useDynamicTitle"; 
@@ -19,6 +19,7 @@ import { usePresenceTracker } from "../../hooks/usePresenceTracker";
 import { useSession } from "../../hooks/useSession";
 import { useProfile } from "../../hooks/useProfile";
 import { useProjects } from "../../hooks/useProjects";
+import { getProductTypeFromProject, getClientServiceLabel } from "@/lib/productHelper";
 
 interface AppSidebarProps {
   userRole: string;
@@ -46,6 +47,7 @@ const ROUTE_NAMES: Record<string, string> = {
   '/admin/jtbd': 'Focus',
   '/admin/gestao': 'Produtividade',
   '/admin/projetos': 'Studio Veronna',
+  '/admin/agenda': 'Agenda',
   '/admin/fio': 'Sintonia',
   '/admin/clientes': 'Clientes',
   '/admin/analytics': 'Analytics',
@@ -104,21 +106,19 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
 
     const fetchSidebarData = async () => {
       if (isClient) {
-        // Obter o projeto correspondente ao cliente (por client_id ou primeiro projeto)
-        const project = projects?.find(p => p.client_id === session?.user?.id) || projects?.[0];
+        // Obter o projeto correspondente ao cliente (priorizando projeto ativo)
+        const project = projects?.find(p => p.client_id === session?.user?.id && p.status === 'active')
+                     || projects?.find(p => p.client_id === session?.user?.id)
+                     || projects?.[0];
         let shouldArchive = false;
 
-        const rawService = project?.service_type || project?.type || project?.service || "";
-        const isInstagram = rawService === "Gestão de Instagram" || rawService.toLowerCase().includes("instagram");
-        const isMapa = rawService === "O Mapa" || rawService.toLowerCase() === "o mapa" || rawService.toLowerCase() === "mapa";
-        
-        let service = "Identidade Visual";
-        if (isInstagram) service = "Gestão de Instagram";
-        if (isMapa) service = "O Mapa";
+        const productType = getProductTypeFromProject(project);
+        const isInstagram = productType === 'instagram';
+        const isMapa = productType === 'mapa';
+        const isIdv = productType === 'idv';
+        const service = getClientServiceLabel(productType);
 
         setClientServiceType(service);
-
-        const isIdv = service === "Identidade Visual";
 
         if (isIdv && project?.idv_phase) {
           setIdvPhase(project.idv_phase);
@@ -144,15 +144,27 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
 
         // BLINDAGEM DE ROTAS PARA CLIENTES
         if (shouldArchive) {
-          const lockedRoutes = ['/', '/cofre', '/referencias', '/cockpit', '/curadoria', '/cofre-missoes', '/brandbook', '/mapa'];
-          if (lockedRoutes.includes(pathname)) router.replace('/comunidade');
+          const lockedRoutes = ['/', '/cofre', '/referencias', '/cockpit', '/curadoria', '/cofre-missoes', '/brandbook', '/mapa', '/simulador-feed'];
+          if (lockedRoutes.includes(pathname) || pathname.startsWith('/projeto') || pathname.startsWith('/mapa')) {
+            router.replace('/comunidade');
+          }
         } else {
           if (isMapa) {
-            if (!pathname.startsWith('/mapa') && pathname !== '/comunidade') router.replace('/mapa');
-          } else if (isInstagram && (pathname === '/' || pathname === '/cofre' || pathname === '/referencias' || pathname === '/mapa' || pathname === '/brandbook')) {
-            router.replace('/cockpit');
-          } else if (!isInstagram && !isMapa && (pathname === '/cockpit' || pathname === '/curadoria' || pathname === '/cofre-missoes' || pathname === '/mapa')) {
-            router.replace('/');
+            if (!pathname.startsWith('/mapa') && pathname !== '/comunidade' && pathname !== '/canais') {
+              router.replace('/mapa');
+            }
+          } else if (isInstagram) {
+            // Cliente de Gestão de Instagram: SÓ vê Cockpit, Canais e Comunidade
+            const isAllowedInstagramRoute = pathname === '/cockpit' || pathname === '/canais' || pathname === '/comunidade';
+            if (!isAllowedInstagramRoute) {
+              router.replace('/cockpit');
+            }
+          } else if (isIdv) {
+            // Cliente de Identidade Visual: NÃO pode ver Cockpit, Simulador de Feed ou Mapa
+            const isBlockedForIdv = pathname === '/cockpit' || pathname === '/simulador-feed' || pathname.startsWith('/mapa');
+            if (isBlockedForIdv) {
+              router.replace('/');
+            }
           }
         }
       } else if (isContador) {
@@ -206,6 +218,12 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     };
   }, [sessionUserId]);
 
+  const activeClientProject = projects?.find((p: any) => p.client_id === sessionUserId && p.status === 'active')
+                           || projects?.find((p: any) => p.client_id === sessionUserId)
+                           || projects?.[0];
+  const isInstagramClient = isClient && (clientServiceType === "Gestão de Instagram" || getProductTypeFromProject(activeClientProject) === 'instagram');
+
+  if (isClient) return null;
   if (isClient && isProjectArchived) return null;
   if (isContador && !isReady) return null;
 
@@ -244,7 +262,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : clientServiceType === "Gestão de Instagram" ? [
     { href: '/cockpit', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
-    { href: '/simulador-feed', icon: <Grid size={20} strokeWidth={1.5} />, label: 'Feed' },
+
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : [
@@ -281,7 +299,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : clientServiceType === "Gestão de Instagram" ? [
     { href: '/cockpit', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
-    { href: '/simulador-feed', icon: <Grid size={20} strokeWidth={1.5} />, label: 'Feed' },
+
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
   ] : [
@@ -361,7 +379,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               {clientServiceType === "Gestão de Instagram" ? (
                 <>
                   <NavItem href="/cockpit" icon={<Home size={18} strokeWidth={1.5} />} label="Inicial" collapsed={isCollapsed} active={pathname === '/cockpit'} />
-                  <NavItem href="/simulador-feed" icon={<Grid size={18} strokeWidth={1.5} />} label="Feed" collapsed={isCollapsed} active={pathname === '/simulador-feed'} />
+
                 </>
               ) : clientServiceType === "O Mapa" ? (
                 <>
@@ -383,6 +401,8 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               ) : (
                 <>
                   <NavItem href="/" icon={<Home size={18} strokeWidth={1.5} />} label="Meu Projeto" collapsed={isCollapsed} active={pathname === '/'} />
+                  <NavItem href="/brandbook" icon={<Sparkles size={18} strokeWidth={1.5} />} label="Brand Lab" collapsed={isCollapsed} active={pathname === '/brandbook'} />
+                  <NavItem href="/canais" icon={<MessageSquare size={18} strokeWidth={1.5} />} label="Canais" collapsed={isCollapsed} active={pathname === '/canais'} badge={globalUnreadCount} />
                   
                   
                   {/* Stages unlock progressively based on idv_phase */}
@@ -421,29 +441,31 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
           {/* MENU PARA EQUIPA DO ESTÚDIO */}
           {isTeamMember && (
             <>
-
-
               {/* Visto por todos */}
               <NavItem href="/admin/jtbd" icon={<Crosshair size={18} strokeWidth={1.5} />} label="Focus" collapsed={isCollapsed} active={pathname === '/admin/jtbd'} />
-              
-
-
               <NavItem href="/admin/projetos" icon={<FolderKanban size={18} strokeWidth={1.5} />} label="Studio Veronna" collapsed={isCollapsed} active={pathname === '/admin/projetos'} />
+              
+              {/* DIVISÓRIA SUTIL */}
+              <div className="py-2 flex items-center justify-center opacity-10">
+                <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
+              </div>
+
               <NavItem href="/admin/fio" icon={<MessageCircle size={18} strokeWidth={1.5} />} label="Sintonia" collapsed={isCollapsed} active={pathname === '/admin/fio'} badge={globalUnreadCount} />
               <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
-              
-
               
               {/* Visto apenas por Gestor e Admin */}
               {isManagerOrAdmin && (
                 <>
+                  {/* DIVISÓRIA SUTIL */}
+                  <div className="py-2 flex items-center justify-center opacity-10">
+                    <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
+                  </div>
+
                   <NavItem href="/admin" icon={<FileText size={18} strokeWidth={1.5} />} label="QG da Liziane" collapsed={isCollapsed} active={pathname === '/admin'} />
                   <NavItem href="/admin/gestao" icon={<LayoutDashboard size={18} strokeWidth={1.5} />} label="Produtividade" collapsed={isCollapsed} active={pathname === '/admin/gestao'} />
                   <NavItem href="/admin/analytics" icon={<Briefcase size={18} strokeWidth={1.5} />} label="Analytics" collapsed={isCollapsed} active={pathname === '/admin/analytics'} />
                 </>
               )}
-
-
             </>
           )}
 

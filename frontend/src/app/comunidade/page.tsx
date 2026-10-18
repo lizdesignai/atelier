@@ -11,6 +11,7 @@ import {
 import { supabase } from "../../lib/supabase";
 import Link from "next/link";
 import { NotificationEngine } from "../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
+import { normalizeImageUrl, handleAvatarError } from "../../lib/imageUtils";
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -488,7 +489,7 @@ export default function ComunidadeFeed() {
                     <div className="flex items-center gap-4">
                       <Link href={`/comunidade/perfil/${post.profiles?.username || post.author_id}`}>
                         <div className="w-14 h-14 rounded-[1.2rem] border border-[var(--color-atelier-terracota)]/20 shadow-inner overflow-hidden shrink-0 flex items-center justify-center bg-white text-[var(--color-atelier-grafite)] font-elegant text-2xl hover:scale-105 transition-transform">
-                          {post.profiles?.avatar_url ? <img src={post.profiles.avatar_url} alt="" className="w-full h-full object-cover" /> : post.profiles?.nome?.charAt(0)}
+                          {post.profiles?.avatar_url ? <img src={normalizeImageUrl(post.profiles.avatar_url)} alt="" className="w-full h-full object-cover" onError={(e) => handleAvatarError(e, post.profiles?.nome)} /> : post.profiles?.nome?.charAt(0)}
                         </div>
                       </Link>
                       <div className="flex flex-col">
@@ -533,7 +534,7 @@ export default function ComunidadeFeed() {
                   {post.image_url && (
                     <div onDoubleClick={() => handleLike(post.id)} className="w-full bg-[var(--color-atelier-grafite)]/5 relative cursor-pointer group px-8 pb-8">
                       <div className="w-full rounded-[2rem] overflow-hidden border-4 border-white shadow-md">
-                         <img src={post.image_url} alt="Publicação" className="w-full max-h-[600px] object-cover group-hover:scale-105 transition-transform duration-700" />
+                         <img src={normalizeImageUrl(post.image_url)} alt="Publicação" className="w-full max-h-[600px] object-cover group-hover:scale-105 transition-transform duration-700" />
                       </div>
                     </div>
                   )}

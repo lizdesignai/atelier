@@ -2,6 +2,7 @@
 
 import { getDb } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth-server';
+import { getProductTypeFromProject, getProductRedirectUrl, ProductType } from '@/lib/productHelper';
 
 export async function getClientActiveProjectAction() {
   const user = await getAuthUser();
@@ -13,7 +14,7 @@ export async function getClientActiveProjectAction() {
       SELECT * FROM projects
       WHERE client_id = ${user.sub}
       AND status IN ('active', 'delivered', 'completed')
-      ORDER BY created_at DESC
+      ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, created_at DESC
       LIMIT 1
     `;
     return data[0] || null;
@@ -21,6 +22,17 @@ export async function getClientActiveProjectAction() {
     console.error('[actions/clientProject] Erro:', error);
     throw new Error('Falha ao buscar projeto ativo');
   }
+}
+
+export async function getClientProductInfoAction() {
+  const user = await getAuthUser();
+  if (!user) return { productType: 'idv' as ProductType, redirectUrl: '/', project: null };
+
+  const project = await getClientActiveProjectAction();
+  const productType = getProductTypeFromProject(project);
+  const redirectUrl = getProductRedirectUrl(productType);
+
+  return { productType, redirectUrl, project };
 }
 
 export async function submitClientReviewAction(projectId: string, decision: string, feedback: string) {

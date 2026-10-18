@@ -209,86 +209,10 @@ export class AtelierPMEngine {
    * 0.1 HOT-CHECK RECORRÊNCIA
    * ============================================================================
    */
-  static async runRecurrenceHotCheck(projectId: string, adminId: string) {
+  static async runRecurrenceHotCheck(projectId: string, adminId?: string) {
     try {
-      const now = new Date();
-      
-      const { data: project, error: projError } = await supabase
-        .from('projects')
-        .select('id, client_id, deadline, service_type, payment_recurrence, billing_date')
-        .eq('id', projectId)
-        .single();
-
-      if (projError || !project) return;
-
-      const isRecurring = project.payment_recurrence?.toLowerCase().includes('mensal') || 
-                          project.service_type?.toLowerCase().includes('gestão');
-      
-      if (!isRecurring) return;
-
-      const projectDeadline = project.deadline ? new Date(project.deadline) : null;
-      
-      if (projectDeadline && projectDeadline > now) {
-        const { data: activeContent } = await supabase
-          .from('content_planning')
-          .select('id')
-          .eq('project_id', projectId)
-          .in('status', ['pending', 'in_progress', 'review'])
-          .limit(1);
-
-        if (activeContent && activeContent.length > 0) return;
-      }
-
-      await supabase.from('content_planning').update({ status: 'archived' }).eq('project_id', projectId).in('status', ['pending', 'draft']);
-
-      const nextMonth = addMonths(startOfMonth(now), 1);
-      const nextMonthLabel = format(nextMonth, "MMMM 'de' yyyy", { locale: ptBR });
-      const newDeadline = endOfDay(addDays(nextMonth, -1)).toISOString(); 
-
-      await supabase.from('projects').update({
-          deadline: newDeadline,
-          billing_date: project.billing_date ? addMonths(new Date(project.billing_date), 1).toISOString() : newDeadline,
-          current_focus: `Planeamento Mensal: ${nextMonthLabel}`
-      }).eq('id', projectId);
-
-      const newMonthTasks = [
-        {
-          project_id: projectId,
-          client_id: project.client_id,
-          month_year: nextMonthLabel,
-          pillar: 'Estratégia Inicial',
-          hook: 'Definição de Pautas e Metas Mensais',
-          briefing: 'Revisão das métricas do mês passado e alinhamento do novo cronograma.',
-          status: 'pending',
-          is_avulso: false
-        },
-        {
-          project_id: projectId,
-          client_id: project.client_id,
-          month_year: nextMonthLabel,
-          pillar: 'Conteúdo Pilar',
-          hook: 'Lote de Produção Principal',
-          briefing: 'Aguardando aprovação de pautas para iniciar a produção.',
-          status: 'draft',
-          is_avulso: false
-        }
-      ];
-
-      await supabase.from('content_planning').insert(newMonthTasks);
-
-      await supabase.from('tasks').insert({
-        project_id: projectId,
-        assigned_to: adminId,
-        title: `🗓️ Novo Ciclo Iniciado: ${nextMonthLabel}`,
-        description: `O sistema renovou o ciclo deste projeto.\n\nPróximo Passo: Marcar a sessão de planeamento ou aprovar pauta.`,
-        urgency: true,
-        status: 'pending',
-        stage: 'Planeamento Estratégico',
-        task_type: 'management',
-        deadline: addBusinessDays(now, 2).toISOString(),
-        internal_deadline: addBusinessDays(now, 2).toISOString()
-      });
-
+      const { CycleEngine } = await import('@/lib/presenca/CycleEngine');
+      await CycleEngine.ensureCurrentCycle(projectId);
     } catch (error) {
       console.error("[PM Engine - HotCheck] Erro na virada automática de ciclo:", error);
     }
@@ -301,129 +225,16 @@ export class AtelierPMEngine {
    */
   static async startNewMonth(projectId: string, postsQty: number, videosQty: number, cofreDate?: string) {
     try {
-      console.log(`[PM Engine] Iniciando Novo Mês Manualmente para o Projeto: ${projectId}`);
-      const now = new Date();
-      const currentMonthLabel = format(now, "MMMM 'de' yyyy", { locale: ptBR });
+      console.log(`[PM Engine] Avançando ciclo para o projeto: ${projectId}`);
+      await supabase.from('projects').update({
+        posts_quantity: postsQty,
+        videos_quantity: videosQty,
+      }).eq('id', projectId);
 
-      // 1. Arquivar tarefas antigas do projeto (tudo que não estiver arquivado ou concluído)
-      await supabase
-        .from('tasks')
-        .update({ status: 'archived' })
-        .eq('project_id', projectId)
-        .in('status', ['pending', 'in_progress', 'review', 'draft', 'approved']);
-        
-      // 2. Arquivar content_planning anterior se existir
-      await supabase
-        .from('content_planning')
-        .update({ status: 'archived' })
-        .eq('project_id', projectId)
-        .neq('status', 'archived');
-
-      // 3. Resgatar as regras de roteamento (Assignees)
-      const { data: routingRules } = await supabase
-        .from('routing_rules')
-        .select('task_type, assignee_id')
-        .eq('project_id', projectId);
-
-      const rulesMap: Record<string, string> = {};
-      if (routingRules) {
-        routingRules.forEach(r => {
-          if (r.assignee_id) rulesMap[r.task_type] = r.assignee_id;
-        });
-      }
-
-      // 4. Preparar novas tarefas
-      const newTasks = [];
-
-      // 4.1 Tarefa Mandatória de Planejamento Mensal
-      const adminAssignee = await this.getOptimalAssignee('management', projectId, rulesMap['management'] || null, 60);
-      newTasks.push({
-        project_id: projectId,
-        assigned_to: adminAssignee,
-        title: `Planejamento Mensal - ${currentMonthLabel}`,
-        description: `Esta é a etapa obrigatória do mês.\nElabore o planejamento e aprove com o cliente antes de iniciar a produção das peças.`,
-        urgency: true,
-        status: 'pending',
-        stage: 'Planeamento Estratégico',
-        task_type: 'management',
-        estimated_time: 60,
-        deadline: addBusinessDays(now, 2).toISOString(),
-        internal_deadline: addBusinessDays(now, 2).toISOString()
-      });
-
-      // 4.2 Tarefas de Posts (Design)
-      if (postsQty > 0) {
-        const designAssignee = await this.getOptimalAssignee('design', projectId, rulesMap['design'] || null, 60);
-        const designBuffer = await this.getBufferDays(designAssignee);
-        for (let i = 1; i <= postsQty; i++) {
-          const deadline = addBusinessDays(now, 5 + i).toISOString();
-          const internalDeadline = addDays(new Date(deadline), -designBuffer).toISOString();
-          
-          newTasks.push({
-            project_id: projectId,
-            assigned_to: designAssignee,
-            title: `Post Mensal #${i} - ${currentMonthLabel}`,
-            description: `Aguardando a conclusão e aprovação do Planejamento Mensal.`,
-            stage: 'Produção Ativa',
-            task_type: 'design',
-            estimated_time: 60,
-            deadline: deadline,
-            internal_deadline: internalDeadline,
-            status: 'draft' // Ficam em draft até o planejamento ser aprovado
-          });
-        }
-      }
-
-      // 4.3 Tarefas de Vídeos (Reels)
-      if (videosQty > 0) {
-        const videoAssignee = await this.getOptimalAssignee('video', projectId, rulesMap['video'] || null, 60);
-        const videoBuffer = await this.getBufferDays(videoAssignee);
-        for (let i = 1; i <= videosQty; i++) {
-          const deadline = addBusinessDays(now, 5 + i).toISOString();
-          const internalDeadline = addDays(new Date(deadline), -videoBuffer).toISOString();
-          
-          newTasks.push({
-            project_id: projectId,
-            assigned_to: videoAssignee,
-            title: `Vídeo (Reels) #${i} - ${currentMonthLabel}`,
-            description: `Aguardando a conclusão e aprovação do Planejamento Mensal.`,
-            stage: 'Produção Ativa',
-            task_type: 'video',
-            estimated_time: 60,
-            deadline: deadline,
-            internal_deadline: internalDeadline,
-            status: 'draft'
-          });
-        }
-      }
-
-      // 4.4 Tarefa de Liberação do Cofre (Se existir data)
-      if (cofreDate) {
-         newTasks.push({
-            project_id: projectId,
-            assigned_to: adminAssignee,
-            title: `Liberação do Cofre - ${currentMonthLabel}`,
-            description: `Liberar os conteúdos e senhas no cofre do cliente.`,
-            stage: 'Finalização & Entrega',
-            task_type: 'management',
-            estimated_time: 30,
-            deadline: new Date(cofreDate).toISOString(),
-            internal_deadline: new Date(cofreDate).toISOString(),
-            status: 'draft'
-         });
-      }
-
-      // 5. Inserir tarefas no banco
-      if (newTasks.length > 0) {
-        const { error: insertError } = await supabase.from('tasks').insert(newTasks);
-        if (insertError) {
-           console.error("[PM Engine] Erro ao inserir novas tarefas:", insertError);
-           throw insertError;
-        }
-      }
-
+      const { CycleEngine } = await import('@/lib/presenca/CycleEngine');
+      await CycleEngine.advanceCycle(projectId);
     } catch (error) {
-      console.error("[PM Engine - Manual] Erro ao iniciar novo mês:", error);
+      console.error("[PM Engine - Manual] Erro ao avançar ciclo:", error);
       throw error;
     }
   }

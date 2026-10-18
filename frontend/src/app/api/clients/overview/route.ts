@@ -6,13 +6,22 @@ export async function GET() {
     const sql = getDb();
 
     const [tasksData, profilesData, agenciesData, activeProjects, leadsData] = await Promise.all([
-      sql`SELECT project_id, status FROM tasks`,
-      sql`SELECT id, email, nome, avatar_url, role, created_at, empresa FROM profiles WHERE role IN ('client', 'lead')`,
+      sql`SELECT project_id, status FROM tasks WHERE title NOT ILIKE 'GATE%'`,
+      sql`SELECT id, email, nome, avatar_url, role, created_at, empresa, instagram, username FROM profiles WHERE role IN ('client', 'lead')`,
       sql`SELECT id, name, status, financial_value, billing_date, created_at, trello_url FROM agencies`,
-      sql`SELECT p.*, json_build_object('nome', pr.nome, 'avatar_url', pr.avatar_url, 'empresa', pr.empresa) as profiles
+      sql`SELECT p.*, json_build_object(
+            'id', pr.id,
+            'nome', pr.nome,
+            'email', pr.email,
+            'avatar_url', pr.avatar_url,
+            'empresa', pr.empresa,
+            'instagram', pr.instagram,
+            'username', pr.username,
+            'telefone', pr.telefone
+          ) as profiles
           FROM projects p
           LEFT JOIN profiles pr ON p.client_id = pr.id
-          WHERE p.status IN ('active', 'delivered')
+          WHERE p.status IN ('active', 'delivered', 'completed', 'archived', 'paused')
           ORDER BY p.created_at DESC`,
       sql`SELECT id, nome, email, nicho, created_at FROM leads WHERE status = 'prospect'`
     ]);
@@ -76,7 +85,24 @@ export async function GET() {
       trello_url: agency.trello_url
     }));
 
-    const enrichedProjects = [...enriched, ...leadsMapped, ...agenciesMapped]
+    const clientIdsWithProjects = new Set((activeProjects || []).map((p: any) => p.client_id));
+    const orphanClientsMapped = (profilesData || [])
+      .filter((p: any) => p.role === 'client' && !clientIdsWithProjects.has(p.id))
+      .map((client: any) => ({
+        id: `orphan-${client.id}`,
+        client_id: client.id,
+        isLead: false,
+        isOrphanClient: true,
+        isAgency: false,
+        profiles: client,
+        status: 'pending',
+        type: 'Aguardando Início de Projeto',
+        calculatedProgress: 0,
+        created_at: client.created_at,
+        financial_value: 0
+      }));
+
+    const enrichedProjects = [...enriched, ...leadsMapped, ...orphanClientsMapped, ...agenciesMapped]
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
     const mappedAvailableLeads = (leadsData || []).map((l: any) => ({

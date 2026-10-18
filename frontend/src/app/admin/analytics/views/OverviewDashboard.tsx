@@ -1,5 +1,5 @@
 // src/app/admin/analytics/views/OverviewDashboard.tsx
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   FolderKanban, Target, Users, Search, 
@@ -10,6 +10,8 @@ import {
 } from "lucide-react";
 import StudioConfigModal from "../../../../components/StudioConfigModal";
 import AgencyConfigModal from "../../../../components/AgencyConfigModal";
+import { normalizeImageUrl, handleAvatarError } from "../../../../lib/imageUtils";
+import { Crown } from "lucide-react";
 
 interface OverviewDashboardProps {
   metrics: { activeProjects: number; pendingTasks: number; totalTeam: number };
@@ -87,8 +89,54 @@ export default function OverviewDashboard({
 
   // Estados para Carteira Unificada
   const [walletSearch, setWalletSearch] = useState("");
-  const [walletFilter, setWalletFilter] = useState<'all'|'agency'|'studio'>('all'); // all acts as studio in the new UI toggle
+  const [walletFilter, setWalletFilter] = useState<'all'|'agency'|'studio'>('studio');
+  const [isWalletSearchOpen, setIsWalletSearchOpen] = useState(false);
   const [walletIndex, setWalletIndex] = useState(0);
+  const [scrollDirection, setScrollDirection] = useState<number>(1);
+  const lastWheelTime = useRef(0);
+
+  const filteredWallet = unifiedWallet.filter(item => {
+    if (isWalletSearchOpen && walletSearch.trim()) {
+      const q = walletSearch.toLowerCase().trim();
+      const matchesName = (item.name || "").toLowerCase().includes(q);
+      const matchesLabel = (item.label || "").toLowerCase().includes(q);
+      return matchesName || matchesLabel;
+    }
+    if (walletFilter === 'agency') {
+      return item.type === 'agency';
+    }
+    return item.type === 'project';
+  });
+
+  const handleWalletWheel = (e: React.WheelEvent) => {
+    const delta = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (Math.abs(delta) < 15) return;
+
+    const now = Date.now();
+    if (now - lastWheelTime.current < 180) return;
+    lastWheelTime.current = now;
+
+    const maxIdx = Math.max(0, filteredWallet.length - 1);
+    const currentSafeIdx = Math.min(walletIndex, maxIdx);
+
+    if (delta > 0) {
+      setScrollDirection(1);
+      const nextIdx = Math.min(currentSafeIdx + 1, maxIdx);
+      setWalletIndex(nextIdx);
+      if (filteredWallet[nextIdx]) {
+        setSelectedEntityId?.(filteredWallet[nextIdx].id);
+        setSelectedEntityType?.(filteredWallet[nextIdx].type as any);
+      }
+    } else {
+      setScrollDirection(-1);
+      const nextIdx = Math.max(0, currentSafeIdx - 1);
+      setWalletIndex(nextIdx);
+      if (filteredWallet[nextIdx]) {
+        setSelectedEntityId?.(filteredWallet[nextIdx].id);
+        setSelectedEntityType?.(filteredWallet[nextIdx].type as any);
+      }
+    }
+  };
 
   const handleQueueScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
@@ -135,15 +183,11 @@ export default function OverviewDashboard({
           <div className="w-full h-full flex flex-col gap-2 min-h-0 relative">
             
             {/* WIDGET 1: PRÓXIMAS TAREFAS */}
-            <div className="flex flex-col min-h-0 shrink-0 h-[40%] relative overflow-hidden transition-all pt-2">
+            <div className="flex flex-col min-h-0 shrink-0 h-[34%] relative overflow-hidden transition-all pt-2">
               <div className="pb-3 mb-1 shrink-0 flex flex-col gap-3">
                 <div className="flex justify-between items-center mb-1">
                     <div className="flex items-center gap-4">
                       <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Próximas Tarefas</h3>
-                      <div className="flex items-center gap-2 bg-orange-50 border border-orange-200 text-orange-700 px-3 py-1 rounded-full shadow-sm">
-                         <span className="text-[10px] font-bold uppercase tracking-widest">WIP Limit:</span>
-                         <span className="text-xs font-bold">{validProjects.filter(p => p.status === 'active' && isIdvService(p)).length} / 4 Projetos Ativos</span>
-                      </div>
                     </div>
                     
                     <div className="flex items-center gap-2">
@@ -245,7 +289,15 @@ export default function OverviewDashboard({
                              <div className="flex items-center justify-between mt-auto pt-3 border-t border-[var(--color-atelier-grafite)]/5">
                                <div className="flex items-center gap-2">
                                  <div className="w-6 h-6 rounded-full overflow-hidden border border-white shadow-sm bg-gray-100 flex items-center justify-center shrink-0">
-                                   {task.profiles?.avatar_url ? <img src={task.profiles.avatar_url} className="w-full h-full object-cover"/> : <UserCircle2 size={12} className="text-gray-300"/>}
+                                   {task.profiles?.avatar_url ? (
+                                     <img 
+                                       src={normalizeImageUrl(task.profiles.avatar_url)} 
+                                       className="w-full h-full object-cover" 
+                                       onError={(e) => handleAvatarError(e, task.profiles?.nome)} 
+                                     />
+                                   ) : (
+                                     <UserCircle2 size={12} className="text-gray-300"/>
+                                   )}
                                  </div>
                                  <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)]/60 truncate max-w-[80px]" title={task.profiles?.nome}>
                                    {task.profiles?.nome?.split(' ')[0] || "Não Atribuído"}
@@ -304,60 +356,174 @@ export default function OverviewDashboard({
             </div>
 
             {/* WIDGET 2: CARTEIRA UNIFICADA */}
-            <div className="flex flex-col min-h-0 shrink-0 h-[60%] relative overflow-hidden transition-all pt-3 border-t border-[var(--color-atelier-grafite)]/10">
-              <div className="pb-3 mb-1 shrink-0 flex items-center justify-between">
-                <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Carteira</h3>
+            <div className="flex flex-col min-h-0 shrink-0 h-[66%] relative overflow-hidden transition-all pt-3 border-t border-[var(--color-atelier-grafite)]/10">
+              <div className="pb-3 mb-1 shrink-0 flex items-center justify-between gap-2">
+                <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] shrink-0">Carteira</h3>
                 
-                {/* Toggle Switch */}
-                <div className="flex bg-white/60 p-1 rounded-full shadow-sm border border-white relative overflow-hidden w-[200px]">
-                   <div className={`absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-full bg-[var(--color-atelier-terracota)] shadow-sm transition-transform duration-300 ease-out`} style={{ transform: walletFilter === 'agency' ? 'translateX(100%)' : 'translateX(0%)' }}></div>
-                   <button onClick={() => { setWalletFilter('all'); setWalletIndex(0); }} className={`relative flex-1 z-10 px-1 text-center py-1 text-[9px] font-bold uppercase tracking-widest rounded-full transition-colors duration-300 ${walletFilter !== 'agency' ? 'text-white' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)]'}`}>Studio Veronna</button>
-                   <button onClick={() => { setWalletFilter('agency'); setWalletIndex(0); }} className={`relative flex-1 z-10 px-1 text-center py-1 text-[9px] font-bold uppercase tracking-widest rounded-full transition-colors duration-300 ${walletFilter === 'agency' ? 'text-white' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)]'}`}>Agência</button>
+                {/* Controles da Carteira */}
+                <div className="flex items-center gap-1 bg-white/70 backdrop-blur-md p-1 rounded-full shadow-sm border border-white">
+                  <AnimatePresence mode="wait">
+                    {isWalletSearchOpen ? (
+                      /* Quando a lupa é clicada: oculta os outros dois ícones e exibe apenas a barra de pesquisa */
+                      <motion.div
+                        key="wallet-search-bar"
+                        initial={{ width: 40, opacity: 0 }}
+                        animate={{ width: 230, opacity: 1 }}
+                        exit={{ width: 40, opacity: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="flex items-center gap-1.5 px-2.5 py-1 bg-white rounded-full border border-gray-200 shadow-sm"
+                      >
+                        <Search size={13} className="text-[var(--color-atelier-terracota)] shrink-0" />
+                        <input
+                          type="text"
+                          placeholder="Buscar cliente ou agência..."
+                          value={walletSearch}
+                          onChange={(e) => {
+                            setWalletSearch(e.target.value);
+                            setWalletIndex(0);
+                          }}
+                          autoFocus
+                          className="w-full bg-transparent text-[10px] font-bold text-[var(--color-atelier-grafite)] outline-none placeholder:text-gray-400"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsWalletSearchOpen(false);
+                            setWalletSearch("");
+                            setWalletIndex(0);
+                          }}
+                          className="text-gray-400 hover:text-gray-700 p-0.5 shrink-0"
+                          title="Fechar busca"
+                        >
+                          <X size={12} />
+                        </button>
+                      </motion.div>
+                    ) : (
+                      /* Estado normal: A lupa vem primeiro, seguida de Studio Veronna e Agência */
+                      <motion.div
+                        key="wallet-icons-group"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                        className="flex items-center gap-1"
+                      >
+                        {/* 1. Lupa (vem primeiro) */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setIsWalletSearchOpen(true);
+                          }}
+                          title="Buscar na Carteira"
+                          className="w-7 h-7 rounded-full flex items-center justify-center transition-all duration-300 text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-terracota)] hover:bg-gray-100/60 shrink-0"
+                        >
+                          <Search size={13} />
+                        </button>
+
+                        {/* 2. Studio Veronna (quando ativo expande e mostra nome + logo) */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setWalletFilter('studio');
+                            setWalletIndex(0);
+                          }}
+                          title="Studio Veronna"
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-all duration-300 font-bold uppercase tracking-widest text-[9px] shrink-0 ${
+                            walletFilter !== 'agency'
+                              ? 'bg-[var(--color-atelier-terracota)] text-white shadow-sm'
+                              : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-terracota)] hover:bg-gray-100/60'
+                          }`}
+                        >
+                          <img 
+                            src="/images/simbolo-rosa.png" 
+                            alt="Studio Veronna" 
+                            className={`w-3.5 h-3.5 object-contain shrink-0 ${walletFilter !== 'agency' ? 'brightness-0 invert' : ''}`} 
+                          />
+                          {walletFilter !== 'agency' && (
+                            <span className="whitespace-nowrap transition-all duration-300">
+                              Studio Veronna
+                            </span>
+                          )}
+                        </button>
+
+                        {/* 3. Agência (quando ativo expande e mostra ícone + nome) */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setWalletFilter('agency');
+                            setWalletIndex(0);
+                          }}
+                          title="Agência"
+                          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full transition-all duration-300 font-bold uppercase tracking-widest text-[9px] shrink-0 ${
+                            walletFilter === 'agency'
+                              ? 'bg-[#1E3A8A] text-white shadow-sm'
+                              : 'text-[var(--color-atelier-grafite)]/60 hover:text-blue-600 hover:bg-gray-100/60'
+                          }`}
+                        >
+                          <Briefcase size={13} className={walletFilter === 'agency' ? 'text-white' : 'text-blue-600'} />
+                          {walletFilter === 'agency' && (
+                            <span className="whitespace-nowrap transition-all duration-300">
+                              Agência
+                            </span>
+                          )}
+                        </button>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
                 </div>
               </div>
 
-              {/* SINGLE LARGE CARD */}
-              <div className="flex-1 w-full relative flex items-center justify-center mt-2 px-6">
-                 {/* Navigation Nav (Left/Right) */}
-                 <button onClick={() => setWalletIndex(p => Math.max(0, p - 1))} className="absolute left-0 z-20 w-8 h-8 rounded-full bg-white shadow-md flex items-center justify-center text-[var(--color-atelier-terracota)] hover:scale-110 active:scale-95 transition-transform"><ChevronLeft size={18}/></button>
-                 <button onClick={() => setWalletIndex(p => p + 1)} className="absolute right-0 z-20 w-8 h-8 rounded-full bg-white shadow-md flex items-center justify-center text-[var(--color-atelier-terracota)] hover:scale-110 active:scale-95 transition-transform"><ChevronRight size={18}/></button>
-                 
+              {/* SINGLE LARGE CARD WITH MOUSE WHEEL HORIZONTAL NAVIGATION */}
+              <div 
+                onWheel={handleWalletWheel}
+                className="flex-1 w-full relative flex items-center justify-center mt-2 px-0 select-none cursor-grab active:cursor-grabbing"
+              >
                  <AnimatePresence mode="wait">
                    {(() => {
-                     const filteredWallet = unifiedWallet.filter(item => {
-                       if (walletFilter === 'agency') return item.type === 'agency';
-                       return item.type === 'project';
-                     });
-                     
                      if (filteredWallet.length === 0) {
                        return (
-                          <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full h-full rounded-[2rem] border border-dashed border-gray-300 flex items-center justify-center bg-white/40 opacity-50">
-                             <span className="text-[10px] uppercase font-bold tracking-widest">Nenhum Cliente</span>
+                          <motion.div key="empty" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="w-full h-full rounded-[2.2rem] border border-dashed border-gray-300 flex flex-col items-center justify-center bg-white/40 opacity-70 p-4 text-center">
+                             <FolderKanban size={32} className="text-gray-400 mb-2" />
+                             <span className="text-[10px] uppercase font-bold tracking-widest text-gray-500">
+                               {walletSearch.trim() ? `Nenhum resultado para "${walletSearch}"` : 'Nenhum Cliente'}
+                             </span>
+                             {walletSearch.trim() && (
+                               <button onClick={() => setWalletSearch("")} className="mt-2 text-[10px] font-bold text-[var(--color-atelier-terracota)] underline uppercase tracking-wider">
+                                 Limpar busca
+                               </button>
+                             )}
                           </motion.div>
                        );
                      }
                      
                      const safeIndex = Math.min(walletIndex, filteredWallet.length - 1);
                      const item = filteredWallet[safeIndex];
-                     const avatarUrl = item.avatar_url || item.profiles?.avatar_url || item.logo_url;
+                     const avatarUrl = normalizeImageUrl(item.avatar_url || item.profiles?.avatar_url || item.logo_url);
                      const isSelected = selectedEntityId === item.id;
 
                      return (
                        <motion.div 
                           key={`${item.type}-${item.id}`}
-                          initial={{ opacity: 0, scale: 0.95 }}
-                          animate={{ opacity: 1, scale: 1 }}
-                          exit={{ opacity: 0, scale: 0.95 }}
-                          transition={{ duration: 0.2 }}
+                          initial={{ opacity: 0, x: scrollDirection > 0 ? 30 : -30, scale: 0.98 }}
+                          animate={{ opacity: 1, x: 0, scale: 1 }}
+                          exit={{ opacity: 0, x: scrollDirection > 0 ? -30 : 30, scale: 0.98 }}
+                          transition={{ duration: 0.22, ease: "easeOut" }}
                           onClick={() => { 
                             if(setSelectedEntityId) setSelectedEntityId(item.id); 
                             if(setSelectedEntityType) setSelectedEntityType(item.type as any);
                           }} 
-                          className={`w-full h-full shrink-0 flex flex-col justify-end p-6 rounded-[2rem] text-left transition-all duration-300 border shadow-lg cursor-pointer relative overflow-hidden ${isSelected ? 'border-white/60 ring-4 ring-[var(--color-atelier-terracota)]/20 shadow-xl' : 'border-white/20 hover:shadow-xl'}`}
+                          className={`w-full h-full shrink-0 flex flex-col justify-end p-7 rounded-[2.2rem] text-left transition-all duration-300 border shadow-lg cursor-pointer relative overflow-hidden ${isSelected ? 'border-white/60 ring-4 ring-[var(--color-atelier-terracota)]/20 shadow-xl' : 'border-white/20 hover:shadow-xl'}`}
                        >
                           {/* Background Image & Gradient */}
                           <div className="absolute inset-0 z-0 pointer-events-none">
-                             {avatarUrl && <img src={avatarUrl} alt="Background" className="w-full h-full object-cover absolute inset-0 opacity-100" />}
+                             {avatarUrl && (
+                               <img 
+                                 src={avatarUrl} 
+                                 alt="Background" 
+                                 className="w-full h-full object-cover absolute inset-0 opacity-100" 
+                                 onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                               />
+                             )}
                              <div className={`absolute inset-0 ${item.type === 'agency' ? 'bg-gradient-to-t from-[#1E3A8A] via-[#3B82F6]/80 to-transparent' : 'bg-gradient-to-t from-[var(--color-atelier-terracota)] via-[var(--color-atelier-rose)]/80 to-transparent'}`}></div>
                           </div>
                           
@@ -382,25 +548,30 @@ export default function OverviewDashboard({
                           )}
 
                           <div className="relative z-10 flex items-center gap-4 mt-auto">
-                             <div className={`w-14 h-14 rounded-[1.2rem] flex items-center justify-center shadow-inner overflow-hidden shrink-0 bg-white/20 backdrop-blur-md border border-white/30 text-white`}>
+                             <div className={`w-16 h-16 rounded-[1.3rem] flex items-center justify-center shadow-inner overflow-hidden shrink-0 bg-white/20 backdrop-blur-md border border-white/30 text-white`}>
                                 {avatarUrl ? (
-                                  <img src={avatarUrl} alt={item.name} className="w-full h-full object-cover" />
+                                  <img 
+                                    src={avatarUrl} 
+                                    alt={item.name} 
+                                    className="w-full h-full object-cover" 
+                                    onError={(e) => handleAvatarError(e, item.name)}
+                                  />
                                 ) : item.type === 'agency' ? (
-                                  <FolderKanban size={24}/>
+                                  <FolderKanban size={26}/>
                                 ) : (
                                   <span className="font-elegant text-3xl leading-none uppercase">{item.name?.charAt(0) || "U"}</span>
                                 )}
                              </div>
                              <div className="flex flex-col flex-1 min-w-0 pr-2 text-white">
-                                                                 <span className="text-[9px] uppercase font-bold tracking-widest opacity-80 mb-0.5">
+                                <span className="text-[10px] uppercase font-bold tracking-widest opacity-80 mb-0.5">
                                     {item.label}
                                     {item.type === 'project' && item.idv_product && (
                                        <span className="ml-2 inline-flex items-center gap-1 opacity-90">
                                          • {item.idv_product} / {item.idv_complexity || 'C2'} / {item.fase ? item.fase.toUpperCase() : 'ONBOARDING'}
                                        </span>
                                     )}
-                                 </span>
-                                <span className="font-elegant text-[22px] truncate leading-tight drop-shadow-sm">{item.name}</span>
+                                </span>
+                                <span className="font-elegant text-[24px] truncate leading-tight drop-shadow-sm">{item.name}</span>
                              </div>
                           </div>
                        </motion.div>
@@ -410,21 +581,23 @@ export default function OverviewDashboard({
               </div>
               
               {/* Dots indicator */}
-              <div className="flex justify-center mt-4 gap-1.5 h-3 shrink-0">
-                 {(() => {
-                    const filteredWallet = unifiedWallet.filter(item => {
-                       if (walletFilter === 'agency') return item.type === 'agency';
-                       return item.type === 'project';
-                    });
-                    if (filteredWallet.length <= 1) return null;
-                    const maxDots = Math.min(filteredWallet.length, 10);
+              <div className="flex justify-center mt-3 gap-1.5 h-3 shrink-0">
+                 {filteredWallet.length > 1 && (() => {
+                    const maxDots = Math.min(filteredWallet.length, 12);
                     const safeIndex = Math.min(walletIndex, filteredWallet.length - 1);
                     return Array.from({ length: maxDots }).map((_, i) => (
                        <button
                          key={i}
                          type="button"
-                         onClick={() => setWalletIndex(i)}
-                         className={`h-1.5 rounded-full transition-all duration-300 ${i === safeIndex ? 'w-5 bg-[var(--color-atelier-terracota)]' : 'w-1.5 bg-[var(--color-atelier-grafite)]/20 hover:bg-[var(--color-atelier-grafite)]/40'}`}
+                         onClick={() => {
+                           setScrollDirection(i > walletIndex ? 1 : -1);
+                           setWalletIndex(i);
+                           if (filteredWallet[i]) {
+                             setSelectedEntityId?.(filteredWallet[i].id);
+                             setSelectedEntityType?.(filteredWallet[i].type as any);
+                           }
+                         }}
+                         className={`h-1.5 rounded-full transition-all duration-300 ${i === safeIndex ? 'w-6 bg-[var(--color-atelier-terracota)]' : 'w-1.5 bg-[var(--color-atelier-grafite)]/20 hover:bg-[var(--color-atelier-grafite)]/40'}`}
                        />
                     ));
                  })()}
@@ -495,7 +668,16 @@ export default function OverviewDashboard({
                       return (
                         <div key={task.id} onClick={() => setEditingTask(task)} className="bg-white/90 rounded-[1.2rem] p-3 border border-white flex items-center gap-3 active:scale-[0.98] transition-transform shrink-0 w-[82vw] snap-center">
                            <div className="w-10 h-10 rounded-[1rem] overflow-hidden bg-gray-100 border border-gray-200 shrink-0 flex items-center justify-center">
-                              {avatarUrl ? <img src={avatarUrl} className="w-full h-full object-cover" /> : <span className="font-elegant text-[var(--color-atelier-terracota)] font-bold text-lg uppercase">{task.projects?.profiles?.nome?.charAt(0) || "W"}</span>}
+                              {avatarUrl ? (
+                                <img 
+                                  src={normalizeImageUrl(avatarUrl)} 
+                                  alt={task.projects?.profiles?.nome || ""} 
+                                  onError={(e) => handleAvatarError(e, task.projects?.profiles?.nome)} 
+                                  className="w-full h-full object-cover" 
+                                />
+                              ) : (
+                                <span className="font-elegant text-[var(--color-atelier-terracota)] font-bold text-lg uppercase">{task.projects?.profiles?.nome?.charAt(0) || "W"}</span>
+                              )}
                            </div>
                            <div className="flex-1 flex flex-col min-w-0">
                               <span className="font-roboto font-bold text-[12px] text-[var(--color-atelier-grafite)] truncate leading-tight pr-2">{task.title}</span>
@@ -506,7 +688,16 @@ export default function OverviewDashboard({
                               <div className="flex items-center gap-1 mt-1">
                                 <span className="text-[9px] font-bold text-gray-400">{task.profiles?.nome?.split(" ")[0] || "Livre"}</span>
                                 <div className="w-4 h-4 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center">
-                                  {task.profiles?.avatar_url ? <img src={task.profiles.avatar_url} className="w-full h-full object-cover" /> : <UserCircle2 size={10} className="text-gray-400" />}
+                                  {task.profiles?.avatar_url ? (
+                                     <img 
+                                       src={normalizeImageUrl(task.profiles.avatar_url)} 
+                                       alt={task.profiles?.nome || ""}
+                                       onError={(e) => handleAvatarError(e, task.profiles?.nome)}
+                                       className="w-full h-full object-cover" 
+                                     />
+                                   ) : (
+                                     <UserCircle2 size={10} className="text-gray-400" />
+                                   )}
                                 </div>
                               </div>
                            </div>

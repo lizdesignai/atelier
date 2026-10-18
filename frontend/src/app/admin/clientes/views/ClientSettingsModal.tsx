@@ -205,21 +205,40 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
          throw new Error("ID do Perfil Ausente. Por favor, recarregue a página.");
       }
 
+      // Tratar e sanitizar Instagram e Username
+      const rawInstagram = formData.instagram || '';
+      const cleanUsername = rawInstagram.replace(/^@/, '').replace(/.*instagram\.com\//, '').replace(/\/.*$/, '').trim();
+      const formattedInstagram = cleanUsername ? `@${cleanUsername}` : '';
+
       // Grava Perfil Básico
       const { data: updatedProfile, error: profileError } = await supabase
         .from('profiles')
         .update({
           nome: formData.nome, 
+          email: formData.email ? formData.email.trim().toLowerCase() : undefined,
           telefone: formData.telefone, 
           empresa: formData.empresa,
-          instagram: formData.instagram, 
-          username: formData.instagram, 
+          instagram: formattedInstagram, 
+          username: cleanUsername, 
           nicho: formData.nicho
         })
         .eq('id', clientId)
         .select();
 
       if (profileError) throw new Error(`Erro DB Profiles: ${profileError.message}`);
+
+      // Sincroniza dados com Apify se username informado
+      if (cleanUsername) {
+        fetch('/api/sync-instagram', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            username: cleanUsername,
+            projectId: activeProjectId || undefined,
+            clientId: clientId
+          })
+        }).catch(err => console.warn('[ClientSettingsModal] Erro ao sincronizar Apify:', err));
+      }
       
       if (!updatedProfile || updatedProfile.length === 0) {
         throw new Error("Acesso Negado: RLS Bloqueou a atualização. Execute as Policies de Admin.");
@@ -394,9 +413,15 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
                       </div>
 
                       <div className="bg-white p-8 rounded-[2rem] border border-gray-50 shadow-sm flex flex-col gap-5 hover:border-[var(--color-atelier-terracota)]/20 transition-colors">
-                        <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] border-b border-gray-50 pb-3">Presença Digital</h4>
+                        <div className="flex items-center justify-between border-b border-gray-50 pb-3">
+                          <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)]">Presença Digital</h4>
+                          <span className="text-[10px] text-gray-400 font-medium">Coleta e Inteligência via Apify</span>
+                        </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <InputGroup label="Instagram (@)" icon={Instagram} value={formData.instagram} onChange={(e:any)=>setFormData({...formData, instagram: e.target.value})} placeholder="@usuario" />
+                          <div>
+                            <InputGroup label="Instagram (@ ou username)" icon={Instagram} value={formData.instagram} onChange={(e:any)=>setFormData({...formData, instagram: e.target.value})} placeholder="@usuario" />
+                            <p className="text-[10px] text-gray-400 mt-1.5">Username utilizado para scraping de perfil e dados de engajamento no Apify.</p>
+                          </div>
                           <InputGroup label="Nicho de Atuação" icon={Target} value={formData.nicho} onChange={(e:any)=>setFormData({...formData, nicho: e.target.value})} placeholder="Ex: Estética Avançada" />
                         </div>
                       </div>

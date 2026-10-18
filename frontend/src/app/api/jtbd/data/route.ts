@@ -54,6 +54,7 @@ export async function GET(request: NextRequest) {
           CASE WHEN p.id IS NOT NULL THEN
             json_build_object(
               'type', p.type,
+              'service_type', p.service_type,
               'client_id', p.client_id,
               'profiles', CASE WHEN pr.id IS NOT NULL THEN json_build_object('nome', pr.nome) ELSE null END
             )

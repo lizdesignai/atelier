@@ -13,20 +13,38 @@ export async function getProjectsAction() {
   try {
     if (user.role === 'admin' || user.role === 'gestor') {
       projects = await sql`
-        SELECT p.*, json_build_object('nome', pr.nome, 'avatar_url', pr.avatar_url, 'empresa', pr.empresa) as profiles
+        SELECT p.*, json_build_object(
+          'id', pr.id,
+          'nome', pr.nome,
+          'email', pr.email,
+          'avatar_url', pr.avatar_url,
+          'empresa', pr.empresa,
+          'instagram', pr.instagram,
+          'username', pr.username,
+          'telefone', pr.telefone
+        ) as profiles
         FROM projects p
         LEFT JOIN profiles pr ON p.client_id = pr.id
-        WHERE p.status IN ('active', 'delivered', 'archived')
+        WHERE p.status IN ('active', 'delivered', 'archived', 'completed', 'paused')
         ORDER BY p.created_at DESC
       `;
     } else {
       projects = await sql`
-        SELECT p.*, json_build_object('nome', pr.nome, 'avatar_url', pr.avatar_url, 'empresa', pr.empresa) as profiles
+        SELECT p.*, json_build_object(
+          'id', pr.id,
+          'nome', pr.nome,
+          'email', pr.email,
+          'avatar_url', pr.avatar_url,
+          'empresa', pr.empresa,
+          'instagram', pr.instagram,
+          'username', pr.username,
+          'telefone', pr.telefone
+        ) as profiles
         FROM projects p
         LEFT JOIN profiles pr ON p.client_id = pr.id
-        WHERE p.status IN ('active', 'delivered', 'archived')
+        WHERE p.status IN ('active', 'delivered', 'archived', 'completed', 'paused')
         AND p.client_id = ${user.sub}
-        ORDER BY p.created_at DESC
+        ORDER BY CASE WHEN p.status = 'active' THEN 0 ELSE 1 END, p.created_at DESC
       `;
     }
 
@@ -66,7 +84,16 @@ export async function getProjectByIdAction(id: string) {
   const sql = getDb();
   try {
     const result = await sql`
-      SELECT p.*, json_build_object('nome', pr.nome, 'avatar_url', pr.avatar_url, 'empresa', pr.empresa) as profiles
+      SELECT p.*, json_build_object(
+        'id', pr.id,
+        'nome', pr.nome,
+        'email', pr.email,
+        'avatar_url', pr.avatar_url,
+        'empresa', pr.empresa,
+        'instagram', pr.instagram,
+        'username', pr.username,
+        'telefone', pr.telefone
+      ) as profiles
       FROM projects p
       LEFT JOIN profiles pr ON p.client_id = pr.id
       WHERE p.id = ${id}

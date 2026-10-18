@@ -250,7 +250,7 @@ export default function JTBDMobileView({
         <div className="flex items-center gap-3 min-w-0 relative z-10">
           <div className="w-11 h-11 rounded-full bg-white/10 overflow-hidden border border-white/20 flex items-center justify-center text-lg font-elegant text-white shrink-0 shadow-inner">
             {viewedUser?.avatar_url 
-              ? <img src={viewedUser.avatar_url} className="w-full h-full object-cover" alt="Avatar"/> 
+              ? <img src={viewedUser.avatar_url} className="w-full h-full object-cover" alt="Avatar" onError={(e) => { (e.currentTarget as HTMLElement).style.display = "none"; }} /> 
               : viewedUser?.nome?.charAt(0)}
           </div>
           <div className="flex flex-col min-w-0">
@@ -532,7 +532,7 @@ export default function JTBDMobileView({
                       className={`absolute w-full h-[220px] rounded-[2.2rem] overflow-hidden border flex flex-col justify-between p-5 cursor-pointer active:scale-95 transition-transform ${isTop ? 'border-white/60 shadow-md' : 'border-white/30'}`}
                     >
                       {avatarUrl ? (
-                        <img src={avatarUrl} alt={clientName} className="absolute inset-0 w-full h-full object-cover" />
+                        <img src={avatarUrl} alt={clientName} className="absolute inset-0 w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLElement).style.display = "none"; }} />
                       ) : (
                         <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-[var(--color-atelier-terracota)] via-[#6E3827] to-[var(--color-atelier-grafite)]" />
                       )}

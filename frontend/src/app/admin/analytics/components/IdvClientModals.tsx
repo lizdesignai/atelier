@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, Image as ImageIcon, X, UploadCloud, Loader2, Check, AlertCircle } from 'lucide-react';
-import { supabase } from '@/lib/supabase';
+import { FileText, X, Loader2, AlertCircle, Image as ImageIcon, UploadCloud, Check } from 'lucide-react';
+import { uploadFile, dbInsert, dbSelect, dbUpdate } from '@/lib/dbClient';
 
 export function IdvBriefingModal({ isOpen, onClose, project }: { isOpen: boolean; onClose: () => void; project: any }) {
   const [data, setData] = useState<any>(null);
@@ -97,21 +97,15 @@ export function IdvCuradoriaModal({ isOpen, onClose, project }: { isOpen: boolea
       const uploadedUrls: string[] = [];
       for (const file of files) {
         const fileExt = file.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
+        const fileName = `${Date.now()}_${Math.random().toString(36).substring(7)}.${fileExt}`;
         const filePath = `curadoria/${project.id}/${fileName}`;
         
-        const { error: uploadError } = await supabase.storage
-          .from('assets')
-          .upload(filePath, file);
-          
-        if (!uploadError) {
-          const { data } = supabase.storage.from('assets').getPublicUrl(filePath);
-          uploadedUrls.push(data.publicUrl);
-        }
+        const publicUrl = await uploadFile('assets', filePath, file);
+        uploadedUrls.push(publicUrl);
       }
       
       // Inserir em design_directions para o cliente ver
-      const { error: dbError } = await supabase.from('design_directions').insert({
+      const { error: dbError } = await dbInsert('design_directions', {
         project_id: project.id,
         media_assets: uploadedUrls,
         status: 'pending_client'
@@ -120,11 +114,11 @@ export function IdvCuradoriaModal({ isOpen, onClose, project }: { isOpen: boolea
       if (dbError) throw dbError;
       
       // Concluir a tarefa de Curadoria (se existir)
-      const { data: tasks } = await supabase.from('tasks').select('id, title').eq('project_id', project.id).eq('status', 'in_progress');
-      if (tasks) {
-        const curadoriaTask = tasks.find((t: any) => t.title.toLowerCase().includes('moodboard') || t.title.toLowerCase().includes('curadoria'));
+      const tasks = await dbSelect('tasks', { project_id: project.id, status: 'in_progress' });
+      if (tasks && tasks.length > 0) {
+        const curadoriaTask = tasks.find((t: any) => t.title?.toLowerCase().includes('moodboard') || t.title?.toLowerCase().includes('curadoria'));
         if (curadoriaTask) {
-           await supabase.from('tasks').update({ status: 'completed' }).eq('id', curadoriaTask.id);
+           await dbUpdate('tasks', { id: curadoriaTask.id }, { status: 'completed' });
         }
       }
       
@@ -132,9 +126,9 @@ export function IdvCuradoriaModal({ isOpen, onClose, project }: { isOpen: boolea
       setFiles([]);
       onClose();
       
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert('Erro ao enviar imagens.');
+      alert('Erro ao enviar imagens: ' + (err?.message || 'Falha no upload'));
     } finally {
       setIsUploading(false);
     }

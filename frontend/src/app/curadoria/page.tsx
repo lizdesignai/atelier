@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
 import { NotificationEngine } from "../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
+import { normalizeImageUrl, handleAvatarError } from "../../lib/imageUtils";
 import { 
   CheckCircle2, XCircle, MessageSquare, 
   Send, Loader2, ArrowLeft, MapPin, 
@@ -323,7 +324,7 @@ export default function CuradoriaPage() {
               <div className="flex items-center gap-3">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-fuchsia-600 p-[2px]">
                   <div className="w-full h-full bg-white rounded-full border-[2px] border-white overflow-hidden flex items-center justify-center">
-                    {clientProfile?.avatar_url ? <img src={clientProfile.avatar_url} className="w-full h-full object-cover" alt="Avatar"/> : <span className="text-black font-bold text-[10px]">{clientProfile?.nome?.charAt(0) || "A"}</span>}
+                    {clientProfile?.avatar_url ? <img src={normalizeImageUrl(clientProfile.avatar_url)} className="w-full h-full object-cover" alt="Avatar" onError={(e) => handleAvatarError(e, clientProfile?.nome)} /> : <span className="text-black font-bold text-[10px]">{clientProfile?.nome?.charAt(0) || "A"}</span>}
                   </div>
                 </div>
                 <div className="flex flex-col">
@@ -346,7 +347,7 @@ export default function CuradoriaPage() {
               {currentPost?.image_url ? (
                 <img 
                   ref={imageRef}
-                  src={currentPost.image_url} 
+                  src={normalizeImageUrl(currentPost.image_url)} 
                   alt="Conteúdo" 
                   className="w-full h-auto object-contain max-h-[500px]"
                   draggable={false}

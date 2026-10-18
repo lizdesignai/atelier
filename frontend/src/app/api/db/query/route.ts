@@ -12,7 +12,13 @@ const ALLOWED_TABLES = new Set([
   'channels', 'channel_messages', 'demand_leads', 'financial_records',
   'brand_assets', 'brand_guidelines', 'instagram_reports',
   'onboarding_steps', 'user_preferences', 'activity_log',
-  'brand_snapshots', 'territory_evaluations', 'activation_checklists', 'activation_checklist', 'client_briefings', 'studio_diary'
+  'brand_snapshots', 'territory_evaluations', 'activation_checklists', 'activation_checklist', 'client_briefings', 'studio_diary', 'prospect_meetings', 'leads', 'strategic_answers', 'design_directions',
+  'message_reactions', 'channel_reads',
+  'instagram_profiles', 'instagram_feed_posts', 'storage_objects',
+  'ig_cycles', 'ig_approval_events', 'instagram_briefings',
+  'consultorias_posicionamento', 'briefings_identidade_visual',
+  'orcamentos_gerenciamento_instagram', 'orcamentos_identidade_visual',
+  'pesquisa_satisfacao_idv', 'pesquisa_satisfacao_instagram', 'formularios_rascunhos'
 ]);
 
 function sanitizeId(name: string): string {
@@ -54,51 +60,57 @@ interface FilterDef {
   value: any;
 }
 
-function buildWhere(filters: FilterDef[], startIdx: number = 1): { clauses: string[]; params: any[]; nextIdx: number } {
+function buildWhere(
+  filters: FilterDef[], 
+  startIdxOrPrefix: number | string = 1,
+  startIdx: number = 1
+): { clauses: string[]; params: any[]; nextIdx: number } {
   const clauses: string[] = [];
   const params: any[] = [];
-  let idx = startIdx;
+  const tablePrefix = typeof startIdxOrPrefix === 'string' ? startIdxOrPrefix : undefined;
+  let idx = typeof startIdxOrPrefix === 'number' ? startIdxOrPrefix : startIdx;
+  const prefix = tablePrefix ? `"${tablePrefix}".` : '';
 
   for (const f of filters) {
     const col = sanitizeId(f.column);
     switch (f.type) {
       case 'eq':
-        clauses.push(`"${col}" = $${idx++}`);
+        clauses.push(`${prefix}"${col}" = $${idx++}`);
         params.push(f.value);
         break;
       case 'neq':
-        clauses.push(`"${col}" != $${idx++}`);
+        clauses.push(`${prefix}"${col}" != $${idx++}`);
         params.push(f.value);
         break;
       case 'gt':
-        clauses.push(`"${col}" > $${idx++}`);
+        clauses.push(`${prefix}"${col}" > $${idx++}`);
         params.push(f.value);
         break;
       case 'gte':
-        clauses.push(`"${col}" >= $${idx++}`);
+        clauses.push(`${prefix}"${col}" >= $${idx++}`);
         params.push(f.value);
         break;
       case 'lt':
-        clauses.push(`"${col}" < $${idx++}`);
+        clauses.push(`${prefix}"${col}" < $${idx++}`);
         params.push(f.value);
         break;
       case 'lte':
-        clauses.push(`"${col}" <= $${idx++}`);
+        clauses.push(`${prefix}"${col}" <= $${idx++}`);
         params.push(f.value);
         break;
       case 'in': {
         if (Array.isArray(f.value) && f.value.length > 0) {
           const ph = f.value.map(() => `$${idx++}`);
-          clauses.push(`"${col}" IN (${ph.join(', ')})`);
+          clauses.push(`${prefix}"${col}" IN (${ph.join(', ')})`);
           params.push(...f.value);
         }
         break;
       }
       case 'is':
-        if (f.value === null) clauses.push(`"${col}" IS NULL`);
+        if (f.value === null) clauses.push(`${prefix}"${col}" IS NULL`);
         break;
       case 'not_is':
-        if (f.value === null) clauses.push(`"${col}" IS NOT NULL`);
+        if (f.value === null) clauses.push(`${prefix}"${col}" IS NOT NULL`);
         break;
       default:
         break;
@@ -140,19 +152,32 @@ export async function POST(request: NextRequest) {
     switch (operation) {
       // =================== SELECT ===================
       case 'select': {
+        const wantsProfiles = table === 'projects' && typeof columns === 'string' && columns.includes('profiles');
         const selectCols = parseSelectCols(columns || '*');
-        let q = `SELECT ${selectCols} FROM "${table}"`;
+        
+        let q: string;
+        let tablePrefix: string | undefined = undefined;
+
+        if (wantsProfiles) {
+          tablePrefix = 'projects';
+          const baseCols = selectCols === '*' ? '"projects".*' : selectCols;
+          q = `SELECT ${baseCols}, json_build_object('id', pr.id, 'nome', pr.nome, 'avatar_url', pr.avatar_url, 'empresa', pr.empresa, 'instagram', pr.instagram, 'email', pr.email) as profiles FROM "projects" LEFT JOIN "profiles" pr ON "projects".client_id = pr.id`;
+        } else {
+          q = `SELECT ${selectCols} FROM "${table}"`;
+        }
+
         let allParams: any[] = [];
 
         if (filters.length > 0) {
-          const w = buildWhere(filters);
+          const w = buildWhere(filters, tablePrefix);
           allParams = w.params;
           q += ` WHERE ${w.clauses.join(' AND ')}`;
         }
 
         if (orders.length > 0) {
           const oc = orders.map((o: any) => {
-            let c = `"${sanitizeId(o.column)}" ${o.ascending !== false ? 'ASC' : 'DESC'}`;
+            const prefix = tablePrefix ? `"${tablePrefix}".` : '';
+            let c = `${prefix}"${sanitizeId(o.column)}" ${o.ascending !== false ? 'ASC' : 'DESC'}`;
             if (o.nullsFirst === true) c += ' NULLS FIRST';
             else if (o.nullsFirst === false) c += ' NULLS LAST';
             return c;
@@ -202,6 +227,14 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ data: result, error: null });
       }
 
+function formatParamValue(val: any): any {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'object' && !(val instanceof Date) && !Buffer.isBuffer(val)) {
+    return JSON.stringify(val);
+  }
+  return val;
+}
+
       // =================== INSERT ===================
       case 'insert': {
         const rows = Array.isArray(data) ? data : [data];
@@ -211,7 +244,7 @@ export async function POST(request: NextRequest) {
         const colNames = keys.map(k => `"${sanitizeId(k)}"`).join(', ');
         const allParams: any[] = [];
         const valRows = rows.map(row => {
-          const ph = keys.map(k => { allParams.push(row[k]); return `$${allParams.length}`; });
+          const ph = keys.map(k => { allParams.push(formatParamValue(row[k])); return `$${allParams.length}`; });
           return `(${ph.join(', ')})`;
         });
 
@@ -228,7 +261,7 @@ export async function POST(request: NextRequest) {
         const keys = Object.keys(data);
         const allParams: any[] = [];
         const setClauses = keys.map(k => {
-          allParams.push(data[k]);
+          allParams.push(formatParamValue(data[k]));
           return `"${sanitizeId(k)}" = $${allParams.length}`;
         });
 

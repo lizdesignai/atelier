@@ -3,7 +3,8 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "../lib/supabase";
+import { dbSelect, dbSelectOne, dbInsert, dbUpdate, dbDelete, uploadFile } from "../lib/dbClient";
+import { normalizeImageUrl, handleAvatarError, handleImageFallbackError } from "../lib/imageUtils";
 import { X, FolderUp, Loader2, File, ExternalLink, Image as ImageIcon, Download, CheckCircle, Trash2, Calendar, Pencil, Grid } from "lucide-react";
 import { useSession } from "../hooks/useSession";
 
@@ -13,9 +14,10 @@ interface ClientAssetsModalProps {
   projectId: string | null;
   subclientId?: string | null;
   clientName: string;
+  initialTab?: 'vault' | 'feed';
 }
 
-export default function ClientAssetsModal({ isOpen, onClose, projectId, subclientId, clientName }: ClientAssetsModalProps) {
+export default function ClientAssetsModal({ isOpen, onClose, projectId, subclientId, clientName, initialTab = 'vault' }: ClientAssetsModalProps) {
   const [assets, setAssets] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -37,19 +39,26 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [deletingAssetId, setDeletingAssetId] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<'vault' | 'feed'>('vault');
+  const [activeTab, setActiveTab] = useState<'vault' | 'feed'>(initialTab);
+
+  useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
+
   const [feedPosts, setFeedPosts] = useState<Array<{ image: string; caption: string }>>([]);
   const [instagramData, setInstagramData] = useState<any>(null);
 
   const fetchFeedData = async (validProjId: string) => {
     if (!validProjId) return;
     try {
-      const { data: igProfile } = await supabase.from('instagram_profiles').select('*').eq('project_id', validProjId).maybeSingle();
+      const igProfile = await dbSelectOne('instagram_profiles', { project_id: validProjId });
       if (igProfile) setInstagramData(igProfile);
 
-      const { data: dbPosts } = await supabase.from('instagram_feed_posts').select('*').eq('project_id', validProjId).order('display_order', { ascending: true });
+      const dbPosts = await dbSelect('instagram_feed_posts', { project_id: validProjId }, { orderBy: 'display_order', ascending: true });
       
-      const { data: atelierPosts } = await supabase.from('social_posts').select('*').eq('project_id', validProjId).eq('status', 'approved').order('created_at', { ascending: false });
+      const atelierPosts = await dbSelect('social_posts', { project_id: validProjId, status: 'approved' }, { orderBy: 'created_at', ascending: false });
       
       let combinedPosts: Array<{image: string, caption: string}> = [];
       
@@ -80,8 +89,8 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
     if (isOpen && (projectId || subclientId)) {
       fetchAssets();
       if (subclientId) {
-        supabase.from('agency_subclients').select('*').eq('id', subclientId).maybeSingle()
-          .then(({ data }) => setSubclientDetails(data));
+        dbSelectOne('agency_subclients', { id: subclientId })
+          .then((data) => setSubclientDetails(data));
       } else {
         setSubclientDetails(null);
       }
@@ -91,22 +100,10 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
   const resolveProjectId = async (projId: string | null): Promise<string | null> => {
     if (!projId) return null;
     try {
-      const { data: directProject } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('id', projId)
-        .maybeSingle();
-
+      const directProject = await dbSelectOne('projects', { id: projId }, 'id');
       if (directProject?.id) return directProject.id;
 
-      const { data: clientProject } = await supabase
-        .from('projects')
-        .select('id')
-        .eq('client_id', projId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
+      const clientProject = await dbSelectOne('projects', { client_id: projId }, 'id');
       if (clientProject?.id) return clientProject.id;
     } catch (err) {
       console.warn("Erro ao validar project_id:", err);
@@ -163,7 +160,7 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
 
       const validProjId = await resolveProjectId(projectId);
 
-      const { error } = await supabase.from('project_assets').insert({
+      const { error } = await dbInsert('project_assets', {
         project_id: validProjId,
         subclient_id: subclientId || null,
         file_name: newLinkName,
@@ -192,19 +189,15 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
     setIsUploadingFile(true);
     try {
       const fileName = `${Date.now()}_${file.name}`;
-      const { error: uploadError } = await supabase.storage.from('vault_assets').upload(fileName, file);
-      
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage.from('vault_assets').getPublicUrl(fileName);
+      const publicUrl = await uploadFile('vault_assets', fileName, file);
 
       const validProjId = await resolveProjectId(projectId);
 
-      const { error: dbError } = await supabase.from('project_assets').insert({
+      const { error: dbError } = await dbInsert('project_assets', {
         project_id: validProjId,
         subclient_id: subclientId || null,
         file_name: file.name,
-        file_url: data.publicUrl,
+        file_url: publicUrl,
         file_size: (file.size / 1024 / 1024).toFixed(2) + ' MB'
       });
 
@@ -224,7 +217,7 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
     if (!confirm("Tem certeza que deseja remover este material do cofre?")) return;
     setDeletingAssetId(assetId);
     try {
-      const { error } = await supabase.from('project_assets').delete().eq('id', assetId);
+      const { error } = await dbDelete('project_assets', { id: assetId });
       if (error) throw error;
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Material removido com sucesso." }));
       fetchAssets();
@@ -249,10 +242,7 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
       if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
         finalUrl = `https://${finalUrl}`;
       }
-      const { error } = await supabase
-        .from('project_assets')
-        .update({ file_name: editName, file_url: finalUrl })
-        .eq('id', editingAssetId);
+      const { error } = await dbUpdate('project_assets', { id: editingAssetId }, { file_name: editName, file_url: finalUrl });
 
       if (error) throw error;
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Material atualizado!" }));
@@ -502,7 +492,8 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
                     <div className="p-5 flex items-center gap-4 border-b border-gray-100 bg-gray-50/50">
                       <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-yellow-400 via-red-500 to-purple-500 p-0.5 shrink-0">
                         <img 
-                          src={instagramData?.avatar_url || "https://ui-avatars.com/api/?name=Client&background=random"} 
+                          src={normalizeImageUrl(instagramData?.avatar_url, instagramData?.username || clientName)} 
+                          onError={(e) => handleAvatarError(e, instagramData?.username || clientName)}
                           className="w-full h-full rounded-full object-cover border-2 border-white"
                         />
                       </div>
@@ -524,7 +515,11 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
                       ) : (
                         feedPosts.map((post, i) => (
                           <div key={i} className="aspect-square bg-gray-100 relative group overflow-hidden cursor-pointer" title={post.caption}>
-                            <img src={post.image} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
+                            <img 
+                              src={normalizeImageUrl(post.image, post.caption || `Post ${i+1}`)} 
+                              onError={(e) => handleImageFallbackError(e)}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                            />
                             <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center p-2">
                                <span className="text-white text-[8px] line-clamp-3 text-center">{post.caption || "Sem legenda"}</span>
                             </div>

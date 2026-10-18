@@ -1,11 +1,11 @@
 // src/app/admin/analytics/views/ProjectsManager.tsx
 import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "../../../../lib/supabase";
+import { dbUpdate, dbInsert } from "../../../../lib/dbClient";
 import { 
   FolderKanban, Briefcase, UserCircle2, MapPin, 
   Sparkles, Loader2, PlusCircle, Trash2, Save, 
-  Layers, CheckSquare, Square, Flame, Edit3, Check, X, Search,
+  Layers, CheckSquare, Square, Flame, Edit3, Check, CheckCircle2, X, Search, Grid,
   ArrowRight, Trello, ExternalLink, PanelRightClose, PanelRightOpen, ListTodo,
   AlertCircle, AlignLeft, MessageSquare, ChevronLeft, ChevronRight, FolderUp,
   ChevronDown, Paperclip, UploadCloud, FileText, Image as ImageIcon, Eye, Calendar, Download
@@ -14,6 +14,7 @@ import { ALL_SKILLS } from "../constants";
 import ClientAssetsModal from "../../../../components/ClientAssetsModal";
 import { IdvBriefingModal, IdvCuradoriaModal } from "../components/IdvClientModals";
 import { formatForDateTimeLocal, parseFromDateTimeLocal } from "../../../../lib/dateUtils";
+import { normalizeImageUrl, handleAvatarError, handleImageFallbackError } from "../../../../lib/imageUtils";
 
 // 🟢 TIPAGEM ESTRITA BLINDADA
 interface ProjectsManagerProps {
@@ -62,6 +63,7 @@ interface ProjectsManagerProps {
   routingRules?: any[]; 
   mobileWidgetView?: string;
   setMobileWidgetView?: (view: string) => void;
+  refreshGlobalData?: () => Promise<void>;
 }
 
 // 🟢 EXTRAIR ID DO BOARD PARA A API REST
@@ -352,6 +354,7 @@ export default function ProjectsManager({
   handleStartTask,
   routingRules = [],
   mobileWidgetView = 'carteira',
+  refreshGlobalData,
 }: ProjectsManagerProps) {
 
   const [isAdHocModalOpen, setIsAdHocModalOpen] = useState(false);
@@ -455,12 +458,21 @@ export default function ProjectsManager({
         const fileName = `adhoc_${Date.now()}_${Math.random().toString(36).substring(2)}.${fileExt}`;
         const filePath = `demands/${fileName}`;
 
-        const { error } = await supabase.storage.from(bucket).upload(filePath, file, { upsert: true });
-        if (error) throw error;
+        const formData = new FormData();
+        formData.append('bucket', bucket);
+        formData.append('path', filePath);
+        formData.append('file', file);
+        formData.append('contentType', file.type);
 
-        const { data } = supabase.storage.from(bucket).getPublicUrl(filePath);
-        currentAssets.push({ type: isVideo ? 'video' : 'image', url: data.publicUrl, name: file.name });
-        if (!mainUrl) mainUrl = data.publicUrl;
+        const uploadRes = await fetch('/api/storage/upload', {
+          method: 'POST',
+          body: formData
+        });
+        const uploadJson = await uploadRes.json();
+        const fileUrl = uploadJson.data?.publicUrl || `/api/storage/file/${bucket}/${filePath}`;
+
+        currentAssets.push({ type: isVideo ? 'video' : 'image', url: fileUrl, name: file.name });
+        if (!mainUrl) mainUrl = fileUrl;
       }
 
       setAdHocDemand({
@@ -496,6 +508,8 @@ export default function ProjectsManager({
   const [walletFilter, setWalletFilter] = useState<'all' | 'agency' | 'studio'>('all');
 
   const [isAssetsModalOpen, setIsAssetsModalOpen] = useState(false);
+  const [assetsModalTab, setAssetsModalTab] = useState<'vault' | 'feed'>('vault');
+  const [taskStatusFilter, setTaskStatusFilter] = useState<'pending' | 'completed' | 'all'>('pending');
   const [isBriefingModalOpen, setIsBriefingModalOpen] = useState(false);
   const [isCuradoriaModalOpen, setIsCuradoriaModalOpen] = useState(false);
 
@@ -523,8 +537,8 @@ export default function ProjectsManager({
     setIsProcessingTrello(true);
     try {
       const table = isSubclientView ? 'agency_subclients' : 'agencies';
-      const { error } = await supabase.from(table).update({ trello_url: trelloUrlInput }).eq('id', displayData.id);
-      if (error) throw error;
+      const { error } = await dbUpdate(table, { id: displayData.id }, { trello_url: trelloUrlInput });
+      if (error) throw new Error(error.message);
       
       displayData.trello_url = trelloUrlInput;
       showToast("Quadro do Trello vinculado com sucesso!");
@@ -659,7 +673,7 @@ export default function ProjectsManager({
     
     setIsCreatingSubclient(true);
     try {
-      const { error } = await supabase.from('agency_subclients').insert({
+      const { error } = await dbInsert('agency_subclients', {
         agency_id: selectedEntityId,
         name: subclientForm.name,
         deliverables_count: subclientForm.count,
@@ -680,28 +694,36 @@ export default function ProjectsManager({
     }
   };
 
-  const getTasksForCurrentView = () => {
-      let baseTasks = [];
-      if (isSubclientView && displayData) baseTasks = tasks.filter(t => t.subclient_id === displayData.id);
-      else baseTasks = tasks.filter(t => t.project_id === selectedEntityId && !t.subclient_id);
-      
-      return baseTasks
-        .filter(t => t.status !== 'completed' && t.status !== 'archived')
-        .filter(t => {
-          if (!t.deadline) return true;
-          const taskDate = new Date(t.deadline);
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          return taskDate.getTime() >= today.getTime();
-        })
-        .sort((a, b) => {
-           const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
-const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
-           return da - db;
-        });
-    };
+  const getBaseTasksForCurrentView = () => {
+    let baseTasks: any[] = [];
+    if (isSubclientView && displayData) {
+      baseTasks = tasks.filter(t => t.subclient_id === displayData.id);
+    } else {
+      baseTasks = tasks.filter(t => 
+        (t.project_id === selectedEntityId || (displayData?.client_id && t.client_id === displayData.client_id && !t.project_id)) && 
+        !t.subclient_id
+      );
+    }
+    return baseTasks;
+  };
 
-  const visibleTasks = getTasksForCurrentView();
+  const currentEntityTasks = getBaseTasksForCurrentView();
+  const pendingCount = currentEntityTasks.filter(t => t.status !== 'completed' && t.status !== 'archived').length;
+  const completedCount = currentEntityTasks.filter(t => t.status === 'completed').length;
+  const totalCount = currentEntityTasks.filter(t => t.status !== 'archived').length;
+
+  const visibleTasks = currentEntityTasks
+    .filter(t => {
+      if (t.status === 'archived') return false;
+      if (taskStatusFilter === 'pending') return t.status !== 'completed';
+      if (taskStatusFilter === 'completed') return t.status === 'completed';
+      return true;
+    })
+    .sort((a, b) => {
+      const da = a.deadline ? new Date(a.deadline).getTime() : Infinity;
+      const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
+      return da - db;
+    });
 
   const pendingTasksForActiveTrello = tasks.filter(t => 
     t.status === 'pending' && 
@@ -759,11 +781,11 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
                   ${selectedEntityType === 'agency' ? 'bg-blue-50 text-blue-600' : isSubclientView ? 'bg-indigo-50 text-indigo-500' : 'bg-gray-50 text-[var(--color-atelier-terracota)]'}
                 `}>
                   {selectedEntityType === 'agency' ? (
-                    displayData?.logo_url ? <img src={displayData.logo_url} className="w-full h-full object-cover" /> : <Briefcase size={28}/>
+                    displayData?.logo_url ? <img src={normalizeImageUrl(displayData.logo_url)} className="w-full h-full object-cover" /> : <Briefcase size={28}/>
                   ) : isSubclientView ? (
                     <UserCircle2 size={28} />
                   ) : (
-                    displayData?.profiles?.avatar_url ? <img src={displayData.profiles.avatar_url} className="w-full h-full object-cover" /> : <span className="font-elegant text-2xl uppercase">{displayData?.profiles?.nome?.charAt(0) || "W"}</span>
+                    displayData?.profiles?.avatar_url ? <img src={normalizeImageUrl(displayData.profiles.avatar_url)} className="w-full h-full object-cover" /> : <span className="font-elegant text-2xl uppercase">{displayData?.profiles?.nome?.charAt(0) || "W"}</span>
                   )}
                 </div>
                 <div className="flex flex-col items-start">
@@ -801,10 +823,30 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
                             <ImageIcon size={12}/> Referências Visuais
                          </button>
                          <button onClick={async () => {
-                           if (confirm('Deseja dar este projeto como encerrado? Ele deixará de aparecer na lista de ativos.')) {
-                             const { error } = await supabase.from('projects').update({ status: 'completed' }).eq('id', displayData.id);
-                             if (!error) {
-                               if (typeof showToast === 'function') showToast('Projeto encerrado com sucesso!');
+                           if (confirm('Deseja dar este projeto e todas as suas demandas como encerrados? Ele deixará de aparecer na Carteira e na Fila de Tarefas.')) {
+                             try {
+                               const res = await fetch(`/api/projects/${displayData.id}/close`, {
+                                 method: 'POST'
+                               });
+                               const result = await res.json();
+                               if (res.ok) {
+                                 if (typeof showToast === 'function') showToast('Projeto e demandas encerrados com sucesso!');
+                                 const nextEntity = unifiedWallet.find(item => item.id !== displayData.id);
+                                 if (nextEntity && setSelectedEntityId) {
+                                   setSelectedEntityId(nextEntity.id);
+                                   if (setSelectedEntityType) setSelectedEntityType(nextEntity.type as any);
+                                 }
+                                 if (typeof refreshGlobalData === 'function') {
+                                   await refreshGlobalData();
+                                 }
+                                 if (typeof window !== 'undefined') {
+                                   window.dispatchEvent(new CustomEvent('refreshGlobalData'));
+                                 }
+                               } else {
+                                 alert(result.error || 'Erro ao encerrar projeto.');
+                               }
+                             } catch (err: any) {
+                               alert(err.message || 'Erro de conexão ao encerrar projeto.');
                              }
                            }
                          }} className="flex items-center gap-2 bg-red-50 text-red-600 border border-red-200 px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-red-600 hover:text-white transition-colors">
@@ -842,38 +884,12 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
                         </div>
                       </div>
                     )}
-                    {selectedEntityType === 'project' && !isIdvService(displayData) && handleUpdateContentReleaseDay && (
-                      <div className="flex items-center gap-2 bg-gray-50/80 px-2 py-1 rounded-md border border-gray-200" title="Define o dia do mês a partir do qual o conteúdo entra no Cockpit.">
-                        <Calendar size={10} className="text-[var(--color-atelier-terracota)]" />
-                        <input 
-                          type="number" 
-                          min="1" 
-                          max="31" 
-                          defaultValue={displayData?.content_release_day || ''}
-                          onBlur={(e) => handleUpdateContentReleaseDay(displayData.id, e.target.value)}
-                          className="bg-transparent text-[11px] font-bold text-[var(--color-atelier-grafite)] w-6 text-center outline-none focus:border-b focus:border-[var(--color-atelier-terracota)] hide-arrows"
-                          placeholder="Dia"
-                        />
-                        {(() => {
-                          const releaseDay = parseInt(displayData?.content_release_day);
-                          if (!isNaN(releaseDay) && releaseDay >= 1 && releaseDay <= 31) {
-                            const today = new Date();
-                            let releaseDate = new Date(today.getFullYear(), today.getMonth(), releaseDay);
-                            if (today > releaseDate) {
-                               releaseDate.setMonth(releaseDate.getMonth() + 1);
-                            }
-                            const diffDays = Math.ceil((releaseDate.getTime() - today.getTime()) / (1000 * 3600 * 24));
-                            return <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] shrink-0 opacity-80">({diffDays} {diffDays === 1 ? 'dia' : 'dias'} restantes)</span>;
-                          }
-                          return null;
-                        })()}
-                      </div>
-                    )}
                   </div>
                 </div>
               </div>
               
               <div className="flex gap-3 flex-wrap justify-end items-center">
+
                  {(selectedEntityType === 'agency' || isSubclientView) && (
                    hasTrello ? (
                      <button 
@@ -1015,7 +1031,74 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
                     </div>
                  </div>
                ) : (
-                 Object.entries(groupTasksByStage(visibleTasks, isIdvService(displayData))).map(([stage, stageTasks], index) => (
+                 <>
+                   {/* Barra de Filtro de Demandas */}
+                   <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                     <div className="flex items-center gap-1.5 bg-gray-100/70 p-1 rounded-xl">
+                       <button 
+                         onClick={() => setTaskStatusFilter('pending')}
+                         className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+                           taskStatusFilter === 'pending'
+                             ? 'bg-white text-[var(--color-atelier-terracota)] shadow-sm'
+                             : 'text-gray-500 hover:text-gray-800'
+                         }`}
+                       >
+                         <span>Pendentes</span>
+                         <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-amber-50 text-amber-700 font-bold">{pendingCount}</span>
+                       </button>
+                       <button 
+                         onClick={() => setTaskStatusFilter('completed')}
+                         className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+                           taskStatusFilter === 'completed'
+                             ? 'bg-white text-emerald-700 shadow-sm'
+                             : 'text-gray-500 hover:text-gray-800'
+                         }`}
+                       >
+                         <span>Concluídas</span>
+                         <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-emerald-50 text-emerald-700 font-bold">{completedCount}</span>
+                       </button>
+                       <button 
+                         onClick={() => setTaskStatusFilter('all')}
+                         className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all flex items-center gap-1.5 ${
+                           taskStatusFilter === 'all'
+                             ? 'bg-white text-[var(--color-atelier-grafite)] shadow-sm'
+                             : 'text-gray-500 hover:text-gray-800'
+                         }`}
+                       >
+                         <span>Todas</span>
+                         <span className="px-1.5 py-0.2 rounded-full text-[9px] bg-gray-200 text-gray-700 font-bold">{totalCount}</span>
+                       </button>
+                     </div>
+                   </div>
+
+                   {/* Estado Vazio ou Todas Concluídas */}
+                   {visibleTasks.length === 0 && (
+                     <div className="py-12 px-6 bg-white/70 border border-gray-100 rounded-3xl text-center flex flex-col items-center justify-center my-4 shadow-sm">
+                       <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-3">
+                         <CheckCircle2 size={24} />
+                       </div>
+                       <h4 className="font-roboto font-bold text-base text-[var(--color-atelier-grafite)]">
+                         {pendingCount === 0 && completedCount > 0 
+                           ? "Todas as demandas deste ciclo foram concluídas!" 
+                           : "Nenhuma demanda encontrada neste filtro"}
+                       </h4>
+                       <p className="text-xs text-gray-500 mt-1 max-w-sm">
+                         {pendingCount === 0 && completedCount > 0
+                           ? `Este cliente possui ${completedCount} atividades concluídas registradas no Neon.`
+                           : "Adicione novas tarefas ou selecione outro filtro para visualizar o histórico."}
+                       </p>
+                       {completedCount > 0 && taskStatusFilter === 'pending' && (
+                         <button 
+                           onClick={() => setTaskStatusFilter('completed')}
+                           className="mt-4 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold uppercase tracking-wider transition-colors shadow-sm flex items-center gap-2"
+                         >
+                           <Check size={14} /> Ver {completedCount} Demandas Concluídas
+                         </button>
+                       )}
+                     </div>
+                   )}
+
+                 {Object.entries(groupTasksByStage(visibleTasks, isIdvService(displayData))).map(([stage, stageTasks], index) => (
                     <details key={stage} className="mb-4 animate-[fadeIn_0.4s_ease-out] group bg-white border border-[var(--color-atelier-grafite)]/10 rounded-2xl shadow-sm hover:border-[var(--color-atelier-terracota)]/30 transition-colors" open>
                       <summary className="font-roboto font-bold text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)] p-4 flex items-center justify-between cursor-pointer bg-gray-50/50 group-open:border-b group-open:border-[var(--color-atelier-grafite)]/5 select-none rounded-t-2xl group-[&:not([open])]:rounded-b-2xl">
                         <div className="flex items-center gap-3">
@@ -1057,7 +1140,16 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
                               <div className="flex justify-between items-end border-t border-[var(--color-atelier-grafite)]/5 pt-3 mt-1">
                                  <div className="flex items-center gap-2">
                                     <div className="w-6 h-6 rounded-full overflow-hidden bg-gray-100 border border-white shadow-inner flex items-center justify-center text-xs font-bold text-gray-400">
-                                      {task.profiles?.avatar_url ? <img src={task.profiles.avatar_url} className="w-full h-full object-cover"/> : <UserCircle2 size={10} className="text-gray-300"/>}
+                                      {task.profiles?.avatar_url ? (
+                                        <img 
+                                          src={normalizeImageUrl(task.profiles.avatar_url)} 
+                                          alt={executorName}
+                                          onError={(e) => handleAvatarError(e, task.profiles?.nome)}
+                                          className="w-full h-full object-cover"
+                                        />
+                                      ) : (
+                                        <UserCircle2 size={10} className="text-gray-300"/>
+                                      )}
                                     </div>
                                     <span className="text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">
                                       {executorName}
@@ -1072,16 +1164,18 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
                           })}
                         </div>
                       </details>
-                   ))
-                 )}
+                    ))}
+                  </>
+                )}
               </div>
-          </>
-        )}
-      </div>
+            </>
+          )}
+        </div>
 
       <ClientAssetsModal 
         isOpen={isAssetsModalOpen}
         onClose={() => setIsAssetsModalOpen(false)}
+        initialTab={assetsModalTab}
         projectId={isSubclientView ? displayData?.agency_id : (selectedEntityType === 'project' || selectedEntityType === 'agency' ? displayData?.id : null)}
         subclientId={isSubclientView ? displayData?.id : null}
         clientName={selectedEntityType === 'agency' || isSubclientView ? displayData?.name : displayData?.profiles?.nome}
@@ -1113,197 +1207,289 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
       )}
 
       {/* ==========================================
-          MODAL GERAL: AD HOC DEMAND (Para projetos diretos sem trello)
-          ========================================== */}
-      <AnimatePresence>
-        {isAdHocModalOpen && !isTrelloModalOpen && (
-          <div className="fixed inset-0 z-[100000] flex items-center justify-center px-4 md:px-8 py-8">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeAdHocModal} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 20 }} 
-              animate={{ scale: 1, opacity: 1, y: 0 }} 
-              exit={{ scale: 0.95, opacity: 0, y: 20 }} 
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-white/20 flex flex-col gap-6"
+    MODAL GERAL: ADICIONAR DEMANDA PONTUAL (100% PARIDADE COM EDITAR DEMANDA)
+    ========================================== */}
+<AnimatePresence>
+  {isAdHocModalOpen && !isTrelloModalOpen && (
+    <div className="fixed inset-0 z-[100000] flex items-center justify-center px-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeAdHocModal} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
+      <motion.div 
+        initial={{ scale: 0.95, opacity: 0, y: 20 }} 
+        animate={{ scale: 1, opacity: 1, y: 0 }} 
+        exit={{ scale: 0.95, opacity: 0, y: 20 }} 
+        className="bg-white p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-lg border border-white/20 flex flex-col gap-4 max-h-[90vh] overflow-y-auto custom-scrollbar"
+      >
+        {/* Header */}
+        <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4 shrink-0">
+          <div className="w-full pr-4">
+            <div className="flex items-center gap-2">
+              <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Adicionar Demanda</h3>
+              <span className="text-[10px] font-bold uppercase tracking-wider bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-2.5 py-0.5 rounded-full">
+                {displayData?.name || displayData?.profiles?.nome || "Pontual"}
+              </span>
+            </div>
+            <input 
+              type="text" 
+              placeholder="Título da demanda..."
+              value={adHocDemand.title} 
+              onChange={(e) => setAdHocDemand({...adHocDemand, title: e.target.value})} 
+              className="w-full bg-transparent font-roboto text-[14px] font-bold text-[var(--color-atelier-grafite)] outline-none mt-1 border-b border-gray-200 focus:border-[var(--color-atelier-terracota)]" 
+            />
+          </div>
+          <button 
+            type="button" 
+            onClick={(e) => { e.preventDefault(); e.stopPropagation(); closeAdHocModal(); }} 
+            className="w-10 h-10 rounded-full bg-gray-100/80 active:bg-gray-200 active:scale-95 text-gray-500 hover:text-[var(--color-atelier-terracota)] transition-all flex items-center justify-center shrink-0 cursor-pointer touch-manipulation z-20" 
+            title="Fechar"
+          >
+            <X size={20}/>
+          </button>
+        </div>
+
+        {/* Informações de Execução (Responsável e Data) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 shrink-0">
+          <div className="flex flex-col gap-1">
+            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Responsável <span className="text-red-500">*</span></span>
+            <select 
+              value={adHocDemand.assigneeId || ""}
+              onChange={(e) => setAdHocDemand({...adHocDemand, assigneeId: e.target.value})} 
+              className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[12px] outline-none focus:border-[var(--color-atelier-terracota)]"
             >
-              <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-2 shrink-0">
-                <div>
-                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
-                    <Flame size={24} className="text-[var(--color-atelier-terracota)]"/> Demanda Pontual
-                  </h3>
-                  <p className="font-roboto text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">
-                    Adicionar tarefa para: {displayData?.name || displayData?.profiles?.nome}
-                  </p>
-                </div>
-                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); closeAdHocModal(); }} className="w-10 h-10 rounded-full bg-gray-100/80 active:bg-gray-200 active:scale-95 text-gray-500 hover:text-[var(--color-atelier-terracota)] transition-all flex items-center justify-center shrink-0 cursor-pointer touch-manipulation z-20" title="Fechar"><X size={18}/></button>
-              </div>
-              
-              <div className="flex flex-col gap-4 overflow-y-auto custom-scrollbar pr-2 pb-2">
-                <div className="bg-[#f0f9ff] border border-blue-100 p-4 rounded-xl flex flex-col gap-2 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-2 opacity-10"><Trello size={48} /></div>
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-blue-600 ml-1">Automação: Puxar do Trello</span>
-                  <div className="flex gap-2 relative z-10">
-                    <input 
-                      type="url" 
-                      placeholder="Cole o link do card (https://trello.com/c/...)"
-                      value={trelloImportUrl}
-                      onChange={(e) => setTrelloImportUrl(e.target.value)}
-                      className="flex-1 bg-white border border-blue-200 rounded-xl p-3 text-[13px] outline-none focus:border-blue-400 shadow-sm"
-                    />
-                    <button 
-                      onClick={(e) => { e.preventDefault(); handleImportTrelloCardUrl(); }}
-                      disabled={isImportingTrelloUrl}
-                      className="bg-blue-600 text-white px-4 rounded-xl font-bold text-[11px] uppercase tracking-widest hover:bg-blue-700 transition-colors shadow-sm disabled:opacity-50 flex items-center gap-2"
-                    >
-                      {isImportingTrelloUrl ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Importar
-                    </button>
-                  </div>
-                </div>
+              <option value="">Aguardando Responsável</option>
+              <option disabled>──────</option>
+              {team.map(t => {
+                const isRecommended = adHocDemand.taskType && t.skills?.includes(adHocDemand.taskType);
+                return <option key={t.id} value={t.id}>{t.nome || t.name} ({t.role || "Colaborador"}) {isRecommended ? "⭐" : ""}</option>;
+              })}
+            </select>
+          </div>
+          
+          <div className="flex flex-col gap-1">
+            <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Data de Entrega</span>
+            <input 
+              type="datetime-local" 
+              value={formatForDateTimeLocal(adHocDemand.deadline)} 
+              onChange={(e) => {
+                const newDateValue = e.target.value ? parseFromDateTimeLocal(e.target.value) : "";
+                setAdHocDemand({...adHocDemand, deadline: newDateValue});
+              }} 
+              className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[12px] outline-none focus:border-[var(--color-atelier-terracota)]" 
+            />
+          </div>
+        </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Título da Tarefa <span className="text-red-500">*</span></span>
+        {/* ACORDEÃO 1: INSTRUÇÕES DA EQUIPE */}
+        <div className="border border-gray-200 rounded-2xl overflow-hidden shrink-0">
+          <button 
+            type="button"
+            onClick={() => toggleAdHocAccordion("instructions")}
+            className="w-full p-4 bg-gray-50 flex items-center justify-between hover:bg-gray-100 transition-colors"
+          >
+            <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2">
+              <AlignLeft size={14}/> Instruções da Equipe
+            </span>
+            {openAdHocAccordion.instructions ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          </button>
+          <AnimatePresence>
+            {openAdHocAccordion.instructions && (
+              <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden p-4 bg-white border-t border-gray-100">
+                <textarea 
+                  value={adHocDemand.description || ""}
+                  onChange={(e) => setAdHocDemand({...adHocDemand, description: e.target.value})} 
+                  className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] resize-none h-24 outline-none focus:border-[var(--color-atelier-terracota)] custom-scrollbar" 
+                  placeholder="Descreva os detalhes necessários para execução..." 
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* ACORDEÃO 2: LEGENDA DO POST */}
+        <div className="border border-gray-200 rounded-2xl overflow-hidden shrink-0">
+          <button 
+            type="button"
+            onClick={() => toggleAdHocAccordion("caption")}
+            className="w-full p-4 bg-gray-50 flex items-center justify-between hover:bg-gray-100 transition-colors"
+          >
+            <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2">
+              <MessageSquare size={14}/> Legenda do Post (Aprovação Cliente)
+            </span>
+            {openAdHocAccordion.caption ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          </button>
+          <AnimatePresence>
+            {openAdHocAccordion.caption && (
+              <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden p-4 bg-white border-t border-gray-100">
+                <textarea 
+                  placeholder="Escreva a legenda que ficará visível no Cockpit..."
+                  value={adHocDemand.caption || ""}
+                  onChange={(e) => setAdHocDemand({...adHocDemand, caption: e.target.value})} 
+                  className="w-full bg-white border border-[var(--color-atelier-terracota)]/30 rounded-xl p-3 text-[13px] resize-none h-24 outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium custom-scrollbar transition-colors shadow-sm" 
+                />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* ACORDEÃO 3: MÍDIAS & ANEXOS */}
+        <div className="border border-gray-200 rounded-2xl overflow-hidden shrink-0">
+          <button 
+            type="button"
+            onClick={() => toggleAdHocAccordion("media")}
+            className="w-full p-4 bg-gray-50 flex items-center justify-between hover:bg-gray-100 transition-colors"
+          >
+            <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2">
+              <Paperclip size={14}/> Mídias & Anexos ({(adHocDemand.media_assets?.length) || (adHocDemand.attachment_url ? 1 : 0)})
+            </span>
+            {openAdHocAccordion.media ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          </button>
+          <AnimatePresence>
+            {openAdHocAccordion.media && (
+              <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden p-4 bg-white border-t border-gray-100 flex flex-col gap-3">
+                {((adHocDemand.media_assets && adHocDemand.media_assets.length > 0) || adHocDemand.attachment_url) ? (
+                  <div className="grid grid-cols-3 gap-2">
+                    {(adHocDemand.media_assets || [{ type: "image", url: adHocDemand.attachment_url }]).map((asset: any, idx: number) => (
+                      <div key={idx} className="h-20 rounded-xl border border-gray-200 overflow-hidden relative group bg-gray-100">
+                        {asset.type === "video" ? (
+                          <video src={asset.url} className="w-full h-full object-cover" />
+                        ) : (
+                          <img src={asset.url} alt="Mídia" className="w-full h-full object-cover" onError={(e) => { (e.currentTarget as HTMLElement).style.display = "none"; }} />
+                        )}
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-1">
+                          <a href={asset.url} target="_blank" rel="noreferrer" className="p-1.5 bg-white text-gray-800 rounded-full hover:bg-gray-200" title="Ver">
+                            <Eye size={12} />
+                          </a>
+                          <button type="button" onClick={() => handleDeleteAdHocAsset(idx)} className="p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600" title="Apagar">
+                            <Trash2 size={12} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <span className="text-[11px] text-gray-400 italic">Nenhum anexo inserido ainda.</span>
+                )}
+
+                <label className="flex items-center justify-center gap-2 py-2.5 px-4 bg-orange-50 hover:bg-orange-100 border border-orange-200 rounded-xl text-orange-600 transition-colors text-[10px] font-bold uppercase tracking-widest cursor-pointer mt-1">
+                  <input type="file" multiple accept="image/*,video/*,application/pdf" className="hidden" onChange={handleAdHocMediaUpload} disabled={isUploadingAdHocFiles} />
+                  {isUploadingAdHocFiles ? <Loader2 size={14} className="animate-spin" /> : <UploadCloud size={14} />}
+                  <span>Adicionar Anexos</span>
+                </label>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        {/* ACORDEÃO 4: LINKS EXTERNOS */}
+        <div className="border border-gray-200 rounded-2xl overflow-hidden shrink-0">
+          <button 
+            type="button"
+            onClick={() => toggleAdHocAccordion("links")}
+            className="w-full p-4 bg-gray-50 flex items-center justify-between hover:bg-gray-100 transition-colors"
+          >
+            <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2">
+              <ExternalLink size={14}/> Links Externos (Download/Referência)
+            </span>
+            {openAdHocAccordion.links ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+          </button>
+          <AnimatePresence>
+            {openAdHocAccordion.links && (
+              <motion.div initial={{ height: 0 }} animate={{ height: "auto" }} exit={{ height: 0 }} className="overflow-hidden p-4 bg-white border-t border-gray-100 flex flex-col gap-3">
+                <div className="flex gap-2">
                   <input 
-                    type="text" placeholder="Ex: Criar banner para o site..." 
-                    value={adHocDemand.title} onChange={(e) => setAdHocDemand({...adHocDemand, title: e.target.value})} 
-                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium transition-colors shadow-sm" 
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1">
-                    <AlignLeft size={12}/> Instruções para a Equipe
-                  </span>
-                  <textarea 
-                    placeholder="Detalhes para o executor, links de referência, etc..."
-                    value={adHocDemand.description || ""} 
-                    onChange={(e) => setAdHocDemand({...adHocDemand, description: e.target.value})} 
-                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium resize-none h-20 custom-scrollbar transition-colors shadow-sm" 
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1">
-                    <MessageSquare size={12}/> Legenda do Post (Aprovação Cliente)
-                  </span>
-                  <textarea 
-                    placeholder="Escreva a legenda que ficará visível no Cockpit..."
-                    value={adHocDemand.caption || ""} 
-                    onChange={(e) => setAdHocDemand({...adHocDemand, caption: e.target.value})} 
-                    className="w-full bg-white border border-[var(--color-atelier-terracota)]/30 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium resize-none h-20 custom-scrollbar transition-colors shadow-sm" 
-                  />
-                </div>
-                
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1">
-                    <ExternalLink size={12}/> Links Externos (Download/Referência)
-                  </span>
-                  <div className="flex gap-2 flex-wrap">
-                    <input 
-                      type="text"
-                      placeholder="Nome do Link (Ex: Figma)"
-                      value={newLinkTitle}
-                      onChange={(e) => setNewLinkTitle(e.target.value)}
-                      className="w-1/3 bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm"
-                    />
-                    <input 
-                      type="url"
-                      placeholder="https://..."
-                      value={newLinkInput}
-                      onChange={(e) => setNewLinkInput(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && newLinkInput.trim() && newLinkTitle.trim()) {
-                          e.preventDefault();
-                          setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), { title: newLinkTitle.trim(), url: newLinkInput.trim() }]});
-                          setNewLinkTitle("");
-                          setNewLinkInput("");
-                        }
-                      }}
-                      className="flex-1 bg-white border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-sm"
-                    />
-                    <button 
-                      onClick={(e) => {
+                    type="url" 
+                    placeholder="https://..."
+                    value={newLinkInput}
+                    onChange={(e) => setNewLinkInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && newLinkInput.trim()) {
                         e.preventDefault();
-                        if (newLinkInput.trim() && newLinkTitle.trim()) {
-                          setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), { title: newLinkTitle.trim(), url: newLinkInput.trim() }]});
-                          setNewLinkTitle("");
-                          setNewLinkInput("");
-                        }
-                      }}
-                      className="bg-[var(--color-atelier-grafite)] text-white px-4 rounded-xl flex items-center justify-center hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-sm"
-                    >
-                      <PlusCircle size={16} />
-                    </button>
-                  </div>
-                  {adHocDemand.external_links && adHocDemand.external_links.length > 0 && (
-                    <div className="flex flex-wrap gap-2 mt-2">
-                      {adHocDemand.external_links.map((link: any, i: number) => (
+                        setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), newLinkInput.trim()]});
+                        setNewLinkInput("");
+                      }
+                    }}
+                    className="flex-1 bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[12px] outline-none focus:border-[var(--color-atelier-terracota)]"
+                  />
+                  <button 
+                    type="button"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      if (newLinkInput.trim()) {
+                        setAdHocDemand({...adHocDemand, external_links: [...(adHocDemand.external_links || []), newLinkInput.trim()]});
+                        setNewLinkInput("");
+                      }
+                    }}
+                    className="bg-[var(--color-atelier-grafite)] text-white px-4 rounded-xl flex items-center justify-center hover:bg-[var(--color-atelier-terracota)] transition-colors"
+                  >
+                    <PlusCircle size={16} />
+                  </button>
+                </div>
+                {adHocDemand.external_links && adHocDemand.external_links.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {adHocDemand.external_links.map((link: any, i: number) => {
+                      const linkStr = typeof link === "string" ? link : (link.url || link.title || "");
+                      return (
                         <div key={i} className="flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg border border-[var(--color-atelier-terracota)]/20 text-[11px] font-medium">
-                          <span className="max-w-[150px] truncate">{typeof link === 'string' ? link : link.title}</span>
-                          <button onClick={(e) => { e.preventDefault(); setAdHocDemand({...adHocDemand, external_links: adHocDemand.external_links.filter((_: any, idx: number) => idx !== i)}); }} className="hover:text-red-500">
+                          <span className="max-w-[150px] truncate">{linkStr}</span>
+                          <button type="button" onClick={() => setAdHocDemand({...adHocDemand, external_links: adHocDemand.external_links.filter((_: any, idx: number) => idx !== i)})} className="hover:text-red-500">
                             <X size={12} />
                           </button>
                         </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Escopo (Tag)</span>
-                  <select 
-                    value={adHocDemand.taskType} onChange={(e) => setAdHocDemand({...adHocDemand, taskType: e.target.value})} 
-                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium cursor-pointer shadow-sm"
-                  >
-                    <option value="">Definir Escopo...</option>
-                    {ALL_SKILLS.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Para o Executor <span className="text-red-500">*</span></span>
-                  <select 
-                    value={adHocDemand.assigneeId} onChange={(e) => setAdHocDemand({...adHocDemand, assigneeId: e.target.value})} 
-                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-4 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-grafite)] font-medium cursor-pointer shadow-sm"
-                  >
-                    <option value="">Escolher Membro da Equipe...</option>
-                    {team.map(t => {
-                      const isRecommended = adHocDemand.taskType && t.skills?.includes(adHocDemand.taskType);
-                      return <option key={t.id} value={t.id}>{t.nome} {isRecommended ? '⭐' : ''}</option>
+                      );
                     })}
-                  </select>
-                </div>
-
-                <div className="flex gap-4">
-                  <div className="flex flex-col gap-1.5 w-1/2">
-                    <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Deadline</span>
-                    <input type="datetime-local" value={formatForDateTimeLocal(adHocDemand.deadline)} onChange={(e) => setAdHocDemand({...adHocDemand, deadline: e.target.value ? parseFromDateTimeLocal(e.target.value) : ""})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[12px] outline-none focus:border-orange-500 shadow-sm font-medium" />
                   </div>
-                  <div className="flex flex-col gap-1.5 w-1/2">
-                    <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Tempo Est. (Min)</span>
-                    <input type="number" value={adHocDemand.estTime} onChange={(e) => setAdHocDemand({...adHocDemand, estTime: parseInt(e.target.value) || 0})} className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3 text-[13px] outline-none focus:border-orange-500 shadow-sm font-medium" />
-                  </div>
-                </div>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
-                <label className="flex items-center gap-3 cursor-pointer p-4 rounded-xl bg-orange-50/50 border border-orange-100 hover:bg-orange-50 transition-colors mt-2">
-                  <input type="checkbox" className="hidden" checked={adHocDemand.urgency || false} onChange={(e) => setAdHocDemand({...adHocDemand, urgency: e.target.checked})} />
-                  <div className={`w-5 h-5 rounded flex items-center justify-center border ${adHocDemand.urgency ? 'bg-orange-500 border-orange-500 text-white' : 'bg-white border-orange-200'}`}>
-                    {adHocDemand.urgency && <Check size={12} strokeWidth={3}/>}
-                  </div>
-                  <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-orange-600 flex items-center gap-1">Classificar como Urgente</span>
-                </label>
-              </div>
-
-              <button 
-                onClick={executeAdHocSubmit} 
-                disabled={isProcessing || !adHocDemand.title.trim() || !adHocDemand.assigneeId} 
-                className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[11px] shadow-md hover:bg-[var(--color-atelier-terracota)] transition-all flex items-center justify-center gap-2 disabled:opacity-50 hover:-translate-y-0.5 disabled:hover:translate-y-0 shrink-0"
-              >
-                {isProcessing ? <Loader2 className="animate-spin" size={16}/> : <PlusCircle size={16}/>} Despachar Tarefa
-              </button>
-            </motion.div>
+        {/* AUTOMAÇÃO: PUXAR DO TRELLO (OPCIONAL) */}
+        <div className="bg-[#f0f9ff] border border-blue-100 p-3 rounded-2xl flex flex-col gap-2 relative overflow-hidden shrink-0">
+          <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-blue-600 flex items-center gap-1.5">
+            <Trello size={13} /> Automação Trello (Opcional)
+          </span>
+          <div className="flex gap-2">
+            <input 
+              type="url" 
+              placeholder="Cole o link do card (https://trello.com/c/...)"
+              value={trelloImportUrl}
+              onChange={(e) => setTrelloImportUrl(e.target.value)}
+              className="flex-1 bg-white border border-blue-200 rounded-xl px-3 py-2 text-[12px] outline-none focus:border-blue-400 shadow-xs"
+            />
+            <button 
+              type="button"
+              onClick={(e) => { e.preventDefault(); handleImportTrelloCardUrl(); }}
+              disabled={isImportingTrelloUrl}
+              className="bg-blue-600 text-white px-3 py-2 rounded-xl font-bold text-[10px] uppercase tracking-widest hover:bg-blue-700 transition-colors shadow-xs disabled:opacity-50 flex items-center gap-1.5 shrink-0"
+            >
+              {isImportingTrelloUrl ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />} Importar
+            </button>
           </div>
-        )}
-      </AnimatePresence>
+        </div>
+
+        {/* Checkbox Urgente */}
+        <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl bg-orange-50/50 border border-orange-100 hover:bg-orange-50 transition-colors shrink-0">
+          <input type="checkbox" className="hidden" checked={adHocDemand.urgency || false} onChange={(e) => setAdHocDemand({...adHocDemand, urgency: e.target.checked})} />
+          <div className={`w-5 h-5 rounded flex items-center justify-center border ${adHocDemand.urgency ? "bg-orange-500 border-orange-500 text-white" : "bg-white border-orange-200"}`}>
+            {adHocDemand.urgency && <CheckCircle2 size={12} strokeWidth={3}/>}
+          </div>
+          <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-orange-600 flex items-center gap-1">
+            <Flame size={12}/> Classificar como Urgente
+          </span>
+        </label>
+
+        {/* Botão de Envio */}
+        <button 
+          onClick={executeAdHocSubmit} 
+          disabled={isProcessing || !adHocDemand.title?.trim() || !adHocDemand.assigneeId?.trim()} 
+          className="w-full mt-2 bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-[var(--color-atelier-terracota)] transition-colors flex justify-center items-center gap-2 shrink-0 disabled:opacity-50 cursor-pointer"
+        >
+          {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <Save size={16}/>} Lançar Demanda
+        </button>
+      </motion.div>
+    </div>
+  )}
+</AnimatePresence>
 
       {/* ==========================================
           🟢 O MÁGICO MODAL TRELLO (NATIVO API + SPLIT-SCREEN)
@@ -1927,7 +2113,16 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
                                <div className="flex items-center gap-1">
                                   <span className="text-[9px] font-bold text-gray-400">{task.profiles?.nome?.split(" ")[0] || "Livre"}</span>
                                   <div className="w-4 h-4 rounded-full bg-gray-200 overflow-hidden flex items-center justify-center">
-                                     {task.profiles?.avatar_url ? <img src={task.profiles.avatar_url} className="w-full h-full object-cover"/> : <UserCircle2 size={10} className="text-gray-400"/>}
+                                     {task.profiles?.avatar_url ? (
+                                       <img 
+                                         src={normalizeImageUrl(task.profiles.avatar_url)} 
+                                         alt={task.profiles?.nome || ""} 
+                                         onError={(e) => handleAvatarError(e, task.profiles?.nome)} 
+                                         className="w-full h-full object-cover"
+                                       />
+                                     ) : (
+                                       <UserCircle2 size={10} className="text-gray-400"/>
+                                     )}
                                   </div>
                                </div>
                             </div>
@@ -1993,7 +2188,12 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
                             >
                               {/* Background Image or Atelier Gradient */}
                               {avatarUrl ? (
-                                 <img src={avatarUrl} alt={clientName} className="absolute inset-0 w-full h-full object-cover" />
+                                 <img 
+                                   src={normalizeImageUrl(avatarUrl)} 
+                                   alt={clientName} 
+                                   onError={(e) => handleImageFallbackError(e)} 
+                                   className="absolute inset-0 w-full h-full object-cover" 
+                                 />
                               ) : (
                                  <div className="absolute inset-0 w-full h-full bg-gradient-to-br from-[var(--color-atelier-terracota)] via-[#6E3827] to-[var(--color-atelier-grafite)]" />
                               )}
@@ -2103,116 +2303,7 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
          </AnimatePresence>
       </motion.div>
 
-      {/* ==========================================
-          MODAL GERAL: AD HOC DEMAND (GLOBAL COM Z-INDEX ELEVADO)
-          ========================================== */}
-      <AnimatePresence>
-        {isAdHocModalOpen && !isTrelloModalOpen && (
-          <div className="fixed inset-0 z-[100000] flex items-center justify-center px-4 md:px-8 py-8">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={closeAdHocModal} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-            <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 20 }} 
-              animate={{ scale: 1, opacity: 1, y: 0 }} 
-              exit={{ scale: 0.95, opacity: 0, y: 20 }} 
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="bg-white p-6 md:p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-md border border-white/20 flex flex-col gap-6"
-            >
-              <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-2 shrink-0">
-                <div>
-                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
-                    <Flame size={24} className="text-[var(--color-atelier-terracota)]"/> Demanda Pontual
-                  </h3>
-                  <p className="font-roboto text-[11px] font-bold text-gray-400 uppercase tracking-widest mt-1">Lançar no Fluxo com Distribuição Inteligente</p>
-                </div>
-                <button type="button" onClick={(e) => { e.preventDefault(); e.stopPropagation(); closeAdHocModal(); }} className="w-10 h-10 rounded-full bg-gray-100/80 active:bg-gray-200 active:scale-95 text-gray-500 hover:text-[var(--color-atelier-terracota)] transition-all flex items-center justify-center shrink-0 cursor-pointer touch-manipulation z-20" title="Fechar"><X size={18}/></button>
-              </div>
-              
-              <div className="flex flex-col gap-4 max-h-[60vh] overflow-y-auto custom-scrollbar pr-1">
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Projeto / Cliente Alvo</span>
-                  <div className="w-full bg-gray-100 border border-gray-200 rounded-xl p-3.5 text-xs text-[var(--color-atelier-grafite)] font-bold">
-                    {displayData?.name || displayData?.profiles?.nome || "Cliente Selecionado"} ({isSubclientView ? 'Marca Studio Veronna' : 'Projeto'})
-                  </div>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Título da Demanda <span className="text-red-500">*</span></span>
-                  <input 
-                    type="text" 
-                    placeholder="Ex: Criar carrossel sobre lançamento..." 
-                    value={adHocDemand.title} 
-                    onChange={(e) => setAdHocDemand({...adHocDemand, title: e.target.value})} 
-                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium transition-colors" 
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Tipo de Tarefa / Etapa</span>
-                  <select 
-                    value={adHocDemand.taskType} 
-                    onChange={(e) => setAdHocDemand({...adHocDemand, taskType: e.target.value})} 
-                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium transition-colors cursor-pointer"
-                  >
-                    <option value="">Selecione a etapa...</option>
-                    {routingRules && routingRules.length > 0 ? (
-                      routingRules.map(r => (
-                        <option key={r.id} value={r.task_type}>{r.task_type}</option>
-                      ))
-                    ) : (
-                      <>
-                        <option value="Copywriting">Copywriting</option>
-                        <option value="Design">Design</option>
-                        <option value="Revisão">Revisão</option>
-                        <option value="Agendamento">Agendamento</option>
-                      </>
-                    )}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Atribuir a Colaborador</span>
-                  <select 
-                    value={adHocDemand.assigneeId} 
-                    onChange={(e) => setAdHocDemand({...adHocDemand, assigneeId: e.target.value})} 
-                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium transition-colors cursor-pointer"
-                  >
-                    <option value="">Atribuição Automática (Roteador de Regras)</option>
-                    {team.map(collab => (
-                      <option key={collab.id} value={collab.id}>{collab.name || collab.nome}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Data e Hora do Prazo Final <span className="text-red-500">*</span></span>
-                  <input 
-                    type="datetime-local" 
-                    value={formatForDateTimeLocal(adHocDemand.deadline)} 
-                    onChange={(e) => setAdHocDemand({...adHocDemand, deadline: parseFromDateTimeLocal(e.target.value)})} 
-                    className="w-full bg-[var(--color-atelier-creme)]/30 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)] text-[var(--color-atelier-grafite)] font-medium transition-colors" 
-                  />
-                </div>
-              </div>
-
-              <div className="flex gap-3 pt-2 shrink-0">
-                <button 
-                  onClick={closeAdHocModal} 
-                  className="flex-1 bg-gray-100 text-gray-600 py-3.5 rounded-xl font-bold uppercase tracking-widest text-[11px] hover:bg-gray-200 transition-all"
-                >
-                  Cancelar
-                </button>
-                <button 
-                  onClick={() => { handleAddAdHocDemand(); closeAdHocModal(); }} 
-                  disabled={!adHocDemand.title.trim()} 
-                  className="flex-1 bg-[var(--color-atelier-terracota)] text-white py-3.5 rounded-xl font-bold uppercase tracking-widest text-[11px] shadow-md hover:bg-[#b05c42] transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                  <Save size={16}/> Lançar Demanda
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      
 
       
       <IdvBriefingModal isOpen={isBriefingModalOpen} onClose={() => setIsBriefingModalOpen(false)} project={displayData} />

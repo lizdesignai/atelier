@@ -9,11 +9,13 @@ import {
   Mail, Building, Calendar, MoreVertical, 
   CheckCircle2, Clock, AlertCircle, X, Trash2, Ban, Loader2,
   DollarSign, Briefcase, RotateCcw, Sparkles, FileSearch, User, 
-  Settings, Trello, ExternalLink, CreditCard
+  Settings, Trello, ExternalLink, CreditCard, Compass, PauseCircle, Play,
+  Lock, Copy
 } from "lucide-react";
-import { supabase } from "../../../lib/supabase";
+import { dbUpdate, dbDelete, dbInsert, dbSelectOne } from "../../../lib/dbClient";
 import { useGlobalStore } from "../../../contexts/GlobalStore"; 
 import { NotificationEngine } from "../../../lib/NotificationEngine"; 
+import { getSafeAvatarUrl, handleAvatarError } from "../../../lib/imageUtils"; 
 
 import dynamic from "next/dynamic";
 
@@ -63,6 +65,7 @@ export default function BaseClientesPage() {
   const [newClientNome, setNewClientNome] = useState("");
   const [newClientEmail, setNewClientEmail] = useState("");
   const [newClientEmpresa, setNewClientEmpresa] = useState("");
+  const [newClientInstagram, setNewClientInstagram] = useState("");
 
   const [selectedClientId, setSelectedClientId] = useState("");
   const [serviceType, setServiceType] = useState<"Identidade Visual" | "Gestão de Instagram" | "O Mapa">("Identidade Visual");
@@ -94,7 +97,18 @@ export default function BaseClientesPage() {
   // ESTADOS DO MÓDULO TRELLO
   const [isTrelloModalOpen, setIsTrelloModalOpen] = useState(false);
   const [activeTrelloEntity, setActiveTrelloEntity] = useState<any>(null);
-  const [accessPopupData, setAccessPopupData] = useState<{ email: string, pass: string, nome: string } | null>(null);
+  const [accessPopupData, setAccessPopupData] = useState<{ email: string, pass: string, nome: string, service?: string } | null>(null);
+  const [isAccessCopied, setIsAccessCopied] = useState(false);
+
+  const handleCopyAccessCredentials = () => {
+    if (!accessPopupData) return;
+    const loginUrl = typeof window !== "undefined" ? `${window.location.origin}/login` : "https://atelier.lizdesign.com.br/login";
+    const text = `🎉 Olá, ${accessPopupData.nome}! Seja bem-vindo(a) ao Atelier.\n\nAqui estão os seus dados de acesso ao seu painel exclusivo:\n• Link de Acesso: ${loginUrl}\n• E-mail: ${accessPopupData.email}\n• Senha Provisória: ${accessPopupData.pass}\n• Serviço: ${accessPopupData.service || 'Projeto Ativo'}\n\nPor lá você poderá acompanhar o cronograma, interagir nas etapas e aprovar as entregas em tempo real.\nRecomendamos alterar a sua senha no primeiro acesso nas configurações da conta.`;
+    navigator.clipboard.writeText(text);
+    setIsAccessCopied(true);
+    showToast("Credenciais de acesso copiadas para a área de transferência!");
+    setTimeout(() => setIsAccessCopied(false), 2500);
+  };
 
   useEffect(() => {
     if (isGlobalLoading) return;
@@ -139,6 +153,9 @@ export default function BaseClientesPage() {
     
     setIsSubmitting(true);
     let finalClientId = selectedClientId;
+    let clientEmailForPopup = "";
+    let clientNameForPopup = "";
+    let generatedPasswordForPopup = "";
 
     try {
       let isConvertingLead = false;
@@ -159,6 +176,8 @@ export default function BaseClientesPage() {
           return;
         }
 
+        const instagramParaCriar = isConvertingLead ? (selectedClientData.instagram || "") : newClientInstagram;
+
         const inviteRes = await fetch('/api/auth/invite', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -166,23 +185,26 @@ export default function BaseClientesPage() {
             nome: nomeParaCriar,
             email: emailParaCriar,
             empresa: empresaParaCriar,
+            instagram: instagramParaCriar,
             role: 'client',
             skipProjectCreation: true,
-            allowExisting: true
+            allowExisting: true,
+            regeneratePassword: true
           })
         });
 
         const inviteData = await inviteRes.json();
         if (!inviteRes.ok) {
           if (inviteRes.status === 409) {
-            const { data: existingProfile } = await supabase
-              .from('profiles')
-              .select('id')
-              .eq('email', emailParaCriar.trim().toLowerCase())
-              .maybeSingle();
+            const existingProfile = await dbSelectOne('profiles', { email: emailParaCriar.trim().toLowerCase() }, 'id, nome, email');
 
             if (existingProfile?.id) {
               finalClientId = existingProfile.id;
+              clientEmailForPopup = existingProfile.email || emailParaCriar;
+              clientNameForPopup = existingProfile.nome || nomeParaCriar;
+              if (inviteData.defaultPassword) {
+                generatedPasswordForPopup = inviteData.defaultPassword;
+              }
             } else {
               throw new Error(inviteData.error || 'Falha ao processar o cliente.');
             }
@@ -191,15 +213,48 @@ export default function BaseClientesPage() {
           }
         } else {
           finalClientId = inviteData.user.id;
+          clientEmailForPopup = inviteData.user.email || emailParaCriar;
+          clientNameForPopup = inviteData.user.nome || nomeParaCriar;
+          generatedPasswordForPopup = inviteData.defaultPassword;
         }
 
         if (isConvertingLead) {
-          await supabase.from('leads').delete().eq('id', selectedClientId);
+          await dbDelete('leads', { id: selectedClientId });
         }
       } else if (!finalClientId) {
         showToast("Selecione um cliente válido da lista.");
         setIsSubmitting(false);
         return;
+      } else {
+        // Cliente já existente na lista (profiles)
+        if (selectedClientData) {
+          clientEmailForPopup = selectedClientData.email;
+          clientNameForPopup = selectedClientData.nome;
+          
+          if (clientEmailForPopup) {
+            try {
+              const inviteRes = await fetch('/api/auth/invite', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  nome: selectedClientData.nome,
+                  email: selectedClientData.email,
+                  empresa: selectedClientData.empresa,
+                  role: 'client',
+                  skipProjectCreation: true,
+                  allowExisting: true,
+                  regeneratePassword: true
+                })
+              });
+              const inviteData = await inviteRes.json();
+              if (inviteRes.ok && inviteData.defaultPassword) {
+                generatedPasswordForPopup = inviteData.defaultPassword;
+              }
+            } catch (e) {
+              console.warn("Aviso ao gerar senha de cliente existente:", e);
+            }
+          }
+        }
       }
 
       const response = await fetch('/api/clients/projects', {
@@ -234,11 +289,24 @@ export default function BaseClientesPage() {
         "/cockpit"
       );
 
-      showToast("✨ Projeto criado e tarefas enviadas para a Mesa de Trabalho!");
+      showToast("✨ Projeto consolidado e demandas atribuídas!");
       setIsNewClientModalOpen(false);
       setSelectedClientId("");
       setFinancialValue("");
       setBillingDate("");
+      setNewClientNome("");
+      setNewClientEmail("");
+      setNewClientEmpresa("");
+      setNewClientInstagram("");
+
+      if (generatedPasswordForPopup && clientEmailForPopup) {
+        setAccessPopupData({
+          email: clientEmailForPopup,
+          pass: generatedPasswordForPopup,
+          nome: clientNameForPopup || "Cliente",
+          service: serviceType
+        });
+      }
       
       refreshGlobalData();
     } catch (error: any) {
@@ -268,14 +336,15 @@ export default function BaseClientesPage() {
 
     setIsSubmitting(true);
     try {
-      const { data: agency, error: agencyError } = await supabase.from('agencies').insert({
+      const agencyRes = await dbInsert('agencies', {
         name: agencyName,
         financial_value: agencyFinancialValue ? parseFloat(agencyFinancialValue) : 0,
         billing_date: agencyBillingDate || null,
         status: 'active'
-      }).select().single();
+      });
 
-      if (agencyError) throw agencyError;
+      if (agencyRes.error) throw new Error(agencyRes.error.message);
+      const agency = agencyRes.data;
 
       if (agencySubclients.length > 0) {
         const subclientsToInsert = agencySubclients.map(sub => ({
@@ -285,17 +354,14 @@ export default function BaseClientesPage() {
           trello_url: sub.trello_url || null
         }));
 
-        const { data: insertedSubclients, error: subError } = await supabase
-          .from('agency_subclients')
-          .insert(subclientsToInsert)
-          .select();
-
-        if (subError) throw subError;
+        const subRes = await dbInsert('agency_subclients', subclientsToInsert);
+        if (subRes.error) throw new Error(subRes.error.message);
+        const insertedSubclients = Array.isArray(subRes.data) ? subRes.data : [subRes.data];
 
         const tasksToInsert: any[] = [];
         const baseDate = agencyBillingDate ? new Date(agencyBillingDate) : new Date();
 
-        insertedSubclients?.forEach((sub) => {
+        insertedSubclients?.forEach((sub: any) => {
           for (let i = 1; i <= sub.deliverables_count; i++) {
              const targetDate = new Date(baseDate);
              targetDate.setDate(targetDate.getDate() + Math.floor((30 / sub.deliverables_count) * i)); 
@@ -314,8 +380,8 @@ export default function BaseClientesPage() {
         });
 
         if (tasksToInsert.length > 0) {
-          const { error: tasksError } = await supabase.from('tasks').insert(tasksToInsert);
-          if (tasksError) throw tasksError;
+          const tasksRes = await dbInsert('tasks', tasksToInsert);
+          if (tasksRes.error) throw new Error(tasksRes.error.message);
         }
       }
 
@@ -340,25 +406,32 @@ export default function BaseClientesPage() {
     if (action === 'ConverterMapa') {
       try {
         setIsSubmitting(true);
+        const email = project.profiles?.email || project.email;
         const res = await fetch('/api/mapa/convert-lead', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
             lead_id: project.id.replace('lead-native-', '').replace('lead-', ''), 
-            email: project.profiles?.email || project.email,
+            email,
             nome: project.profiles?.nome,
             nicho: project.profiles?.empresa
           })
         });
         const data = await res.json();
         if (res.ok) {
-          alert(`Lead convertido! Acesso liberado ao Mapa.\nLogin: ${data.data.login}\nSenha: ${data.data.senha_padrao}`);
+          setAccessPopupData({
+            email: data.data.login,
+            pass: data.data.senha_padrao,
+            nome: project.profiles?.nome || "Cliente",
+            service: "O Mapa"
+          });
+          showToast("✨ Lead convertido e acesso ao Mapa gerado!");
           refreshGlobalData();
         } else {
-          alert('Erro: ' + data.error);
+          showToast('Erro: ' + data.error);
         }
       } catch (e) {
-        alert('Erro ao converter lead');
+        showToast('Erro ao converter lead');
       } finally {
         setIsSubmitting(false);
       }
@@ -375,15 +448,39 @@ export default function BaseClientesPage() {
       return;
     }
 
+    if (action === 'IniciarProjetoLead') {
+      setIsCreatingNewClient(false);
+      setSelectedClientId(project.client_id || project.id);
+      setIsNewClientModalOpen(true);
+      return;
+    }
+
     if (action === 'GerarAcesso') {
+      if (project.isLead || project.isOrphanClient) {
+        setIsCreatingNewClient(false);
+        setSelectedClientId(project.client_id || project.id);
+        setIsNewClientModalOpen(true);
+        showToast("Consolide o projeto ativo para liberar o acesso ao Atelier.");
+        return;
+      }
+
       try {
         setIsSubmitting(true);
-        const email = project.profiles?.email || project.email;
-        const nome = project.profiles?.nome || project.name || "Cliente";
-        const empresa = project.profiles?.empresa || project.name || "";
+        let email = project.profiles?.email || project.email;
+        let nome = project.profiles?.nome || project.name || "Cliente";
+        let empresa = project.profiles?.empresa || project.name || "";
         
+        if (!email && project.client_id) {
+          const prof = await dbSelectOne('profiles', { id: project.client_id }, 'id, email, nome, empresa');
+          if (prof?.email) {
+            email = prof.email;
+            nome = prof.nome || nome;
+            empresa = prof.empresa || empresa;
+          }
+        }
+
         if (!email) {
-          showToast("Cliente não possui email configurado.");
+          showToast("Cliente não possui email configurado. Por favor, cadastre o e-mail em 'Editar Perfil'.");
           return;
         }
 
@@ -396,15 +493,25 @@ export default function BaseClientesPage() {
             empresa,
             role: 'client',
             skipProjectCreation: true,
-            allowExisting: true
+            allowExisting: true,
+            regeneratePassword: true
           })
         });
 
         const data = await inviteRes.json();
-        if (inviteRes.ok) {
-          showToast("Acesso liberado com sucesso! E-mail enviado.");
+        if (inviteRes.ok && data.defaultPassword) {
+          const serviceName = project.service_type || project.type || (project.isLead ? "O Mapa" : "Identidade Visual");
+          setAccessPopupData({
+            email,
+            pass: data.defaultPassword,
+            nome,
+            service: serviceName
+          });
+          showToast("✨ Senha de acesso gerada com sucesso!");
+        } else if (inviteRes.ok) {
+          showToast("Acesso processado com sucesso!");
         } else {
-          showToast(`Erro: ${data.error}`);
+          showToast(`Erro ao gerar acesso: ${data.error || 'Falha ao processar'}`);
         }
       } catch (e) {
         showToast("Erro ao forçar acesso do usuário.");
@@ -424,18 +531,69 @@ export default function BaseClientesPage() {
       return;
     }
 
+    if (action === 'PausarContrato') {
+      const confirm = window.confirm(`Deseja pausar o contrato deste projeto? Ele deixará de contar como ativo nas métricas.`);
+      if (!confirm) return;
+
+      const res = await fetch(`/api/projects/${project.id}/pause`, { method: 'POST' });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        showToast(json.error || "Erro ao pausar contrato.");
+        return;
+      }
+      showToast("Contrato pausado com sucesso.");
+      refreshGlobalData();
+      try {
+        const overviewRes = await fetch('/api/clients/overview');
+        if (overviewRes.ok) {
+          const overviewData = await overviewRes.json();
+          setEnrichedProjects(overviewData.data.enrichedProjects || []);
+        }
+      } catch {}
+      return;
+    }
+
+    if (action === 'ReativarContrato') {
+      const confirm = window.confirm(`Deseja reativar o contrato deste projeto? Ele voltará a contar como ativo nas métricas.`);
+      if (!confirm) return;
+
+      const res = await fetch(`/api/projects/${project.id}/reactivate`, { method: 'POST' });
+      if (!res.ok) {
+        const json = await res.json().catch(() => ({}));
+        showToast(json.error || "Erro ao reativar contrato.");
+        return;
+      }
+      showToast("Contrato reativado com sucesso.");
+      refreshGlobalData();
+      try {
+        const overviewRes = await fetch('/api/clients/overview');
+        if (overviewRes.ok) {
+          const overviewData = await overviewRes.json();
+          setEnrichedProjects(overviewData.data.enrichedProjects || []);
+        }
+      } catch {}
+      return;
+    }
+
     if (action === 'Suspender') {
       const confirm = window.confirm(`Deseja suspender a operação?`);
       if (!confirm) return;
       
       if (project.isAgency) {
-        await supabase.from('agencies').update({ status: 'archived' }).eq('id', project.client_id);
+        await dbUpdate('agencies', { id: project.client_id }, { status: 'archived' });
       } else {
-        await supabase.from('projects').update({ status: 'archived' }).eq('id', project.id);
+        await dbUpdate('projects', { id: project.id }, { status: 'archived' });
         await NotificationEngine.notifyUser(project.client_id, "⏸️ Operação Suspensa", "O seu acesso ao Studio Veronna e operação foram temporariamente suspensos.", "warning");
       }
       showToast("Operação suspensa com sucesso."); 
       refreshGlobalData(); 
+      try {
+        const overviewRes = await fetch('/api/clients/overview');
+        if (overviewRes.ok) {
+          const overviewData = await overviewRes.json();
+          setEnrichedProjects(overviewData.data.enrichedProjects || []);
+        }
+      } catch {}
       return;
     }
 
@@ -444,13 +602,23 @@ export default function BaseClientesPage() {
       if (!confirm) return;
 
       if (project.isAgency) {
-        await supabase.from('agencies').update({ status: 'active' }).eq('id', project.client_id);
+        await dbUpdate('agencies', { id: project.client_id }, { status: 'active' });
       } else {
-        await supabase.from('projects').update({ status: 'active' }).eq('id', project.id);
+        const res = await fetch(`/api/projects/${project.id}/reactivate`, { method: 'POST' });
+        if (!res.ok) {
+          await dbUpdate('projects', { id: project.id }, { status: 'active', delivered_at: null });
+        }
         await NotificationEngine.notifyUser(project.client_id, "▶️ Operação Retomada", "O seu acesso ao Studio Veronna foi reativado.", "success", "/cockpit");
       }
       showToast("Operação reativada com sucesso."); 
       refreshGlobalData(); 
+      try {
+        const overviewRes = await fetch('/api/clients/overview');
+        if (overviewRes.ok) {
+          const overviewData = await overviewRes.json();
+          setEnrichedProjects(overviewData.data.enrichedProjects || []);
+        }
+      } catch {}
       return;
     }
 
@@ -459,15 +627,22 @@ export default function BaseClientesPage() {
       if (!confirm) return;
 
       if (project.isAgency) {
-         await supabase.from('agencies').delete().eq('id', project.client_id);
+         await dbDelete('agencies', { id: project.client_id });
       } else if (project.isLead) {
-         await supabase.from('leads').delete().eq('id', project.client_id);
+         await dbDelete('leads', { id: project.client_id });
       } else {
-         await supabase.from('projects').delete().eq('id', project.id);
+         await dbDelete('projects', { id: project.id });
       }
       
       showToast("Apagado permanentemente."); 
       refreshGlobalData(); 
+      try {
+        const overviewRes = await fetch('/api/clients/overview');
+        if (overviewRes.ok) {
+          const overviewData = await overviewRes.json();
+          setEnrichedProjects(overviewData.data.enrichedProjects || []);
+        }
+      } catch {}
       return;
     }
   };
@@ -479,10 +654,10 @@ export default function BaseClientesPage() {
     setIsEditing(true);
     try {
       if (projectToEdit.isAgency) {
-        await supabase.from('agencies').update({
+        await dbUpdate('agencies', { id: projectToEdit.client_id }, {
           financial_value: editFinancialValue ? parseFloat(editFinancialValue) : 0,
           billing_date: editBillingDate || null
-        }).eq('id', projectToEdit.client_id);
+        });
       } else {
         const updates: any = {
           financial_value: editFinancialValue ? parseFloat(editFinancialValue) : 0,
@@ -495,7 +670,7 @@ export default function BaseClientesPage() {
            updates.instagram_package = editPackage;
         }
         
-        await supabase.from('projects').update(updates).eq('id', projectToEdit.id);
+        await dbUpdate('projects', { id: projectToEdit.id }, updates);
 
         await NotificationEngine.notifyUser(
           projectToEdit.client_id,
@@ -508,6 +683,13 @@ export default function BaseClientesPage() {
       showToast("Dados atualizados com sucesso!");
       setIsEditModalOpen(false);
       refreshGlobalData();
+      try {
+        const overviewRes = await fetch('/api/clients/overview');
+        if (overviewRes.ok) {
+          const overviewData = await overviewRes.json();
+          setEnrichedProjects(overviewData.data.enrichedProjects || []);
+        }
+      } catch {}
     } catch (error) {
       showToast("Erro ao atualizar.");
     } finally {
@@ -660,7 +842,7 @@ export default function BaseClientesPage() {
                   className="flex flex-col md:grid md:grid-cols-12 gap-4 px-4 py-4 rounded-[1.5rem] border border-[var(--color-atelier-grafite)]/5 hover:border-[var(--color-atelier-terracota)]/30 hover:bg-white hover:shadow-sm transition-all md:items-center group cursor-pointer relative"
                   onClick={(e) => {
                     if (openMenuId === project.id) return;
-                    if (project.isLead || project.isAgency) {
+                    if (project.isLead || project.isAgency || project.isOrphanClient) {
                       // 🟢 CORREÇÃO: Injetando o ID vital para o Modal de Clientes
                       setClientToEdit({
                         ...project.profiles,
@@ -682,7 +864,7 @@ export default function BaseClientesPage() {
                       ${project.isLead ? 'bg-purple-50 text-purple-600 border-purple-200' : project.isAgency ? 'bg-blue-50 text-blue-600 border-blue-200' : 'bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)] border-[var(--color-atelier-terracota)]/20'}
                     `}>
                       {project.profiles?.avatar_url ? (
-                        <img src={project.profiles.avatar_url} className="w-full h-full object-cover" alt="avatar" />
+                        <img src={getSafeAvatarUrl(project.profiles.avatar_url, project.profiles.nome)} className="w-full h-full object-cover" alt="avatar" onError={(e) => handleAvatarError(e, project.profiles?.nome)} />
                       ) : (
                         project.profiles?.nome?.charAt(0) || "C"
                       )}
@@ -713,19 +895,23 @@ export default function BaseClientesPage() {
                   <div className="md:col-span-3 flex flex-col justify-center items-start gap-2">
                     {project.isLead ? (
                       <StatusBadge icon={User} text="Potencial Cliente" color="gray" />
+                    ) : project.isOrphanClient ? (
+                      <StatusBadge icon={AlertCircle} text="Aguardando Projeto" color="orange" />
                     ) : project.isAgency ? (
                       <StatusBadge icon={Briefcase} text="Operação Studio Veronna" color="gray" />
                     ) : (
                       <>
                         {project.status === 'active' && <StatusBadge icon={Clock} text="Em Andamento" color="terracota" />}
+                        {project.status === 'paused' && <StatusBadge icon={PauseCircle} text="Contrato Pausado" color="amber" />}
                         {project.status === 'pending' && <StatusBadge icon={AlertCircle} text="Ação Pendente" color="orange" />}
                         {project.status === 'delivered' && <StatusBadge icon={CheckCircle2} text="Entregue" color="green" />}
+                        {project.status === 'completed' && <StatusBadge icon={CheckCircle2} text="Concluído / Encerrado" color="green" />}
                         {project.status === 'archived' && <StatusBadge icon={Ban} text="Suspenso" color="gray" />}
                       </>
                     )}
                     
                     <span className="font-roboto text-[12px] font-bold text-[var(--color-atelier-grafite)]/70 truncate w-full pr-4">
-                      {project.isLead ? "Análise Estratégica" : project.isAgency ? "Demandas em Lote" : (project.instagram_package || project.type)}
+                      {project.isLead ? "Análise Estratégica" : project.isOrphanClient ? "Aguardando Início de Projeto" : project.isAgency ? "Demandas em Lote" : (project.instagram_package || project.type)}
                     </span>
                   </div>
 
@@ -819,13 +1005,32 @@ export default function BaseClientesPage() {
                                 <Settings size={14} /> Editar Perfil
                               </button>
 
-                              <button onClick={() => handleMenuAction('GerarAcesso', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors w-full text-left">
-                                <Mail size={14} /> Enviar Acesso
-                              </button>
+                              {(project.service_type === 'Gestão de Instagram' || (project.type && (project.type.includes('Instagram') || project.type.startsWith('Pacote')))) && (
+                                <button 
+                                  onClick={() => {
+                                    setActiveProjectId(project.id);
+                                    router.push(`/admin/gerenciamento?projectId=${project.id}`);
+                                  }} 
+                                  className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] hover:bg-[var(--color-atelier-terracota)]/5 transition-colors w-full text-left"
+                                >
+                                  <Compass size={14} /> Abrir Presença 2.0
+                                </button>
+                              )}
 
-                              {project.isLead && (
-                                <button onClick={() => handleMenuAction('ConverterMapa', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-green-600 hover:bg-green-50 transition-colors w-full text-left">
-                                  <Sparkles size={14} /> Gerar O Mapa
+                              {(project.isLead || project.isOrphanClient) ? (
+                                <>
+                                  <button onClick={() => handleMenuAction('IniciarProjetoLead', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] hover:bg-[var(--color-atelier-terracota)]/5 transition-colors w-full text-left font-bold">
+                                    <Sparkles size={14} /> Iniciar Projeto Ativo
+                                  </button>
+                                  {project.isLead && (
+                                    <button onClick={() => handleMenuAction('ConverterMapa', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-green-600 hover:bg-green-50 transition-colors w-full text-left">
+                                      <Sparkles size={14} /> Gerar O Mapa
+                                    </button>
+                                  )}
+                                </>
+                              ) : (
+                                <button onClick={() => handleMenuAction('GerarAcesso', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors w-full text-left">
+                                  <Mail size={14} /> Enviar Acesso
                                 </button>
                               )}
                             </>
@@ -836,8 +1041,18 @@ export default function BaseClientesPage() {
                               <button onClick={() => handleMenuAction('Editar', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors w-full text-left">
                                 <DollarSign size={14} /> Editar Financeiro
                               </button>
+
+                              {project.status === 'paused' ? (
+                                <button onClick={() => handleMenuAction('ReativarContrato', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-emerald-600 hover:bg-emerald-50 transition-colors w-full text-left">
+                                  <Play size={14} /> Reativar Contrato
+                                </button>
+                              ) : (
+                                <button onClick={() => handleMenuAction('PausarContrato', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-amber-600 hover:bg-amber-50 transition-colors w-full text-left">
+                                  <PauseCircle size={14} /> Pausar Contrato
+                                </button>
+                              )}
                               
-                              {project.status === 'archived' ? (
+                              {project.status === 'archived' || project.status === 'completed' ? (
                                 <button onClick={() => handleMenuAction('Reativar', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-blue-600 hover:bg-blue-50 transition-colors w-full text-left">
                                   <RotateCcw size={14} /> Reativar Operação
                                 </button>
@@ -857,7 +1072,7 @@ export default function BaseClientesPage() {
                       )}
                     </AnimatePresence>
 
-                    {(!project.isLead && !project.isAgency) && (
+                    {(!project.isLead && !project.isAgency && !project.isOrphanClient) && (
                       <button 
                         onClick={(e) => {
                           e.stopPropagation();
@@ -867,6 +1082,18 @@ export default function BaseClientesPage() {
                         className="bg-white border border-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)]/60 px-5 py-2.5 rounded-[1rem] font-roboto font-bold uppercase tracking-widest text-[10px] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all shadow-sm flex items-center gap-2 group-hover:border-transparent"
                       >
                         Mesa de Trabalho <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+                    )}
+
+                    {project.isOrphanClient && (
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleMenuAction('IniciarProjetoLead', project);
+                        }}
+                        className="bg-[var(--color-atelier-terracota)] text-white px-5 py-2.5 rounded-[1rem] font-roboto font-bold uppercase tracking-widest text-[10px] hover:bg-[var(--color-atelier-grafite)] transition-all shadow-sm flex items-center gap-2"
+                      >
+                        Iniciar Projeto <Sparkles size={14} />
                       </button>
                     )}
                   </div>
@@ -1108,14 +1335,25 @@ export default function BaseClientesPage() {
                             />
                           </div>
                         </div>
-                        <div className="flex flex-col gap-2">
-                          <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 pl-1">Empresa</label>
-                          <input 
-                            type="text" required={isCreatingNewClient}
-                            value={newClientEmpresa} onChange={(e) => setNewClientEmpresa(e.target.value)}
-                            placeholder="Nome da Marca/Empresa"
-                            className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)]"
-                          />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="flex flex-col gap-2">
+                            <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 pl-1">Empresa</label>
+                            <input 
+                              type="text" required={isCreatingNewClient}
+                              value={newClientEmpresa} onChange={(e) => setNewClientEmpresa(e.target.value)}
+                              placeholder="Nome da Marca/Empresa"
+                              className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)]"
+                            />
+                          </div>
+                          <div className="flex flex-col gap-2">
+                            <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 pl-1">Instagram (@)</label>
+                            <input 
+                              type="text"
+                              value={newClientInstagram} onChange={(e) => setNewClientInstagram(e.target.value)}
+                              placeholder="@perfil"
+                              className="w-full bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.2rem] px-4 py-3 text-[13px] outline-none shadow-sm text-[var(--color-atelier-grafite)]"
+                            />
+                          </div>
                         </div>
                         <p className="text-xs text-[var(--color-atelier-terracota)]/80 italic ml-1">O usuário será criado com uma senha segura e aleatória. Use a opção "Enviar Acesso" para visualizar.</p>
                       </div>
@@ -1448,10 +1686,136 @@ export default function BaseClientesPage() {
       <NovoClienteModal 
         isOpen={isNovoClienteModalOpen}
         onClose={() => setIsNovoClienteModalOpen(false)}
-        onSuccess={() => {
+        onSuccess={(cred) => {
           refreshGlobalData();
+          if (cred) {
+            setAccessPopupData(cred);
+          }
         }}
       />
+
+      {/* 🟢 MODAL DE CREDENCIAIS DE ACESSO DO CLIENTE */}
+      <AnimatePresence>
+        {accessPopupData && (
+          <div className="fixed inset-0 z-[600] flex items-center justify-center p-4 md:p-8">
+            <motion.div 
+              initial={{ opacity: 0 }} 
+              animate={{ opacity: 1 }} 
+              exit={{ opacity: 0 }} 
+              onClick={() => setAccessPopupData(null)}
+              className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer"
+            />
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.95, opacity: 0, y: 20 }}
+              className="relative w-full max-w-[500px] bg-white rounded-[2.5rem] shadow-[0_25px_60px_rgba(0,0,0,0.25)] border border-white/60 p-6 md:p-8 flex flex-col gap-6 z-10"
+            >
+              <div className="flex items-center justify-between border-b border-gray-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center shadow-inner">
+                    <Sparkles size={22} />
+                  </div>
+                  <div>
+                    <h3 className="font-elegant text-2xl font-bold text-[var(--color-atelier-grafite)]">
+                      Acesso Liberado!
+                    </h3>
+                    <p className="font-roboto text-xs text-gray-500">
+                      Credenciais exclusivas geradas para o cliente
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setAccessPopupData(null)}
+                  className="w-9 h-9 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center text-gray-500 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Card de Credenciais */}
+              <div className="bg-[var(--color-atelier-creme)]/80 border border-[var(--color-atelier-terracota)]/25 rounded-2xl p-5 flex flex-col gap-4 shadow-sm">
+                <div className="flex items-center justify-between border-b border-[var(--color-atelier-terracota)]/15 pb-2.5">
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] flex items-center gap-1.5">
+                    <Lock size={12} /> Acesso do Cliente
+                  </span>
+                  <span className="text-[10px] bg-[var(--color-atelier-terracota)]/15 text-[var(--color-atelier-terracota)] px-2.5 py-0.5 rounded-full font-bold">
+                    {accessPopupData.service || "Cliente Atelier"}
+                  </span>
+                </div>
+
+                <div className="flex flex-col gap-3 text-xs">
+                  <div>
+                    <span className="text-[10px] text-gray-400 uppercase tracking-wider block font-bold mb-1">
+                      Cliente
+                    </span>
+                    <span className="font-semibold text-gray-800 text-sm">
+                      {accessPopupData.nome}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="bg-white/80 p-3 rounded-xl border border-gray-200/60">
+                      <span className="text-[10px] text-gray-400 uppercase tracking-wider block font-bold mb-1">
+                        E-mail de Login
+                      </span>
+                      <span className="font-semibold text-gray-800 font-mono select-all break-all">
+                        {accessPopupData.email}
+                      </span>
+                    </div>
+
+                    <div className="bg-white/80 p-3 rounded-xl border border-gray-200/60">
+                      <span className="text-[10px] text-gray-400 uppercase tracking-wider block font-bold mb-1">
+                        Senha Provisória
+                      </span>
+                      <span className="font-bold text-[var(--color-atelier-terracota)] font-mono text-sm select-all">
+                        {accessPopupData.pass}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="bg-white/50 p-2.5 rounded-xl border border-gray-100 flex items-center justify-between text-[11px] text-gray-500">
+                    <span>Link de Login:</span>
+                    <span className="font-mono text-gray-700">/login</span>
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-gray-400 text-center italic">
+                O cliente poderá acessar a plataforma e alterar sua senha a qualquer momento nas configurações da conta.
+              </p>
+
+              {/* Botões de Ação */}
+              <div className="flex flex-col sm:flex-row gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={handleCopyAccessCredentials}
+                  className="flex-1 bg-[var(--color-atelier-terracota)] hover:bg-[#8c562e] text-white py-3.5 px-6 rounded-2xl font-roboto font-bold text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
+                >
+                  {isAccessCopied ? (
+                    <>
+                      <CheckCircle2 size={16} />
+                      <span>Copiado com Sucesso!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={16} />
+                      <span>Copiar Acesso para Enviar</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAccessPopupData(null)}
+                  className="px-6 py-3.5 rounded-2xl font-roboto font-bold uppercase tracking-widest text-xs text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                  Concluir
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -1477,10 +1841,11 @@ function FilterButton({ label, active, onClick }: { label: string, active: boole
   );
 }
 
-function StatusBadge({ icon: Icon, text, color }: { icon: any, text: string, color: 'terracota' | 'orange' | 'green' | 'gray' }) {
+function StatusBadge({ icon: Icon, text, color }: { icon: any, text: string, color: 'terracota' | 'orange' | 'amber' | 'green' | 'gray' }) {
   const colorStyles = {
     terracota: 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] border-[var(--color-atelier-terracota)]/20',
     orange: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+    amber: 'bg-amber-500/10 text-amber-700 border-amber-500/20',
     green: 'bg-green-500/10 text-green-700 border-green-500/20',
     gray: 'bg-gray-500/10 text-gray-700 border-gray-500/20',
   };

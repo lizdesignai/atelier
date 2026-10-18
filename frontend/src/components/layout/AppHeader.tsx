@@ -7,12 +7,13 @@ import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
 import { 
   Bell, CheckCircle2, 
-  Circle, Info, AlertTriangle, ShieldCheck, Music, Settings,
-  LayoutDashboard, BrainCircuit, Activity, Users, DollarSign, Target, Crown
+  Circle, Info, AlertTriangle, ShieldCheck, Music, Settings, LogOut,
+  LayoutDashboard, BrainCircuit, Activity, Users, DollarSign, Target, Crown, Calendar, LayoutGrid, List, Compass
 } from "lucide-react";
 import { useProfile } from "../../hooks/useProfile";
 import DailyJamDropdown from "./DailyJamDropdown";
 import UserAvatar from "../global/UserAvatar";
+import { getSafeAvatarUrl, handleAvatarError } from "../../lib/imageUtils";
 
 interface AppHeaderProps {
   handleLogout: () => void;
@@ -28,10 +29,25 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const [isJamOpen, setIsJamOpen] = useState(false);
   const [isProfileDropdownOpen, setIsProfileDropdownOpen] = useState(false);
+  const [isMobileProfileOpen, setIsMobileProfileOpen] = useState(false);
   const [isNavMenuOpen, setIsNavMenuOpen] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [appsViewMode, setAppsViewMode] = useState<'grid' | 'list'>('grid');
+
+  useEffect(() => {
+    const saved = localStorage.getItem('atelier_apps_view_mode');
+    if (saved === 'list' || saved === 'grid') {
+      setAppsViewMode(saved);
+    }
+  }, []);
+
+  const changeAppsViewMode = (mode: 'grid' | 'list') => {
+    setAppsViewMode(mode);
+    localStorage.setItem('atelier_apps_view_mode', mode);
+  };
   
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const mobileProfileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Fecha o dropdown se clicar fora
@@ -40,6 +56,10 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
         setIsDropdownOpen(false);
         setIsJamOpen(false);
         setIsProfileDropdownOpen(false);
+        setIsNavMenuOpen(false);
+      }
+      if (mobileProfileRef.current && !mobileProfileRef.current.contains(event.target as Node)) {
+        setIsMobileProfileOpen(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -122,21 +142,64 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
   return (
     <>
       {/* HEADER FIXO MOBILE (Em todas as abas): Apenas a foto de perfil direcionando para /configuracoes */}
-      <div className="md:hidden fixed top-3 right-4 z-[99999] pointer-events-auto">
+      <div className="md:hidden fixed top-3 right-4 z-[99999] pointer-events-auto" ref={mobileProfileRef}>
         <button 
           type="button"
-          onClick={() => router.push('/configuracoes')}
+          onClick={() => setIsMobileProfileOpen(!isMobileProfileOpen)}
           className="w-10 h-10 rounded-full overflow-hidden shadow-lg border-2 border-white/80 bg-white/60 backdrop-blur-xl flex items-center justify-center cursor-pointer active:scale-95 transition-transform"
-          title="Configurações"
+          title="Meu Perfil"
         >
           {userProfile?.avatar_url ? (
-            <img src={userProfile.avatar_url} alt="Perfil" className="w-full h-full object-cover" />
+            <img src={getSafeAvatarUrl(userProfile.avatar_url, userProfile.nome)} alt="Perfil" className="w-full h-full object-cover" onError={(e) => handleAvatarError(e, userProfile?.nome)} />
           ) : (
             <span className="font-elegant text-base font-bold text-[var(--color-atelier-grafite)]">
               {userProfile?.nome?.charAt(0) || "U"}
             </span>
           )}
         </button>
+
+        <AnimatePresence>
+          {isMobileProfileOpen && (
+            <motion.div
+              initial={{ opacity: 0, y: -10, scale: 0.95 }}
+              animate={{ opacity: 1, y: 8, scale: 1 }}
+              exit={{ opacity: 0, y: -5, scale: 0.95 }}
+              transition={{ type: "spring", stiffness: 400, damping: 30 }}
+              className="absolute right-0 top-full mt-2 w-[220px] bg-white/95 backdrop-blur-2xl border border-white/60 rounded-2xl shadow-[0_20px_45px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col z-50 pointer-events-auto"
+            >
+              <div className="px-4 py-3 border-b border-[var(--color-atelier-grafite)]/5 bg-gray-50/60">
+                <p className="text-[12px] font-bold text-[var(--color-atelier-grafite)] truncate">
+                  {userProfile?.nome || "Utilizador"}
+                </p>
+                <p className="text-[9.5px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-wider font-semibold truncate mt-0.5">
+                  {userProfile?.empresa || (userProfile?.role === 'admin' ? 'Administrador' : userProfile?.role === 'gestor' ? 'Gestor' : 'Cliente')}
+                </p>
+              </div>
+
+              <button 
+                type="button"
+                onClick={() => {
+                  setIsMobileProfileOpen(false);
+                  router.push('/configuracoes');
+                }}
+                className="w-full text-left px-4 py-3 text-[12px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2.5 border-b border-[var(--color-atelier-grafite)]/5 cursor-pointer"
+              >
+                <Settings size={15} className="opacity-70" /> Configurações
+              </button>
+
+              <button 
+                type="button"
+                onClick={() => {
+                  setIsMobileProfileOpen(false);
+                  handleLogout();
+                }}
+                className="w-full text-left px-4 py-3 text-[12px] font-bold text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors flex items-center gap-2.5 cursor-pointer"
+              >
+                <LogOut size={15} className="text-red-500" /> Desconectar
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       {/* HEADER DESKTOP */}
@@ -168,32 +231,263 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                     animate={{ opacity: 1, y: 8, scale: 1 }} 
                     exit={{ opacity: 0, y: -5, scale: 0.98 }}
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    className="absolute right-0 top-full mt-2 w-56 bg-white/95 backdrop-blur-2xl border border-white/40 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.1)] flex flex-col p-2 z-50 pointer-events-auto"
+                    className="absolute right-0 top-full mt-2 w-[320px] bg-white/95 backdrop-blur-2xl border border-white/60 rounded-[2rem] shadow-[0_20px_50px_rgba(0,0,0,0.12)] p-4 flex flex-col z-50 pointer-events-auto"
                   >
-                    <span className="text-[9px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 px-3 pt-1 pb-2 block">
-                      Aplicativos
-                    </span>
-                    <button onClick={() => { setIsNavMenuOpen(false); router.push('/admin/analytics'); }} className="text-left px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors flex items-center gap-2">
-                      <BrainCircuit size={14} /> Analytics
-                    </button>
-                    {userProfile?.role === 'admin' && (
-                      <button onClick={() => { setIsNavMenuOpen(false); router.push('/admin'); }} className="text-left px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors flex items-center gap-2">
-                        <Crown size={14} /> QG da Liziane
-                      </button>
-                    )}
-                    <button onClick={() => { setIsNavMenuOpen(false); router.push('/admin/gestao'); }} className="text-left px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors flex items-center gap-2">
-                      <Activity size={14} /> Produtividade
-                    </button>
-                    <button onClick={() => { setIsNavMenuOpen(false); router.push('/admin/clientes'); }} className="text-left px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors flex items-center gap-2">
-                      <Users size={14} /> Clientes
-                    </button>
-                    <button onClick={() => { setIsNavMenuOpen(false); router.push('/admin/analytics/idv'); }} className="text-left px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors flex items-center gap-2">
-                      <Target size={14} /> IDV Intelligence
-                    </button>
-                    {userProfile?.role === 'admin' && (
-                      <button onClick={() => { setIsNavMenuOpen(false); router.push('/admin/financeiro'); }} className="text-left px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors flex items-center gap-2">
-                        <DollarSign size={14} /> Financeiro
-                      </button>
+                    {/* CABEÇALHO DO MENU COM SELETOR DE VISUALIZAÇÃO */}
+                    <div className="flex items-center justify-between pb-3 mb-2 border-b border-[var(--color-atelier-grafite)]/5 px-1">
+                      <div>
+                        <span className="font-elegant text-base text-[var(--color-atelier-grafite)] font-bold">Aplicativos</span>
+                        <span className="block text-[8.5px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/40 font-bold">Studio Suite</span>
+                      </div>
+                      <div className="flex items-center gap-1 bg-black/[0.04] p-1 rounded-xl">
+                        <button
+                          type="button"
+                          onClick={() => changeAppsViewMode('grid')}
+                          className={`p-1.5 rounded-lg transition-all ${appsViewMode === 'grid' ? 'bg-white shadow-xs text-[var(--color-atelier-terracota)]' : 'text-gray-400 hover:text-gray-700'}`}
+                          title="Visualização em Grade"
+                        >
+                          <LayoutGrid size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => changeAppsViewMode('list')}
+                          className={`p-1.5 rounded-lg transition-all ${appsViewMode === 'list' ? 'bg-white shadow-xs text-[var(--color-atelier-terracota)]' : 'text-gray-400 hover:text-gray-700'}`}
+                          title="Visualização em Lista"
+                        >
+                          <List size={13} />
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* CONTEÚDO DOS APPS: GRADE OU LISTA */}
+                    {appsViewMode === 'grid' ? (
+                      <div className="grid grid-cols-3 gap-2 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => { setIsNavMenuOpen(false); router.push('/admin/analytics'); }}
+                          className="flex flex-col items-center justify-center p-2.5 rounded-2xl hover:bg-black/[0.03] transition-all group cursor-pointer active:scale-95"
+                        >
+                          <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] group-hover:bg-[var(--color-atelier-terracota)] group-hover:text-white transition-all shadow-xs">
+                            <BrainCircuit size={18} />
+                          </div>
+                          <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)] text-center leading-tight mt-1.5 w-full truncate">
+                            Analytics
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => { setIsNavMenuOpen(false); router.push('/admin/agenda'); }}
+                          className="flex flex-col items-center justify-center p-2.5 rounded-2xl hover:bg-black/[0.03] transition-all group cursor-pointer active:scale-95"
+                        >
+                          <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-orange-100 text-orange-600 group-hover:bg-orange-500 group-hover:text-white transition-all shadow-xs">
+                            <Calendar size={18} />
+                          </div>
+                          <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)] text-center leading-tight mt-1.5 w-full truncate">
+                            Agenda
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => { setIsNavMenuOpen(false); router.push('/admin/clientes'); }}
+                          className="flex flex-col items-center justify-center p-2.5 rounded-2xl hover:bg-black/[0.03] transition-all group cursor-pointer active:scale-95"
+                        >
+                          <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-blue-100 text-blue-600 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-xs">
+                            <Users size={18} />
+                          </div>
+                          <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)] text-center leading-tight mt-1.5 w-full truncate">
+                            Clientes
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => { setIsNavMenuOpen(false); router.push('/admin/gerenciamento'); }}
+                          className="flex flex-col items-center justify-center p-2.5 rounded-2xl hover:bg-black/[0.03] transition-all group cursor-pointer active:scale-95"
+                        >
+                          <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-amber-100 text-amber-700 group-hover:bg-amber-600 group-hover:text-white transition-all shadow-xs">
+                            <Compass size={18} />
+                          </div>
+                          <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)] text-center leading-tight mt-1.5 w-full truncate">
+                            Presença 2.0
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => { setIsNavMenuOpen(false); router.push('/admin/analytics/idv'); }}
+                          className="flex flex-col items-center justify-center p-2.5 rounded-2xl hover:bg-black/[0.03] transition-all group cursor-pointer active:scale-95"
+                        >
+                          <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-rose-100 text-rose-600 group-hover:bg-rose-500 group-hover:text-white transition-all shadow-xs">
+                            <Target size={18} />
+                          </div>
+                          <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)] text-center leading-tight mt-1.5 w-full truncate">
+                            IDV Intel
+                          </span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => { setIsNavMenuOpen(false); router.push('/admin/gestao'); }}
+                          className="flex flex-col items-center justify-center p-2.5 rounded-2xl hover:bg-black/[0.03] transition-all group cursor-pointer active:scale-95"
+                        >
+                          <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-emerald-100 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-xs">
+                            <Activity size={18} />
+                          </div>
+                          <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)] text-center leading-tight mt-1.5 w-full truncate">
+                            Produção
+                          </span>
+                        </button>
+
+                        {userProfile?.role === 'admin' && (
+                          <button
+                            type="button"
+                            onClick={() => { setIsNavMenuOpen(false); router.push('/admin'); }}
+                            className="flex flex-col items-center justify-center p-2.5 rounded-2xl hover:bg-black/[0.03] transition-all group cursor-pointer active:scale-95"
+                          >
+                            <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-purple-100 text-purple-600 group-hover:bg-purple-600 group-hover:text-white transition-all shadow-xs">
+                              <Crown size={18} />
+                            </div>
+                            <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)] text-center leading-tight mt-1.5 w-full truncate">
+                              QG Liziane
+                            </span>
+                          </button>
+                        )}
+
+                        {userProfile?.role === 'admin' && (
+                          <button
+                            type="button"
+                            onClick={() => { setIsNavMenuOpen(false); router.push('/admin/financeiro'); }}
+                            className="flex flex-col items-center justify-center p-2.5 rounded-2xl hover:bg-black/[0.03] transition-all group cursor-pointer active:scale-95"
+                          >
+                            <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-green-100 text-green-600 group-hover:bg-green-600 group-hover:text-white transition-all shadow-xs">
+                              <DollarSign size={18} />
+                            </div>
+                            <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)] text-center leading-tight mt-1.5 w-full truncate">
+                              Financeiro
+                            </span>
+                          </button>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-1 pt-1">
+                        <button
+                          type="button"
+                          onClick={() => { setIsNavMenuOpen(false); router.push('/admin/analytics'); }}
+                          className="flex items-center gap-3 px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors text-left"
+                        >
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] shrink-0">
+                            <BrainCircuit size={14} />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate">Analytics</span>
+                            <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 font-normal truncate">Métricas & Estratégia</span>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => { setIsNavMenuOpen(false); router.push('/admin/agenda'); }}
+                          className="flex items-center gap-3 px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors text-left"
+                        >
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-orange-100 text-orange-600 shrink-0">
+                            <Calendar size={14} />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate">Agenda</span>
+                            <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 font-normal truncate">Reuniões & Compromissos</span>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => { setIsNavMenuOpen(false); router.push('/admin/clientes'); }}
+                          className="flex items-center gap-3 px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors text-left"
+                        >
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-blue-100 text-blue-600 shrink-0">
+                            <Users size={14} />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate">Clientes</span>
+                            <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 font-normal truncate">Gestão & Carteira</span>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => { setIsNavMenuOpen(false); router.push('/admin/gerenciamento'); }}
+                          className="flex items-center gap-3 px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors text-left"
+                        >
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-amber-100 text-amber-700 shrink-0">
+                            <Compass size={14} />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate">Presença 2.0</span>
+                            <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 font-normal truncate">Gestão de Ciclos & Conteúdo</span>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => { setIsNavMenuOpen(false); router.push('/admin/analytics/idv'); }}
+                          className="flex items-center gap-3 px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors text-left"
+                        >
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-rose-100 text-rose-600 shrink-0">
+                            <Target size={14} />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate">IDV Intelligence</span>
+                            <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 font-normal truncate">Métricas Atelier Method</span>
+                          </div>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => { setIsNavMenuOpen(false); router.push('/admin/gestao'); }}
+                          className="flex items-center gap-3 px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors text-left"
+                        >
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-100 text-emerald-600 shrink-0">
+                            <Activity size={14} />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate">Produtividade</span>
+                            <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 font-normal truncate">Performance da Equipa</span>
+                          </div>
+                        </button>
+
+                        {userProfile?.role === 'admin' && (
+                          <button
+                            type="button"
+                            onClick={() => { setIsNavMenuOpen(false); router.push('/admin'); }}
+                            className="flex items-center gap-3 px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors text-left"
+                          >
+                            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-purple-100 text-purple-600 shrink-0">
+                              <Crown size={14} />
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="truncate">QG da Liziane</span>
+                              <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 font-normal truncate">Painel de Comando</span>
+                            </div>
+                          </button>
+                        )}
+
+                        {userProfile?.role === 'admin' && (
+                          <button
+                            type="button"
+                            onClick={() => { setIsNavMenuOpen(false); router.push('/admin/financeiro'); }}
+                            className="flex items-center gap-3 px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors text-left"
+                          >
+                            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-green-100 text-green-600 shrink-0">
+                              <DollarSign size={14} />
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="truncate">Financeiro</span>
+                              <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 font-normal truncate">Controle & Métricas</span>
+                            </div>
+                          </button>
+                        )}
+                      </div>
                     )}
                   </motion.div>
                 )}
@@ -229,6 +523,7 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                   setIsProfileDropdownOpen(!isProfileDropdownOpen);
                   setIsDropdownOpen(false);
                   setIsJamOpen(false);
+                  setIsNavMenuOpen(false);
                 }}
                 className="cursor-pointer hover:scale-105 transition-transform"
                 title="Meu Perfil"
@@ -244,8 +539,16 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                     animate={{ opacity: 1, y: 8, scale: 1 }} 
                     exit={{ opacity: 0, y: -5, scale: 0.98 }}
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    className="absolute right-0 top-full w-[200px] bg-white/90 backdrop-blur-2xl border border-white/40 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.1)] overflow-hidden flex flex-col z-50 pointer-events-auto"
+                    className="absolute right-0 top-full w-[210px] bg-white/95 backdrop-blur-2xl border border-white/60 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col z-50 pointer-events-auto"
                   >
+                    <div className="px-4 py-3 border-b border-[var(--color-atelier-grafite)]/5 bg-gray-50/60">
+                      <p className="text-[11.5px] font-bold text-[var(--color-atelier-grafite)] truncate">
+                        {userProfile?.nome || "Utilizador"}
+                      </p>
+                      <p className="text-[9px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-wider font-semibold truncate mt-0.5">
+                        {userProfile?.empresa || (userProfile?.role === 'admin' ? 'Administrador' : userProfile?.role === 'gestor' ? 'Gestor' : 'Cliente')}
+                      </p>
+                    </div>
                     <button 
                       onClick={() => {
                         setIsProfileDropdownOpen(false);
@@ -263,6 +566,16 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                       className="w-full text-left px-4 py-3 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2 border-b border-[var(--color-atelier-grafite)]/5"
                     >
                       <Music size={14} /> Trilha & Humor
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setIsProfileDropdownOpen(false);
+                        handleLogout();
+                      }}
+                      className="w-full text-left px-4 py-3 text-[11px] font-bold text-red-500 hover:bg-red-50 hover:text-red-600 transition-colors flex items-center gap-2.5 cursor-pointer"
+                    >
+                      <LogOut size={14} className="text-red-500" /> Desconectar
                     </button>
                   </motion.div>
                 )}
