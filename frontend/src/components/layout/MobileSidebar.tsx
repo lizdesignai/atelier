@@ -11,8 +11,10 @@ import {
 } from 'lucide-react';
 import { useSession } from '../../hooks/useSession';
 import { useProjects } from '../../hooks/useProjects';
+import { useGlobalStore } from '../../contexts/GlobalStore';
 import { getProductTypeFromProject, getClientServiceLabel } from '@/lib/productHelper';
 import { motion, AnimatePresence } from 'framer-motion';
+import VeronnaSymbol from '../brand/VeronnaSymbol';
 
 export default function MobileSidebar({ userRole, handleLogout }: { userRole: string, handleLogout?: () => void }) {
   const router = useRouter();
@@ -26,6 +28,7 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
 
   const { data: session } = useSession();
   const { data: projects } = useProjects();
+  const { navMode } = useGlobalStore();
 
   const isTeamMember = ['admin', 'gestor', 'colaborador'].includes(userRole);
   const isContador = userRole === 'contador';
@@ -92,6 +95,7 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
   if (isClient) return null;
   if (isClient && isProjectArchived) return null;
   if (isContador && !isReady) return null;
+  if (isTeamMember && navMode === 'horizontal') return null;
 
   // Determinar o ícone do Sprint atual (ou fallback)
   const getSprintIcon = (sprintNum: number | null) => {
@@ -121,44 +125,43 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
   const mobileMainItems = isContador ? [
     { href: '/admin/financeiro', icon: <DollarSign size={20} strokeWidth={1.5} />, label: 'Finanças' },
     { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : isTeamMember ? [
-    { href: '/admin/analytics', icon: <Activity size={20} strokeWidth={1.5} />, label: 'Analytics' },
     { href: '/admin/jtbd', icon: <Crosshair size={20} strokeWidth={1.5} />, label: 'Focus' },
-    { href: '/admin/clientes', icon: <Users size={20} strokeWidth={1.5} />, label: 'Clientes' },
+    { href: '/admin/gerenciamento', icon: <Compass size={20} strokeWidth={1.5} />, label: 'Presença' },
+    { href: '/admin/projetos', icon: <FolderKanban size={20} strokeWidth={1.5} />, label: 'Studio Veronna' },
     { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' },
+    { href: '/admin/analytics', icon: <Briefcase size={20} strokeWidth={1.5} />, label: 'Analytics' }
   ] : clientServiceType === "O Mapa" ? [
     { href: '/mapa', icon: <Home size={20} strokeWidth={1.5} />, label: 'Visão Geral' },
     { href: currentSprint !== null ? `/mapa/sprint/${currentSprint}` : '/mapa/sprint/0', icon: getSprintIcon(currentSprint), label: getSprintLabel(currentSprint) },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : clientServiceType === "Gestão de Instagram" ? [
     { href: '/cockpit', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
 
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : [
     { href: '/', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
     { href: '/cofre', icon: <Lock size={20} strokeWidth={1.5} />, label: 'Cofre' },
     { href: '/referencias', icon: <Compass size={20} strokeWidth={1.5} />, label: 'Inspiração' },
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ];
 
   const mobileDrawerItems = isContador ? [
     { href: '/admin/financeiro', icon: <DollarSign size={20} strokeWidth={1.5} />, label: 'Financeiro' },
     { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : isTeamMember ? [
+    { href: '/tessera', icon: <VeronnaSymbol size={18} fillColor="currentColor" className="text-[var(--color-veronna-bordo)]" />, label: 'Tessera' },
     { href: '/admin/jtbd', icon: <Crosshair size={20} strokeWidth={1.5} />, label: 'Focus' },
     { href: '/admin/projetos', icon: <FolderKanban size={20} strokeWidth={1.5} />, label: 'Studio Veronna' },
+    { href: '/admin/motion-studio', icon: <LayoutDashboard size={20} strokeWidth={1.5} />, label: 'Veronna Motion Studio' },
     { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' },
-    ...(isManagerOrAdmin ? [
-      { href: '/admin', icon: <FileText size={20} strokeWidth={1.5} />, label: 'QG da Liziane' },
-      { href: '/admin/gestao', icon: <LayoutDashboard size={20} strokeWidth={1.5} />, label: 'Produtividade' },
-      { href: '/admin/analytics', icon: <Briefcase size={20} strokeWidth={1.5} />, label: 'Analytics' }
-    ] : [])
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' },
+    { href: '/admin/analytics', icon: <Briefcase size={20} strokeWidth={1.5} />, label: 'Analytics' }
   ] : clientServiceType === "O Mapa" ? [
     { href: '/mapa', icon: <Home size={20} strokeWidth={1.5} />, label: 'Visão Geral' },
     { href: '/mapa/sprint/0', icon: <Target size={20} strokeWidth={1.5} />, label: 'Baseline' },
@@ -168,23 +171,33 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
     { href: '/mapa/sprint/4', icon: <Target size={20} strokeWidth={1.5} />, label: 'Conversão' },
     { href: '/mapa/sprint/5', icon: <TrendingUp size={20} strokeWidth={1.5} />, label: 'Revalidação' },
     { href: '/mapa/cofre', icon: <Archive size={20} strokeWidth={1.5} />, label: 'Cofre de Evidências' },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : clientServiceType === "Gestão de Instagram" ? [
     { href: '/cockpit', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
 
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : [
     { href: '/', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
     { href: '/cofre', icon: <Lock size={20} strokeWidth={1.5} />, label: 'O Cofre' },
     { href: '/referencias', icon: <Compass size={20} strokeWidth={1.5} />, label: 'Referências' },
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ];
 
   return (
     <>
-      <div className="md:hidden fixed bottom-4 left-1/2 -translate-x-1/2 z-[99999] px-2 py-1.5 bg-white/70 backdrop-blur-3xl border border-white/80 rounded-[2rem] flex items-center justify-around w-[92vw] max-w-[420px] shadow-lg pointer-events-auto">
+      <div
+        className="md:hidden fixed bottom-4 inset-x-0 mx-auto z-[99999] px-2 py-1.5 bg-white/70 backdrop-blur-3xl border border-white/80 rounded-[2rem] flex items-center justify-around w-[92vw] max-w-[420px] shadow-lg pointer-events-auto"
+        style={{
+          position: "fixed",
+          bottom: "16px",
+          left: 0,
+          right: 0,
+          marginLeft: "auto",
+          marginRight: "auto",
+        }}
+      >
         {mobileMainItems.map((item) => {
           const isActive = item.href === '/mapa' 
             ? (pathname.startsWith('/mapa') && !pathname.includes('cofre'))
@@ -248,7 +261,7 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
             >
               <div className="flex items-center justify-between p-6 pb-2">
                 <div className="flex items-center gap-3">
-                  <img src="/images/simbolo-rosa.png" alt="Atelier" className="w-8 h-8 object-contain" />
+                  <img src="/images/simbolo-veronna.svg" alt="Studio Veronna" className="w-8 h-8 object-contain" />
                   <span className="font-elegant text-xl text-[var(--color-atelier-grafite)] leading-none tracking-tight">Menu</span>
                 </div>
                 <button onClick={() => setIsMobileDrawerOpen(false)} className="w-10 h-10 flex items-center justify-center bg-white/50 rounded-full text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)]">

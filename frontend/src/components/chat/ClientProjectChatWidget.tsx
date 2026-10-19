@@ -281,10 +281,10 @@ export default function ClientProjectChatWidget() {
               markChannelAsRead(channelData.id);
             }
           }}
-          className={`flex items-center gap-2.5 px-4 py-3 rounded-full shadow-[0_12px_30px_rgba(144,86,49,0.3)] transition-all cursor-pointer backdrop-blur-xl border ${
+          className={`flex items-center gap-2.5 px-4 py-3 rounded-full shadow-[0_12px_30px_rgba(20, 44, 72,0.3)] transition-all cursor-pointer backdrop-blur-xl border ${
             isOpen
               ? "bg-[var(--color-atelier-grafite)] text-white border-white/20"
-              : "bg-gradient-to-r from-[var(--color-atelier-terracota)] to-[#83421d] text-white border-white/30 hover:shadow-[0_16px_36px_rgba(144,86,49,0.4)]"
+              : "bg-gradient-to-r from-[var(--color-atelier-terracota)] to-[#83421d] text-white border-white/30 hover:shadow-[0_16px_36px_rgba(20, 44, 72,0.4)]"
           }`}
           title="Falar com a equipe do Studio Veronna"
         >

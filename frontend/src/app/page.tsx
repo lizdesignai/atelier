@@ -270,7 +270,7 @@ export default function Home() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#F0EBE1]">
+      <div className="flex items-center justify-center h-screen bg-[#E2ECF3]">
         <Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)] opacity-50" />
       </div>
     );
@@ -565,13 +565,13 @@ export default function Home() {
       <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-10 gap-4 items-stretch overflow-hidden">
         
         {/* ========================================================= */}
-        {/* COLUNA ESQUERDA: JORNADA CRIATIVA COM LOGO LIZ DESIGN & WATERMARK (70% - 7 colunas) */}
+        {/* COLUNA ESQUERDA: JORNADA CRIATIVA COM LOGO STUDIO VERONNA & WATERMARK (70% - 7 colunas) */}
         {/* ========================================================= */}
         <div className="lg:col-span-7 flex flex-col h-full min-h-0">
           
           <div className="glass-panel relative rounded-[2.2rem] bg-white/75 backdrop-blur-2xl border border-white/80 shadow-[0_16px_40px_rgba(40,30,25,0.05)] flex flex-col h-full min-h-0 overflow-hidden p-5 md:p-6 justify-between gap-3">
             
-            {/* 🟢 WATERMARK ANIMADO: Mosaico de logos clássicos do estúdio Liz Design em background */}
+            {/* 🟢 WATERMARK ANIMADO: Mosaico de logos clássicos do estúdio Studio Veronna em background */}
             <div className="absolute inset-0 grid grid-cols-5 grid-rows-4 p-3 items-center justify-items-center opacity-[0.08] pointer-events-none overflow-hidden select-none z-0">
               {portfolioGrid.slice(0, 20).map((item, index) => (
                 <div key={index} className="flex items-center justify-center relative w-full h-full">
@@ -610,14 +610,14 @@ export default function Home() {
             {/* Conteúdo com z-10 sobreposto ao mosaico */}
             <div className="relative z-10 flex flex-col gap-3 shrink-0">
               
-              {/* Header do Card com a Logo Oficial do estúdio Liz Design */}
+              {/* Header do Card com a Logo Oficial do estúdio Studio Veronna */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[var(--color-atelier-grafite)]/10">
                 <div className="flex items-center gap-3">
-                  {/* Logo Oficial do Estúdio Liz Design */}
+                  {/* Logo Oficial do Estúdio Studio Veronna */}
                   <div className="w-11 h-11 rounded-2xl bg-white shadow-xs border border-white/90 flex items-center justify-center shrink-0 p-1.5 backdrop-blur-md">
                     <img 
-                      src="/images/simbolo-rosa.png" 
-                      alt="Liz Design Studio" 
+                      src="/images/simbolo-veronna.svg" 
+                      alt="Studio Veronna" 
                       className="w-full h-full object-contain" 
                     />
                   </div>
@@ -628,7 +628,7 @@ export default function Home() {
                         Jornada Criativa da Marca
                       </h3>
                       <span className="text-[9px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] px-2 py-0.5 rounded-full bg-orange-50 border border-orange-100 hidden sm:inline-block">
-                        Liz Design Studio
+                        Studio Veronna
                       </span>
                     </div>
 
@@ -656,7 +656,7 @@ export default function Home() {
                       initial={{ width: 0 }}
                       animate={{ width: `${progressPercent}%` }}
                       transition={{ duration: 1.2, ease: "easeOut" }}
-                      className="h-full bg-gradient-to-r from-[var(--color-atelier-rose)] via-[var(--color-atelier-terracota)] to-amber-600 rounded-full"
+                      className="h-full bg-gradient-to-r from-[var(--color-veronna-ice)] via-[var(--color-veronna-navy)] to-[var(--color-veronna-bordo)] rounded-full"
                     />
                   </div>
                 </div>
@@ -678,7 +678,7 @@ export default function Home() {
                   <button
                     type="button"
                     onClick={clientActionInfo.action}
-                    className="px-3.5 py-1.5 rounded-lg bg-[var(--color-atelier-terracota)] hover:bg-[#8c562e] text-white text-[10px] font-roboto font-bold uppercase tracking-wider shrink-0 transition-all shadow-2xs hover:shadow-xs cursor-pointer flex items-center gap-1"
+                    className="px-3.5 py-1.5 rounded-lg bg-[var(--color-atelier-terracota)] hover:bg-[#234E80] text-white text-[10px] font-roboto font-bold uppercase tracking-wider shrink-0 transition-all shadow-2xs hover:shadow-xs cursor-pointer flex items-center gap-1"
                   >
                     {clientActionInfo.buttonLabel} <ArrowRight size={11} />
                   </button>
@@ -701,7 +701,7 @@ export default function Home() {
                     whileHover={{ y: -2 }}
                     className={`p-3 md:p-3.5 rounded-2xl border transition-all duration-300 flex flex-col justify-between relative overflow-hidden ${
                       isCurrent 
-                        ? 'bg-white shadow-[0_8px_20px_rgba(173,111,64,0.12)] border-[var(--color-atelier-terracota)]/50 ring-1 ring-[var(--color-atelier-terracota)]/20' 
+                        ? 'bg-white shadow-[0_8px_20px_rgba(20, 44, 72,0.12)] border-[var(--color-atelier-terracota)]/50 ring-1 ring-[var(--color-atelier-terracota)]/20' 
                         : isCompleted 
                         ? 'bg-white/85 border-green-200/70 shadow-2xs' 
                         : 'bg-white/40 border-white/60 opacity-65'
@@ -787,7 +787,7 @@ export default function Home() {
                 <div className="flex items-center gap-1.5">
                   <span className="w-2 h-2 rounded-full bg-[var(--color-atelier-terracota)] animate-ping" />
                   <span className="font-roboto text-[8.5px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">
-                    Ateliê Liz Design
+                    Ateliê Studio Veronna
                   </span>
                 </div>
                 <span className="px-2 py-0.5 rounded-full bg-orange-50 text-[var(--color-atelier-terracota)] font-roboto text-[8px] font-bold uppercase tracking-wider border border-orange-100 flex items-center gap-1">
@@ -883,7 +883,7 @@ export default function Home() {
                       </div>
 
                       <div className="pt-2 border-t border-[var(--color-atelier-grafite)]/5 flex items-center justify-between text-[9px] text-gray-500 font-roboto">
-                        <span>Direção: <strong>Liz Design</strong></span>
+                        <span>Direção: <strong>Studio Veronna </strong></span>
                         <span className="text-[var(--color-atelier-terracota)] font-semibold">100% Autoral</span>
                       </div>
                     </div>
@@ -1048,7 +1048,7 @@ export default function Home() {
         {isDescobrirModalOpen && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-8">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsDescobrirModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer" />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-6xl h-full max-h-[90vh] bg-[#F0EBE1] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-white">
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-6xl h-full max-h-[90vh] bg-[#E2ECF3] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-white">
               <div className="absolute top-6 right-6 z-[210]">
                 <button onClick={() => setIsDescobrirModalOpen(false)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-red-500 shadow-sm border border-[var(--color-atelier-grafite)]/5 transition-colors cursor-pointer">
                   <X size={20} />
@@ -1064,7 +1064,7 @@ export default function Home() {
         {isDirecionarModalOpen && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-8">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsDirecionarModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer" />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-6xl h-full max-h-[90vh] bg-[#F0EBE1] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-white">
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-6xl h-full max-h-[90vh] bg-[#E2ECF3] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-white">
               <div className="absolute top-6 right-6 z-[210]">
                 <button onClick={() => setIsDirecionarModalOpen(false)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-red-500 shadow-sm border border-[var(--color-atelier-grafite)]/5 transition-colors cursor-pointer">
                   <X size={20} />
@@ -1080,7 +1080,7 @@ export default function Home() {
         {isRevelarModalOpen && (
           <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-8">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsRevelarModalOpen(false)} className="absolute inset-0 bg-black/60 backdrop-blur-sm cursor-pointer" />
-            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-6xl h-full max-h-[90vh] bg-[#F0EBE1] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-white">
+            <motion.div initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }} className="relative w-full max-w-6xl h-full max-h-[90vh] bg-[#E2ECF3] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-white">
               <div className="absolute top-6 right-6 z-[210]">
                 <button onClick={() => setIsRevelarModalOpen(false)} className="w-10 h-10 bg-white rounded-full flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-red-500 shadow-sm border border-[var(--color-atelier-grafite)]/5 transition-colors cursor-pointer">
                   <X size={20} />

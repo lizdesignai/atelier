@@ -22,14 +22,14 @@ function generateInstagramPlaceholderSvg(title: string = 'Studio Veronna'): stri
   <circle cx="300" cy="270" r="70" fill="url(#iconGrad)" opacity="0.08"/>
   
   <!-- Camera icon -->
-  <g transform="translate(255, 225) scale(1.5)" fill="none" stroke="#A45A33" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <g transform="translate(255, 225) scale(1.5)" fill="none" stroke="#142C48" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <rect x="2" y="7" width="56" height="46" rx="10"/>
     <circle cx="30" cy="30" r="14"/>
-    <circle cx="46" cy="16" r="3" fill="#A45A33"/>
+    <circle cx="46" cy="16" r="3" fill="#142C48"/>
   </g>
   
   <text x="300" y="380" font-family="system-ui, -apple-system, sans-serif" font-size="22" font-weight="700" fill="#2E2825" text-anchor="middle" letter-spacing="0.5">${shortTitle}</text>
-  <text x="300" y="414" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600" fill="#A45A33" text-anchor="middle" letter-spacing="3">STUDIO VERONNA • ATELIER</text>
+  <text x="300" y="414" font-family="system-ui, -apple-system, sans-serif" font-size="14" font-weight="600" fill="#142C48" text-anchor="middle" letter-spacing="3">STUDIO VERONNA • ATELIER</text>
   <text x="300" y="442" font-family="system-ui, -apple-system, sans-serif" font-size="12" font-weight="500" fill="#8C827A" text-anchor="middle">Feed & Gestão de Instagram</text>
 </svg>`;
 }

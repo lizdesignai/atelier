@@ -1,5 +1,7 @@
 "use client";
 import { AdminTerritoriesManager } from "../../../../components/admin/AdminTerritoriesManager";
+import { AdminCuradoriaManager } from "../../../../components/admin/AdminCuradoriaManager";
+import { AdminCalendarioManager } from "../../../../components/admin/AdminCalendarioManager";
 import RevealCeremonyAdmin from "../../../../components/admin/RevealCeremonyAdmin";
 import { getProjectByIdAction } from "../../../../app/actions/projects";
 
@@ -209,6 +211,12 @@ export default function TaskCard({
   const displayImageUrl = normalizeImageUrl(task.attachment_url || relatedPost?.image_url);
   const isRejectedByClient = relatedPost?.status === 'needs_revision';
   const isPdf = displayImageUrl?.toLowerCase().includes('.pdf');
+
+  const isCuradoriaTask = !!task.title?.toLowerCase().includes('curadoria');
+  const isTerritoriesTask = !!(task.title?.toLowerCase().includes('território') || task.title?.toLowerCase().includes('territorio') || task.title?.toLowerCase().includes('caminho'));
+  const isCalendarioTask = !!(task.title?.toLowerCase().includes('calendário') || task.title?.toLowerCase().includes('calendario'));
+  const isCeremonyTask = !!(task.title?.toLowerCase().includes('cerimônia') || task.title?.toLowerCase().includes('cerimonia') || task.title?.toLowerCase().includes('apresentação') || task.title?.toLowerCase().includes('apresentacao')) && !!taskProject;
+  const hasSpecializedManager = isCuradoriaTask || isTerritoriesTask || isCalendarioTask || isCeremonyTask;
 
   const badgeColor = isCompleted ? 'bg-green-500/90' : isReview ? 'bg-purple-500/90' : 'bg-[var(--color-atelier-terracota)]/90';
   const badgeText = isCompleted ? 'Aprovado' : isReview ? 'Em Revisão' : 'Anexado';
@@ -441,7 +449,7 @@ export default function TaskCard({
         transition={isDelayed && !isFocus && !forceStaticMode ? { repeat: Infinity, duration: 2 } : {}}
         className={`w-full rounded-[1.4rem] flex flex-col group transition-all relative overflow-hidden
           ${forceStaticMode ? 'cursor-pointer hover:shadow-md' : "cursor-grab active:cursor-grabbing"}
-          ${isCompleted ? 'bg-white/40 border border-[var(--color-atelier-grafite)]/10' : 'bg-white border border-[var(--color-atelier-grafite)]/5 shadow-[0_4px_12px_rgba(122,116,112,0.05)]'}
+          ${isCompleted ? 'bg-white/40 border border-[var(--color-atelier-grafite)]/10' : 'bg-white border border-[var(--color-atelier-grafite)]/5 shadow-[0_4px_12px_rgba(20, 44, 72,0.05)]'}
           ${task.urgency && !isCompleted ? 'border-red-300 ring-1 ring-red-500/20' : ''}
           ${isDelayed && !isCompleted && !task.urgency ? 'border-red-300' : ''}
           ${isFocus ? 'gemini-gradient-bg border-transparent' : ''}
@@ -450,20 +458,6 @@ export default function TaskCard({
         {isFocus && <div className="absolute top-0 left-0 w-1.5 h-full gemini-gradient-border z-20"></div>}
         {task.urgency && !isCompleted && !isFocus && <div className="absolute top-0 left-0 w-1.5 h-full bg-red-500 z-20"></div>}
 
-        
-                            {/* TERRITORIES VIEW IF TASK IS ABOUT TERRITORIES */}
-              {(task.title?.toLowerCase().includes('território') || task.title?.toLowerCase().includes('direcionar') || task.title?.toLowerCase().includes('direção') || task.title?.toLowerCase().includes('curadoria')) && (
-                <div className="mt-6 pt-6 border-t border-gray-100 flex flex-col gap-5 shrink-0 order-5">
-                   <AdminTerritoriesManager projectId={task.project_id} taskId={task.id} currentUser={currentUser} />
-                </div>
-              )}
-
-              {/* REVEAL CEREMONY IF TASK IS ABOUT PRESENTATION */}
-              {(task.title?.toLowerCase().includes('cerimônia') || task.title?.toLowerCase().includes('apresentação')) && taskProject && (
-                <div className="mt-6 pt-6 border-t border-gray-100 flex flex-col gap-5 shrink-0 order-5">
-                   <RevealCeremonyAdmin project={taskProject} onUpdate={() => getProjectByIdAction(task.project_id).then(setTaskProject)} />
-                </div>
-              )}
 
               {/* COVER VISUAL (Oculta se forceStaticMode para evitar duplicação no Kanban) */}
         {displayImageUrl && !forceStaticMode && (
@@ -712,7 +706,7 @@ export default function TaskCard({
               initial={inlineExpanded ? {} : { scale: 0.95, opacity: 0, y: 20 }} 
               animate={inlineExpanded ? {} : { scale: 1, opacity: 1, y: 0 }} 
               exit={inlineExpanded ? {} : { scale: 0.95, opacity: 0, y: 20 }} 
-              className={`bg-white relative z-10 w-full flex flex-col overflow-hidden ${inlineExpanded ? 'rounded-[2rem] shadow-sm border border-gray-100 min-h-[70vh] h-full' : 'rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl max-w-lg border border-white/20 max-h-[85vh] sm:max-h-[90vh] h-auto my-auto'}`}
+              className={`bg-white relative z-10 w-full flex flex-col overflow-hidden ${inlineExpanded ? 'rounded-[2rem] shadow-sm border border-gray-100 min-h-[70vh] h-full' : `rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl ${hasSpecializedManager ? 'max-w-4xl' : 'max-w-lg'} border border-white/20 max-h-[85vh] sm:max-h-[90vh] h-auto my-auto`}`}
             >
               {/* FIXED HEADER */}
               <div className="p-5 sm:p-8 pb-3 sm:pb-5 flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 shrink-0 bg-white z-20">
@@ -774,6 +768,51 @@ export default function TaskCard({
 
               {/* SCROLLABLE BODY */}
               <div className="p-5 sm:p-8 pt-4 sm:pt-6 flex-1 overflow-y-auto custom-scrollbar flex flex-col gap-6">
+                {/* PAINÉIS DE ENTREGÁVEIS ESPECIALIZADOS */}
+                {isCuradoriaTask && (
+                  <div className="order-0">
+                    <AdminCuradoriaManager
+                      projectId={task.project_id}
+                      taskId={task.id}
+                      currentUser={currentUser}
+                      onTaskUpdate={() => {
+                        window.dispatchEvent(new CustomEvent('reloadTasks'));
+                      }}
+                    />
+                  </div>
+                )}
+
+                {isTerritoriesTask && (
+                  <div className="order-0">
+                    <AdminTerritoriesManager
+                      projectId={task.project_id}
+                      taskId={task.id}
+                      currentUser={currentUser}
+                    />
+                  </div>
+                )}
+
+                {isCalendarioTask && (
+                  <div className="order-0">
+                    <AdminCalendarioManager
+                      projectId={task.project_id}
+                      taskId={task.id}
+                      currentUser={currentUser}
+                      onTaskUpdate={() => {
+                        window.dispatchEvent(new CustomEvent('reloadTasks'));
+                      }}
+                    />
+                  </div>
+                )}
+
+                {isCeremonyTask && (
+                  <div className="order-0">
+                    <RevealCeremonyAdmin
+                      project={taskProject}
+                      onUpdate={() => getProjectByIdAction(task.project_id).then(setTaskProject)}
+                    />
+                  </div>
+                )}
 
                 {/* INSTRUÇÕES (ACCORDION) */}
                 <div className="flex flex-col gap-2 shrink-0 order-3">
@@ -815,7 +854,7 @@ export default function TaskCard({
                       <ChevronRight size={14} className={`text-gray-400 transition-transform ${isCaptionOpen ? 'rotate-90' : ''}`} />
                     </button>
                     {localCaption !== (task.caption || "") && (
-                      <button onClick={handleSaveCaption} disabled={isSavingCaption} className="bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest transition-colors flex items-center gap-1 z-10">
+                      <button onClick={handleSaveCaption} disabled={isSavingCaption} className="bg-[var(--color-atelier-terracota)] text-white hover:bg-[#234E80] px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest transition-colors flex items-center gap-1 z-10">
                         {isSavingCaption ? <Loader2 size={10} className="animate-spin"/> : <Save size={10}/>} Salvar
                       </button>
                     )}
@@ -1065,7 +1104,7 @@ export default function TaskCard({
                             <UploadCloud size={32} className="text-gray-400" />
                             <span className="text-[12px] font-bold text-gray-600">Nenhum anexo adicionado a esta tarefa</span>
                             {onUpload && (
-                              <label className="mt-2 flex items-center justify-center gap-2 h-9 px-5 bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] rounded-xl transition-all shadow-sm cursor-pointer" title="Anexar Arquivos">
+                              <label className="mt-2 flex items-center justify-center gap-2 h-9 px-5 bg-[var(--color-atelier-terracota)] text-white hover:bg-[#234E80] rounded-xl transition-all shadow-sm cursor-pointer" title="Anexar Arquivos">
                                 <input type="file" multiple accept="image/*,video/*,application/pdf" className="hidden" onChange={handleFileSelection} disabled={isUploading} />
                                 {isUploading ? <Loader2 size={14} className="animate-spin" /> : <PlusCircle size={14} />}
                                 <span className="font-bold text-[10px] uppercase tracking-widest">Adicionar Anexos</span>
@@ -1128,7 +1167,7 @@ export default function TaskCard({
                           <Target size={14}/> Links Externos (Referência)
                         </h4>
                         {JSON.stringify(localExternalLinks) !== JSON.stringify(task.external_links || []) && (
-                          <button onClick={handleSaveLinks} disabled={isSavingLink} className="bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest transition-colors flex items-center gap-1">
+                          <button onClick={handleSaveLinks} disabled={isSavingLink} className="bg-[var(--color-atelier-terracota)] text-white hover:bg-[#234E80] px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest transition-colors flex items-center gap-1">
                             {isSavingLink ? <Loader2 size={10} className="animate-spin"/> : <Save size={10}/>} Salvar Links
                           </button>
                         )}

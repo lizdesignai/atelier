@@ -582,7 +582,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
                           <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]/60 max-w-md mb-8 leading-relaxed">
                             O perfil precisa de ter o @Instagram preenchido. O Assistente Estratégico irá estruturar as diretrizes e o plano de ação.
                           </p>
-                          <button onClick={handleRunConsulting} className="px-8 bg-[var(--color-atelier-terracota)] text-white py-3.5 rounded-[1rem] font-roboto font-bold uppercase tracking-[0.1em] text-[11px] hover:bg-[#8c562e] hover:-translate-y-0.5 transition-all shadow-md flex items-center justify-center gap-2">
+                          <button onClick={handleRunConsulting} className="px-8 bg-[var(--color-atelier-terracota)] text-white py-3.5 rounded-[1rem] font-roboto font-bold uppercase tracking-[0.1em] text-[11px] hover:bg-[#234E80] hover:-translate-y-0.5 transition-all shadow-md flex items-center justify-center gap-2">
                             <Sparkles size={14} /> Iniciar Análise Estratégica
                           </button>
                         </div>

@@ -87,33 +87,73 @@ export async function POST(request: Request) {
 
     // Salvar/Atualizar no banco (instagram_profiles)
     let profileId: string | null = null;
+    let savedProfile: any = null;
     const sql = getDb();
+
+    // 1. Resgatar dados anteriores (resultado antigo) para comparação histórica
+    let previousFollowers: number | null = null;
+    let previousFollowing: number | null = null;
+    let previousPosts: number | null = null;
+    let previousSyncedAt: string | null = null;
+
+    if (projectId) {
+      try {
+        const existingRows = await sql`
+          SELECT * FROM instagram_profiles 
+          WHERE project_id = ${projectId}
+          ORDER BY updated_at DESC LIMIT 1
+        `;
+        if (existingRows && existingRows.length > 0) {
+          const ex = existingRows[0];
+          previousFollowers = ex.followers_count;
+          previousFollowing = ex.following_count;
+          previousPosts = ex.posts_count;
+          previousSyncedAt = ex.last_synced_at;
+        }
+      } catch (checkErr) {
+        console.warn('[Sync Instagram] Falha ao verificar dados anteriores:', checkErr);
+      }
+    }
+
+    const followerDelta = previousFollowers !== null
+      ? profileData.followers_count - previousFollowers
+      : 0;
 
     if (projectId) {
       try {
         const result = await sql`
           INSERT INTO instagram_profiles (
             project_id, client_id, username, full_name, biography, avatar_url, 
-            followers_count, following_count, posts_count, last_synced_at, updated_at
+            followers_count, following_count, posts_count,
+            previous_followers_count, previous_following_count, previous_posts_count, previous_synced_at, follower_delta,
+            last_synced_at, updated_at
           ) VALUES (
             ${projectId}, ${clientId || null}, ${profileData.username}, ${profileData.full_name}, ${profileData.biography}, ${profileData.avatar_url},
-            ${profileData.followers_count}, ${profileData.following_count}, ${profileData.posts_count}, ${profileData.last_synced_at}, ${new Date().toISOString()}
+            ${profileData.followers_count}, ${profileData.following_count}, ${profileData.posts_count},
+            ${previousFollowers}, ${previousFollowing}, ${previousPosts}, ${previousSyncedAt}, ${followerDelta},
+            NOW(), NOW()
           )
           ON CONFLICT (project_id) DO UPDATE SET
             username = EXCLUDED.username,
             full_name = EXCLUDED.full_name,
             biography = EXCLUDED.biography,
             avatar_url = EXCLUDED.avatar_url,
+            previous_followers_count = COALESCE(instagram_profiles.followers_count, EXCLUDED.previous_followers_count),
+            previous_following_count = COALESCE(instagram_profiles.following_count, EXCLUDED.previous_following_count),
+            previous_posts_count = COALESCE(instagram_profiles.posts_count, EXCLUDED.previous_posts_count),
+            previous_synced_at = COALESCE(instagram_profiles.last_synced_at, EXCLUDED.previous_synced_at),
+            follower_delta = EXCLUDED.followers_count - COALESCE(instagram_profiles.followers_count, EXCLUDED.followers_count),
             followers_count = EXCLUDED.followers_count,
             following_count = EXCLUDED.following_count,
             posts_count = EXCLUDED.posts_count,
-            last_synced_at = EXCLUDED.last_synced_at,
-            updated_at = EXCLUDED.updated_at
-          RETURNING id
+            last_synced_at = NOW(),
+            updated_at = NOW()
+          RETURNING *
         `;
 
         if (result && result.length > 0) {
-          profileId = result[0].id;
+          savedProfile = result[0];
+          profileId = savedProfile.id;
         }
 
         // Atualiza a tabela profiles com o username e instagram do cliente (sem updated_at)
@@ -169,12 +209,16 @@ export async function POST(request: Request) {
         const firstOfMonth = new Date().toISOString().slice(0, 7) + '-01';
         await sql`
           INSERT INTO instagram_snapshots (
-            project_id, followers_count, posts_count, avg_engagement_rate, top_posts_data, month_year, created_at
+            project_id, followers_count, following_count, posts_count, avg_engagement_rate,
+            previous_followers_count, follower_delta, top_posts_data, month_year, created_at
           ) VALUES (
             ${projectId}, 
             ${profileData.followers_count}, 
+            ${profileData.following_count},
             ${profileData.posts_count}, 
             ${avgEngagementRate}, 
+            ${previousFollowers || profileData.followers_count},
+            ${followerDelta},
             ${JSON.stringify(postsData.slice(0, 3))}, 
             ${firstOfMonth}, 
             NOW()
@@ -187,7 +231,33 @@ export async function POST(request: Request) {
 
     return NextResponse.json({
       success: true,
-      profile: profileData,
+      profile: savedProfile || {
+        ...profileData,
+        previous_followers_count: previousFollowers,
+        previous_following_count: previousFollowing,
+        previous_posts_count: previousPosts,
+        previous_synced_at: previousSyncedAt,
+        follower_delta: followerDelta
+      },
+      comparison: {
+        old: {
+          followers: previousFollowers,
+          following: previousFollowing,
+          posts: previousPosts,
+          syncedAt: previousSyncedAt
+        },
+        new: {
+          followers: profileData.followers_count,
+          following: profileData.following_count,
+          posts: profileData.posts_count,
+          syncedAt: new Date().toISOString()
+        },
+        delta: {
+          followers: followerDelta,
+          following: previousFollowing !== null ? profileData.following_count - previousFollowing : 0,
+          posts: previousPosts !== null ? profileData.posts_count - previousPosts : 0
+        }
+      },
       postsCount: postsData.length,
       syncedWithApify: !!apifyToken
     });
@@ -290,22 +360,26 @@ export async function GET(request: Request) {
       snapshots = await sql`
         SELECT * FROM instagram_snapshots
         WHERE project_id = ${pId}
-        ORDER BY created_at ASC
-        LIMIT 12
+        ORDER BY created_at DESC
+        LIMIT 20
       `;
     }
 
-    // 4. Calcular métricas consolidadas
+    // 4. Calcular métricas consolidadas e comparativo (resultado antigo vs novo)
     const currentFollowers = profile?.followers_count || 1420;
     const postsCount = profile?.posts_count || (posts.length || 9);
     
-    // Ganho de seguidores no período
-    let followerGain = 0;
+    // Comparação de sincronização (resultado antigo vs novo)
+    const previousFollowers = profile?.previous_followers_count ?? (snapshots.length > 1 ? snapshots[1]?.followers_count : currentFollowers);
+    const followerDelta = profile?.follower_delta ?? (currentFollowers - previousFollowers);
+    const previousSyncedAt = profile?.previous_synced_at ?? (snapshots.length > 1 ? snapshots[1]?.created_at : null);
+
+    // Ganho de seguidores no ciclo
+    let followerGain = followerDelta;
     if (snapshots.length >= 2) {
-      const oldest = snapshots[0]?.followers_count || currentFollowers;
+      const oldest = snapshots[snapshots.length - 1]?.followers_count || currentFollowers;
       followerGain = currentFollowers - oldest;
-    } else {
-      // Valor proporcional estimado de ganho de ciclo
+    } else if (followerGain === 0) {
       followerGain = Math.round(currentFollowers * 0.048);
     }
 
@@ -331,13 +405,38 @@ export async function GET(request: Request) {
       snapshots: snapshots || [],
       metrics: {
         followersCount: currentFollowers,
-        followingCount: profile?.following_count || 480,
-        postsCount,
+        previousFollowersCount: previousFollowers,
         followerGain,
+        followerDelta,
+        followingCount: profile?.following_count || 480,
+        previousFollowingCount: profile?.previous_following_count || null,
+        postsCount,
+        previousPostsCount: profile?.previous_posts_count || null,
+        lastSyncedAt: profile?.last_synced_at || null,
+        previousSyncedAt,
         avgEngagementRate,
         totalLikes,
         totalComments,
         totalInteractions: totalLikes + totalComments
+      },
+      comparison: {
+        old: {
+          followers: previousFollowers,
+          following: profile?.previous_following_count || null,
+          posts: profile?.previous_posts_count || null,
+          syncedAt: previousSyncedAt
+        },
+        new: {
+          followers: currentFollowers,
+          following: profile?.following_count || 480,
+          posts: postsCount,
+          syncedAt: profile?.last_synced_at || null
+        },
+        delta: {
+          followers: followerDelta,
+          following: profile?.previous_following_count ? (profile.following_count - profile.previous_following_count) : 0,
+          posts: profile?.previous_posts_count ? (postsCount - profile.previous_posts_count) : 0
+        }
       }
     });
 

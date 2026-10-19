@@ -616,7 +616,7 @@ function PainelIdentidade() {
     try {
       await updateProjectAction(activeProjectId, { status: 'archived' });
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(currentProject.client_id, "Ã°Å¸â€â€™ Acesso Fechado", "O seu projeto foi arquivado. O seu acesso ao painel foi encerrado. Obrigado por confiar na Liz Design.", "info");
+        await NotificationEngine.notifyUser(currentProject.client_id, "Ã°Å¸â€â€™ Acesso Fechado", "O seu projeto foi arquivado. O seu acesso ao painel foi encerrado. Obrigado por confiar no Studio Veronna.", "info");
       }
       showToast("Projeto Arquivado com sucesso!");
       refreshGlobalData();
@@ -800,7 +800,7 @@ function PainelIdentidade() {
                   <div className="max-w-3xl mx-auto glass-panel bg-white/60 p-10 border border-white rounded-[2.5rem] shadow-sm">
                     <div className="text-center mb-12 border-b border-[var(--color-atelier-grafite)]/10 pb-8">
                       <div className="flex justify-center mb-6">
-                        <img src="/images/simbolo-rosa.png" alt="Atelier" className="w-16 h-16 object-contain grayscale opacity-50 drop-shadow-sm" />
+                        <img src="/images/simbolo-veronna.svg" alt="Studio Veronna" className="w-16 h-16 object-contain opacity-70 drop-shadow-sm" />
                       </div>
                       <h1 className="font-elegant text-5xl text-[var(--color-atelier-grafite)] mb-2">Briefing Oficial</h1>
                       <h2 className="font-roboto text-lg text-[var(--color-atelier-terracota)] uppercase tracking-widest font-bold">{currentProject.profiles?.nome}</h2>
@@ -926,7 +926,7 @@ function PainelIdentidade() {
                       <div>
                         <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">8. Considerações Finais</h3>
                         <div className="flex flex-col gap-4">
-                          <InfoBlock label="Por que escolheu a Liz Design?" value={clientBriefing.motivo_escolha} />
+                          <InfoBlock label="Por que escolheu o Studio Veronna?" value={clientBriefing.motivo_escolha} />
                           <InfoBlock label="Observações e Extensões" value={clientBriefing.ideias_livres} />
                         </div>
                       </div>
@@ -1004,7 +1004,7 @@ function PainelIdentidade() {
               {isClientMenuOpen && (
                 <motion.div 
                   initial={{ opacity: 0, y: 10, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 10, scale: 0.95 }} transition={{ duration: 0.2 }}
-                  className="absolute top-[110%] left-0 w-[calc(100vw-3rem)] max-w-[300px] md:max-w-none md:w-[300px] bg-white/90 backdrop-blur-xl border border-white shadow-[0_20px_50px_rgba(122,116,112,0.15)] rounded-2xl overflow-hidden z-50 flex flex-col py-2"
+                  className="absolute top-[110%] left-0 w-[calc(100vw-3rem)] max-w-[300px] md:max-w-none md:w-[300px] bg-white/90 backdrop-blur-xl border border-white shadow-[0_20px_50px_rgba(20, 44, 72,0.15)] rounded-2xl overflow-hidden z-50 flex flex-col py-2"
                 >
                   <div className="px-4 py-2 border-b border-[var(--color-atelier-grafite)]/5 text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40">Projetos Ativos</div>
                   <div className="max-h-[300px] overflow-y-auto custom-scrollbar">
@@ -1172,7 +1172,7 @@ function PainelIdentidade() {
             
             <motion.div
               initial={{ x: "100%" }} animate={{ x: 0 }} exit={{ x: "100%" }} transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="relative w-full max-w-[950px] h-full bg-[var(--color-atelier-creme)] shadow-[-20px_0_50px_rgba(122,116,112,0.2)] flex flex-col border-l border-white overflow-hidden"
+              className="relative w-full max-w-[950px] h-full bg-[var(--color-atelier-creme)] shadow-[-20px_0_50px_rgba(20, 44, 72,0.2)] flex flex-col border-l border-white overflow-hidden"
             >
               <div className="p-6 md:p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/70 backdrop-blur-xl flex flex-col sm:flex-row sm:items-center justify-between gap-4 shrink-0 z-20">
                 <div>

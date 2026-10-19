@@ -33,7 +33,7 @@ export default function AtivarPage() {
     fetchPageData();
   }, []);
 
-  if (isLoading) return <div className="flex items-center justify-center h-screen bg-[#F0EBE1]"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)] opacity-50" /></div>;
+  if (isLoading) return <div className="flex items-center justify-center h-screen bg-[#E2ECF3]"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)] opacity-50" /></div>;
 
   if (!project) return <div className="p-6 md:p-8 text-[var(--color-atelier-grafite)]">Nenhum projeto ativo encontrado.</div>;
 

@@ -23,14 +23,14 @@ export default function BriefingDocument({ clientBriefing, projectName }: Briefi
       {/* CAPA / CABEÇALHO EDITORIAL */}
       <div style={{ textAlign: 'center', marginBottom: '50px', borderBottom: '1px solid #e5e5e5', paddingBottom: '40px' }}>
         <img 
-          src="/images/simbolo-rosa.png" 
-          alt="Atelier" 
-          style={{ width: '60px', height: '60px', objectFit: 'contain', opacity: 0.3, margin: '0 auto 20px auto', display: 'block' }} 
+          src="/images/simbolo-veronna.svg" 
+          alt="Studio Veronna" 
+          style={{ width: '60px', height: '60px', objectFit: 'contain', opacity: 0.7, margin: '0 auto 20px auto', display: 'block' }} 
         />
         <h1 style={{ fontFamily: '"Times New Roman", Times, serif', fontSize: '38px', fontWeight: 'normal', margin: '0 0 10px 0', color: '#1a1a1a' }}>
           {projectName || 'Briefing'}
         </h1>
-        <p style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '4px', color: '#8c562e', fontWeight: 'bold', margin: 0 }}>
+        <p style={{ fontSize: '12px', textTransform: 'uppercase', letterSpacing: '4px', color: '#234E80', fontWeight: 'bold', margin: 0 }}>
           Briefing de Marca
         </p>
       </div>
@@ -42,13 +42,13 @@ export default function BriefingDocument({ clientBriefing, projectName }: Briefi
           if (!val || key === 'logo_atual_url') return null;
 
           return (
-            <div key={key} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', backgroundColor: '#fafafa', padding: '25px', borderRadius: '12px', borderLeft: '3px solid #8c562e' }}>
+            <div key={key} style={{ pageBreakInside: 'avoid', breakInside: 'avoid', backgroundColor: '#fafafa', padding: '25px', borderRadius: '12px', borderLeft: '3px solid #234E80' }}>
               <span style={{ 
                 display: 'block', 
                 fontSize: '10px', 
                 textTransform: 'uppercase', 
                 letterSpacing: '2px', 
-                color: '#8c562e', 
+                color: '#234E80', 
                 fontWeight: 'bold', 
                 marginBottom: '10px' 
               }}>
@@ -70,7 +70,7 @@ export default function BriefingDocument({ clientBriefing, projectName }: Briefi
         {/* ANEXO VISUAL SE EXISTIR */}
         {clientBriefing.logo_atual_url && (
           <div style={{ pageBreakInside: 'avoid', breakInside: 'avoid', marginTop: '20px', padding: '25px', border: '1px solid #e5e5e5', borderRadius: '12px' }}>
-             <span style={{ display: 'block', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '2px', color: '#8c562e', fontWeight: 'bold', marginBottom: '15px' }}>
+             <span style={{ display: 'block', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '2px', color: '#234E80', fontWeight: 'bold', marginBottom: '15px' }}>
                 Logotipo Anterior (Anexo)
               </span>
               <img src={clientBriefing.logo_atual_url} alt="Logo Anterior" style={{ maxWidth: '300px', borderRadius: '8px', border: '1px solid #eeeeee' }} />
@@ -80,7 +80,7 @@ export default function BriefingDocument({ clientBriefing, projectName }: Briefi
 
       {/* RODAPÉ */}
       <div style={{ marginTop: '60px', paddingTop: '20px', borderTop: '1px solid #e5e5e5', textAlign: 'center' }}>
-        <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '2px', color: '#999999' }}>Atelier LizDesign • {projectName || 'Briefing de Marca'}</p>
+        <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '2px', color: '#999999' }}>Atelier Studio Veronna • {projectName || 'Briefing de Marca'}</p>
       </div>
     </div>
   );

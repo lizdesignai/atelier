@@ -116,8 +116,8 @@ export async function proxy(request: NextRequest) {
     // 5. Proteção de rotas por role
     const role = payload.role as string;
 
-    // Clientes não podem acessar /admin
-    if (role === 'client' && pathname.startsWith('/admin')) {
+    // Clientes não podem acessar /admin nem /tessera
+    if (role === 'client' && (pathname.startsWith('/admin') || pathname.startsWith('/tessera'))) {
       const url = request.nextUrl.clone();
       url.pathname = '/';
       return NextResponse.redirect(url);

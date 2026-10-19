@@ -34,7 +34,7 @@ export function ClientReviewGate({ onDecision, pdfUrl, isSubmitting }: ClientRev
         </div>
 
         {pdfUrl && (
-          <div className="flex justify-between items-center bg-[#F0EBE1] p-4 rounded-xl border border-[var(--color-atelier-grafite)]/10">
+          <div className="flex justify-between items-center bg-[#E2ECF3] p-4 rounded-xl border border-[var(--color-atelier-grafite)]/10">
             <span className="font-elegant text-lg text-[var(--color-atelier-grafite)]">Apresentação Oficial (PDF)</span>
             <a href={pdfUrl} target="_blank" rel="noreferrer" className="text-sm font-bold tracking-widest text-[var(--color-atelier-terracota)] uppercase flex items-center gap-2 hover:underline">
               Visualizar <ArrowRight size={14} />
@@ -47,7 +47,7 @@ export function ClientReviewGate({ onDecision, pdfUrl, isSubmitting }: ClientRev
             onClick={() => setSelectedDecision('approve')}
             className={`flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all ${selectedDecision === 'approve' ? 'border-[var(--color-atelier-terracota)] bg-[var(--color-atelier-terracota)]/5' : 'border-transparent bg-white hover:border-[var(--color-atelier-grafite)]/10'}`}
           >
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${selectedDecision === 'approve' ? 'bg-[var(--color-atelier-terracota)] text-white' : 'bg-[#F0EBE1] text-[var(--color-atelier-grafite)]'}`}>
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${selectedDecision === 'approve' ? 'bg-[var(--color-atelier-terracota)] text-white' : 'bg-[#E2ECF3] text-[var(--color-atelier-grafite)]'}`}>
               <Check size={24} />
             </div>
             <div className="text-center">
@@ -60,7 +60,7 @@ export function ClientReviewGate({ onDecision, pdfUrl, isSubmitting }: ClientRev
             onClick={() => setSelectedDecision('adjust')}
             className={`flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all ${selectedDecision === 'adjust' ? 'border-[var(--color-atelier-terracota)] bg-[var(--color-atelier-terracota)]/5' : 'border-transparent bg-white hover:border-[var(--color-atelier-grafite)]/10'}`}
           >
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${selectedDecision === 'adjust' ? 'bg-[var(--color-atelier-terracota)] text-white' : 'bg-[#F0EBE1] text-[var(--color-atelier-grafite)]'}`}>
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${selectedDecision === 'adjust' ? 'bg-[var(--color-atelier-terracota)] text-white' : 'bg-[#E2ECF3] text-[var(--color-atelier-grafite)]'}`}>
               <Edit3 size={24} />
             </div>
             <div className="text-center">
@@ -73,7 +73,7 @@ export function ClientReviewGate({ onDecision, pdfUrl, isSubmitting }: ClientRev
             onClick={() => setSelectedDecision('revise')}
             className={`flex flex-col items-center gap-3 p-6 rounded-2xl border-2 transition-all ${selectedDecision === 'revise' ? 'border-[var(--color-atelier-terracota)] bg-[var(--color-atelier-terracota)]/5' : 'border-transparent bg-white hover:border-[var(--color-atelier-grafite)]/10'}`}
           >
-            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${selectedDecision === 'revise' ? 'bg-[var(--color-atelier-terracota)] text-white' : 'bg-[#F0EBE1] text-[var(--color-atelier-grafite)]'}`}>
+            <div className={`w-12 h-12 rounded-full flex items-center justify-center ${selectedDecision === 'revise' ? 'bg-[var(--color-atelier-terracota)] text-white' : 'bg-[#E2ECF3] text-[var(--color-atelier-grafite)]'}`}>
               <RefreshCw size={24} />
             </div>
             <div className="text-center">

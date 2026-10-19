@@ -18,8 +18,26 @@ const ALLOWED_TABLES = new Set([
   'ig_cycles', 'ig_approval_events', 'instagram_briefings',
   'consultorias_posicionamento', 'briefings_identidade_visual',
   'orcamentos_gerenciamento_instagram', 'orcamentos_identidade_visual',
-  'pesquisa_satisfacao_idv', 'pesquisa_satisfacao_instagram', 'formularios_rascunhos'
+  'pesquisa_satisfacao_idv', 'pesquisa_satisfacao_instagram', 'formularios_rascunhos',
+  'community_groups', 'community_posts', 'post_comments', 'post_likes', 'b2b_pitches',
+  'veneto_saved_posts', 'veneto_connections', 'veneto_recognitions',
+  'veneto_events', 'veneto_event_rsvps', 'veneto_event_messages',
+  'veneto_studio_contents', 'veneto_direct_messages', 'veneto_reports', 'veneto_user_blocks',
+  'tessera_organizations', 'tessera_memberships', 'tessera_workflow_templates',
+  'tessera_work_items', 'tessera_task_dependencies', 'tessera_checklist_items',
+  'tessera_reviews', 'tessera_status_history', 'tessera_audit_events', 'tessera_domain_outbox',
+  'tessera_work_sessions', 'tessera_comments'
 ]);
+
+const PROFILE_JOIN_FK: Record<string, string> = {
+  projects: 'client_id',
+  community_posts: 'author_id',
+  post_comments: 'user_id',
+  b2b_pitches: 'author_id',
+  veneto_event_messages: 'user_id',
+  veneto_recognitions: 'from_user_id',
+  veneto_reports: 'reporter_id'
+};
 
 function sanitizeId(name: string): string {
   return name.replace(/[^a-zA-Z0-9_]/g, '');
@@ -152,16 +170,17 @@ export async function POST(request: NextRequest) {
     switch (operation) {
       // =================== SELECT ===================
       case 'select': {
-        const wantsProfiles = table === 'projects' && typeof columns === 'string' && columns.includes('profiles');
+        const joinFk = PROFILE_JOIN_FK[table];
+        const wantsProfiles = Boolean(joinFk && typeof columns === 'string' && columns.includes('profiles'));
         const selectCols = parseSelectCols(columns || '*');
         
         let q: string;
         let tablePrefix: string | undefined = undefined;
 
-        if (wantsProfiles) {
-          tablePrefix = 'projects';
-          const baseCols = selectCols === '*' ? '"projects".*' : selectCols;
-          q = `SELECT ${baseCols}, json_build_object('id', pr.id, 'nome', pr.nome, 'avatar_url', pr.avatar_url, 'empresa', pr.empresa, 'instagram', pr.instagram, 'email', pr.email) as profiles FROM "projects" LEFT JOIN "profiles" pr ON "projects".client_id = pr.id`;
+        if (wantsProfiles && joinFk) {
+          tablePrefix = table;
+          const baseCols = selectCols === '*' ? `"${table}".*` : selectCols;
+          q = `SELECT ${baseCols}, json_build_object('id', pr.id, 'nome', pr.nome, 'avatar_url', pr.avatar_url, 'role', pr.role, 'username', pr.username, 'empresa', pr.empresa, 'instagram', pr.instagram, 'email', pr.email, 'area_atuacao', pr.area_atuacao, 'segmento', pr.segmento, 'localizacao', pr.localizacao, 'is_founding_member', pr.is_founding_member) as profiles FROM "${table}" LEFT JOIN "profiles" pr ON "${table}"."${joinFk}" = pr.id`;
         } else {
           q = `SELECT ${selectCols} FROM "${table}"`;
         }

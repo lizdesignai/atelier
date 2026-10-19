@@ -450,7 +450,7 @@ export function BrandDNACuradoria({ projectId, clientProfile }: { projectId: str
                         animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
                         exit={{ opacity: 0, scale: 1.05, filter: "blur(10px)" }}
                         transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-                        className="w-full h-full rounded-[2.5rem] overflow-hidden border-[6px] border-white shadow-[0_20px_50px_rgba(122,116,112,0.1)] relative bg-gray-50"
+                        className="w-full h-full rounded-[2.5rem] overflow-hidden border-[6px] border-white shadow-[0_20px_50px_rgba(20, 44, 72,0.1)] relative bg-gray-50"
                       >
                         <img 
                           src={currentRef?.image_url} 

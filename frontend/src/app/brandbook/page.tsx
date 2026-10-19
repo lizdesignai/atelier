@@ -433,7 +433,7 @@ export default function BrandDNALaboratory() {
                     ))}
                   </div>
                   
-                  <button onClick={() => { setActiveZone(2); saveProgress(); }} className="mt-2 px-8 py-5 bg-[var(--color-atelier-terracota)] text-white rounded-[1.5rem] font-bold uppercase tracking-widest text-[11px] hover:bg-[#8c562e] transition-colors shadow-md hover:-translate-y-0.5 flex items-center justify-center gap-2 shrink-0">
+                  <button onClick={() => { setActiveZone(2); saveProgress(); }} className="mt-2 px-8 py-5 bg-[var(--color-atelier-terracota)] text-white rounded-[1.5rem] font-bold uppercase tracking-widest text-[11px] hover:bg-[#234E80] transition-colors shadow-md hover:-translate-y-0.5 flex items-center justify-center gap-2 shrink-0">
                     Avançar para Semiótica <ArrowRight size={14}/>
                   </button>
                 </div>
@@ -620,7 +620,7 @@ export default function BrandDNALaboratory() {
                             className="flex-1 w-full bg-white border border-[var(--color-atelier-grafite)]/10 rounded-[1.2rem] p-4 text-[13px] font-medium text-[var(--color-atelier-grafite)] resize-none h-32 outline-none focus:border-[var(--color-atelier-terracota)]/50 shadow-inner custom-scrollbar"
                           />
                         </div>
-                        <button onClick={submitSynapseReason} disabled={tempReason.trim().length === 0} className="w-full py-4 bg-[var(--color-atelier-terracota)] text-white rounded-[1.2rem] font-bold uppercase tracking-widest text-[11px] shadow-md hover:bg-[#8c562e] transition-all hover:-translate-y-0.5 disabled:hover:translate-y-0 disabled:opacity-50">
+                        <button onClick={submitSynapseReason} disabled={tempReason.trim().length === 0} className="w-full py-4 bg-[var(--color-atelier-terracota)] text-white rounded-[1.2rem] font-bold uppercase tracking-widest text-[11px] shadow-md hover:bg-[#234E80] transition-all hover:-translate-y-0.5 disabled:hover:translate-y-0 disabled:opacity-50">
                           Registrar Visão
                         </button>
                       </motion.div>

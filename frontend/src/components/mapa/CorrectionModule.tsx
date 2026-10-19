@@ -49,7 +49,7 @@ export default function CorrectionModule({ score, conceitos, onRetry }: Correcti
       <div className="flex justify-start">
         <button 
           onClick={onRetry}
-          className="flex items-center gap-2 bg-[var(--color-atelier-terracota)] text-white px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-[#8c562e] transition-colors"
+          className="flex items-center gap-2 bg-[var(--color-atelier-terracota)] text-white px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-[#234E80] transition-colors"
         >
           <RefreshCcw size={16} /> Refazer o Checkpoint
         </button>

@@ -204,7 +204,7 @@ export default function CfoDashboard({
         <div className="flex-1 glass-panel bg-white/40 p-8 flex flex-col rounded-[2.5rem] border border-white shadow-sm overflow-hidden">
           <div className="flex justify-between items-center border-b border-[var(--color-atelier-grafite)]/10 pb-4 mb-6 shrink-0">
             <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Contas a Pagar (Saídas)</h3>
-            <button onClick={() => setIsOutflowModalOpen(true)} className="bg-[var(--color-atelier-terracota)] text-white px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-[#8c562e] transition-colors flex items-center gap-1 shadow-sm"><Plus size={12}/> Nova</button>
+            <button onClick={() => setIsOutflowModalOpen(true)} className="bg-[var(--color-atelier-terracota)] text-white px-3 py-1.5 rounded-lg text-[9px] font-bold uppercase tracking-widest hover:bg-[#234E80] transition-colors flex items-center gap-1 shadow-sm"><Plus size={12}/> Nova</button>
           </div>
           <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3">
             {outflows.map((outflow, i) => (

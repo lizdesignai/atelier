@@ -123,7 +123,7 @@ export default function EvolucaoPage() {
                 const res = await fetch('/api/mapa/mock-revalidation', { method: 'POST' });
                 if (res.ok) window.location.reload();
               }}
-              className="bg-[var(--color-atelier-terracota)] text-white px-8 py-4 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-[#8c562e] transition-colors"
+              className="bg-[var(--color-atelier-terracota)] text-white px-8 py-4 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-[#234E80] transition-colors"
             >
               Iniciar Revalidação
             </button>

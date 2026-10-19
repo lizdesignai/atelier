@@ -19,6 +19,7 @@ import { usePresenceTracker } from "../../hooks/usePresenceTracker";
 import { useSession } from "../../hooks/useSession";
 import { useProfile } from "../../hooks/useProfile";
 import { useProjects } from "../../hooks/useProjects";
+import { useGlobalStore } from "../../contexts/GlobalStore";
 import { getProductTypeFromProject, getClientServiceLabel } from "@/lib/productHelper";
 
 interface AppSidebarProps {
@@ -43,15 +44,17 @@ const ROUTE_NAMES: Record<string, string> = {
   '/cofre': 'O Cofre',
   '/referencias': 'Referências',
   '/canais': 'Canais',
-  '/comunidade': 'Comunidade',
+  '/comunidade': 'Vêneto',
   '/admin/jtbd': 'Focus',
   '/admin/gestao': 'Produtividade',
   '/admin/projetos': 'Studio Veronna',
+  '/admin/motion-studio': 'Veronna Motion Studio',
   '/admin/agenda': 'Agenda',
   '/admin/fio': 'Sintonia',
   '/admin/clientes': 'Clientes',
   '/admin/analytics': 'Analytics',
-  '/admin/financeiro': 'Financeiro'
+  '/admin/financeiro': 'Financeiro',
+  '/admin/gerenciamento': 'Presença'
 };
 
 export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: AppSidebarProps) {
@@ -82,7 +85,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   // ATIVAÇÃO DO TÍTULO DINÂMICO
   // ==========================================
   useDynamicTitle({
-    projectName: (isTeamMember || isContador) ? "Liz Design" : (clientName || "Atelier"), 
+    projectName: (isTeamMember || isContador) ? "Studio Veronna" : (clientName || "Atelier"), 
     tabName: ROUTE_NAMES[pathname] || "Portal"
   });
 
@@ -90,6 +93,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   const { data: session } = useSession();
   const { data: profile } = useProfile();
   const { data: projects } = useProjects();
+  const { navMode } = useGlobalStore();
   const sessionUserId = session?.user?.id;
 
   const presenceStatus = usePresenceTracker((isTeamMember || isContador) ? sessionUserId : null);
@@ -154,7 +158,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               router.replace('/mapa');
             }
           } else if (isInstagram) {
-            // Cliente de Gestão de Instagram: SÓ vê Cockpit, Canais e Comunidade
+            // Cliente de Gestão de Instagram: SÓ vê Cockpit, Canais e Vêneto
             const isAllowedInstagramRoute = pathname === '/cockpit' || pathname === '/canais' || pathname === '/comunidade';
             if (!isAllowedInstagramRoute) {
               router.replace('/cockpit');
@@ -226,6 +230,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   if (isClient) return null;
   if (isClient && isProjectArchived) return null;
   if (isContador && !isReady) return null;
+  if (isTeamMember && navMode === 'horizontal') return null;
 
   // 🟢 Definição inteligente da rota Home (Logo) com base na patente
   const homeRoute = isContador 
@@ -249,39 +254,39 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   const mobileMainItems: Array<{ href: string; icon: React.ReactNode; label: string; badge?: number }> = isContador ? [
     { href: '/admin/financeiro', icon: <DollarSign size={20} strokeWidth={1.5} />, label: 'Finanças' },
     { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : isTeamMember ? [
     { href: '/admin/analytics', icon: <Activity size={20} strokeWidth={1.5} />, label: 'Analytics' },
     { href: '/admin/jtbd', icon: <Crosshair size={20} strokeWidth={1.5} />, label: 'Focus' },
     { href: '/admin/clientes', icon: <Users size={20} strokeWidth={1.5} />, label: 'Clientes' },
     { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : clientServiceType === "O Mapa" ? [
     { href: '/mapa', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
     { href: '/mapa/cofre', icon: <Archive size={20} strokeWidth={1.5} />, label: 'Cofre' },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : clientServiceType === "Gestão de Instagram" ? [
     { href: '/cockpit', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
 
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : [
     { href: '/', icon: <Home size={20} strokeWidth={1.5} />, label: 'Meu Projeto' },
     { href: '/projeto/descobrir', icon: <Search size={20} strokeWidth={1.5} />, label: 'Fases' },
     
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ];
 
   const mobileDrawerItems: Array<{ href: string; icon: React.ReactNode; label: string; badge?: number }> = isContador ? [
     { href: '/admin/financeiro', icon: <DollarSign size={20} strokeWidth={1.5} />, label: 'Financeiro' },
     { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : isTeamMember ? [
     { href: '/admin/jtbd', icon: <Crosshair size={20} strokeWidth={1.5} />, label: 'Focus' },
     { href: '/admin/projetos', icon: <FolderKanban size={20} strokeWidth={1.5} />, label: 'Studio Veronna' },
     { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' },
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' },
     ...(isManagerOrAdmin ? [
       { href: '/admin', icon: <FileText size={20} strokeWidth={1.5} />, label: 'QG da Liziane' },
       { href: '/admin/gestao', icon: <LayoutDashboard size={20} strokeWidth={1.5} />, label: 'Produtividade' },
@@ -296,12 +301,12 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     { href: '/mapa/sprint/4', icon: <Target size={20} strokeWidth={1.5} />, label: 'Conversão' },
     { href: '/mapa/sprint/5', icon: <TrendingUp size={20} strokeWidth={1.5} />, label: 'Revalidação' },
     { href: '/mapa/cofre', icon: <Archive size={20} strokeWidth={1.5} />, label: 'Cofre de Evidências' },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : clientServiceType === "Gestão de Instagram" ? [
     { href: '/cockpit', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
 
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : [
     { href: '/', icon: <Home size={20} strokeWidth={1.5} />, label: 'Meu Projeto' },
     ...(isStageUnlocked('define') ? [{ href: '/projeto/direcionar', icon: <Compass size={20} strokeWidth={1.5} />, label: 'Direcionar' }] : []),
@@ -309,7 +314,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     ...(isStageUnlocked('deliver') ? [{ href: '/projeto/ativar', icon: <Package size={20} strokeWidth={1.5} />, label: 'Ativar' }] : []),
     { href: '/brandbook', icon: <Sparkles size={20} strokeWidth={1.5} />, label: 'Brand Lab' },
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
-    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Comunidade' }
+    { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ];
 
   return (
@@ -321,7 +326,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
         hidden md:flex relative z-50 flex-col shrink-0 
         h-[calc(100vh-2rem)] my-4 ml-4 rounded-[2.5rem]
         bg-white/40 backdrop-blur-2xl border border-white/60 
-        shadow-[8px_8px_32px_rgba(122,116,112,0.04)]
+        shadow-[8px_8px_32px_rgba(20, 44, 72,0.04)]
       `}
     >
       {/* CABEÇALHO DA SIDEBAR: LOGO E BRANDING */}
@@ -330,7 +335,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
         {/* LOGO AGORA É UM BOTÃO HOME ESTRATÉGICO */}
         <Link href={homeRoute} className="w-10 h-10 shrink-0 relative group cursor-pointer flex items-center justify-center">
           <div className="absolute inset-0 bg-[var(--color-atelier-terracota)]/20 rounded-full blur-xl group-hover:scale-150 transition-transform duration-700 opacity-0 group-hover:opacity-100"></div>
-          <img src="/images/simbolo-rosa.png" alt="Atelier" className="w-8 h-8 object-contain relative z-10 drop-shadow-sm transition-transform duration-500 group-hover:scale-105" />
+          <img src="/images/simbolo-veronna.svg" alt="Studio Veronna" className="w-8 h-8 object-contain relative z-10 drop-shadow-sm transition-transform duration-500 group-hover:scale-105" />
         </Link>
         
         <AnimatePresence mode="wait">
@@ -341,9 +346,9 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               exit={{ opacity: 0, x: -10, transition: { duration: 0.1 } }}
               className="flex flex-col overflow-hidden whitespace-nowrap"
             >
-              <span className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none mb-0.5 tracking-tight">Atelier</span>
-              <span className="font-roboto text-[0.55rem] text-[var(--color-atelier-terracota)] tracking-[0.25em] uppercase font-bold truncate max-w-[140px]">
-                {isContador ? 'Financeiro' : isTeamMember ? 'LizDesign' : (clientName || 'Portal do Cliente')}
+              <span className="font-elegant text-3xl text-[var(--color-veronna-navy)] leading-none mb-0.5 tracking-tight">Atelier</span>
+              <span className="font-analog text-[0.65rem] text-[var(--color-veronna-bordo)] tracking-[0.22em] uppercase font-bold truncate max-w-[140px]">
+                {isContador ? 'Financeiro' : isTeamMember ? 'Studio Veronna' : (clientName || 'Portal do Cliente')}
               </span>
             </motion.div>
           )}
@@ -422,7 +427,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
 
               
               
-              <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
+              <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Vêneto" collapsed={isCollapsed} active={pathname === '/comunidade'} />
             </>
           )}
 
@@ -434,38 +439,32 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               
 
 
-              <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
+              <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Vêneto" collapsed={isCollapsed} active={pathname === '/comunidade'} />
             </>
           )}
 
           {/* MENU PARA EQUIPA DO ESTÚDIO */}
           {isTeamMember && (
             <>
-              {/* Visto por todos */}
-              <NavItem href="/admin/jtbd" icon={<Crosshair size={18} strokeWidth={1.5} />} label="Focus" collapsed={isCollapsed} active={pathname === '/admin/jtbd'} />
-              <NavItem href="/admin/projetos" icon={<FolderKanban size={18} strokeWidth={1.5} />} label="Studio Veronna" collapsed={isCollapsed} active={pathname === '/admin/projetos'} />
+              <NavItem href="/tessera" icon={<Sparkles size={18} strokeWidth={1.5} className="text-amber-600" />} label="Tessera OS" collapsed={isCollapsed} active={pathname.startsWith('/tessera')} />
+              <NavItem href="/admin/jtbd" icon={<Crosshair size={18} strokeWidth={1.5} />} label="Focus" collapsed={isCollapsed} active={pathname === '/admin/jtbd' || pathname.startsWith('/admin/jtbd/')} />
+              <NavItem href="/admin/gerenciamento" icon={<Compass size={18} strokeWidth={1.5} />} label="Presença" collapsed={isCollapsed} active={pathname === '/admin/gerenciamento' || pathname.startsWith('/admin/gerenciamento') || pathname === '/cockpit'} />
+              <NavItem href="/admin/projetos" icon={<FolderKanban size={18} strokeWidth={1.5} />} label="Studio Veronna" collapsed={isCollapsed} active={pathname === '/admin/projetos' || pathname.startsWith('/admin/projetos/')} />
               
               {/* DIVISÓRIA SUTIL */}
               <div className="py-2 flex items-center justify-center opacity-10">
                 <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
               </div>
 
-              <NavItem href="/admin/fio" icon={<MessageCircle size={18} strokeWidth={1.5} />} label="Sintonia" collapsed={isCollapsed} active={pathname === '/admin/fio'} badge={globalUnreadCount} />
-              <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Comunidade" collapsed={isCollapsed} active={pathname === '/comunidade'} />
+              <NavItem href="/admin/fio" icon={<MessageCircle size={18} strokeWidth={1.5} />} label="Sintonia" collapsed={isCollapsed} active={pathname === '/admin/fio' || pathname.startsWith('/admin/fio/')} badge={globalUnreadCount} />
+              <NavItem href="/comunidade" icon={<Globe2 size={18} strokeWidth={1.5} />} label="Vêneto" collapsed={isCollapsed} active={pathname === '/comunidade' || pathname.startsWith('/comunidade/')} />
               
-              {/* Visto apenas por Gestor e Admin */}
-              {isManagerOrAdmin && (
-                <>
-                  {/* DIVISÓRIA SUTIL */}
-                  <div className="py-2 flex items-center justify-center opacity-10">
-                    <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
-                  </div>
+              {/* DIVISÓRIA SUTIL */}
+              <div className="py-2 flex items-center justify-center opacity-10">
+                <div className="w-1/2 h-px bg-gradient-to-r from-transparent via-[var(--color-atelier-grafite)] to-transparent"></div>
+              </div>
 
-                  <NavItem href="/admin" icon={<FileText size={18} strokeWidth={1.5} />} label="QG da Liziane" collapsed={isCollapsed} active={pathname === '/admin'} />
-                  <NavItem href="/admin/gestao" icon={<LayoutDashboard size={18} strokeWidth={1.5} />} label="Produtividade" collapsed={isCollapsed} active={pathname === '/admin/gestao'} />
-                  <NavItem href="/admin/analytics" icon={<Briefcase size={18} strokeWidth={1.5} />} label="Analytics" collapsed={isCollapsed} active={pathname === '/admin/analytics'} />
-                </>
-              )}
+              <NavItem href="/admin/analytics" icon={<Briefcase size={18} strokeWidth={1.5} />} label="Analytics" collapsed={isCollapsed} active={pathname === '/admin/analytics'} />
             </>
           )}
 

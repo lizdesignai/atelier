@@ -47,7 +47,7 @@ export default function GlobalError({ error, reset }: ErrorProps) {
       <div className="flex gap-4 items-center">
         <button
           onClick={() => reset()}
-          className="px-6 py-3 bg-[var(--color-atelier-terracota)] text-white text-[12px] font-bold tracking-wider uppercase rounded-xl hover:bg-[var(--color-atelier-terracota)]/90 transition-all shadow-[0_10px_20px_rgba(173,111,64,0.15)] cursor-pointer"
+          className="px-6 py-3 bg-[var(--color-atelier-terracota)] text-white text-[12px] font-bold tracking-wider uppercase rounded-xl hover:bg-[var(--color-atelier-terracota)]/90 transition-all shadow-[0_10px_20px_rgba(20, 44, 72,0.15)] cursor-pointer"
         >
           Tentar novamente
         </button>

@@ -37,7 +37,7 @@ const ConcentricRings = ({ completed, review, pending, total, size = 100 }: { co
           strokeDasharray={2 * Math.PI * 28} initial={{ strokeDashoffset: 2 * Math.PI * 28 }} animate={{ strokeDashoffset: getOffset(review, 28) }} transition={{ duration: 1.5, delay: 0.2, ease: "easeOut" }} />
         
         {/* Ring 3: Pendentes (Grafite/Azul) */}
-        <circle cx="50" cy="50" r="14" fill="none" stroke="rgba(122,116,112,0.15)" strokeWidth="8" />
+        <circle cx="50" cy="50" r="14" fill="none" stroke="rgba(20, 44, 72,0.15)" strokeWidth="8" />
         <motion.circle cx="50" cy="50" r="14" fill="none" stroke="var(--color-atelier-grafite)" strokeWidth="8" strokeLinecap="round"
           strokeDasharray={2 * Math.PI * 14} initial={{ strokeDashoffset: 2 * Math.PI * 14 }} animate={{ strokeDashoffset: getOffset(pending, 14) }} transition={{ duration: 1.5, delay: 0.4, ease: "easeOut" }} />
       </svg>

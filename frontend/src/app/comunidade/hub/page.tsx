@@ -171,25 +171,25 @@ export default function HubB2BPage() {
   return (
     <div className="flex flex-col gap-6 w-full max-w-[1200px] mx-auto animate-[fadeInUp_0.8s_ease-out_both] pb-10 px-4 md:px-0">
       
-      {/* HEADER DO HUB */}
+      {/* HEADER DO HUB VÊNETO */}
       <div className="flex flex-col gap-3 mt-6">
-        <Link href="/comunidade?grupo=networking" className="inline-flex items-center gap-2 text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors font-roboto text-[10px] uppercase tracking-widest font-bold mb-2 bg-white/60 w-fit px-4 py-2 rounded-full border border-white shadow-sm">
-          ← Voltar ao Networking
+        <Link href="/comunidade?destino=pessoas" className="inline-flex items-center gap-2 text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors font-roboto text-[10px] uppercase tracking-widest font-bold mb-2 bg-white/60 w-fit px-4 py-2 rounded-full border border-white shadow-sm">
+          ← Voltar para Pessoas & Conexões no Vêneto
         </Link>
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <Handshake size={32} className="text-[var(--color-atelier-terracota)]" />
-            <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] leading-none tracking-tight">Hub de <span className="italic text-[var(--color-atelier-terracota)]">Negócios.</span></h1>
+            <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] leading-none tracking-tight">Vêneto · <span className="italic text-[var(--color-atelier-terracota)]">Parcerias & Oportunidades.</span></h1>
           </div>
           <button 
             onClick={() => setIsModalOpen(true)}
             className="hidden md:flex bg-[var(--color-atelier-grafite)] text-white px-6 py-3.5 rounded-[1.2rem] text-[11px] font-bold uppercase tracking-widest hover:bg-[var(--color-atelier-terracota)] transition-all items-center gap-2 shadow-md hover:-translate-y-0.5"
           >
-            <Plus size={16} /> Nova Oportunidade
+            <Plus size={16} /> Oferecer ou Buscar Parceria
           </button>
         </div>
         <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 max-w-xl mt-1 font-medium leading-relaxed">
-          A rede exclusiva para clientes e parceiros. Encontre fornecedores de confiança ou expanda os serviços da sua empresa em nosso ecossistema.
+          Ambiente direto para oferecer ou buscar parcerias, fornecedores, indicações e colaborações estratégicas entre membros que estão construindo marcas reais (sem taxas ou intermediação complexa).
         </p>
       </div>
 
@@ -415,7 +415,7 @@ export default function HubB2BPage() {
 
                 <div className="flex justify-end gap-3 mt-4 pt-6 border-t border-[var(--color-atelier-grafite)]/5">
                   <button type="button" onClick={() => setIsModalOpen(false)} className="px-6 py-4 rounded-[1.2rem] font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 hover:bg-gray-100 hover:text-[var(--color-atelier-grafite)] transition-colors">Cancelar</button>
-                  <button type="submit" disabled={isSubmitting} className="px-8 py-4 rounded-[1.2rem] bg-[var(--color-atelier-terracota)] text-white font-roboto text-[11px] font-bold uppercase tracking-[0.1em] shadow-md hover:bg-[#8c562e] transition-all hover:-translate-y-0.5 disabled:opacity-50 flex items-center gap-2">
+                  <button type="submit" disabled={isSubmitting} className="px-8 py-4 rounded-[1.2rem] bg-[var(--color-atelier-terracota)] text-white font-roboto text-[11px] font-bold uppercase tracking-[0.1em] shadow-md hover:bg-[#234E80] transition-all hover:-translate-y-0.5 disabled:opacity-50 flex items-center gap-2">
                     {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />} 
                     Publicar Oportunidade
                   </button>

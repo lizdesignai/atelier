@@ -77,7 +77,7 @@ export function ProjectAssetsManager({ projectId }: { projectId: string }) {
       {isOpen && (
         <div className="fixed inset-0 z-[200] flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm cursor-pointer" onClick={() => setIsOpen(false)}></div>
-          <div className="relative w-full max-w-2xl bg-[#F0EBE1] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-white">
+          <div className="relative w-full max-w-2xl bg-[#E2ECF3] rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col border border-white">
             
             <div className="p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 flex justify-between items-start">
               <div>

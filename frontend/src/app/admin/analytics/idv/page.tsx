@@ -50,7 +50,7 @@ export default function IDVMetricsPage() {
     { name: '3. Direcionar', count: phaseCounts.direcionar, color: '#d1d5db' },
     { name: '4. Construir', count: phaseCounts.construir, color: '#9ca3af' },
     { name: '5. Revelar', count: phaseCounts.revelar, color: '#6b7280' },
-    { name: '6. Ativar', count: phaseCounts.ativar, color: '#ad6f40' }
+    { name: '6. Ativar', count: phaseCounts.ativar, color: '#142C48' }
   ];
 
   // 2. Territórios Escolhidos
@@ -65,7 +65,7 @@ export default function IDVMetricsPage() {
     name: k,
     value: territoryDistribution[k]
   }));
-  const COLORS = ['#ad6f40', '#374151', '#9ca3af', '#e5e7eb'];
+  const COLORS = ['#142C48', '#374151', '#9ca3af', '#e5e7eb'];
 
   return (
     <div className="p-10 max-w-7xl mx-auto flex flex-col gap-8 text-[var(--color-atelier-grafite)]">

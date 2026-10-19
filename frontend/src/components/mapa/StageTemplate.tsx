@@ -307,7 +307,7 @@ export default function StageTemplate({ content, clientName, mapaData, onUpdateP
               <button 
                 onClick={submitEvidencia}
                 disabled={isSubmittingEvidencia}
-                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[var(--color-atelier-terracota)] text-white px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest shadow-md hover:bg-[#8c562e] transition-colors"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 bg-[var(--color-atelier-terracota)] text-white px-6 py-3 rounded-full text-xs font-bold uppercase tracking-widest shadow-md hover:bg-[#234E80] transition-colors"
               >
                 {isSubmittingEvidencia ? <Loader2 size={16} className="animate-spin" /> : <Upload size={16} />}
                 Enviar Evidência
@@ -403,7 +403,7 @@ export default function StageTemplate({ content, clientName, mapaData, onUpdateP
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           className="bg-gradient-to-br from-[var(--color-atelier-grafite)] to-[#2a2a2a] p-8 md:p-12 rounded-[2rem] text-center relative overflow-hidden shadow-2xl"
         >
-          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(173,111,64,0.3)_0%,transparent_70%)]" />
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(20, 44, 72,0.3)_0%,transparent_70%)]" />
           <div className="relative z-10">
             <span className="inline-block px-4 py-1.5 bg-white/10 text-white rounded-full text-[10px] uppercase font-bold tracking-widest mb-6 border border-white/20">
               Descoberta da Semana
@@ -415,7 +415,7 @@ export default function StageTemplate({ content, clientName, mapaData, onUpdateP
             <button 
               onClick={handleCompletion}
               disabled={isCompleting}
-              className="mx-auto w-full md:w-auto flex items-center justify-center gap-2 md:gap-3 bg-[var(--color-atelier-terracota)] text-white px-6 md:px-8 py-4 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-[#8c562e] hover:scale-105 transition-all shadow-xl disabled:opacity-50"
+              className="mx-auto w-full md:w-auto flex items-center justify-center gap-2 md:gap-3 bg-[var(--color-atelier-terracota)] text-white px-6 md:px-8 py-4 rounded-full text-xs font-bold uppercase tracking-widest hover:bg-[#234E80] hover:scale-105 transition-all shadow-xl disabled:opacity-50"
             >
               {isCompleting ? <Loader2 className="animate-spin" size={20} /> : (
                 <>

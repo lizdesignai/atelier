@@ -31,7 +31,7 @@ export default function EvolutionModule({ mapaAtual, mapaInicial }: EvolutionMod
              window.dispatchEvent(new CustomEvent("showToast", { detail: "A abrir formulário de Reavaliação..." }));
              setTimeout(() => router.push('/'), 1000);
           }}
-          className="bg-[var(--color-atelier-terracota)] text-white px-8 py-4 rounded-full text-sm font-bold uppercase tracking-widest shadow-xl hover:-translate-y-1 hover:bg-[#8c562e] transition-all flex items-center gap-2 mx-auto"
+          className="bg-[var(--color-atelier-terracota)] text-white px-8 py-4 rounded-full text-sm font-bold uppercase tracking-widest shadow-xl hover:-translate-y-1 hover:bg-[#234E80] transition-all flex items-center gap-2 mx-auto"
         >
           Refazer o Teste Agora <ArrowRight size={18} />
         </button>

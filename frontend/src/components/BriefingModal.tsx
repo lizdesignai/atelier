@@ -357,7 +357,7 @@ export default function BriefingModal({ isOpen, onClose, projectId, clientId, on
                   ) : <div></div>}
                   
                   {step < 6 ? (
-                    <button onClick={handleNext} className="px-8 py-3 rounded-xl bg-[var(--color-atelier-terracota)] text-white font-roboto font-bold uppercase tracking-widest text-[11px] hover:bg-[#8c562e] shadow-md transition-all hover:-translate-y-0.5">
+                    <button onClick={handleNext} className="px-8 py-3 rounded-xl bg-[var(--color-atelier-terracota)] text-white font-roboto font-bold uppercase tracking-widest text-[11px] hover:bg-[#234E80] shadow-md transition-all hover:-translate-y-0.5">
                       Próximo Passo
                     </button>
                   ) : (

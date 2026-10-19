@@ -1,263 +1,304 @@
 // src/app/comunidade/missoes/page.tsx
 "use client";
 
-import { useState } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { 
-  Target, Medal, Star, CheckCircle2, Clock, 
-  Zap, Flame, ShieldCheck, ArrowRight, Loader2, Crown, MessageSquare
+import { useState, useEffect } from "react";
+import { motion } from "framer-motion";
+import {
+  Award, CheckCircle2, ArrowRight, Loader2, Sparkles,
+  MessageSquare, HelpCircle, Users, Handshake, RefreshCw, Info, ShieldCheck
 } from "lucide-react";
 import Link from "next/link";
 import { supabase } from "../../../lib/supabase";
 
-const showToast = (message: string) => {
-  window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
-};
-
-// ============================================================================
-// MAPEAMENTO DE CORES (Garante que o Tailwind compila as classes corretamente)
-// ============================================================================
-const COLOR_MAP: Record<string, { bg: string, border: string, text: string }> = {
-  blue: { bg: 'bg-blue-50', border: 'border-blue-100', text: 'text-blue-500' },
-  yellow: { bg: 'bg-yellow-50', border: 'border-yellow-100', text: 'text-yellow-600' },
-  orange: { bg: 'bg-orange-50', border: 'border-orange-100', text: 'text-orange-500' },
-  purple: { bg: 'bg-purple-50', border: 'border-purple-100', text: 'text-purple-500' },
-  green: { bg: 'bg-green-50', border: 'border-green-100', text: 'text-green-500' },
-};
-
-// ============================================================================
-// MOCK DE CONQUISTAS (Foco em LTV, Eficiência de Studio Veronna e Prova Social)
-// ============================================================================
-const MISSIONS_DB = [
+const VALUE_CYCLE_STEPS = [
   {
-    id: "m1",
-    title: "Início da Jornada",
-    description: "Preencha o seu Briefing Estratégico em menos de 24 horas após o início do projeto para acelerarmos a criação da sua marca.",
-    xp: 250,
-    icon: <ShieldCheck size={20} />,
-    color: "blue",
-    category: "Onboarding",
-    isCompleted: true
+    step: "01",
+    title: "Conteúdo ou Pergunta Inicial",
+    description:
+      "Publicar uma dúvida real do seu negócio, um projeto em construção ou um aprendizado aplicável no Feed ou em Trocas.",
+    ctaLabel: "Publicar no Feed ou Trocas",
+    href: "/comunidade?destino=trocas",
+    icon: <HelpCircle size={20} />
   },
   {
-    id: "m2",
-    title: "A Voz da Marca",
-    description: "Faça a sua primeira publicação na Comunidade. Apresente a sua marca, os seus desafios ou compartilhe uma vitória com os outros membros.",
-    xp: 150,
-    icon: <MessageSquare size={20} />,
-    color: "yellow",
-    category: "Comunidade",
-    isCompleted: false
+    step: "02",
+    title: "Conversa com Respostas Úteis",
+    description:
+      "Contribuir nas dúvidas de outros empreendedores ou marcar uma resposta recebida como Solução Útil.",
+    ctaLabel: "Ver perguntas sem resposta",
+    href: "/comunidade?destino=feed&modo=atencao",
+    icon: <MessageSquare size={20} />
   },
   {
-    id: "m3",
-    title: "Sintonia Criativa",
-    description: "Aprove o Planejamento Mensal ou as Diretrizes Visuais na primeira apresentação, sem solicitar ajustes. Confiança no processo gera velocidade e precisão.",
-    xp: 500,
-    icon: <Target size={20} />,
-    color: "purple",
-    category: "Eficiência",
-    isCompleted: false
+    step: "03",
+    title: "Descoberta de Pessoas com Afinidade",
+    description:
+      "Completar seu perfil profissional (o que oferece e o que procura) e conectar-se a membros complementares.",
+    ctaLabel: "Explorar Diretório de Pessoas",
+    href: "/comunidade?destino=pessoas",
+    icon: <Users size={20} />
   },
   {
-    id: "m4",
-    title: "Embaixador da Marca",
-    description: "Grave um Story no seu Instagram mostrando os bastidores do seu projeto ou o seu painel no Meu Espaço e mencione a @lizdesign.",
-    xp: 800,
-    icon: <Flame size={20} />,
-    color: "orange",
-    category: "Parceria",
-    isCompleted: false
+    step: "04",
+    title: "Conexão, Feedback ou Colaboração",
+    description:
+      "Participar do Laboratório de Projetos com críticas construtivas ou iniciar uma parceria em Oportunidades.",
+    ctaLabel: "Ir ao Laboratório de Projetos",
+    href: "/comunidade?destino=laboratorio",
+    icon: <Handshake size={20} />
   },
   {
-    id: "m5",
-    title: "Círculo de Excelência",
-    description: "Indique um parceiro de negócios para a Liz Design. Se essa indicação fechar um projeto conosco, você desbloqueia o nível máximo de parceria.",
-    xp: 5000,
-    icon: <Crown size={20} />,
-    color: "yellow",
-    category: "Networking Premium",
-    isCompleted: false
+    step: "05",
+    title: "Retorno com Novos Aprendizados",
+    description:
+      "Aplicar os materiais do Estúdio Liz no seu negócio e compartilhar os resultados e bastidores com a rede.",
+    ctaLabel: "Acessar Estúdio Liz",
+    href: "/comunidade?destino=estudio",
+    icon: <RefreshCw size={20} />
   }
 ];
 
-export default function MissoesPage() {
-  const [activeTab, setActiveTab] = useState<'available' | 'completed'>('available');
-  const [missions, setMissions] = useState(MISSIONS_DB);
-  const [isProcessing, setIsProcessing] = useState<string | null>(null);
+const RECOGNITION_PILLARS = [
+  {
+    key: "ajuda_util",
+    title: "Ajuda útil",
+    subtitle: "Respostas marcadas como úteis por quem fez a pergunta",
+    criteria:
+      "Atribuído sempre que um membro resolve uma dúvida em Trocas ou recebe validação direta pela utilidade prática da sua resposta.",
+    color: "bg-amber-50 border-amber-200 text-amber-800"
+  },
+  {
+    key: "curadoria",
+    title: "Curadoria",
+    subtitle: "Materiais, referências e resumos relevantes compartilhados",
+    criteria:
+      "Atribuído a quem sintetiza aprendizados, compartilha referências qualificadas e enriquece o repertório estratégico da comunidade.",
+    color: "bg-purple-50 border-purple-200 text-purple-800"
+  },
+  {
+    key: "colaboracao",
+    title: "Colaboração",
+    subtitle: "Conexões, feedbacks construtivos e parcerias iniciadas",
+    criteria:
+      "Atribuído a membros que analisam projetos no Laboratório com profundidade ou estabelecem parcerias reais com outros negócios.",
+    color: "bg-emerald-50 border-emerald-200 text-emerald-800"
+  },
+  {
+    key: "acolhimento",
+    title: "Acolhimento",
+    subtitle: "Boas-vindas e apoio aos novos membros",
+    criteria:
+      "Atribuído a quem recebe novos participantes, responde primeiras publicações e fortalece o senso de pertencimento no Vêneto.",
+    color: "bg-blue-50 border-blue-200 text-blue-800"
+  }
+];
 
-  // Simulação de reivindicação de XP
-  const handleClaimReward = (missionId: string, xpAmount: number) => {
-    setIsProcessing(missionId);
-    
-    // Simula o delay de ir ao banco de dados validar a ação
-    setTimeout(() => {
-      setMissions(prev => prev.map(m => m.id === missionId ? { ...m, isCompleted: true } : m));
-      showToast(`✨ Você conquistou +${xpAmount} XP! Continue expandindo a presença da sua marca.`);
-      setIsProcessing(null);
-      
-      // Futuro: Chamada Supabase para injetar XP e disparar notificação à gestão
-      // await supabase.rpc('add_exp_to_user', { user_id: session.user.id, exp_amount: xpAmount })
-    }, 1500);
-  };
+export default function CicloDeValorPage() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [myRecognitions, setMyRecognitions] = useState<any[]>([]);
+  const [cycleProgress, setCycleProgress] = useState<Record<string, boolean>>({});
 
-  const availableMissions = missions.filter(m => !m.isCompleted);
-  const completedMissions = missions.filter(m => m.isCompleted);
+  useEffect(() => {
+    const loadData = async () => {
+      setIsLoading(true);
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        const uid = session?.user?.id || "";
+        const res = await fetch(`/api/veneto?userId=${encodeURIComponent(uid)}`);
+        const data = await res.json();
+
+        const profiles: any[] = data.profiles || [];
+        const me = profiles.find((p) => p.id === uid) || profiles[0];
+        setCurrentUser(me);
+
+        if (me) {
+          const recs = (data.recognitions || []).filter((r: any) => r.user_id === me.id);
+          setMyRecognitions(recs);
+
+          const myPosts = (data.posts || []).filter((p: any) => p.author_id === me.id);
+          const myConns = (data.connections || []).filter(
+            (c: any) => c.follower_id === me.id || c.following_id === me.id
+          );
+
+          setCycleProgress({
+            "01": myPosts.length > 0,
+            "02": recs.some((r: any) => r.pillar === "ajuda_util") || myPosts.some((p: any) => (p.comments_count || 0) > 0),
+            "03": Boolean(me.o_que_oferece && me.o_que_procura) || myConns.length > 0,
+            "04":
+              recs.some((r: any) => r.pillar === "colaboracao") ||
+              myPosts.some((p: any) => p.post_type === "feedback" || p.post_type === "parceria"),
+            "05": myPosts.some((p: any) => p.post_type === "aprendizado" || p.post_type === "conquista")
+          });
+        }
+      } catch (err) {
+        console.error("Erro ao carregar Ciclo de Valor:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-20 w-full">
+        <Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" />
+      </div>
+    );
+  }
+
+  const completedStepsCount = Object.values(cycleProgress).filter(Boolean).length;
 
   return (
-    <div className="flex flex-col gap-6 max-w-[1200px] mx-auto w-full animate-[fadeInUp_0.8s_ease-out_both] pb-10 px-4 md:px-0">
-      
-      {/* HEADER DA CENTRAL DE CONQUISTAS */}
-      <div className="flex flex-col gap-3 mt-6">
-        <Link href="/comunidade" className="inline-flex items-center gap-2 text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-colors font-roboto text-[10px] uppercase tracking-widest font-bold mb-2 bg-white/60 w-fit px-4 py-2 rounded-full border border-white shadow-sm">
-          ← Voltar à Comunidade
+    <div className="flex flex-col gap-6 max-w-[1050px] mx-auto w-full animate-[fadeInUp_0.6s_ease-out_both] pb-12 px-2">
+      {/* HEADER */}
+      <div className="flex flex-col gap-2 mt-2">
+        <Link
+          href="/comunidade"
+          className="inline-flex items-center gap-2 text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-terracota)] transition-colors font-roboto text-[10px] uppercase tracking-widest font-bold bg-white/70 w-fit px-4 py-2 rounded-full border border-white shadow-sm"
+        >
+          ← Voltar ao Vêneto
         </Link>
-        <div className="flex items-center gap-3">
-          <Target size={28} className="text-[var(--color-atelier-terracota)]" />
-          <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] leading-none">Jornada de <span className="italic text-[var(--color-atelier-terracota)]">Evolução.</span></h1>
+        <div className="flex items-center gap-3 mt-2">
+          <Award size={28} className="text-[var(--color-atelier-terracota)]" />
+          <h1 className="font-elegant text-4xl md:text-5xl text-[var(--color-atelier-grafite)] leading-none">
+            Ciclo de Valor & <span className="italic text-[var(--color-atelier-terracota)]">Reconhecimento.</span>
+          </h1>
         </div>
-        <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 max-w-xl mt-1 font-medium leading-relaxed">
-          Conclua etapas estratégicas para evoluir a presença digital da sua marca e desbloquear benefícios exclusivos em nosso ecossistema de negócios.
+        <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/75 max-w-2xl mt-1 leading-relaxed">
+          No Vêneto, não usamos rankings artificiais nem pontos por volume de postagens. Valorizamos trocas genuínas: o conteúdo cria conversas, as conversas constroem relações e as relações geram oportunidades.
         </p>
       </div>
 
-      {/* BANNER DE STATUS DO CLIENTE */}
-      <div className="glass-panel p-8 md:p-10 rounded-[3rem] bg-gradient-to-br from-[var(--color-atelier-grafite)] to-[#2a2826] border border-[var(--color-atelier-grafite)] shadow-[0_20px_50px_rgba(0,0,0,0.15)] relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-8">
-        <div className="absolute top-[-50%] right-[-10%] w-80 h-80 bg-[var(--color-atelier-terracota)]/20 blur-[60px] rounded-full pointer-events-none"></div>
-        <div className="absolute inset-0 opacity-20 bg-[url('/noise.png')] mix-blend-overlay pointer-events-none"></div>
-        
-        <div className="flex items-center gap-6 relative z-10 w-full md:w-auto">
-          <div className="w-20 h-20 rounded-[1.5rem] bg-[var(--color-atelier-terracota)]/10 border border-[var(--color-atelier-terracota)]/30 text-white flex items-center justify-center shadow-inner shrink-0">
-            <Medal size={36} className="text-[var(--color-atelier-terracota)]" />
+      {/* BANNER DO CICLO DE VALOR (SEÇÃO 8) */}
+      <div className="glass-panel p-8 rounded-[2.5rem] bg-gradient-to-br from-[#0D1D30] to-[#3a332c] text-white shadow-xl relative overflow-hidden flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="flex flex-col gap-2 max-w-xl">
+          <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-[#D49A6A]">
+            O Princípio do Vêneto · Seção 8
+          </span>
+          <h2 className="font-elegant text-3xl md:text-4xl leading-tight">
+            Você entra por uma necessidade. Fica pelas relações, pelo aprendizado e pelas oportunidades.
+          </h2>
+          <p className="text-xs text-white/75 leading-relaxed mt-1">
+            Acompanhe abaixo as 5 etapas do Ciclo de Valor da rede e veja os reconhecimentos qualitativos atribuídos à sua trajetória.
+          </p>
+        </div>
+
+        <div className="bg-white/10 backdrop-blur-md p-6 rounded-3xl border border-white/15 min-w-[230px] text-center">
+          <span className="text-[10px] font-bold uppercase tracking-widest text-white/70 block">
+            Etapas Vivenciadas no Ciclo
+          </span>
+          <div className="font-elegant text-5xl text-[#D49A6A] my-1">
+            {completedStepsCount} / 5
           </div>
-          <div className="flex flex-col text-white">
-            <span className="font-elegant text-3xl leading-tight mb-1">Progresso Atual</span>
-            <span className="font-roboto text-[11px] uppercase tracking-widest text-white/60 font-bold bg-white/10 px-3 py-1.5 rounded-lg w-fit">
-              {completedMissions.length} de {missions.length} Conquistas
+          <span className="text-[11px] text-white/80 font-medium">
+            { myRecognitions.length } reconhecimentos recebidos
+          </span>
+        </div>
+      </div>
+
+      {/* OS 4 PILARES DE RECONHECIMENTO TRANSPARENTE (SEÇÃO 10) */}
+      <div className="glass-panel bg-white/80 p-6 md:p-8 rounded-[2.5rem] border border-white shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-2 mb-6">
+          <div>
+            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)]">
+              Reconhecimento Sem Gamificação Vazia · Seção 10
             </span>
+            <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">
+              Os 4 Pilares de Contribuição Real
+            </h2>
+          </div>
+          <div className="flex items-center gap-1.5 text-[11px] text-[var(--color-atelier-grafite)]/60 bg-[#E2ECF3] px-3.5 py-2 rounded-xl border border-gray-200">
+            <ShieldCheck size={14} className="text-[var(--color-atelier-terracota)]" />
+            Critérios claros, abertos e contestáveis no perfil
           </div>
         </div>
 
-        <div className="w-full md:w-1/3 relative z-10 bg-white/5 p-6 rounded-[2rem] border border-white/10 shadow-inner">
-          <div className="flex justify-between text-[11px] font-bold uppercase tracking-widest text-white/70 mb-3">
-            <span>Conclusão Global</span>
-            <span className="text-[var(--color-atelier-terracota)]">{Math.round((completedMissions.length / missions.length) * 100)}%</span>
-          </div>
-          <div className="h-2.5 w-full bg-black/40 rounded-full overflow-hidden shadow-inner">
-            <motion.div 
-              initial={{ width: 0 }} 
-              animate={{ width: `${(completedMissions.length / missions.length) * 100}%` }} 
-              transition={{ duration: 1.5, ease: "easeOut" }} 
-              className="h-full bg-gradient-to-r from-[var(--color-atelier-rose)] to-[var(--color-atelier-terracota)] rounded-full"
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* TABS DE NAVEGAÇÃO */}
-      <div className="flex gap-2 p-2 bg-white/60 border border-white/80 rounded-[1.5rem] shadow-sm w-full md:w-fit mt-4 mx-auto md:mx-0">
-        <button 
-          onClick={() => setActiveTab('available')}
-          className={`flex-1 md:flex-none px-8 py-3.5 rounded-[1rem] font-roboto text-[11px] font-bold uppercase tracking-widest transition-all ${activeTab === 'available' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white hover:text-[var(--color-atelier-grafite)]'}`}
-        >
-          Disponíveis ({availableMissions.length})
-        </button>
-        <button 
-          onClick={() => setActiveTab('completed')}
-          className={`flex-1 md:flex-none px-8 py-3.5 rounded-[1rem] font-roboto text-[11px] font-bold uppercase tracking-widest transition-all ${activeTab === 'completed' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white hover:text-[var(--color-atelier-grafite)]'}`}
-        >
-          Alcançadas ({completedMissions.length})
-        </button>
-      </div>
-
-      {/* LISTA DE CONQUISTAS */}
-      <div className="flex flex-col gap-5 mt-2">
-        <AnimatePresence mode="wait">
-          
-          {activeTab === 'available' && (
-            <motion.div key="available" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="flex flex-col gap-5">
-              {availableMissions.length === 0 ? (
-                <div className="text-center py-16 glass-panel rounded-[3rem] opacity-60 border border-white">
-                  <CheckCircle2 size={48} className="mx-auto mb-4 text-green-500" />
-                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Todas as Conquistas Alcançadas!</h3>
-                  <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">O seu compromisso reflete-se nos resultados da sua marca.</p>
-                </div>
-              ) : (
-                availableMissions.map((mission) => {
-                  const style = COLOR_MAP[mission.color] || COLOR_MAP.blue;
-                  
-                  return (
-                    <div key={mission.id} className="glass-panel bg-white/70 p-6 md:p-8 rounded-[2.5rem] border border-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-6 group hover:shadow-md hover:bg-white transition-all">
-                      
-                      <div className="flex items-start md:items-center gap-5">
-                        <div className={`w-16 h-16 rounded-[1.2rem] ${style.bg} border ${style.border} ${style.text} flex items-center justify-center shrink-0 shadow-inner group-hover:scale-110 transition-transform duration-500`}>
-                          {mission.icon}
-                        </div>
-                        <div className="flex flex-col">
-                          <span className="font-roboto text-[10px] uppercase font-bold tracking-[0.15em] text-[var(--color-atelier-grafite)]/40 mb-1.5">{mission.category}</span>
-                          <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] leading-none mb-2">{mission.title}</h3>
-                          <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/70 leading-relaxed max-w-xl font-medium">{mission.description}</p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-6 md:border-l border-[var(--color-atelier-grafite)]/10 md:pl-8 pt-4 md:pt-0 border-t md:border-t-0 shrink-0 mt-2 md:mt-0 w-full md:w-auto justify-between md:justify-end">
-                        <div className="flex flex-col items-start md:items-end">
-                          <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-[var(--color-atelier-grafite)]/40 mb-1">Recompensa</span>
-                          <span className="font-elegant text-3xl text-[var(--color-atelier-terracota)] leading-none">+{mission.xp} <span className="text-lg">XP</span></span>
-                        </div>
-                        <button 
-                          onClick={() => handleClaimReward(mission.id, mission.xp)}
-                          disabled={isProcessing === mission.id}
-                          className="px-6 py-4 rounded-[1.2rem] bg-[var(--color-atelier-grafite)] text-white flex items-center justify-center hover:bg-[var(--color-atelier-terracota)] transition-all shadow-[0_10px_20px_rgba(0,0,0,0.1)] hover:shadow-[0_15px_30px_rgba(173,111,64,0.3)] hover:-translate-y-1 disabled:opacity-50 disabled:hover:translate-y-0 shrink-0 font-roboto text-[10px] uppercase tracking-widest font-bold gap-2"
-                          title="Resgatar Conquista"
-                        >
-                          {isProcessing === mission.id ? <Loader2 size={16} className="animate-spin" /> : <>Resgatar <ArrowRight size={14} /></>}
-                        </button>
-                      </div>
-
-                    </div>
-                  )
-                })
-              )}
-            </motion.div>
-          )}
-
-          {activeTab === 'completed' && (
-            <motion.div key="completed" initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 10 }} className="flex flex-col gap-5">
-              {completedMissions.length === 0 ? (
-                <div className="text-center py-16 glass-panel rounded-[3rem] opacity-60 border border-white">
-                  <Clock size={48} className="mx-auto mb-4 text-[var(--color-atelier-grafite)]/30" />
-                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">Histórico Vazio</h3>
-                  <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">O seu legado começa assim que completar a primeira etapa disponível.</p>
-                </div>
-              ) : (
-                completedMissions.map((mission) => (
-                  <div key={mission.id} className="glass-panel bg-white/40 p-6 md:p-8 rounded-[2.5rem] border border-[var(--color-atelier-grafite)]/5 flex flex-col md:flex-row md:items-center justify-between gap-6 opacity-70 hover:opacity-100 transition-all hover:bg-white/60">
-                    
-                    <div className="flex items-center gap-5">
-                      <div className="w-14 h-14 rounded-[1.2rem] bg-green-50 border border-green-100 flex items-center justify-center shrink-0 shadow-inner">
-                        <CheckCircle2 size={24} className="text-green-500" />
-                      </div>
-                      <div className="flex flex-col">
-                        <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] line-through decoration-[var(--color-atelier-grafite)]/30">{mission.title}</h3>
-                        <p className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40 mt-1.5">Etapa validada pelo Studio Veronna.</p>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2 bg-white px-4 py-2.5 rounded-[1rem] border border-[var(--color-atelier-grafite)]/5 shadow-sm">
-                      <Star size={14} className="text-green-600 fill-green-600" />
-                      <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-green-700">+{mission.xp} XP Conquistados</span>
-                    </div>
-
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {RECOGNITION_PILLARS.map((p) => {
+            const count = myRecognitions.filter((r) => r.pillar === p.key && !r.is_contested).length;
+            return (
+              <div
+                key={p.key}
+                className="p-5 rounded-2xl bg-[#E2ECF3] border border-gray-100 flex flex-col justify-between gap-3"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <span className={`inline-block px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest border ${p.color}`}>
+                      {p.title}
+                    </span>
+                    <h3 className="font-bold text-sm text-[var(--color-atelier-grafite)] mt-2">
+                      {p.subtitle}
+                    </h3>
                   </div>
-                ))
-              )}
-            </motion.div>
-          )}
-
-        </AnimatePresence>
+                  <div className="px-3.5 py-1.5 rounded-xl bg-white border border-gray-200 font-elegant text-2xl text-[var(--color-atelier-grafite)]">
+                    {count}
+                  </div>
+                </div>
+                <p className="text-xs text-[var(--color-atelier-grafite)]/70 leading-relaxed">
+                  <strong>Critério:</strong> {p.criteria}
+                </p>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
+      {/* AS 5 ETAPAS DO CICLO DE VALOR (SEÇÃO 8) */}
+      <div className="flex flex-col gap-4">
+        <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] px-1">
+          As 5 Etapas do Ciclo de Valor no Vêneto
+        </h2>
+        {VALUE_CYCLE_STEPS.map((item) => {
+          const isDone = Boolean(cycleProgress[item.step]);
+          return (
+            <motion.div
+              key={item.step}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="glass-panel bg-white/80 p-6 rounded-3xl border border-white shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-5"
+            >
+              <div className="flex items-start gap-4">
+                <div
+                  className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 font-bold text-xs ${
+                    isDone
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                      : "bg-[#E2ECF3] text-[var(--color-atelier-terracota)] border border-[#142C48]/20"
+                  }`}
+                >
+                  {isDone ? <CheckCircle2 size={20} /> : item.icon}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)]">
+                      Etapa {item.step}
+                    </span>
+                    {isDone && (
+                      <span className="text-[10px] font-bold uppercase tracking-widest text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
+                        Vivenciada
+                      </span>
+                    )}
+                  </div>
+                  <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] mt-0.5">
+                    {item.title}
+                  </h3>
+                  <p className="text-xs text-[var(--color-atelier-grafite)]/75 mt-1 max-w-xl leading-relaxed">
+                    {item.description}
+                  </p>
+                </div>
+              </div>
+
+              <Link
+                href={item.href}
+                className="px-5 py-3 rounded-xl bg-[var(--color-atelier-grafite)] text-white text-[10px] font-bold uppercase tracking-widest hover:bg-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2 shrink-0 w-fit"
+              >
+                {item.ctaLabel} <ArrowRight size={13} />
+              </Link>
+            </motion.div>
+          );
+        })}
+      </div>
     </div>
   );
 }

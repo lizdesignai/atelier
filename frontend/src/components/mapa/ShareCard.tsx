@@ -66,45 +66,45 @@ export default function ShareCard({ clientName, totalDelta, currentTotal }: Shar
       <div className="flex justify-center mb-8 relative z-10">
         {/* CARD CONTAINER (Aspect ratio 9:16 approx for Stories) */}
         <div 
-          className="relative bg-white shadow-2xl rounded-3xl overflow-hidden flex flex-col justify-between border-[8px] border-[#fbf4e4]"
+          className="relative bg-white shadow-2xl rounded-3xl overflow-hidden flex flex-col justify-between border-[8px] border-[#E8E3DD]"
           style={{ width: '320px', height: '568px' }} // Proporção IG Story escalada
         >
           {/* O Card real que será capturado pela biblioteca (precisa estar na tela, mas escondido se preferir. Aqui deixaremos visível como preview) */}
           <div 
             ref={cardRef}
-            className="absolute inset-0 bg-[#fbf4e4] flex flex-col justify-between p-8"
+            className="absolute inset-0 bg-[#E8E3DD] flex flex-col justify-between p-8"
             style={{ width: '1080px', height: '1920px', transform: 'scale(0.296)', transformOrigin: 'top left' }} // Resolução nativa 1080x1920 reduzida para caber no preview
           >
             {/* Background Texture/Pattern */}
             <div className="absolute inset-0 opacity-5 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]" />
-            <div className="absolute -top-40 -right-40 w-96 h-96 bg-[#ad6f40] rounded-full blur-[150px] opacity-20" />
-            <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-[#7a7470] rounded-full blur-[150px] opacity-10" />
+            <div className="absolute -top-40 -right-40 w-96 h-96 bg-[#142C48] rounded-full blur-[150px] opacity-20" />
+            <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-[#424242] rounded-full blur-[150px] opacity-10" />
 
             {/* Header */}
             <div className="relative z-10 text-center mt-12">
-              <span className="text-3xl font-bold uppercase tracking-[0.4em] text-[#ad6f40] mb-4 block">Método Mapa 4D</span>
-              <span className="font-elegant text-6xl text-[#7a7470] italic">O Diagnóstico.</span>
+              <span className="text-3xl font-bold uppercase tracking-[0.4em] text-[#142C48] mb-4 block">Método Mapa 4D</span>
+              <span className="font-elegant text-6xl text-[#424242] italic">O Diagnóstico.</span>
             </div>
 
             {/* Center Content */}
             <div className="relative z-10 flex flex-col items-center justify-center bg-white/60 p-16 rounded-[4rem] border border-white/50 backdrop-blur-md shadow-2xl mx-8">
-              <span className="text-3xl font-bold uppercase tracking-widest text-[#7a7470]/50 mb-6">A Evolução de {clientName.split(' ')[0]}</span>
+              <span className="text-3xl font-bold uppercase tracking-widest text-[#424242]/50 mb-6">A Evolução de {clientName.split(' ')[0]}</span>
               
               <div className="flex items-center justify-center gap-4 mb-4">
                 <span className="font-elegant text-[180px] text-[#2e7d32] leading-none">+{totalDelta}</span>
               </div>
-              <span className="text-4xl font-bold text-[#7a7470] uppercase tracking-widest mb-12">Pontos de Evolução</span>
+              <span className="text-4xl font-bold text-[#424242] uppercase tracking-widest mb-12">Pontos de Evolução</span>
 
-              <div className="w-full h-px bg-[#7a7470]/10 mb-12" />
+              <div className="w-full h-px bg-[#424242]/10 mb-12" />
 
-              <span className="text-3xl text-[#7a7470]/60 uppercase tracking-widest mb-4">IPD Atualizado</span>
-              <span className="text-[120px] font-bold text-[#ad6f40] leading-none">{currentTotal}<span className="text-6xl text-[#ad6f40]/50">/100</span></span>
+              <span className="text-3xl text-[#424242]/60 uppercase tracking-widest mb-4">IPD Atualizado</span>
+              <span className="text-[120px] font-bold text-[#142C48] leading-none">{currentTotal}<span className="text-6xl text-[#142C48]/50">/100</span></span>
             </div>
 
             {/* Footer */}
             <div className="relative z-10 text-center mb-12 flex flex-col items-center">
-              <span className="text-3xl font-bold uppercase tracking-[0.3em] text-[#7a7470]/80">Atelier Liz Design</span>
-              <div className="w-16 h-1 bg-[#ad6f40] mt-6" />
+              <span className="text-3xl font-bold uppercase tracking-[0.3em] text-[#424242]/80">Atelier Studio Veronna</span>
+              <div className="w-16 h-1 bg-[#142C48] mt-6" />
             </div>
           </div>
         </div>

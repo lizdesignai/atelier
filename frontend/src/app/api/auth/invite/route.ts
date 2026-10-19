@@ -254,18 +254,21 @@ export async function POST(request: Request) {
       }
     }
 
-    // Se for client, criar projeto inicial com pipeline de tarefas se ainda não existir ativo
+    // Se for client, criar projeto inicial com pipeline de tarefas se ainda não existir ativo ou se não tiver tarefas
     if (userRole === 'client' && !body.skipProjectCreation) {
       const existingActiveProject = await sql`
-        SELECT id FROM projects WHERE client_id = ${userId} AND status = 'active' LIMIT 1
+        SELECT id FROM projects WHERE client_id = ${userId} AND status = 'active' ORDER BY created_at DESC LIMIT 1
       `;
 
-      if (existingActiveProject.length === 0) {
-        const projectId = crypto.randomUUID();
+      let targetProjectId = existingActiveProject[0]?.id;
+      let needTasks = false;
+
+      if (!targetProjectId) {
+        targetProjectId = crypto.randomUUID();
         const serviceType = body.service_type || body.servico || 'Identidade Visual';
         const projectType = body.project_package || body.type || serviceType;
         const initialIdvPhase = serviceType === 'Identidade Visual' ? 'discover' : null;
-        const initialProgress = serviceType === 'Identidade Visual' ? 14 : 0;
+        const initialProgress = serviceType === 'Identidade Visual' ? 19 : 0;
         const baseDate = new Date();
         const targetDeliveryDate = new Date(baseDate.getTime() + (21 * 24 * 60 * 60 * 1000));
 
@@ -286,7 +289,7 @@ export async function POST(request: Request) {
             created_at
           )
           VALUES (
-            ${projectId},
+            ${targetProjectId},
             ${userId},
             ${serviceType},
             ${projectType},
@@ -301,6 +304,25 @@ export async function POST(request: Request) {
             NOW()
           )
         `;
+        needTasks = true;
+      } else {
+        const taskCountRes = await sql`SELECT count(*)::int as count FROM tasks WHERE project_id = ${targetProjectId} AND title != 'Teste Tarefa'`;
+        if ((taskCountRes[0]?.count || 0) === 0) {
+          needTasks = true;
+          await sql`
+            UPDATE projects
+            SET phase = 'Mesa de Trabalho',
+                fase = COALESCE(fase, 'reuniao'),
+                idv_phase = COALESCE(idv_phase, 'discover'),
+                progress = COALESCE(progress, 19)
+            WHERE id = ${targetProjectId}
+          `;
+        }
+      }
+
+      if (needTasks) {
+        const serviceType = body.service_type || body.servico || 'Identidade Visual';
+        const baseDate = new Date();
 
         // Gerar pipeline de tarefas
         const IDV_PIPELINE = [
@@ -309,7 +331,7 @@ export async function POST(request: Request) {
           { stage: "discover", type: "reuniao", title: "Reunião de Briefing", daysOffset: 2, estTime: 60 },
           { stage: "discover", type: "copy", title: "Análise do Briefing + Brand Snapshot", daysOffset: 3, estTime: 45 },
           { stage: "define", type: "copy", title: "Acompanhar Brand Lab do Cliente", daysOffset: 4, estTime: 30 },
-          { stage: "define", type: "design", title: "Compilar Brand DNA", daysOffset: 5, estTime: 60 },
+          { stage: "define", type: "design", title: "Criar e Enviar Curadoria Visual", daysOffset: 5, estTime: 60 },
           { stage: "define", type: "design", title: "Desenvolver Território A", daysOffset: 6, estTime: 180 },
           { stage: "define", type: "design", title: "Desenvolver Território B", daysOffset: 7, estTime: 180 },
           { stage: "define", type: "copy", title: "Enviar Territórios para Avaliação", daysOffset: 8, estTime: 30 },
@@ -322,76 +344,99 @@ export async function POST(request: Request) {
           { stage: "deliver", type: "setup", title: "Checklist de Ativação + Handover", daysOffset: 17, estTime: 60 }
         ];
 
-      const IG_SETUP = [
-        { stage: "Setup Inicial", type: "setup", title: "Assinatura do contrato & Pagamento", daysOffset: 0, estTime: 30 },
-        { stage: "Imersão", type: "reuniao", title: "Reunião de briefing", daysOffset: 2, estTime: 60 },
-        { stage: "Estratégia", type: "copy", title: "Estudo de marca, Persona, Tom de voz", daysOffset: 5, estTime: 180 },
-        { stage: "Estratégia", type: "design", title: "Alinhamento Visual (Estilo do Feed)", daysOffset: 7, estTime: 120 },
-        { stage: "Estratégia", type: "copy", title: "Calendário Editorial de Conteúdos", daysOffset: 10, estTime: 90 },
-        { stage: "Aprovação", type: "setup", title: "Agendamento Sistêmico & Aprovação do Cliente", daysOffset: 15, estTime: 60 },
-        { stage: "Relatório", type: "setup", title: "Geração de Relatório Mensal", daysOffset: 25, estTime: 60 }
-      ];
+        const IG_SETUP = [
+          { stage: "Setup Inicial", type: "setup", title: "Assinatura do contrato & Pagamento", daysOffset: 0, estTime: 30 },
+          { stage: "Imersão", type: "reuniao", title: "Reunião de briefing", daysOffset: 2, estTime: 60 },
+          { stage: "Estratégia", type: "copy", title: "Estudo de marca, Persona, Tom de voz", daysOffset: 5, estTime: 180 },
+          { stage: "Estratégia", type: "design", title: "Alinhamento Visual (Estilo do Feed)", daysOffset: 7, estTime: 120 },
+          { stage: "Estratégia", type: "copy", title: "Calendário Editorial de Conteúdos", daysOffset: 10, estTime: 90 },
+          { stage: "Aprovação", type: "setup", title: "Agendamento Sistêmico & Aprovação do Cliente", daysOffset: 15, estTime: 60 },
+          { stage: "Relatório", type: "setup", title: "Geração de Relatório Mensal", daysOffset: 25, estTime: 60 }
+        ];
 
-      const pipeline = serviceType === 'Identidade Visual' ? IDV_PIPELINE : IG_SETUP;
+        const pipeline = serviceType === 'Identidade Visual' ? IDV_PIPELINE : IG_SETUP;
 
-      const COMPLETED_IDV_TASKS = [
-        "Formulário de cadastro & Contrato",
-        "Onboarding do Cliente",
-        "Reunião de Briefing"
-      ];
+        const DEFAULT_ASSIGNEES: Record<string, string> = {
+          reuniao: '55a1f766-bd50-45bd-b0bc-9af8309faa58', // Liz Oliveira
+          setup: '55a1f766-bd50-45bd-b0bc-9af8309faa58',   // Liz Oliveira
+          design: '55a1f766-bd50-45bd-b0bc-9af8309faa58',  // Liz Oliveira
+          copy: 'b6b7db2f-cf71-4281-80a0-1d61edbed5fb',    // Igor Oliveira
+          video: 'dbeedf1a-e3cb-4951-bba4-35b7d28d19b4'   // Emmanuel
+        };
 
-      for (let index = 0; index < pipeline.length; index++) {
-        const t = pipeline[index];
-        const isAutoCompleted = serviceType === 'Identidade Visual' && COMPLETED_IDV_TASKS.includes(t.title);
-        const isNextTask = serviceType === 'Identidade Visual' 
-          ? t.title === "Análise do Briefing + Brand Snapshot"
-          : index === 0;
+        const COMPLETED_IDV_TASKS = [
+          "Formulário de cadastro & Contrato",
+          "Onboarding do Cliente",
+          "Reunião de Briefing"
+        ];
 
-        const taskDeadline = new Date(baseDate);
-        taskDeadline.setDate(taskDeadline.getDate() + Math.round(t.daysOffset));
-        const isIgPiece = serviceType === 'Gestão de Instagram' && (t.type === 'design' || t.type === 'video');
+        for (let index = 0; index < pipeline.length; index++) {
+          const t = pipeline[index];
+          const isAutoCompleted = serviceType === 'Identidade Visual' && COMPLETED_IDV_TASKS.includes(t.title);
+          const isNextTask = serviceType === 'Identidade Visual' 
+            ? t.title === "Análise do Briefing + Brand Snapshot"
+            : index === 0;
 
-        await sql`
-          INSERT INTO tasks (
-            project_id,
-            client_id,
-            title,
-            stage,
-            task_type,
-            status,
-            completed_at,
-            priority_score,
-            assigned_to,
-            deadline,
-            estimated_time,
-            is_blocked,
-            ig_is_piece,
-            ig_format,
-            ig_publish_status,
-            created_at
-          )
-          VALUES (
-            ${projectId},
-            ${userId},
-            ${t.title},
-            ${t.stage},
-            ${t.type},
-            ${isAutoCompleted ? 'completed' : (isNextTask ? 'in_progress' : 'pending')},
-            ${isAutoCompleted ? new Date().toISOString() : null},
-            ${isNextTask ? 1000 : (100 - index)},
-            NULL,
-            ${taskDeadline.toISOString()},
-            ${t.estTime},
-            ${!isAutoCompleted && !isNextTask},
-            ${isIgPiece},
-            ${isIgPiece ? 'Reels' : null},
-            ${isIgPiece ? 'in_production' : null},
-            NOW()
-          )
-        `;
+          const taskDeadline = new Date(baseDate);
+          taskDeadline.setDate(taskDeadline.getDate() + Math.round(t.daysOffset));
+          const isIgPiece = serviceType === 'Gestão de Instagram' && (t.type === 'design' || t.type === 'video');
+          const assignee = DEFAULT_ASSIGNEES[t.type] || '55a1f766-bd50-45bd-b0bc-9af8309faa58';
+
+          await sql`
+            INSERT INTO tasks (
+              project_id,
+              client_id,
+              title,
+              stage,
+              task_type,
+              status,
+              completed_at,
+              priority_score,
+              assigned_to,
+              deadline,
+              estimated_time,
+              is_blocked,
+              ig_is_piece,
+              ig_format,
+              ig_publish_status,
+              created_at
+            )
+            VALUES (
+              ${targetProjectId},
+              ${userId},
+              ${t.title},
+              ${t.stage},
+              ${t.type},
+              ${isAutoCompleted ? 'completed' : (isNextTask ? 'in_progress' : 'pending')},
+              ${isAutoCompleted ? new Date().toISOString() : null},
+              ${isNextTask ? 1000 : (100 - index)},
+              ${assignee},
+              ${taskDeadline.toISOString()},
+              ${t.estTime},
+              ${!isAutoCompleted && !isNextTask},
+              ${isIgPiece},
+              ${isIgPiece ? 'Reels' : null},
+              ${isIgPiece ? 'in_production' : null},
+              NOW()
+            )
+          `;
+        }
+
+        // Se IDV, atualizar progresso para 19%
+        if (serviceType === 'Identidade Visual') {
+          await sql`UPDATE projects SET progress = 19 WHERE id = ${targetProjectId}`;
+        }
+
+        // Limpar cache Redis
+        try {
+          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+          await Promise.all([
+            fetch(`${backendUrl}/api/v1/analytics/clear-cache`, { method: 'POST' }).catch(() => {}),
+            fetch('http://localhost:3001/api/v1/analytics/clear-cache', { method: 'POST' }).catch(() => {})
+          ]);
+        } catch (_) {}
       }
     }
-  }
 
     // DISPARAR EMAIL DE BOAS VINDAS COM CREDENCIAIS
     try {

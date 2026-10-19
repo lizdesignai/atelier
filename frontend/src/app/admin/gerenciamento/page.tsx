@@ -357,7 +357,7 @@ export function GerenciamentoInstagram() {
                   animate={{ opacity: 1, y: 0, scale: 1 }} 
                   exit={{ opacity: 0, y: 10, scale: 0.95 }} 
                   transition={{ duration: 0.2 }}
-                  className="absolute top-[110%] left-0 w-[calc(100vw-3rem)] max-w-[360px] md:max-w-none md:w-[440px] bg-white/95 backdrop-blur-2xl border border-white shadow-[0_25px_60px_rgba(122,116,112,0.2)] rounded-[2rem] overflow-hidden z-50 flex flex-col py-2"
+                  className="absolute top-[110%] left-0 w-[calc(100vw-3rem)] max-w-[360px] md:max-w-none md:w-[440px] bg-white/95 backdrop-blur-2xl border border-white shadow-[0_25px_60px_rgba(20, 44, 72,0.2)] rounded-[2rem] overflow-hidden z-50 flex flex-col py-2"
                 >
                   <div className="px-5 py-2.5 border-b border-[var(--color-atelier-grafite)]/5 flex items-center justify-between">
                     <span className="text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">

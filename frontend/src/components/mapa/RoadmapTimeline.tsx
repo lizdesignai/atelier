@@ -55,7 +55,7 @@ export default function RoadmapTimeline({ stages }: RoadmapTimelineProps) {
                   ${isCompleted 
                     ? 'bg-[var(--color-atelier-terracota)] border-[var(--color-atelier-terracota)] text-white shadow-md' 
                     : isAvailable 
-                      ? 'bg-white border-[var(--color-atelier-terracota)] text-[var(--color-atelier-terracota)] shadow-[0_0_15px_rgba(173,111,64,0.3)]' 
+                      ? 'bg-white border-[var(--color-atelier-terracota)] text-[var(--color-atelier-terracota)] shadow-[0_0_15px_rgba(20, 44, 72,0.3)]' 
                       : 'bg-[#f4ebe1] border-[var(--color-atelier-grafite)]/20 text-[var(--color-atelier-grafite)]/40'
                   }
                 `}

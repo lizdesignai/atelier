@@ -4,7 +4,7 @@ import { Resend } from 'resend';
 import { getDb } from '@/lib/db';
 
 const ADMIN_EMAIL = 'lizbranddesign@gmail.com';
-const FROM_EMAIL = 'Liz Design <sistema@lizdesign.com.br>'; 
+const FROM_EMAIL = 'Studio Veronna <sistema@lizdesign.com.br>'; 
 const LOGO_URL = 'https://atelier.lizdesign.com.br/images/simbolo-rosa.png';
 
 interface ProfileData { 
@@ -153,8 +153,7 @@ function buildAppLikeEmail(avatarOrIcon: string, title: string, message: string,
               <tr>
                 <td align="center" style="padding: 20px; background-color: #fafafa; border-top: 1px solid #f4f4f5;">
                   <p style="margin: 0; font-size: 10px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">
-                    Liz Design
-                  </p>
+                    Studio Veronna </p>
                 </td>
               </tr>
             </table>
@@ -277,7 +276,7 @@ export async function POST(request: Request) {
           await sendEmailSafely(resend, recipient.email, emailSubject, buildAppLikeEmail(avatar, "Mensagem Direta", emailBody, "Responder agora", `${portalUrl}/admin/inbox`), "Chat DM");
         }
       } else if (channel.type === 'corporate_global' && sender.role !== 'admin') {
-        await sendEmailSafely(resend, ADMIN_EMAIL, emailSubject, buildAppLikeEmail(avatar, "LizDesign", emailBody, "Ir para o Chat", `${portalUrl}/admin/inbox`), "Chat");
+        await sendEmailSafely(resend, ADMIN_EMAIL, emailSubject, buildAppLikeEmail(avatar, "Studio Veronna", emailBody, "Ir para o Chat", `${portalUrl}/admin/inbox`), "Chat");
       } else if (!channel.is_private) {
         const client = channel.project_id ? await getClientProfile(channel.project_id) : null;
         const isSenderTeam = ['admin', 'gestor', 'colaborador'].includes(sender.role?.toLowerCase() || '');
@@ -407,7 +406,7 @@ export async function POST(request: Request) {
 
       if (type === 'INSERT') {
         await sendEmailSafely(resend, ADMIN_EMAIL, `🔥 Novo Briefing Finalizado: ${clientName}`, buildAppLikeEmail("🎯", "Diagnóstico Concluído", `O cliente <strong>${clientName}</strong> preencheu o Dossiê Estratégico integralmente.`, "Ver Mesa de Trabalho", `${portalUrl}/admin`), "Briefing Admin");
-        if (clientEmail) await sendEmailSafely(resend, clientEmail, `Brienfing Recebido - Liz Design`, buildAppLikeEmail("📝", "Passo Importante!", `Recebemos as suas respostas estratégicas. A nossa equipe de planejamento já foi acionada.`, "Acessar Painel", portalUrl), "Briefing Cliente");
+        if (clientEmail) await sendEmailSafely(resend, clientEmail, `Brienfing Recebido - Studio Veronna`, buildAppLikeEmail("📝", "Passo Importante!", `Recebemos as suas respostas estratégicas. A nossa equipe de planejamento já foi acionada.`, "Acessar Painel", portalUrl), "Briefing Cliente");
       }
 
       if (type === 'UPDATE' && old_record && old_record.is_completed !== record.is_completed && record.is_completed === false) {

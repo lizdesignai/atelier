@@ -22,13 +22,13 @@ Font.register({
 // 2. ESTÉTICA EDITORIAL
 const styles = StyleSheet.create({
   page: {
-    backgroundColor: '#fbf4e4',
+    backgroundColor: '#E8E3DD',
     padding: 50,
     fontFamily: 'Roboto',
-    color: '#7a7470',
+    color: '#424242',
   },
   coverPage: {
-    backgroundColor: '#ad6f40', // Terracota cover
+    backgroundColor: '#142C48', // Terracota cover
     padding: 60,
     display: 'flex',
     flexDirection: 'column',
@@ -60,10 +60,10 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontFamily: 'Elegant',
     fontSize: 28,
-    color: '#7a7470',
+    color: '#424242',
     marginBottom: 20,
     marginTop: 30,
-    borderBottom: '1px solid rgba(122, 116, 112, 0.2)',
+    borderBottom: '1px solid rgba(20, 44, 72, 0.2)',
     paddingBottom: 10,
   },
   textBlock: {
@@ -72,7 +72,7 @@ const styles = StyleSheet.create({
     marginBottom: 15,
   },
   highlightBox: {
-    backgroundColor: 'rgba(173, 111, 64, 0.1)', // Terracota 10%
+    backgroundColor: 'rgba(20, 44, 72, 0.1)', // Terracota 10%
     padding: 20,
     borderRadius: 8,
     marginTop: 20,
@@ -83,13 +83,13 @@ const styles = StyleSheet.create({
     fontWeight: 700,
     textTransform: 'uppercase',
     letterSpacing: 2,
-    color: '#ad6f40',
+    color: '#142C48',
     marginBottom: 8,
   },
   scoreNumber: {
     fontFamily: 'Elegant',
     fontSize: 40,
-    color: '#ad6f40',
+    color: '#142C48',
     marginBottom: 5,
   },
   taskItem: {
@@ -100,7 +100,7 @@ const styles = StyleSheet.create({
   taskBullet: {
     width: 15,
     fontSize: 11,
-    color: '#ad6f40',
+    color: '#142C48',
     fontWeight: 700,
   },
   taskText: {
@@ -115,14 +115,14 @@ const styles = StyleSheet.create({
     right: 50,
     flexDirection: 'row',
     justifyContent: 'space-between',
-    borderTop: '1px solid rgba(122, 116, 112, 0.2)',
+    borderTop: '1px solid rgba(20, 44, 72, 0.2)',
     paddingTop: 10,
   },
   footerText: {
     fontSize: 8,
     textTransform: 'uppercase',
     letterSpacing: 2,
-    color: '#7a7470',
+    color: '#424242',
     opacity: 0.5,
   }
 });
@@ -176,14 +176,14 @@ export default function MapaPDF({ clientName, stageNumber, mapaData }: MapaPDFPr
           </View>
           <View style={{ width: '35%', backgroundColor: '#fff', padding: 20, borderRadius: 10, border: '1px solid rgba(0,0,0,0.05)', alignItems: 'center' }}>
             <Text style={{ fontSize: 10, textTransform: 'uppercase', letterSpacing: 1, marginBottom: 5 }}>Seu IPD</Text>
-            <Text style={styles.scoreNumber}>{stageScore}<Text style={{ fontSize: 16, color: '#7a7470', opacity: 0.5 }}>/100</Text></Text>
-            <Text style={{ fontSize: 10, marginTop: 5, color: '#ad6f40', textTransform: 'uppercase', letterSpacing: 1, fontFamily: 'Roboto' }}>IPD Atual</Text>
+            <Text style={styles.scoreNumber}>{stageScore}<Text style={{ fontSize: 16, color: '#424242', opacity: 0.5 }}>/100</Text></Text>
+            <Text style={{ fontSize: 10, marginTop: 5, color: '#142C48', textTransform: 'uppercase', letterSpacing: 1, fontFamily: 'Roboto' }}>IPD Atual</Text>
           </View>
         </View>
 
         {isPrincipalGargalo && (
-          <View style={{ ...styles.highlightBox, backgroundColor: 'rgba(201, 163, 155, 0.2)' }}>
-             <Text style={{ ...styles.highlightTitle, color: '#9b836b' }}>⚠️ ALERTA DE GARGALO</Text>
+          <View style={{ ...styles.highlightBox, backgroundColor: 'rgba(185, 209, 227, 0.2)' }}>
+             <Text style={{ ...styles.highlightTitle, color: '#640606' }}>⚠️ ALERTA DE GARGALO</Text>
              <Text style={styles.textBlock}>
                O nosso sistema identificou que a {content.dimensao} é atualmente o principal gargalo que impede o crescimento da sua marca. As tarefas desta semana são as mais críticas de toda a jornada.
              </Text>
@@ -195,7 +195,7 @@ export default function MapaPDF({ clientName, stageNumber, mapaData }: MapaPDFPr
         
         {/* FOOTER P1 */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Atelier Liz Design</Text>
+          <Text style={styles.footerText}>Atelier Studio Veronna</Text>
           <Text style={styles.footerText}>Semana 0{stageNumber} — {stripEmojis(content.dimensao)}</Text>
         </View>
       </Page>
@@ -217,7 +217,7 @@ export default function MapaPDF({ clientName, stageNumber, mapaData }: MapaPDFPr
                 <Text style={styles.taskText}>
                   <Text style={{ fontWeight: 700 }}>{stripEmojis(tarefa.texto)}</Text>
                   {"\n"}
-                  <Text style={{ fontSize: 9, opacity: 0.7, color: '#ad6f40' }}>
+                  <Text style={{ fontSize: 9, opacity: 0.7, color: '#142C48' }}>
                     Impacto {tarefa.impacto.toUpperCase()} / Esforço {tarefa.esforco.toUpperCase()}
                   </Text>
                 </Text>
@@ -234,7 +234,7 @@ export default function MapaPDF({ clientName, stageNumber, mapaData }: MapaPDFPr
           {content.checkpoint.perguntas.map((q, idx) => (
             <View key={idx} style={{ marginBottom: 15 }}>
               <Text style={{ fontSize: 11, fontWeight: 700, marginBottom: 5 }}>{idx + 1}. {stripEmojis(q.pergunta)}</Text>
-              <Text style={{ fontSize: 10, paddingLeft: 10, color: '#ad6f40', fontStyle: 'italic' }}>
+              <Text style={{ fontSize: 10, paddingLeft: 10, color: '#142C48', fontStyle: 'italic' }}>
                 ↳ O ideal: {stripEmojis(q.opcoes.find(o => o.correta)?.texto || '')}
               </Text>
             </View>
@@ -243,7 +243,7 @@ export default function MapaPDF({ clientName, stageNumber, mapaData }: MapaPDFPr
 
         {/* FOOTER P2 */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Atelier Liz Design</Text>
+          <Text style={styles.footerText}>Atelier Studio Veronna</Text>
           <Text style={styles.footerText}>Semana 0{stageNumber} — {stripEmojis(content.dimensao)}</Text>
         </View>
       </Page>

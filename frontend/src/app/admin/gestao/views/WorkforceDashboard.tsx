@@ -570,7 +570,7 @@ ${qualidadeText}
                     )}
                     <button
                       onClick={() => setIsAssignmentModalOpen(true)}
-                      className="bg-[var(--color-atelier-terracota)] text-white text-xs font-bold uppercase tracking-wider px-4 py-3 rounded-[1.5rem] hover:bg-[#9b836b] transition-all flex items-center gap-2 shadow-sm shrink-0"
+                      className="bg-[var(--color-atelier-terracota)] text-white text-xs font-bold uppercase tracking-wider px-4 py-3 rounded-[1.5rem] hover:bg-[#640606] transition-all flex items-center gap-2 shadow-sm shrink-0"
                     >
                       <UserCheck size={16} /> Atribuir Clientes
                     </button>
@@ -733,7 +733,7 @@ ${qualidadeText}
                   <div className="mt-2 flex justify-end">
                     <button 
                       onClick={() => generateDiagnosticReport(selectedMember)}
-                      className="bg-[var(--color-atelier-terracota)] text-white px-6 py-3.5 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-[#8c562e] transition-all shadow-md flex items-center gap-2"
+                      className="bg-[var(--color-atelier-terracota)] text-white px-6 py-3.5 rounded-xl text-[11px] font-bold uppercase tracking-widest hover:bg-[#234E80] transition-all shadow-md flex items-center gap-2"
                     >
                       <FileText size={16} /> Gerar Diagnóstico Automático
                     </button>

@@ -33,7 +33,7 @@ export default function OnboardingPage() {
         initial={{ opacity: 0, y: 40, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
         transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-        className="relative z-10 w-full max-w-4xl bg-white/60 backdrop-blur-3xl border border-white/60 p-8 md:p-12 rounded-[3.5rem] shadow-[0_30px_80px_rgba(122,116,112,0.15)] flex flex-col items-center text-center"
+        className="relative z-10 w-full max-w-4xl bg-white/60 backdrop-blur-3xl border border-white/60 p-8 md:p-12 rounded-[3.5rem] shadow-[0_30px_80px_rgba(20, 44, 72,0.15)] flex flex-col items-center text-center"
       >
         <div className="w-16 h-16 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] rounded-full flex items-center justify-center mb-6">
           <PlayCircle size={32} />

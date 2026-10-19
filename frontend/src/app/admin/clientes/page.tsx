@@ -996,7 +996,7 @@ export default function BaseClientesPage() {
                           initial={{ opacity: 0, y: 10, scale: 0.95 }}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                          className="absolute top-[110%] right-[60px] w-52 bg-white/90 backdrop-blur-xl border border-white shadow-[0_20px_50px_rgba(122,116,112,0.15)] rounded-2xl overflow-hidden z-50 flex flex-col py-2"
+                          className="absolute top-[110%] right-[60px] w-52 bg-white/90 backdrop-blur-xl border border-white shadow-[0_20px_50px_rgba(20, 44, 72,0.15)] rounded-2xl overflow-hidden z-50 flex flex-col py-2"
                           onClick={(e) => e.stopPropagation()}
                         >
                           {!project.isAgency && (
@@ -1127,7 +1127,7 @@ export default function BaseClientesPage() {
             
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-[600px] max-h-full overflow-hidden bg-[var(--color-atelier-creme)] rounded-[2.5rem] shadow-[0_20px_50px_rgba(122,116,112,0.2)] border border-white flex flex-col"
+              className="relative w-full max-w-[600px] max-h-full overflow-hidden bg-[var(--color-atelier-creme)] rounded-[2.5rem] shadow-[0_20px_50px_rgba(20, 44, 72,0.2)] border border-white flex flex-col"
             >
               <div className="p-6 md:p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 backdrop-blur-xl flex justify-between items-start shrink-0 z-10">
                 <div>
@@ -1229,7 +1229,7 @@ export default function BaseClientesPage() {
                   type="submit" 
                   form="edit-contract-form"
                   disabled={isEditing}
-                  className="w-full bg-[var(--color-atelier-terracota)] text-white py-4 rounded-[1.2rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[#8c562e] transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-2 hover:-translate-y-0.5 disabled:hover:translate-y-0"
+                  className="w-full bg-[var(--color-atelier-terracota)] text-white py-4 rounded-[1.2rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[#234E80] transition-all shadow-md disabled:opacity-50 flex items-center justify-center gap-2 hover:-translate-y-0.5 disabled:hover:translate-y-0"
                 >
                   {isEditing ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
                   Salvar Alterações Contratuais
@@ -1254,7 +1254,7 @@ export default function BaseClientesPage() {
             
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-[800px] max-h-full overflow-hidden bg-[var(--color-atelier-creme)] rounded-[2.5rem] shadow-[0_20px_50px_rgba(122,116,112,0.2)] border border-white flex flex-col"
+              className="relative w-full max-w-[800px] max-h-full overflow-hidden bg-[var(--color-atelier-creme)] rounded-[2.5rem] shadow-[0_20px_50px_rgba(20, 44, 72,0.2)] border border-white flex flex-col"
             >
               <div className="p-6 md:p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 backdrop-blur-xl flex justify-between items-start shrink-0 z-10">
                 <div>
@@ -1501,7 +1501,7 @@ export default function BaseClientesPage() {
                   type="submit" 
                   form="new-contract-form"
                   disabled={isSubmitting || (!isCreatingNewClient && !selectedClientId)}
-                  className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-[1.2rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all shadow-[0_10px_20px_rgba(122,116,112,0.15)] disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-2"
+                  className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-[1.2rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all shadow-[0_10px_20px_rgba(20, 44, 72,0.15)] disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <CreditCard size={16} />}
                   Validar Contrato e Atribuir Demandas
@@ -1527,7 +1527,7 @@ export default function BaseClientesPage() {
             
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }} exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-[800px] max-h-full overflow-hidden bg-[var(--color-atelier-creme)] rounded-[2.5rem] shadow-[0_20px_50px_rgba(122,116,112,0.2)] border border-white flex flex-col"
+              className="relative w-full max-w-[800px] max-h-full overflow-hidden bg-[var(--color-atelier-creme)] rounded-[2.5rem] shadow-[0_20px_50px_rgba(20, 44, 72,0.2)] border border-white flex flex-col"
             >
               <div className="p-6 md:p-8 border-b border-[var(--color-atelier-grafite)]/10 bg-white/60 backdrop-blur-xl flex justify-between items-start shrink-0 z-10">
                 <div>
@@ -1616,7 +1616,7 @@ export default function BaseClientesPage() {
                   type="submit" 
                   form="new-agency-form" 
                   disabled={isSubmitting || !agencyName} 
-                  className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-[1.2rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all shadow-[0_10px_20px_rgba(122,116,112,0.15)] disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-2"
+                  className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-[1.2rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all shadow-[0_10px_20px_rgba(20, 44, 72,0.15)] disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-2"
                 >
                   {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} 
                   Salvar Agência e Atribuir Demandas
@@ -1790,7 +1790,7 @@ export default function BaseClientesPage() {
                 <button
                   type="button"
                   onClick={handleCopyAccessCredentials}
-                  className="flex-1 bg-[var(--color-atelier-terracota)] hover:bg-[#8c562e] text-white py-3.5 px-6 rounded-2xl font-roboto font-bold text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
+                  className="flex-1 bg-[var(--color-atelier-terracota)] hover:bg-[#234E80] text-white py-3.5 px-6 rounded-2xl font-roboto font-bold text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 active:scale-95"
                 >
                   {isAccessCopied ? (
                     <>
@@ -1831,7 +1831,7 @@ function FilterButton({ label, active, onClick }: { label: string, active: boole
       className={`
         px-5 py-2.5 rounded-xl font-roboto font-bold uppercase tracking-widest text-[10px] transition-all whitespace-nowrap
         ${active 
-          ? 'bg-[var(--color-atelier-terracota)] text-white shadow-[0_4px_10px_rgba(173,111,64,0.3)]' 
+          ? 'bg-[var(--color-atelier-terracota)] text-white shadow-[0_4px_10px_rgba(20, 44, 72,0.3)]' 
           : 'bg-white border border-[var(--color-atelier-grafite)]/5 text-[var(--color-atelier-grafite)]/60 hover:bg-white hover:text-[var(--color-atelier-grafite)] hover:border-[var(--color-atelier-terracota)]/20 shadow-sm'
         }
       `}

@@ -358,11 +358,11 @@ export default function LoginPage() {
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             className="relative z-10 w-full max-w-[460px] px-6"
           >
-            <div className="bg-white/60 backdrop-blur-3xl border border-white/60 p-10 rounded-[3.5rem] shadow-[0_30px_80px_rgba(122,116,112,0.15)] flex flex-col items-center">
+            <div className="bg-white/60 backdrop-blur-3xl border border-white/60 p-10 rounded-[3.5rem] shadow-[0_30px_80px_rgba(20, 44, 72,0.15)] flex flex-col items-center">
               
               <div className="relative w-14 h-14 mb-8">
                 <div className="absolute inset-0 bg-[var(--color-atelier-terracota)] blur-xl opacity-20 animate-pulse"></div>
-                <img src="/images/simbolo-rosa.png" alt="Logo" className="w-full h-full object-contain relative z-10 animate-[pulse_3s_ease-in-out_infinite]" />
+                <img src="/images/simbolo-veronna.svg" alt="Studio Veronna" className="w-full h-full object-contain relative z-10 animate-[pulse_3s_ease-in-out_infinite]" />
               </div>
 
               <div className="text-center mb-8 w-full">
@@ -471,7 +471,7 @@ export default function LoginPage() {
                   animate={{ opacity: 1 }} 
                   type="submit" 
                   disabled={isAuthenticating} 
-                  className={`w-full relative overflow-hidden rounded-[1.5rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] h-14 flex items-center justify-center gap-3 transition-all duration-500 shadow-md mt-2 ${isAuthenticating ? 'bg-white border border-[var(--color-atelier-terracota)]/40 text-[var(--color-atelier-terracota)] shadow-none' : 'bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] hover:shadow-[0_15px_30px_rgba(173,111,64,0.3)] hover:-translate-y-1'}`}
+                  className={`w-full relative overflow-hidden rounded-[1.5rem] font-roboto font-bold uppercase tracking-[0.2em] text-[12px] h-14 flex items-center justify-center gap-3 transition-all duration-500 shadow-md mt-2 ${isAuthenticating ? 'bg-white border border-[var(--color-atelier-terracota)]/40 text-[var(--color-atelier-terracota)] shadow-none' : 'bg-[var(--color-atelier-grafite)] text-white hover:bg-[var(--color-atelier-terracota)] hover:shadow-[0_15px_30px_rgba(20, 44, 72,0.3)] hover:-translate-y-1'}`}
                 >
                   {isAuthenticating ? (
                     <><Loader2 size={18} className="animate-spin" /><span>Processando...</span></>

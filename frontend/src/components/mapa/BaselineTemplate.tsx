@@ -105,7 +105,7 @@ export default function BaselineTemplate({ mapaData, onUpdateProgress, onComplet
         <button 
           onClick={handleSubmit}
           disabled={isSubmitting || !objetivos.trim() || !compromisso}
-          className="w-full sm:w-auto bg-[var(--color-atelier-terracota)] text-white px-8 py-4 rounded-full text-xs md:text-sm font-bold uppercase tracking-widest shadow-xl hover:-translate-y-1 hover:bg-[#8c562e] transition-all disabled:opacity-50 disabled:hover:translate-y-0"
+          className="w-full sm:w-auto bg-[var(--color-atelier-terracota)] text-white px-8 py-4 rounded-full text-xs md:text-sm font-bold uppercase tracking-widest shadow-xl hover:-translate-y-1 hover:bg-[#234E80] transition-all disabled:opacity-50 disabled:hover:translate-y-0"
         >
           {isSubmitting ? 'A salvar...' : 'Iniciar Minha Jornada'}
         </button>

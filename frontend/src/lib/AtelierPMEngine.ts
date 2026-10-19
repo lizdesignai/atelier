@@ -335,7 +335,7 @@ export class AtelierPMEngine {
         .from('tasks')
         .select('*')
         .is('assigned_to', null)
-        .in('status', ['pending', 'needs_revision']);
+        .in('status', ['pending', 'in_progress', 'needs_revision']);
 
       if (taskError) throw taskError;
       if (!unassignedTasks || unassignedTasks.length === 0) return true;
@@ -360,7 +360,7 @@ export class AtelierPMEngine {
           id: task.id,
           assigned_to: assignee,
           internal_deadline: internal,
-          status: 'pending' 
+          status: task.status || 'pending' 
         });
         memberIndex = (memberIndex + 1) % teamMembers.length;
       }

@@ -2,29 +2,24 @@ import { Request, Response } from 'express';
 import { neon } from '@neondatabase/serverless';
 
 const IDV_PIPELINE = [
-  { stage: "Setup & Onboarding", type: "setup", title: "Formulário de cadastro & Contrato", daysOffset: 0, estTime: 30 },
-  { stage: "Setup & Onboarding", type: "setup", title: "Onboarding do Cliente", daysOffset: 1, estTime: 15 },
-  { stage: "01 Descobrir", type: "reuniao", title: "Reunião de Briefing", daysOffset: 2, estTime: 60 },
-  { stage: "01 Descobrir", type: "copy", title: "Análise do Briefing + Brand Snapshot", daysOffset: 3, estTime: 45 },
-  { stage: "01 Descobrir", type: "gate", title: "GATE 01: Validação da Fundação", daysOffset: 3, estTime: 15 },
-  { stage: "02 Brand Lab", type: "copy", title: "Acompanhar Brand Lab do Cliente", daysOffset: 4, estTime: 30 },
-  { stage: "02 Brand Lab", type: "design", title: "Compilar Brand DNA", daysOffset: 5, estTime: 60 },
-  { stage: "02 Brand Lab", type: "gate", title: "GATE 02: Validação do Brand DNA", daysOffset: 5, estTime: 15 },
-  { stage: "03 Direcionar", type: "design", title: "Desenvolver Território A", daysOffset: 6, estTime: 180 },
-  { stage: "03 Direcionar", type: "design", title: "Desenvolver Território B", daysOffset: 7, estTime: 180 },
-  { stage: "03 Direcionar", type: "copy", title: "Enviar Territórios para Avaliação", daysOffset: 8, estTime: 30 },
-  { stage: "03 Direcionar", type: "gate", title: "GATE 03: Território Escolhido", daysOffset: 8, estTime: 15 },
-  { stage: "04 Construir", type: "design", title: "Desenvolvimento do Símbolo", daysOffset: 9, estTime: 180 },
-  { stage: "04 Construir", type: "design", title: "Tipografia & Paleta Cromática", daysOffset: 10, estTime: 120 },
-  { stage: "04 Construir", type: "design", title: "Sistema Gráfico & Aplicações", daysOffset: 11, estTime: 240 },
-  { stage: "04 Construir", type: "gate", title: "GATE 04: Preview e Aprovação Interna", daysOffset: 13, estTime: 30 },
-  { stage: "05 Revelar", type: "design", title: "Montagem da Apresentação Narrativa", daysOffset: 14, estTime: 120 },
-  { stage: "05 Revelar", type: "reuniao", title: "Reunião de Apresentação", daysOffset: 15, estTime: 60 },
-  { stage: "05 Revelar", type: "gate", title: "GATE 05: Identidade Aprovada", daysOffset: 15, estTime: 15 },
-  { stage: "06 Ativar", type: "design", title: "Brand Starter Kit + Asset Library", daysOffset: 16, estTime: 90 },
-  { stage: "06 Ativar", type: "setup", title: "Checklist de Ativação + Handover", daysOffset: 17, estTime: 60 },
-  { stage: "06 Ativar", type: "gate", title: "GATE 06: Marca Ativada", daysOffset: 18, estTime: 15 }
+  { stage: "onboarding", type: "setup", title: "Formulário de cadastro & Contrato", daysOffset: 0, estTime: 30 },
+  { stage: "onboarding", type: "setup", title: "Onboarding do Cliente", daysOffset: 1, estTime: 15 },
+  { stage: "discover", type: "reuniao", title: "Reunião de Briefing", daysOffset: 2, estTime: 60 },
+  { stage: "discover", type: "copy", title: "Análise do Briefing + Brand Snapshot", daysOffset: 3, estTime: 45 },
+  { stage: "define", type: "copy", title: "Acompanhar Brand Lab do Cliente", daysOffset: 4, estTime: 30 },
+  { stage: "define", type: "design", title: "Criar e Enviar Curadoria Visual", daysOffset: 5, estTime: 60 },
+  { stage: "define", type: "design", title: "Desenvolver Território A", daysOffset: 6, estTime: 180 },
+  { stage: "define", type: "design", title: "Desenvolver Território B", daysOffset: 7, estTime: 180 },
+  { stage: "define", type: "copy", title: "Enviar Territórios para Avaliação", daysOffset: 8, estTime: 30 },
+  { stage: "develop", type: "design", title: "Desenvolvimento do Símbolo", daysOffset: 9, estTime: 180 },
+  { stage: "develop", type: "design", title: "Tipografia & Paleta Cromática", daysOffset: 10, estTime: 120 },
+  { stage: "develop", type: "design", title: "Sistema Gráfico & Aplicações", daysOffset: 11, estTime: 240 },
+  { stage: "present", type: "design", title: "Montagem da Apresentação Narrativa", daysOffset: 14, estTime: 120 },
+  { stage: "present", type: "reuniao", title: "Reunião de Apresentação", daysOffset: 15, estTime: 60 },
+  { stage: "deliver", type: "design", title: "Brand Starter Kit + Asset Library", daysOffset: 16, estTime: 90 },
+  { stage: "deliver", type: "setup", title: "Checklist de Ativação + Handover", daysOffset: 17, estTime: 60 }
 ];
+
 
 const IG_SETUP = [
   { stage: "Setup Inicial", type: "setup", title: "Assinatura do contrato & Pagamento", daysOffset: 0, estTime: 30 },
@@ -145,117 +140,149 @@ export class ClientsController {
       }
 
       const sql = neon(process.env.POSTGRES_URL || '');
+      const resolvedServiceType = service_type || 'Identidade Visual';
+      const projectType = resolvedServiceType === 'Gestão de Instagram' ? project_package : resolvedServiceType;
+      const initialProgress = resolvedServiceType === 'Identidade Visual' ? 19 : 0;
+      const initialIdvPhase = resolvedServiceType === 'Identidade Visual' ? 'discover' : null;
 
-      const projectPayload = {
-        client_id,
-        service_type,
-        type: service_type === 'Gestão de Instagram' ? project_package : service_type, 
-        status: 'active',
-        phase: 'Mesa de Trabalho',
-        fase: 'reuniao', 
-        progress: 0,
-        financial_value: financial_value ? parseFloat(financial_value) : 0,
-        payment_method,
-        payment_recurrence,
-        payment_split,
-        billing_date: billing_date || null,
-        data_limite: billing_date || null,
-        contract_start: contract_start || null,
-        contract_end: contract_end || null,
-        posts_quantity: posts_quantity ? parseInt(posts_quantity) : 0,
-        videos_quantity: videos_quantity ? parseInt(videos_quantity) : 0
-      };
-
-      const newProjectData = await sql`
-        INSERT INTO projects (
-          client_id, service_type, type, status, phase, fase, progress, financial_value, payment_method, 
-          payment_recurrence, payment_split, billing_date, data_limite, contract_start, contract_end, 
-          posts_quantity, videos_quantity
-        ) VALUES (
-          ${projectPayload.client_id}, ${projectPayload.service_type}, ${projectPayload.type}, ${projectPayload.status}, 
-          ${projectPayload.phase}, ${projectPayload.fase}, ${projectPayload.progress}, ${projectPayload.financial_value}, 
-          ${projectPayload.payment_method || null}, ${projectPayload.payment_recurrence || null}, ${projectPayload.payment_split || null}, 
-          ${projectPayload.billing_date || null}, ${projectPayload.data_limite || null}, ${projectPayload.contract_start || null}, 
-          ${projectPayload.contract_end || null}, ${projectPayload.posts_quantity}, ${projectPayload.videos_quantity}
-        ) RETURNING *
+      // Verificar se já existe projeto ativo
+      const existing = await sql`
+        SELECT * FROM projects 
+        WHERE client_id = ${client_id} AND status = 'active'
+        ORDER BY created_at DESC LIMIT 1
       `;
-      const newProject = newProjectData[0];
-      
-      let pipeline: any[] = [];
-      if (service_type === 'Identidade Visual') {
-        pipeline = IDV_PIPELINE;
+
+      let targetProject: any;
+      if (existing.length > 0) {
+        const [updated] = await sql`
+          UPDATE projects
+          SET
+            service_type = ${resolvedServiceType},
+            type = ${projectType},
+            status = 'active',
+            phase = 'Mesa de Trabalho',
+            fase = ${initialIdvPhase || 'reuniao'},
+            idv_phase = ${initialIdvPhase},
+            progress = COALESCE(progress, ${initialProgress}),
+            financial_value = ${financial_value ? parseFloat(financial_value) : 0},
+            payment_method = ${payment_method || null},
+            payment_recurrence = ${payment_recurrence || null},
+            payment_split = ${payment_split || null},
+            billing_date = ${billing_date || null},
+            data_limite = ${billing_date || null},
+            contract_start = ${contract_start || null},
+            contract_end = ${contract_end || null},
+            posts_quantity = ${posts_quantity ? parseInt(posts_quantity) : 0},
+            videos_quantity = ${videos_quantity ? parseInt(videos_quantity) : 0}
+          WHERE id = ${existing[0].id}
+          RETURNING *
+        `;
+        targetProject = updated;
       } else {
-        // Pipeline Dinâmico Baseado no Contrato
-        pipeline = [...IG_SETUP];
-        
-        const v_qty = projectPayload.videos_quantity;
-        const p_qty = projectPayload.posts_quantity;
+        const [inserted] = await sql`
+          INSERT INTO projects (
+            client_id, service_type, type, status, phase, fase, idv_phase, progress, financial_value, payment_method, 
+            payment_recurrence, payment_split, billing_date, data_limite, contract_start, contract_end, 
+            posts_quantity, videos_quantity
+          ) VALUES (
+            ${client_id}, ${resolvedServiceType}, ${projectType}, 'active', 
+            'Mesa de Trabalho', ${initialIdvPhase || 'reuniao'}, ${initialIdvPhase}, ${initialProgress}, ${financial_value ? parseFloat(financial_value) : 0}, 
+            ${payment_method || null}, ${payment_recurrence || null}, ${payment_split || null}, 
+            ${billing_date || null}, ${billing_date || null}, ${contract_start || null}, 
+            ${contract_end || null}, ${posts_quantity ? parseInt(posts_quantity) : 0}, ${videos_quantity ? parseInt(videos_quantity) : 0}
+          ) RETURNING *
+        `;
+        targetProject = inserted;
+      }
 
-        // Estratégia Inicial se tiver posts ou videos
-        if (p_qty > 0 || v_qty > 0) {
+      // Checar se já existem tarefas
+      const taskCheck = await sql`SELECT count(*)::int as count FROM tasks WHERE project_id = ${targetProject.id} AND title != 'Teste Tarefa'`;
+      await sql`DELETE FROM tasks WHERE project_id = ${targetProject.id} AND title = 'Teste Tarefa'`.catch(() => {});
+
+      if ((taskCheck[0]?.count || 0) === 0) {
+        let pipeline: any[] = [];
+        if (resolvedServiceType === 'Identidade Visual') {
+          pipeline = IDV_PIPELINE;
+        } else {
+          pipeline = [...IG_SETUP];
+          const v_qty = targetProject.videos_quantity || 0;
+          const p_qty = targetProject.posts_quantity || 0;
+
+          if (p_qty > 0 || v_qty > 0) {
             pipeline.push({ stage: "Estratégia", type: "copy", title: "Calendário Editorial de Conteúdos", daysOffset: 5, estTime: 90 });
+          }
+
+          if (v_qty > 0) {
+            pipeline.push({ stage: "Copywriting", type: "copy", title: `Roteirização de ${v_qty} Vídeos`, daysOffset: 7, estTime: 60 });
+            for (let i = 0; i < v_qty; i++) {
+              pipeline.push({ stage: "Produção de Vídeo", type: "video", title: `Edição de Vídeo ${i+1} + Capa`, daysOffset: 10 + (i * 0.5), estTime: 60 });
+            }
+          }
+
+          if (p_qty > 0) {
+            for (let i = 0; i < p_qty; i++) {
+              pipeline.push({ stage: "Produção de Arte", type: "design", title: `Design & Copy: Post ${i+1}`, daysOffset: 11 + (i * 0.5), estTime: 60 });
+            }
+          }
+
+          pipeline.push({ stage: "Aprovação", type: "setup", title: "Agendamento Sistêmico & Aprovação do Cliente", daysOffset: 15, estTime: 60 });
+          pipeline.push({ stage: "Relatório", type: "setup", title: "Geração de Relatório Mensal", daysOffset: 25, estTime: 60 });
         }
 
-        // Criar tarefas de Vídeo
-        if (v_qty > 0) {
-           pipeline.push({ stage: "Copywriting", type: "copy", title: `Roteirização de ${v_qty} Vídeos`, daysOffset: 7, estTime: 60 });
-           for (let i = 0; i < v_qty; i++) {
-               pipeline.push({ stage: "Produção de Vídeo", type: "video", title: `Edição de Vídeo ${i+1} + Capa`, daysOffset: 10 + (i * 0.5), estTime: 60 });
-           }
-        }
-
-        // Criar tarefas de Posts
-        if (p_qty > 0) {
-           for (let i = 0; i < p_qty; i++) {
-               pipeline.push({ stage: "Produção de Arte", type: "design", title: `Design & Copy: Post ${i+1}`, daysOffset: 11 + (i * 0.5), estTime: 60 });
-           }
-        }
-
-        // Aprovação e Relatório final
-        pipeline.push({ stage: "Aprovação", type: "setup", title: "Agendamento Sistêmico & Aprovação do Cliente", daysOffset: 15, estTime: 60 });
-        pipeline.push({ stage: "Relatório", type: "setup", title: "Geração de Relatório Mensal", daysOffset: 25, estTime: 60 });
-      }
-
-      const baseDate = billing_date ? new Date(billing_date) : new Date();
-      const today = new Date();
-
-      const tasksToInsert = pipeline.map((t, index) => {
-        const isFirstTask = index === 0;
-        const taskDeadline = new Date(baseDate);
-        taskDeadline.setDate(taskDeadline.getDate() + t.daysOffset);
-
-        return {
-          project_id: newProject.id,
-          title: t.title,
-          stage: t.stage,
-          type: t.type,
-          status: isFirstTask ? 'in_progress' : 'pending',
-          priority_score: isFirstTask ? 1000 : (100 - index),
-          assigned_to: null,
-          deadline: taskDeadline.toISOString(),
-          estimated_minutes: t.estTime,
-          is_blocked: !isFirstTask 
+        const baseDate = billing_date ? new Date(billing_date) : new Date();
+        const DEFAULT_ASSIGNEES: Record<string, string> = {
+          reuniao: '55a1f766-bd50-45bd-b0bc-9af8309faa58', // Liz Oliveira
+          setup: '55a1f766-bd50-45bd-b0bc-9af8309faa58',   // Liz Oliveira
+          design: '55a1f766-bd50-45bd-b0bc-9af8309faa58',  // Liz Oliveira
+          copy: 'b6b7db2f-cf71-4281-80a0-1d61edbed5fb',    // Igor Oliveira
+          video: 'dbeedf1a-e3cb-4951-bba4-35b7d28d19b4'   // Emmanuel
         };
-      });
 
-      try {
-        if (tasksToInsert.length > 0) {
-          await Promise.all(tasksToInsert.map(t => 
-            sql`
-              INSERT INTO tasks (
-                project_id, title, stage, type, status, priority_score, assigned_to, deadline, estimated_minutes, is_blocked
-              ) VALUES (
-                ${t.project_id}, ${t.title}, ${t.stage}, ${t.type}, ${t.status}, ${t.priority_score}, 
-                ${t.assigned_to || null}, ${t.deadline}, ${t.estimated_minutes}, ${t.is_blocked}
-              )
-            `
-          ));
+        const COMPLETED_IDV = [
+          "Formulário de cadastro & Contrato",
+          "Onboarding do Cliente",
+          "Reunião de Briefing"
+        ];
+
+        for (let index = 0; index < pipeline.length; index++) {
+          const t = pipeline[index];
+          const isCompleted = resolvedServiceType === 'Identidade Visual' && COMPLETED_IDV.includes(t.title);
+          const isNext = resolvedServiceType === 'Identidade Visual' ? t.title === "Análise do Briefing + Brand Snapshot" : index === 0;
+          const taskDeadline = new Date(baseDate);
+          taskDeadline.setDate(taskDeadline.getDate() + t.daysOffset);
+          const assignee = DEFAULT_ASSIGNEES[t.type] || '55a1f766-bd50-45bd-b0bc-9af8309faa58';
+
+          await sql`
+            INSERT INTO tasks (
+              project_id, client_id, title, stage, task_type, type, status, priority_score, assigned_to, 
+              deadline, estimated_time, estimated_minutes, is_blocked, completed_at, created_at
+            ) VALUES (
+              ${targetProject.id}, ${client_id}, ${t.title}, ${t.stage}, ${t.type}, ${t.type}, 
+              ${isCompleted ? 'completed' : (isNext ? 'in_progress' : 'pending')}, 
+              ${isNext ? 1000 : (100 - index)}, 
+              ${assignee}, 
+              ${taskDeadline.toISOString()}, 
+              ${t.estTime}, 
+              ${t.estTime}, 
+              ${!isCompleted && !isNext},
+              ${isCompleted ? new Date().toISOString() : null},
+              NOW()
+            )
+          `;
         }
-      } catch (tasksError) {
-        console.error("Erro ao injetar pipeline de tarefas:", tasksError);
+
+        if (resolvedServiceType === 'Identidade Visual') {
+          await sql`UPDATE projects SET progress = 19 WHERE id = ${targetProject.id}`;
+          targetProject.progress = 19;
+        }
+
+        try {
+          const { redis } = require('../config/redis');
+          await redis.del('analytics:dashboard');
+        } catch (_) {}
       }
 
-      return res.status(201).json({ data: newProject });
+      return res.status(201).json({ data: targetProject });
     } catch (error: any) {
       console.error('Error creating project:', error.message);
       return res.status(500).json({ error: error?.message || 'Internal Server Error' });

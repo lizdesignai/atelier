@@ -316,7 +316,7 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
                       onChange={handleFileUpload} 
                       className="hidden" 
                     />
-                    <button onClick={() => fileInputRef.current?.click()} disabled={isUploadingFile} className="flex-1 md:flex-none justify-center bg-[var(--color-atelier-terracota)] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-3 md:py-2.5 rounded-full hover:bg-[#9b836b] transition-colors flex items-center gap-2 disabled:opacity-50">
+                    <button onClick={() => fileInputRef.current?.click()} disabled={isUploadingFile} className="flex-1 md:flex-none justify-center bg-[var(--color-atelier-terracota)] text-white text-[10px] uppercase font-bold tracking-widest px-4 py-3 md:py-2.5 rounded-full hover:bg-[#640606] transition-colors flex items-center gap-2 disabled:opacity-50">
                       {isUploadingFile ? <Loader2 size={14} className="animate-spin" /> : <FolderUp size={14} />} Add Material
                     </button>
                   </>
@@ -352,7 +352,7 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
                       <label className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50 block mb-1">URL (Endereço)</label>
                       <input type="text" placeholder="https://..." value={newLinkUrl} onChange={(e) => setNewLinkUrl(e.target.value)} className="w-full bg-white border border-gray-200 rounded-xl p-3 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50" />
                     </div>
-                    <button onClick={handleAddLink} disabled={isSavingLink || !newLinkName || !newLinkUrl} className="w-full sm:w-auto h-11 px-6 bg-[var(--color-atelier-terracota)] text-white font-bold text-[11px] uppercase tracking-widest rounded-xl hover:bg-[#9b836b] transition-colors disabled:opacity-50 shrink-0 flex items-center justify-center">
+                    <button onClick={handleAddLink} disabled={isSavingLink || !newLinkName || !newLinkUrl} className="w-full sm:w-auto h-11 px-6 bg-[var(--color-atelier-terracota)] text-white font-bold text-[11px] uppercase tracking-widest rounded-xl hover:bg-[#640606] transition-colors disabled:opacity-50 shrink-0 flex items-center justify-center">
                       {isSavingLink ? <Loader2 size={16} className="animate-spin"/> : "Salvar Link"}
                     </button>
                   </div>
@@ -422,7 +422,7 @@ export default function ClientAssetsModal({ isOpen, onClose, projectId, subclien
                             <button
                               onClick={handleSaveEdit}
                               disabled={isSavingEdit || !editName || !editUrl}
-                              className="px-4 py-1.5 rounded-lg bg-[var(--color-atelier-terracota)] text-white text-xs font-bold hover:bg-[#9b836b] disabled:opacity-50 flex items-center gap-1.5"
+                              className="px-4 py-1.5 rounded-lg bg-[var(--color-atelier-terracota)] text-white text-xs font-bold hover:bg-[#640606] disabled:opacity-50 flex items-center gap-1.5"
                             >
                               {isSavingEdit ? <Loader2 size={12} className="animate-spin" /> : null} Salvar
                             </button>

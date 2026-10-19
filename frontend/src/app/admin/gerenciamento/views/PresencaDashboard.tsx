@@ -493,7 +493,7 @@ export default function PresencaDashboard({ activeProjectId, currentProject }: P
                             <button
                               onClick={() => sendForApproval(ft.id)}
                               disabled={saving}
-                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] font-roboto text-[11px] font-bold transition shadow-xs cursor-pointer"
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--color-atelier-terracota)] text-white hover:bg-[#234E80] font-roboto text-[11px] font-bold transition shadow-xs cursor-pointer"
                             >
                               <Send size={12} /> Enviar p/ Cliente
                             </button>
@@ -961,7 +961,7 @@ export default function PresencaDashboard({ activeProjectId, currentProject }: P
                   type="button"
                   onClick={handleDownloadDirecionamentoPDF}
                   disabled={isDownloadingPDF}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--color-atelier-terracota)] hover:bg-[#8c562e] text-white text-[10px] font-bold uppercase tracking-wider shadow-xs transition-all cursor-pointer disabled:opacity-50"
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--color-atelier-terracota)] hover:bg-[#234E80] text-white text-[10px] font-bold uppercase tracking-wider shadow-xs transition-all cursor-pointer disabled:opacity-50"
                   title="Baixar PDF das respostas do cliente"
                 >
                   {isDownloadingPDF ? <Loader2 size={12} className="animate-spin" /> : <Download size={12} />}

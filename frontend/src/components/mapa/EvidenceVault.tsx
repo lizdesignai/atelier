@@ -99,7 +99,7 @@ export default function EvidenceVault() {
               animate={{ opacity: 1, y: 0 }}
               className="relative pl-6 md:pl-8"
             >
-              <div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-[var(--color-atelier-terracota)] shadow-[0_0_8px_rgba(173,111,64,0.5)]"></div>
+              <div className="absolute -left-[5px] top-1 w-2.5 h-2.5 rounded-full bg-[var(--color-atelier-terracota)] shadow-[0_0_8px_rgba(20, 44, 72,0.5)]"></div>
               
               <h3 className="font-bold text-base md:text-lg text-[var(--color-atelier-grafite)] mb-3 md:mb-4 tracking-wide uppercase">
                 {ETAPA_MAP[etapa]}

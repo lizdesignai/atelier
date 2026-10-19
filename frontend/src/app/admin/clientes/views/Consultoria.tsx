@@ -466,7 +466,7 @@ export default function ConsultoriaModal({ isOpen, onClose }: ConsultoriaModalPr
                     <button 
                       onClick={handleExportPDF}
                       disabled={isSaving || isExporting}
-                      className="flex-1 sm:flex-none px-8 bg-[var(--color-atelier-terracota)] text-white py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest shadow-lg hover:bg-[#8c562e] transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-2"
+                      className="flex-1 sm:flex-none px-8 bg-[var(--color-atelier-terracota)] text-white py-4 rounded-xl font-roboto text-[11px] font-bold uppercase tracking-widest shadow-lg hover:bg-[#234E80] transition-all hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0 flex items-center justify-center gap-2"
                     >
                       {isExporting ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
                       Exportar PDF Oficial

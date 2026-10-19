@@ -435,7 +435,7 @@ export default function OverviewDashboard({
                           }`}
                         >
                           <img 
-                            src="/images/simbolo-rosa.png" 
+                            src="/images/simbolo-veronna.svg" 
                             alt="Studio Veronna" 
                             className={`w-3.5 h-3.5 object-contain shrink-0 ${walletFilter !== 'agency' ? 'brightness-0 invert' : ''}`} 
                           />

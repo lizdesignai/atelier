@@ -61,7 +61,7 @@ export function Territories({ evaluationId, territories, status, chosenTerritory
                 setSelectedId(territory.id);
               }}
               className={`flex flex-col rounded-[2.5rem] overflow-hidden transition-all duration-300 border-[3px] 
-                ${isSelected ? 'border-[var(--color-atelier-terracota)] shadow-[0_20px_40px_rgba(173,111,64,0.15)] scale-[1.02]' : 'border-white/60 bg-white/40 hover:bg-white/80'}
+                ${isSelected ? 'border-[var(--color-atelier-terracota)] shadow-[0_20px_40px_rgba(20, 44, 72,0.15)] scale-[1.02]' : 'border-white/60 bg-white/40 hover:bg-white/80'}
                 ${!isEvaluated && isClient ? 'cursor-pointer' : ''}
               `}
             >

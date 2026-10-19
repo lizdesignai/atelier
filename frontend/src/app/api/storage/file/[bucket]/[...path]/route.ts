@@ -59,12 +59,12 @@ function generatePlaceholderSvg(fileName: string, bucket: string): string {
   return `<svg xmlns="http://www.w3.org/2000/svg" width="400" height="260" viewBox="0 0 400 260">
   <rect width="400" height="260" fill="#f8f7f5"/>
   <rect x="16" y="16" width="368" height="228" rx="16" fill="#eeebe6" stroke="#dedbd5" stroke-width="1.5" stroke-dasharray="6 6"/>
-  <circle cx="200" cy="95" r="32" fill="#a45a33" opacity="0.12"/>
-  <path d="M188 106 L196 94 L204 102 L212 90 L220 106 Z" fill="#a45a33" opacity="0.8"/>
-  <circle cx="193" cy="92" r="3.5" fill="#a45a33" opacity="0.8"/>
+  <circle cx="200" cy="95" r="32" fill="#142C48" opacity="0.12"/>
+  <path d="M188 106 L196 94 L204 102 L212 90 L220 106 Z" fill="#142C48" opacity="0.8"/>
+  <circle cx="193" cy="92" r="3.5" fill="#142C48" opacity="0.8"/>
   <text x="200" y="152" font-family="system-ui, -apple-system, sans-serif" font-size="13" font-weight="700" fill="#3a3633" text-anchor="middle">${shortName}</text>
   <text x="200" y="174" font-family="system-ui, -apple-system, sans-serif" font-size="10" font-weight="600" fill="#8a8580" text-anchor="middle" letter-spacing="1">STUDIO VERONNA ATELIER (${bucket.toUpperCase()})</text>
-  <text x="200" y="196" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="500" fill="#a45a33" text-anchor="middle">Objeto Registrado no Banco Neon</text>
+  <text x="200" y="196" font-family="system-ui, -apple-system, sans-serif" font-size="9" font-weight="500" fill="#142C48" text-anchor="middle">Objeto Registrado no Banco Neon</text>
 </svg>`;
 }
 

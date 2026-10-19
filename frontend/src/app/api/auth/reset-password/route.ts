@@ -63,12 +63,12 @@ export async function POST(request: Request) {
           subject: 'Recuperação de Senha — Atelier',
           html: `
             <div style="font-family: 'Roboto', sans-serif; max-width: 500px; margin: 0 auto; padding: 40px 20px;">
-              <h2 style="color: #4A3728; margin-bottom: 8px;">Olá, ${user.nome || 'Utilizador'}.</h2>
+              <h2 style="color: #0D1D30; margin-bottom: 8px;">Olá, ${user.nome || 'Utilizador'}.</h2>
               <p style="color: #666; font-size: 14px; line-height: 1.6;">
                 Recebemos uma solicitação para redefinir a sua senha no Atelier.
               </p>
               <a href="${resetUrl}" 
-                 style="display: inline-block; background: #4A3728; color: white; text-decoration: none; 
+                 style="display: inline-block; background: #0D1D30; color: white; text-decoration: none; 
                         padding: 14px 32px; border-radius: 24px; font-size: 13px; font-weight: 700; 
                         letter-spacing: 0.1em; text-transform: uppercase; margin: 24px 0;">
                 Redefinir Senha

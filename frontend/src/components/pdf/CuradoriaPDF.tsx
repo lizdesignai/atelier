@@ -20,13 +20,13 @@ Font.register({
 // 2. ESTÉTICA EDITORIAL
 const styles = StyleSheet.create({
   page: {
-    backgroundColor: '#fbf4e4',
+    backgroundColor: '#E8E3DD',
     padding: 60,
     paddingBottom: 80, // Margem de segurança para o rodapé
     fontFamily: 'Roboto',
   },
   coverPage: {
-    backgroundColor: '#fbf4e4',
+    backgroundColor: '#E8E3DD',
     padding: 60,
     display: 'flex',
     flexDirection: 'column',
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 4,
-    color: '#ad6f40',
+    color: '#142C48',
     fontWeight: 700,
     textAlign: 'center',
   },
@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 60,
     fontSize: 10,
-    color: '#7a7470',
+    color: '#424242',
     textTransform: 'uppercase',
     letterSpacing: 2,
   },
@@ -68,14 +68,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(122,116,112,0.2)',
+    borderBottomColor: 'rgba(20, 44, 72,0.2)',
     paddingBottom: 20,
     marginBottom: 30,
   },
   headerTitle: {
     fontFamily: 'Elegant',
     fontSize: 24,
-    color: '#ad6f40',
+    color: '#142C48',
   },
 
   // A Caixa da IA agora com quebra natural de página (Sem wrap={false})
@@ -84,14 +84,14 @@ const styles = StyleSheet.create({
     padding: 30,
     borderRadius: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#ad6f40',
+    borderLeftColor: '#142C48',
     marginBottom: 40,
   },
   aiBoxTitle: {
     fontSize: 10,
     textTransform: 'uppercase',
     letterSpacing: 3,
-    color: '#ad6f40',
+    color: '#142C48',
     fontWeight: 700,
     marginBottom: 15,
   },
@@ -127,7 +127,7 @@ const styles = StyleSheet.create({
     fontSize: 26,
     color: '#1a1a1a',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(122,116,112,0.2)',
+    borderBottomColor: 'rgba(20, 44, 72,0.2)',
     paddingBottom: 10,
     marginBottom: 20,
   },
@@ -154,14 +154,14 @@ const styles = StyleSheet.create({
     padding: 25,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#f0e6dd',
+    borderColor: '#E2ECF3',
   },
   feedbackHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
     borderBottomWidth: 1,
-    borderBottomColor: '#f0e6dd',
+    borderBottomColor: '#E2ECF3',
     paddingBottom: 10,
     marginBottom: 15,
   },
@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textTransform: 'uppercase',
     letterSpacing: 2,
-    color: '#ad6f40',
+    color: '#142C48',
     fontWeight: 700,
   },
   scoreBadge: {
@@ -213,14 +213,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(122,116,112,0.2)',
+    borderTopColor: 'rgba(20, 44, 72,0.2)',
     paddingTop: 15,
   },
   footerText: {
     fontSize: 8,
     textTransform: 'uppercase',
     letterSpacing: 2,
-    color: '#7a7470',
+    color: '#424242',
   },
 });
 
@@ -262,7 +262,7 @@ export default function CuradoriaPDF({ adminRefs, projectName, aiInsight }: Cura
         <Image src="/images/simbolo-rosa.png" style={styles.coverLogo} />
         <Text style={styles.coverTitle}>Relatório de Curadoria</Text>
         <Text style={styles.coverSubtitle}>{projectName}</Text>
-        <Text style={styles.coverDate}>{currentDate} • Atelier Liz Design</Text>
+        <Text style={styles.coverDate}>{currentDate} • Atelier Studio Veronna</Text>
       </Page>
 
       {/* CONTEÚDO PRINCIPAL (Paginação Inteligente e Dinâmica) */}
@@ -288,7 +288,7 @@ export default function CuradoriaPDF({ adminRefs, projectName, aiInsight }: Cura
             // Mantido o wrap={false} apenas por rota, para não separar as imagens do seu respectivo feedback
             <View key={i} style={styles.directionContainer} wrap={false}>
               <Text style={styles.directionTitle}>
-                <Text style={{ color: '#ad6f40' }}>{String(i + 1).padStart(2, '0')}. </Text>
+                <Text style={{ color: '#142C48' }}>{String(i + 1).padStart(2, '0')}. </Text>
                 {ref.title}
               </Text>
               
@@ -334,7 +334,7 @@ export default function CuradoriaPDF({ adminRefs, projectName, aiInsight }: Cura
 
         {/* RODAPÉ (Repetido em todas as páginas via fixed) */}
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>Atelier LizDesign</Text>
+          <Text style={styles.footerText}>Atelier Studio Veronna</Text>
           <Text style={styles.footerText}>Relatório de Curadoria</Text>
         </View>
       </Page>

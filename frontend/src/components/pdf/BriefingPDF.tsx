@@ -21,14 +21,14 @@ Font.register({
 // 2. FOLHA DE ESTILOS EDITORIAL (A Estética de Revista)
 const styles = StyleSheet.create({
   page: {
-    backgroundColor: '#fbf4e4', 
+    backgroundColor: '#E8E3DD', 
     padding: 60,
     paddingBottom: 80, 
     fontFamily: 'Roboto',
   },
   // --- CAPA ---
   coverPage: {
-    backgroundColor: '#fbf4e4',
+    backgroundColor: '#E8E3DD',
     padding: 60,
     display: 'flex',
     flexDirection: 'column',
@@ -52,7 +52,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textTransform: 'uppercase',
     letterSpacing: 4,
-    color: '#ad6f40', 
+    color: '#142C48', 
     fontWeight: 700,
     textAlign: 'center',
   },
@@ -60,7 +60,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     bottom: 60,
     fontSize: 10,
-    color: '#7a7470',
+    color: '#424242',
     textTransform: 'uppercase',
     letterSpacing: 2,
   },
@@ -71,14 +71,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(122,116,112,0.2)',
+    borderBottomColor: 'rgba(20, 44, 72,0.2)',
     paddingBottom: 20,
     marginBottom: 30,
   },
   headerTitle: {
     fontFamily: 'Elegant',
     fontSize: 24,
-    color: '#ad6f40',
+    color: '#142C48',
   },
   
   // --- INSIGHTS DA IA ---
@@ -88,14 +88,14 @@ const styles = StyleSheet.create({
     padding: 30,
     borderRadius: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#ad6f40',
+    borderLeftColor: '#142C48',
     marginBottom: 40,
   },
   aiBoxTitle: {
     fontSize: 10,
     textTransform: 'uppercase',
     letterSpacing: 3,
-    color: '#ad6f40',
+    color: '#142C48',
     fontWeight: 700,
     marginBottom: 20,
   },
@@ -132,7 +132,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
     paddingTop: 10,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(122,116,112,0.1)',
+    borderTopColor: 'rgba(20, 44, 72,0.1)',
   },
   qaContainer: {
     marginBottom: 20,
@@ -142,7 +142,7 @@ const styles = StyleSheet.create({
     fontSize: 9,
     textTransform: 'uppercase',
     letterSpacing: 2,
-    color: '#ad6f40',
+    color: '#142C48',
     fontWeight: 700,
     marginBottom: 6,
   },
@@ -166,14 +166,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(122,116,112,0.2)',
+    borderTopColor: 'rgba(20, 44, 72,0.2)',
     paddingTop: 15,
   },
   footerText: {
     fontSize: 8,
     textTransform: 'uppercase',
     letterSpacing: 2,
-    color: '#7a7470',
+    color: '#424242',
   },
 });
 
@@ -382,7 +382,7 @@ export default function BriefingPDF({ clientBriefing, projectName, aiInsight }: 
         <Image src="/images/simbolo-rosa.png" style={styles.coverLogo} />
         <Text style={styles.coverTitle}>{safeProjectName || 'Briefing'}</Text>
         <Text style={styles.coverSubtitle}>Briefing de Identidade Visual</Text>
-        <Text style={styles.coverDate}>{currentDate} • Atelier Liz Design</Text>
+        <Text style={styles.coverDate}>{currentDate} • Atelier Studio Veronna</Text>
       </Page>
 
       {/* PÁGINA 2 em diante: CONTEÚDO */}
@@ -433,8 +433,8 @@ export default function BriefingPDF({ clientBriefing, projectName, aiInsight }: 
 
         {/* RODAPÉ (Repetido em todas as páginas automaticamente) */}
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>Atelier LizDesign</Text>
-          <Text style={styles.footerText}>{safeProjectName || 'Atelier Liz Design'}</Text>
+          <Text style={styles.footerText}>Atelier Studio Veronna</Text>
+          <Text style={styles.footerText}>{safeProjectName || 'Atelier Studio Veronna'}</Text>
         </View>
       </Page>
     </Document>

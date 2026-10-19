@@ -250,7 +250,7 @@ function getEmailTemplate(type: string, data: any) {
               <tr>
                 <td align="center" style="padding: 20px; background-color: #fafafa; border-top: 1px solid #f4f4f5;">
                   <p style="margin: 0; font-size: 10px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">
-                    Liz Design &nbsp;&bull;&nbsp;
+                    Studio Veronna &nbsp;&bull;&nbsp;
                   </p>
                 </td>
               </tr>
@@ -279,7 +279,7 @@ export async function POST(request: Request) {
     }
 
     // Remetente validado e oficial
-    const fromEmail = 'LizDesign <sistema@lizdesign.com.br>'; 
+    const fromEmail = 'Studio Veronna <sistema@lizdesign.com.br>'; 
 
     // Obtém o template (App-Like)
     const { subject, html } = getEmailTemplate(type, { clientName, projectName, taskName, link, extraInfo, subject: customSubject, body: customBody });

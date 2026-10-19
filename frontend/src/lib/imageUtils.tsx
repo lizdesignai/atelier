@@ -38,7 +38,7 @@ export function normalizeImageUrl(url?: any, label?: string): string {
  */
 export function getSafeAvatarUrl(avatarUrl?: string | null, name?: string | null): string {
   const encodedName = encodeURIComponent(name || 'Studio Veronna');
-  const fallback = `https://ui-avatars.com/api/?name=${encodedName}&background=a45a33&color=fff&bold=true`;
+  const fallback = `https://ui-avatars.com/api/?name=${encodedName}&background=142C48&color=fff&bold=true`;
 
   if (!avatarUrl) return fallback;
 
@@ -56,7 +56,7 @@ export function handleAvatarError(
 ) {
   const target = e.currentTarget;
   const encodedName = encodeURIComponent(name || 'Studio Veronna');
-  const fallback = `https://ui-avatars.com/api/?name=${encodedName}&background=a45a33&color=fff&bold=true`;
+  const fallback = `https://ui-avatars.com/api/?name=${encodedName}&background=142C48&color=fff&bold=true`;
   if (target.src !== fallback) {
     target.src = fallback;
   }

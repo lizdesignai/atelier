@@ -411,7 +411,7 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
             onClick={() => handleSavePlanning(true)} 
             disabled={isSaving || isDeploying || !planHook || !editorContent}
             className={`px-8 py-5 text-white rounded-[1.2rem] text-[10px] font-bold uppercase tracking-[0.15em] transition-all flex items-center justify-center gap-3 shadow-md hover:shadow-lg disabled:opacity-50 hover:-translate-y-0.5 disabled:hover:translate-y-0
-              ${isAvulso ? 'bg-[var(--color-atelier-terracota)] hover:bg-[#8c562e]' : 'bg-[var(--color-atelier-grafite)] hover:bg-black'}
+              ${isAvulso ? 'bg-[var(--color-atelier-terracota)] hover:bg-[#234E80]' : 'bg-[var(--color-atelier-grafite)] hover:bg-black'}
             `}
           >
             {isSaving ? <Loader2 size={16} className="animate-spin"/> : <Send size={16}/>} 

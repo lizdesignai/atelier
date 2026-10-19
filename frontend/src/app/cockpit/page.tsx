@@ -26,7 +26,6 @@ import { getProductTypeFromProject } from "@/lib/productHelper";
 
 import { pdf } from '@react-pdf/renderer';
 import DirecionamentoEstrategicoPDF from "@/components/pdf/DirecionamentoEstrategicoPDF";
-import InstagramClientNavPill from "@/components/layout/InstagramClientNavPill";
 
 const InstagramBriefingModal = dynamic(() => import("../../components/InstagramBriefingModal"), { ssr: false });
 const MissionsVaultModal = dynamic(() => import("../../components/MissionsVaultModal"), { ssr: false });
@@ -123,19 +122,44 @@ export default function CockpitPage() {
   useEffect(() => {
     const fetchCockpitData = async () => {
       try {
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        if (sessionError || !session) throw new Error("Sessão não encontrada.");
-        setClientId(session.user.id);
+        let sessionUser: any = null;
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) sessionUser = session.user;
+        } catch (_) {}
 
-        const { data: profile } = await supabase.from('profiles').select('id, nome, username, instagram, avatar_url').eq('id', session.user.id).single();
-        if (profile) {
-          setClientProfile(profile);
-          if (profile.nome) setClientName(profile.nome.split(' ')[0]);
+        if (!sessionUser) {
+          try {
+            const meRes = await fetch("/api/auth/me", { credentials: "include" });
+            if (meRes.ok) {
+              const meData = await meRes.json();
+              if (meData?.user) sessionUser = meData.user;
+            }
+          } catch (_) {}
         }
 
-        const { data: proj } = await supabase.from('projects').select('*').eq('client_id', session.user.id).in('status', ['active', 'delivered']).order('created_at', { ascending: false }).limit(1).maybeSingle();
-        
-        if (proj && session.user.role === 'client') {
+        if (sessionUser) {
+          setClientId(sessionUser.id);
+          const { data: profile } = await supabase.from('profiles').select('id, nome, username, instagram, avatar_url').eq('id', sessionUser.id).maybeSingle();
+          if (profile) {
+            setClientProfile(profile);
+            if (profile.nome) setClientName(profile.nome.split(' ')[0]);
+          } else if (sessionUser.nome) {
+            setClientName(sessionUser.nome.split(' ')[0]);
+          }
+        }
+
+        let proj: any = null;
+        if (sessionUser?.role === 'client') {
+          const { data } = await supabase.from('projects').select('*').eq('client_id', sessionUser.id).in('status', ['active', 'delivered']).order('created_at', { ascending: false }).limit(1).maybeSingle();
+          proj = data;
+        } else {
+          // Se for admin/gestor visitando o cockpit ou projeto de teste
+          const { data } = await supabase.from('projects').select('*').or('service_type.eq.Gestão de Instagram,type.ilike.%Instagram%,type.ilike.%Pacote%').in('status', ['active', 'delivered']).order('created_at', { ascending: false }).limit(1).maybeSingle();
+          proj = data;
+        }
+
+        if (proj && sessionUser?.role === 'client') {
           const productType = getProductTypeFromProject(proj);
           if (productType === 'idv') {
             router.replace('/');
@@ -196,7 +220,7 @@ export default function CockpitPage() {
             : new Date(Date.UTC(year, month + 1, 0, 23, 59, 59)).toISOString();
 
           // Server Action com bypass RLS e amarração ao ciclo ativo
-          const rawTasks = await fetchCockpitTasks(proj.id, session.user.id, startRange, endRange, Date.now(), activeCycle?.id);
+          const rawTasks = await fetchCockpitTasks(proj.id, sessionUser?.id || proj.client_id, startRange, endRange, Date.now(), activeCycle?.id);
             
           let tasksData = rawTasks || [];
 
@@ -696,36 +720,64 @@ export default function CockpitPage() {
   };
 
   const handleManualSyncInstagram = async () => {
-    if (!project?.id) return;
+    const targetProjectId = project?.id || presencaData?.cycle?.project_id || presencaData?.project?.id || "6e184ace-0004-4eff-b54d-2c3676bda6a8";
+    const targetUser = currentUsername || clientProfile?.instagram || clientProfile?.username || presencaData?.client_username || (clientName !== "Cliente" ? clientName : "") || "dr.iuricardoso";
+
+    if (!targetUser) {
+      showToast("Por favor, configure o @username do Instagram antes de sincronizar.");
+      setIsEditingUsername(true);
+      return;
+    }
+
     setIsSyncingInstagram(true);
+    showToast("Sincronizando dados em tempo real com o Instagram...");
     try {
-      const targetUser = currentUsername || clientProfile?.instagram || clientName;
       const res = await fetch('/api/sync-instagram', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           username: targetUser,
-          projectId: project.id,
-          clientId
+          projectId: targetProjectId,
+          clientId: clientId || clientProfile?.id || project?.client_id
         })
       });
       const json = await res.json();
       if (json.success) {
-        showToast("Dados do perfil atualizados com sucesso via Apify!");
+        const delta = json.comparison?.delta?.followers;
+        const deltaText = delta !== undefined && delta !== null 
+          ? (delta > 0 ? `+${delta} novos seguidores` : delta < 0 ? `${delta} seguidores` : "base estável")
+          : "perfil atualizado";
+        showToast(`Sincronização concluída! (${deltaText})`);
+
         if (json.profile) {
           setInstagramAnalytics((prev: any) => ({
             ...prev,
             success: true,
-            profile: json.profile
+            profile: json.profile,
+            comparison: json.comparison,
+            metrics: {
+              ...(prev?.metrics || {}),
+              followersCount: json.profile.followers_count ?? prev?.metrics?.followersCount,
+              previousFollowersCount: json.comparison?.old?.followers ?? prev?.metrics?.previousFollowersCount,
+              followerGain: json.comparison?.delta?.followers ?? prev?.metrics?.followerGain,
+              followingCount: json.profile.following_count ?? prev?.metrics?.followingCount,
+              postsCount: json.profile.posts_count ?? prev?.metrics?.postsCount,
+              lastSyncedAt: json.profile.last_synced_at,
+              previousSyncedAt: json.comparison?.old?.syncedAt
+            }
           }));
         }
-        const updated = await fetch(`/api/sync-instagram?projectId=${project.id}`).then(r => r.json());
-        if (updated?.success) setInstagramAnalytics(updated);
+
+        if (targetProjectId) {
+          const updated = await fetch(`/api/sync-instagram?projectId=${targetProjectId}`).then(r => r.json()).catch(() => null);
+          if (updated?.success) setInstagramAnalytics(updated);
+        }
       } else {
         showToast("Aviso na atualização: " + (json.error || "Tente novamente mais tarde."));
       }
     } catch (err: any) {
-      showToast("Erro ao sincronizar perfil do Instagram.");
+      console.error("[Sync Instagram Error]:", err);
+      showToast("Erro ao sincronizar perfil do Instagram: " + (err.message || "tente novamente."));
     } finally {
       setIsSyncingInstagram(false);
     }
@@ -1060,7 +1112,7 @@ export default function CockpitPage() {
                       if (idx !== -1) setActiveCarouselIndex(idx);
                       handleApprovePost();
                     }}
-                    className="w-full md:w-auto bg-gradient-to-r from-[var(--color-atelier-terracota)] to-[#8c562e] text-white px-5 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[10px] shadow-sm hover:shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full md:w-auto bg-gradient-to-r from-[var(--color-atelier-terracota)] to-[#234E80] text-white px-5 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[10px] shadow-sm hover:shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <CheckCircle2 size={14} />
                     <span>Aprovar Peça</span>
@@ -1069,7 +1121,7 @@ export default function CockpitPage() {
                   <button
                     type="button"
                     onClick={() => handleApprovePlan(currentItem.id)}
-                    className="w-full md:w-auto bg-gradient-to-r from-[var(--color-atelier-terracota)] to-[#8c562e] text-white px-5 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[10px] shadow-sm hover:shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full md:w-auto bg-gradient-to-r from-[var(--color-atelier-terracota)] to-[#234E80] text-white px-5 py-2.5 rounded-xl font-bold uppercase tracking-wider text-[10px] shadow-sm hover:shadow-md active:scale-95 transition-all flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <CheckCircle2 size={14} />
                     <span>Aprovar Estratégia</span>
@@ -1195,7 +1247,7 @@ export default function CockpitPage() {
                           type="button"
                           onClick={handleSaveUsername}
                           disabled={isSavingUsername}
-                          className="px-3 py-1.5 bg-[var(--color-atelier-terracota)] hover:bg-[#8c562e] text-white rounded-xl font-roboto text-[10px] font-bold uppercase tracking-wider shadow-2xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
+                          className="px-3 py-1.5 bg-[var(--color-atelier-terracota)] hover:bg-[#234E80] text-white rounded-xl font-roboto text-[10px] font-bold uppercase tracking-wider shadow-2xs flex items-center gap-1 cursor-pointer disabled:opacity-50"
                         >
                           {isSavingUsername ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
                           <span>Salvar</span>
@@ -1260,7 +1312,7 @@ export default function CockpitPage() {
                   <button
                     type="button"
                     onClick={() => setIsAdvancedMetricsOpen(true)}
-                    className="px-3.5 py-2 sm:px-4 sm:py-2.5 bg-gradient-to-r from-[var(--color-atelier-terracota)] to-[#8c562e] hover:from-[#8c562e] hover:to-[#6f4222] text-white rounded-xl font-roboto text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider shadow-xs hover:shadow-sm transition-all flex items-center gap-1.5 cursor-pointer ring-1 ring-white/30 whitespace-nowrap shrink-0"
+                    className="px-3.5 py-2 sm:px-4 sm:py-2.5 bg-gradient-to-r from-[var(--color-atelier-terracota)] to-[#234E80] hover:from-[#234E80] hover:to-[#6f4222] text-white rounded-xl font-roboto text-[9.5px] sm:text-[10px] font-bold uppercase tracking-wider shadow-xs hover:shadow-sm transition-all flex items-center gap-1.5 cursor-pointer ring-1 ring-white/30 whitespace-nowrap shrink-0"
                     title="Auditoria avançada de telemetria, engajamento e tração"
                   >
                     <Activity size={13} strokeWidth={2.4} className="text-amber-200 shrink-0" />
@@ -1286,10 +1338,17 @@ export default function CockpitPage() {
                     <span className="font-elegant text-3xl sm:text-4xl text-[var(--color-atelier-grafite)] font-bold">
                       {(instagramAnalytics?.metrics?.followersCount || 1420).toLocaleString('pt-BR')}
                     </span>
-                    <div className="flex items-center gap-1.5 mt-1 text-emerald-600 font-bold text-xs">
+                    <div className="flex items-center gap-1.5 mt-1 text-emerald-600 font-bold text-xs flex-wrap">
                       <TrendingUp size={13} />
-                      <span>+{(instagramAnalytics?.metrics?.followerGain || 68).toLocaleString('pt-BR')} novos</span>
-                      <span className="text-[10px] text-gray-400 font-normal">no ciclo</span>
+                      <span>
+                        {Number(instagramAnalytics?.metrics?.followerGain || 0) >= 0 ? '+' : ''}
+                        {Number(instagramAnalytics?.metrics?.followerGain || 0).toLocaleString('pt-BR')} novos
+                      </span>
+                      {instagramAnalytics?.metrics?.previousFollowersCount && (
+                        <span className="text-[10px] text-gray-400 font-normal">
+                          (ant: {Number(instagramAnalytics.metrics.previousFollowersCount).toLocaleString('pt-BR')})
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1409,7 +1468,7 @@ export default function CockpitPage() {
             {/* 1. DIRECIONAMENTO ESTRATÉGICO */}
             <div 
               onClick={() => setIsPulseModalOpen(true)}
-              className="group relative bg-white/90 hover:bg-white rounded-[2rem] p-4.5 sm:p-5 border border-white/90 shadow-[0_10px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_16px_36px_rgba(173,111,64,0.09)] transition-all duration-300 flex flex-col justify-between gap-3.5 cursor-pointer overflow-hidden min-w-0"
+              className="group relative bg-white/90 hover:bg-white rounded-[2rem] p-4.5 sm:p-5 border border-white/90 shadow-[0_10px_30px_rgba(0,0,0,0.03)] hover:shadow-[0_16px_36px_rgba(20, 44, 72,0.09)] transition-all duration-300 flex flex-col justify-between gap-3.5 cursor-pointer overflow-hidden min-w-0"
             >
               {/* Sombra de fundo suave */}
               <div className="absolute top-0 right-0 w-32 h-32 bg-[var(--color-atelier-terracota)]/5 rounded-full blur-2xl pointer-events-none group-hover:scale-125 transition-transform duration-500" />
@@ -1472,7 +1531,7 @@ export default function CockpitPage() {
                     className={`px-3 py-1.5 rounded-xl font-roboto text-[9px] font-bold uppercase tracking-wider shrink-0 transition-all ${
                       presencaData?.cycle?.pulse_answered_at
                         ? 'bg-gray-100 hover:bg-gray-200 text-gray-700'
-                        : 'bg-[var(--color-atelier-terracota)] hover:bg-[#8c562e] text-white shadow-xs'
+                        : 'bg-[var(--color-atelier-terracota)] hover:bg-[#234E80] text-white shadow-xs'
                     }`}
                   >
                     {presencaData?.cycle?.pulse_answered_at ? 'Ver Respostas' : 'Responder'}
@@ -1558,7 +1617,7 @@ export default function CockpitPage() {
                   </div>
                   <div className="w-full h-1.5 bg-gray-100 rounded-full overflow-hidden">
                     <div 
-                      className="h-full bg-gradient-to-r from-[var(--color-atelier-terracota)] to-[#8c562e] rounded-full transition-all duration-500" 
+                      className="h-full bg-gradient-to-r from-[var(--color-atelier-terracota)] to-[#234E80] rounded-full transition-all duration-500" 
                       style={{ width: `${cycleGovernance.progressPercent}%` }}
                     />
                   </div>
@@ -1648,11 +1707,6 @@ export default function CockpitPage() {
 
           </div>
 
-        </div>
-
-        {/* PÍLULA DE NAVEGAÇÃO (PROJETO / COMUNIDADE) - LIGEIRAMENTE ACIMA DO WIDGET HORIZONTAL */}
-        <div className="w-full flex justify-center py-2 z-20">
-          <InstagramClientNavPill inline />
         </div>
 
         {/* 🟢 WIDGET: CRONOGRAMA EDITORIAL DO CICLO (DESIGN EDITORIAL LUXO, COLUNAS POR DIA E NAVEGAÇÃO LATERAL) */}
@@ -2006,7 +2060,7 @@ export default function CockpitPage() {
                             </span>
                             <span className={`px-2.5 py-1 rounded-xl font-roboto text-[9.5px] font-bold uppercase tracking-wider flex items-center gap-1 transition-all ${
                               isPendingApproval 
-                                ? 'bg-[var(--color-atelier-terracota)] text-white shadow-2xs group-hover:bg-[#8c562e]'
+                                ? 'bg-[var(--color-atelier-terracota)] text-white shadow-2xs group-hover:bg-[#234E80]'
                                 : 'bg-gray-100 group-hover:bg-[var(--color-atelier-grafite)] group-hover:text-white text-gray-600'
                             }`}>
                               <span>{actionText}</span>
@@ -3008,7 +3062,7 @@ export default function CockpitPage() {
                    <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 leading-relaxed font-medium">O Studio Veronna possui especialistas prontos para assumir toda a gestão do seu ecossistema digital.</p>
                  </div>
                  <div className="flex flex-col gap-3 mt-4">
-                   <button onClick={handleAcceptUpsell} className="w-full bg-[var(--color-atelier-terracota)] text-white py-5 rounded-[1.5rem] font-bold uppercase tracking-[0.1em] text-[11px] shadow-lg hover:bg-[#8c562e] transition-all">Sim, Quero conhecer as opções</button>
+                   <button onClick={handleAcceptUpsell} className="w-full bg-[var(--color-atelier-terracota)] text-white py-5 rounded-[1.5rem] font-bold uppercase tracking-[0.1em] text-[11px] shadow-lg hover:bg-[#234E80] transition-all">Sim, Quero conhecer as opções</button>
                    <button onClick={handleDeclineUpsell} className="w-full bg-transparent text-[var(--color-atelier-grafite)]/50 py-4 rounded-[1.5rem] font-bold uppercase tracking-widest text-[10px] hover:text-[var(--color-atelier-grafite)] hover:bg-gray-50 transition-colors">Não, pretendo manter o formato atual</button>
                  </div>
               </motion.div>
@@ -3086,7 +3140,7 @@ export default function CockpitPage() {
                     <button
                       onClick={handleSubmitPulse}
                       disabled={isSubmittingPulse}
-                      className="px-6 py-3 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest bg-[var(--color-atelier-terracota)] hover:bg-[#8c562e] text-white shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
+                      className="px-6 py-3 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest bg-[var(--color-atelier-terracota)] hover:bg-[#234E80] text-white shadow-md flex items-center gap-2 cursor-pointer disabled:opacity-50"
                     >
                       {isSubmittingPulse ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
                       {presencaData?.cycle?.pulse_answered_at ? "Atualizar Direcionamento" : "Enviar Direcionamento"}

@@ -160,7 +160,7 @@ export function AdminTerritoriesManager({ projectId, taskId, currentUser }: { pr
       <div className="flex justify-between items-center">
         <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Territórios Visuais (Direcionar)</h3>
         {!isCreating && (
-          <button onClick={() => setIsCreating(true)} className="px-4 py-2 bg-[var(--color-atelier-terracota)] text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-[#8C5934] transition-colors flex items-center gap-2">
+          <button onClick={() => setIsCreating(true)} className="px-4 py-2 bg-[var(--color-atelier-terracota)] text-white text-xs font-bold uppercase tracking-widest rounded-xl hover:bg-[#234E80] transition-colors flex items-center gap-2">
             <Plus size={14} /> Novo Envio
           </button>
         )}
@@ -217,7 +217,7 @@ export function AdminTerritoriesManager({ projectId, taskId, currentUser }: { pr
                 </div>
 
                 {isEvaluated && chosen && (
-                  <div className="mt-4 p-4 bg-[#F0EBE1]/50 rounded-xl border border-[#F0EBE1]">
+                  <div className="mt-4 p-4 bg-[#E2ECF3]/50 rounded-xl border border-[#E2ECF3]">
                     <h5 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mb-2">Caminho Escolhido:</h5>
                     <p className="font-elegant text-xl text-[var(--color-atelier-grafite)] mb-4">{chosen.name}</p>
                     <h5 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mb-1">Feedback do Cliente:</h5>

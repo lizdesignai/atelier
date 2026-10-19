@@ -138,7 +138,7 @@ export async function generateMfaQrCode(uri: string): Promise<string> {
     width: 280,
     margin: 2,
     color: {
-      dark: '#4A3728',   // cor do grafite do Atelier
+      dark: '#0D1D30',   // cor do grafite do Atelier
       light: '#FFFFFF',
     },
   });

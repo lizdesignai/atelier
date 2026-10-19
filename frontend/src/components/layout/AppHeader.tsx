@@ -8,12 +8,15 @@ import { supabase } from "../../lib/supabase";
 import { 
   Bell, CheckCircle2, 
   Circle, Info, AlertTriangle, ShieldCheck, Music, Settings, LogOut,
-  LayoutDashboard, BrainCircuit, Activity, Users, DollarSign, Target, Crown, Calendar, LayoutGrid, List, Compass
+  LayoutDashboard, BrainCircuit, Activity, Users, DollarSign, Target, Crown, Calendar, LayoutGrid, List, Compass,
+  PanelLeft, PanelBottom, Film, Sun, Moon, Sparkles
 } from "lucide-react";
 import { useProfile } from "../../hooks/useProfile";
+import { useGlobalStore } from "../../contexts/GlobalStore";
 import DailyJamDropdown from "./DailyJamDropdown";
 import UserAvatar from "../global/UserAvatar";
 import { getSafeAvatarUrl, handleAvatarError } from "../../lib/imageUtils";
+import VeronnaSymbol from "../brand/VeronnaSymbol";
 
 interface AppHeaderProps {
   handleLogout: () => void;
@@ -22,7 +25,9 @@ interface AppHeaderProps {
 export default function AppHeader({ handleLogout }: AppHeaderProps) {
   const router = useRouter();
   const { data: profile } = useProfile();
+  const { navMode, setNavMode, theme, setTheme } = useGlobalStore();
   const userProfile = profile;
+  const isTeamMember = ["admin", "gestor", "colaborador"].includes(userProfile?.role);
   
   // Estados do Sistema de Notificações
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -165,14 +170,14 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
               animate={{ opacity: 1, y: 8, scale: 1 }}
               exit={{ opacity: 0, y: -5, scale: 0.95 }}
               transition={{ type: "spring", stiffness: 400, damping: 30 }}
-              className="absolute right-0 top-full mt-2 w-[220px] bg-white/95 backdrop-blur-2xl border border-white/60 rounded-2xl shadow-[0_20px_45px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col z-50 pointer-events-auto"
+              className="absolute right-0 top-full mt-2 w-[235px] bg-white/95 backdrop-blur-2xl border border-white/60 rounded-2xl shadow-[0_20px_45px_rgba(0,0,0,0.15)] overflow-hidden flex flex-col z-50 pointer-events-auto"
             >
               <div className="px-4 py-3 border-b border-[var(--color-atelier-grafite)]/5 bg-gray-50/60">
                 <p className="text-[12px] font-bold text-[var(--color-atelier-grafite)] truncate">
                   {userProfile?.nome || "Utilizador"}
                 </p>
                 <p className="text-[9.5px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-wider font-semibold truncate mt-0.5">
-                  {userProfile?.empresa || (userProfile?.role === 'admin' ? 'Administrador' : userProfile?.role === 'gestor' ? 'Gestor' : 'Cliente')}
+                  {userProfile?.empresa || (userProfile?.role === 'admin' ? 'Administrador' : userProfile?.role === 'gestor' ? 'Gestor' : userProfile?.role === 'colaborador' ? 'Colaborador' : 'Cliente')}
                 </p>
               </div>
 
@@ -186,6 +191,103 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
               >
                 <Settings size={15} className="opacity-70" /> Configurações
               </button>
+
+              {/* SELETOR DE TEMAS STUDIO VERONNA: Claro | Escuro | Veronna */}
+              <div className="px-4 py-2.5 border-b border-[var(--color-atelier-grafite)]/5 flex flex-col gap-1.5 bg-gray-50/40">
+                <div className="flex items-center justify-between">
+                  <span className="text-[8.5px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">
+                    Tema Visual
+                  </span>
+                  <span className="text-[8px] font-bold uppercase tracking-wider text-[var(--color-atelier-terracota)]/70">
+                    {theme === 'light' ? 'Claro' : theme === 'dark' ? 'Escuro' : 'Veronna'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-3 gap-1 bg-black/[0.04] p-1 rounded-xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTheme('light');
+                      window.dispatchEvent(new CustomEvent("showToast", { detail: "Tema: Claro ativado." }));
+                    }}
+                    className={`flex items-center justify-center gap-1 py-1.5 px-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                      theme === 'light'
+                        ? 'bg-white shadow-xs text-[var(--color-atelier-terracota)]'
+                        : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
+                    }`}
+                    title="Modo Claro"
+                  >
+                    <Sun size={12} className={theme === 'light' ? 'text-amber-500' : ''} /> Claro
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTheme('dark');
+                      window.dispatchEvent(new CustomEvent("showToast", { detail: "Tema: Escuro ativado." }));
+                    }}
+                    className={`flex items-center justify-center gap-1 py-1.5 px-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                      theme === 'dark'
+                        ? 'bg-white shadow-xs text-[var(--color-atelier-terracota)]'
+                        : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
+                    }`}
+                    title="Modo Escuro"
+                  >
+                    <Moon size={12} className={theme === 'dark' ? 'text-blue-500' : ''} /> Escuro
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setTheme('veronna');
+                      window.dispatchEvent(new CustomEvent("showToast", { detail: "Tema: Veronna Signature ativado." }));
+                    }}
+                    className={`flex items-center justify-center gap-1 py-1.5 px-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                      theme === 'veronna'
+                        ? 'bg-[var(--color-veronna-bordo)] text-white shadow-xs'
+                        : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
+                    }`}
+                    title="Modo Especial Veronna"
+                  >
+                    <Sparkles size={12} className={theme === 'veronna' ? 'text-amber-200' : ''} /> Veronna
+                  </button>
+                </div>
+              </div>
+
+              {isTeamMember && (
+                <div className="px-4 py-2.5 border-b border-[var(--color-atelier-grafite)]/5 flex flex-col gap-1.5 bg-gray-50/30">
+                  <span className="text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">
+                    Barra de Navegação
+                  </span>
+                  <div className="grid grid-cols-2 gap-1 bg-black/[0.04] p-1 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNavMode('vertical');
+                        window.dispatchEvent(new CustomEvent("showToast", { detail: "Barra de navegação: Vertical (Sidebar)." }));
+                      }}
+                      className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer ${
+                        navMode === 'vertical'
+                          ? 'bg-white shadow-xs text-[var(--color-atelier-terracota)]'
+                          : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
+                      }`}
+                    >
+                      <PanelLeft size={13} /> Vertical
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setNavMode('horizontal');
+                        window.dispatchEvent(new CustomEvent("showToast", { detail: "Barra de navegação: Horizontal (Pílula)." }));
+                      }}
+                      className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer ${
+                        navMode === 'horizontal'
+                          ? 'bg-white shadow-xs text-[var(--color-atelier-terracota)]'
+                          : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
+                      }`}
+                    >
+                      <PanelBottom size={13} /> Horizontal
+                    </button>
+                  </div>
+                </div>
+              )}
 
               <button 
                 type="button"
@@ -262,6 +364,23 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                     {/* CONTEÚDO DOS APPS: GRADE OU LISTA */}
                     {appsViewMode === 'grid' ? (
                       <div className="grid grid-cols-3 gap-2 pt-1">
+                        {isTeamMember && (
+                          <button
+                            type="button"
+                            onClick={() => { setIsNavMenuOpen(false); router.push('/tessera'); }}
+                            title="Tessera — Sistema Operacional do Studio Veronna"
+                            className="flex flex-col items-center justify-center p-2.5 rounded-2xl hover:bg-[var(--color-veronna-bordo)]/[0.06] transition-all group cursor-pointer active:scale-95"
+                          >
+                            <div className="relative w-11 h-11 rounded-2xl flex items-center justify-center bg-gradient-to-br from-[#2B0912] via-[#4A1220] to-[#1A050A] text-[#F2ECE1] ring-1 ring-[#C5A059]/40 group-hover:ring-[#C5A059] group-hover:shadow-[0_8px_20px_rgba(74,18,32,0.35)] transition-all shadow-xs overflow-hidden">
+                              <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_20%,rgba(197,160,89,0.28),transparent_65%)] pointer-events-none" />
+                              <VeronnaSymbol size={22} fillColor="#E5C98B" className="relative z-10 group-hover:scale-110 transition-transform duration-300 drop-shadow-[0_2px_4px_rgba(0,0,0,0.35)]" />
+                            </div>
+                            <span className="text-[10px] font-bold tracking-wide text-[var(--color-atelier-grafite)] text-center leading-tight mt-1.5 w-full truncate">
+                              Tessera
+                            </span>
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => { setIsNavMenuOpen(false); router.push('/admin/analytics'); }}
@@ -336,11 +455,25 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                             <Activity size={18} />
                           </div>
                           <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)] text-center leading-tight mt-1.5 w-full truncate">
-                            Produção
+                            Produtividade
                           </span>
                         </button>
 
-                        {userProfile?.role === 'admin' && (
+                        <button
+                          type="button"
+                          onClick={() => { setIsNavMenuOpen(false); router.push('/admin/motion-studio'); }}
+                          title="Veronna Motion Studio"
+                          className="flex flex-col items-center justify-center p-2.5 rounded-2xl hover:bg-black/[0.03] transition-all group cursor-pointer active:scale-95"
+                        >
+                          <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] group-hover:bg-[var(--color-atelier-terracota)] group-hover:text-white transition-all shadow-xs">
+                            <Film size={18} />
+                          </div>
+                          <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)] text-center leading-tight mt-1.5 w-full truncate">
+                            Veronna Motion Studio
+                          </span>
+                        </button>
+
+                        {(userProfile?.role === 'admin' || userProfile?.role === 'gestor') && (
                           <button
                             type="button"
                             onClick={() => { setIsNavMenuOpen(false); router.push('/admin'); }}
@@ -350,7 +483,7 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                               <Crown size={18} />
                             </div>
                             <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)] text-center leading-tight mt-1.5 w-full truncate">
-                              QG Liziane
+                              QG da Liziane
                             </span>
                           </button>
                         )}
@@ -372,6 +505,22 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                       </div>
                     ) : (
                       <div className="flex flex-col gap-1 pt-1">
+                        {isTeamMember && (
+                          <button
+                            type="button"
+                            onClick={() => { setIsNavMenuOpen(false); router.push('/tessera'); }}
+                            className="flex items-center gap-3 px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[#4A1220]/[0.06] hover:text-[#4A1220] rounded-xl transition-colors text-left group"
+                          >
+                            <div className="relative w-7 h-7 rounded-lg flex items-center justify-center bg-gradient-to-br from-[#2B0912] via-[#4A1220] to-[#1A050A] text-[#E5C98B] ring-1 ring-[#C5A059]/40 shrink-0 overflow-hidden shadow-xs">
+                              <VeronnaSymbol size={16} fillColor="#E5C98B" className="relative z-10" />
+                            </div>
+                            <div className="flex flex-col min-w-0">
+                              <span className="truncate">Tessera</span>
+                              <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 font-normal truncate">Arquitetura & Comando do Studio</span>
+                            </div>
+                          </button>
+                        )}
+
                         <button
                           type="button"
                           onClick={() => { setIsNavMenuOpen(false); router.push('/admin/analytics'); }}
@@ -456,7 +605,21 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                           </div>
                         </button>
 
-                        {userProfile?.role === 'admin' && (
+                        <button
+                          type="button"
+                          onClick={() => { setIsNavMenuOpen(false); router.push('/admin/motion-studio'); }}
+                          className="flex items-center gap-3 px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors text-left"
+                        >
+                          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] shrink-0">
+                            <Film size={14} />
+                          </div>
+                          <div className="flex flex-col min-w-0">
+                            <span className="truncate">Veronna Motion Studio</span>
+                            <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 font-normal truncate">Composição SVG & Motion 5s</span>
+                          </div>
+                        </button>
+
+                        {(userProfile?.role === 'admin' || userProfile?.role === 'gestor') && (
                           <button
                             type="button"
                             onClick={() => { setIsNavMenuOpen(false); router.push('/admin'); }}
@@ -539,14 +702,14 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                     animate={{ opacity: 1, y: 8, scale: 1 }} 
                     exit={{ opacity: 0, y: -5, scale: 0.98 }}
                     transition={{ type: "spring", stiffness: 400, damping: 30 }}
-                    className="absolute right-0 top-full w-[210px] bg-white/95 backdrop-blur-2xl border border-white/60 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col z-50 pointer-events-auto"
+                    className="absolute right-0 top-full w-[235px] bg-white/95 backdrop-blur-2xl border border-white/60 rounded-2xl shadow-[0_20px_40px_rgba(0,0,0,0.12)] overflow-hidden flex flex-col z-50 pointer-events-auto"
                   >
                     <div className="px-4 py-3 border-b border-[var(--color-atelier-grafite)]/5 bg-gray-50/60">
                       <p className="text-[11.5px] font-bold text-[var(--color-atelier-grafite)] truncate">
                         {userProfile?.nome || "Utilizador"}
                       </p>
                       <p className="text-[9px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-wider font-semibold truncate mt-0.5">
-                        {userProfile?.empresa || (userProfile?.role === 'admin' ? 'Administrador' : userProfile?.role === 'gestor' ? 'Gestor' : 'Cliente')}
+                        {userProfile?.empresa || (userProfile?.role === 'admin' ? 'Administrador' : userProfile?.role === 'gestor' ? 'Gestor' : userProfile?.role === 'colaborador' ? 'Colaborador' : 'Cliente')}
                       </p>
                     </div>
                     <button 
@@ -554,16 +717,114 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                         setIsProfileDropdownOpen(false);
                         router.push('/configuracoes');
                       }}
-                      className="w-full text-left px-4 py-3 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2 border-b border-[var(--color-atelier-grafite)]/5"
+                      className="w-full text-left px-4 py-3 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2 border-b border-[var(--color-atelier-grafite)]/5 cursor-pointer"
                     >
                       <Settings size={14} /> Configurações
                     </button>
+
+                    {/* SELETOR DE TEMAS STUDIO VERONNA: Claro | Escuro | Veronna */}
+                    <div className="px-4 py-2.5 border-b border-[var(--color-atelier-grafite)]/5 flex flex-col gap-1.5 bg-gray-50/40">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[8.5px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">
+                          Tema Visual
+                        </span>
+                        <span className="text-[8px] font-bold uppercase tracking-wider text-[var(--color-atelier-terracota)]/70">
+                          {theme === 'light' ? 'Claro' : theme === 'dark' ? 'Escuro' : 'Veronna'}
+                        </span>
+                      </div>
+                      <div className="grid grid-cols-3 gap-1 bg-black/[0.04] p-1 rounded-xl">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTheme('light');
+                            window.dispatchEvent(new CustomEvent("showToast", { detail: "Tema: Claro ativado." }));
+                          }}
+                          className={`flex items-center justify-center gap-1 py-1.5 px-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                            theme === 'light'
+                              ? 'bg-white shadow-xs text-[var(--color-atelier-terracota)]'
+                              : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
+                          }`}
+                          title="Modo Claro"
+                        >
+                          <Sun size={12} className={theme === 'light' ? 'text-amber-500' : ''} /> Claro
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTheme('dark');
+                            window.dispatchEvent(new CustomEvent("showToast", { detail: "Tema: Escuro ativado." }));
+                          }}
+                          className={`flex items-center justify-center gap-1 py-1.5 px-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                            theme === 'dark'
+                              ? 'bg-white shadow-xs text-[var(--color-atelier-terracota)]'
+                              : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
+                          }`}
+                          title="Modo Escuro"
+                        >
+                          <Moon size={12} className={theme === 'dark' ? 'text-blue-500' : ''} /> Escuro
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setTheme('veronna');
+                            window.dispatchEvent(new CustomEvent("showToast", { detail: "Tema: Veronna Signature ativado." }));
+                          }}
+                          className={`flex items-center justify-center gap-1 py-1.5 px-1 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                            theme === 'veronna'
+                              ? 'bg-[var(--color-veronna-bordo)] text-white shadow-xs'
+                              : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
+                          }`}
+                          title="Modo Especial Veronna"
+                        >
+                          <Sparkles size={12} className={theme === 'veronna' ? 'text-amber-200' : ''} /> Veronna
+                        </button>
+                      </div>
+                    </div>
+
+                    {isTeamMember && (
+                      <div className="px-4 py-2.5 border-b border-[var(--color-atelier-grafite)]/5 flex flex-col gap-1.5 bg-gray-50/30">
+                        <span className="text-[8.5px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">
+                          Barra de Navegação
+                        </span>
+                        <div className="grid grid-cols-2 gap-1 bg-black/[0.04] p-1 rounded-xl">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNavMode('vertical');
+                              window.dispatchEvent(new CustomEvent("showToast", { detail: "Barra de navegação: Vertical (Sidebar)." }));
+                            }}
+                            className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer ${
+                              navMode === 'vertical'
+                                ? 'bg-white shadow-xs text-[var(--color-atelier-terracota)]'
+                                : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
+                            }`}
+                          >
+                            <PanelLeft size={13} /> Vertical
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setNavMode('horizontal');
+                              window.dispatchEvent(new CustomEvent("showToast", { detail: "Barra de navegação: Horizontal (Pílula)." }));
+                            }}
+                            className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer ${
+                              navMode === 'horizontal'
+                                ? 'bg-white shadow-xs text-[var(--color-atelier-terracota)]'
+                                : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
+                            }`}
+                          >
+                            <PanelBottom size={13} /> Horizontal
+                          </button>
+                        </div>
+                      </div>
+                    )}
+
                     <button 
                       onClick={() => {
                         setIsProfileDropdownOpen(false);
                         setIsJamOpen(true);
                       }}
-                      className="w-full text-left px-4 py-3 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2 border-b border-[var(--color-atelier-grafite)]/5"
+                      className="w-full text-left px-4 py-3 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] transition-colors flex items-center gap-2 border-b border-[var(--color-atelier-grafite)]/5 cursor-pointer"
                     >
                       <Music size={14} /> Trilha & Humor
                     </button>

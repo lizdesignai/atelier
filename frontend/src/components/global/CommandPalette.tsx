@@ -61,6 +61,7 @@ export default function CommandPalette() {
   // ==========================================
   const quickActions = [
     { icon: LayoutDashboard, label: "Visão Geral do Oráculo", path: "/admin/analytics" },
+    { icon: Sparkles, label: "Veronna Motion Studio (SVG & Motion 5s)", path: "/admin/motion-studio" },
     { icon: Wallet, label: "Analisar CFO Engine", path: "/admin/financeiro" },
     { icon: Users, label: "Gerir Base de Clientes", path: "/admin/clientes" },
     { icon: FolderKanban, label: "Mesa de Trabalho (JTBD)", path: "/admin/projetos" },
@@ -87,7 +88,8 @@ export default function CommandPalette() {
     // 1. INTENT PARSER LOCAL (Navegação Rápida Preditiva)
     if (q.includes("ir para") || q.includes("abrir") || q.includes("mostrar")) {
       let targetPath = null;
-      if (q.includes("financeiro") || q.includes("caixa") || q.includes("dinheiro")) targetPath = "/admin/financeiro";
+      if (q.includes("motion") || q.includes("svg") || q.includes("animação")) targetPath = "/admin/motion-studio";
+      else if (q.includes("financeiro") || q.includes("caixa") || q.includes("dinheiro")) targetPath = "/admin/financeiro";
       else if (q.includes("cliente") || q.includes("crm")) targetPath = "/admin/clientes";
       else if (q.includes("projeto") || q.includes("tarefa") || q.includes("jtbd")) targetPath = "/admin/projetos";
       else if (q.includes("analytics") || q.includes("oráculo") || q.includes("dados")) targetPath = "/admin/analytics";

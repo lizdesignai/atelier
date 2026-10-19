@@ -210,7 +210,7 @@ export default function CofrePage() {
             transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
             className="flex-1 flex flex-col items-center justify-center relative w-full h-full px-4"
           >
-            <div className="relative w-full h-full max-h-[800px] rounded-[4rem] overflow-hidden flex flex-col items-center justify-center border border-white/40 shadow-[0_40px_100px_rgba(122,116,112,0.15)]">
+            <div className="relative w-full h-full max-h-[800px] rounded-[4rem] overflow-hidden flex flex-col items-center justify-center border border-white/40 shadow-[0_40px_100px_rgba(20, 44, 72,0.15)]">
               
               {/* 🟢 NOVO: Dropdown de Múltiplos Projetos (Cofre Trancado) */}
               {allProjects.length > 1 && (
@@ -251,7 +251,7 @@ export default function CofrePage() {
                 <motion.div 
                   animate={{ scale: [1, 1.05, 1], opacity: [0.8, 1, 0.8] }}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                  className="w-28 h-28 rounded-full border border-white/60 bg-white/30 backdrop-blur-xl flex items-center justify-center mb-10 shadow-[0_10px_40px_rgba(173,111,64,0.2)] relative"
+                  className="w-28 h-28 rounded-full border border-white/60 bg-white/30 backdrop-blur-xl flex items-center justify-center mb-10 shadow-[0_10px_40px_rgba(20, 44, 72,0.2)] relative"
                 >
                   {typeof daysLeft === 'number' && daysLeft <= 3 && <div className="absolute inset-0 bg-[var(--color-atelier-terracota)]/30 rounded-full animate-ping"></div>}
                   <Lock size={36} strokeWidth={1.5} className="text-[var(--color-atelier-terracota)] drop-shadow-md" />
@@ -336,7 +336,7 @@ export default function CofrePage() {
                 initial={{ opacity: 0, x: -50 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 1, duration: 0.8 }}
                 className="lg:col-span-7 glass-panel p-3 rounded-[2.5rem] relative group flex flex-col h-[400px] lg:h-full border border-white shadow-sm shrink-0"
               >
-                <div className="w-full flex-1 rounded-[2rem] overflow-hidden relative shadow-inner group-hover:shadow-[0_20px_50px_rgba(173,111,64,0.15)] transition-all duration-700">
+                <div className="w-full flex-1 rounded-[2rem] overflow-hidden relative shadow-inner group-hover:shadow-[0_20px_50px_rgba(20, 44, 72,0.15)] transition-all duration-700">
                   <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors z-10"></div>
                   <img 
                     src="https://images.unsplash.com/photo-1600880292203-757bb62b4baf?q=80&w=2670&auto=format&fit=crop" 
@@ -398,7 +398,7 @@ export default function CofrePage() {
                   
                   <button 
                     onClick={() => setShowNpsModal(true)}
-                    className="bg-white text-[var(--color-atelier-grafite)] px-8 py-4 rounded-[1.2rem] font-roboto font-bold uppercase tracking-[0.1em] text-[11px] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all duration-300 shadow-[0_10px_20px_rgba(0,0,0,0.2)] hover:shadow-[0_15px_30px_rgba(173,111,64,0.4)] flex items-center gap-3 relative z-10 hover:-translate-y-1"
+                    className="bg-white text-[var(--color-atelier-grafite)] px-8 py-4 rounded-[1.2rem] font-roboto font-bold uppercase tracking-[0.1em] text-[11px] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all duration-300 shadow-[0_10px_20px_rgba(0,0,0,0.2)] hover:shadow-[0_15px_30px_rgba(20, 44, 72,0.4)] flex items-center gap-3 relative z-10 hover:-translate-y-1"
                   >
                     Deixar Avaliação <ArrowRight size={14} />
                   </button>
@@ -472,12 +472,12 @@ export default function CofrePage() {
                 <div>
                   <h3 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] mb-4 leading-tight">Pronto para o Próximo Nível?</h3>
                   <p className="font-roboto text-[14px] text-[var(--color-atelier-grafite)]/70 leading-relaxed font-medium">
-                    Ficamos muito felizes que tenha adorado a sua nova Identidade Visual! Sabia que as marcas que delegam 100% da sua presença digital crescem de forma mais sólida e previsível? <br/><br/>A equipe da Liz Design está preparada para assumir toda a gestão e produção de conteúdo do seu Instagram.
+                    Ficamos muito felizes que tenha adorado a sua nova Identidade Visual! Sabia que as marcas que delegam 100% da sua presença digital crescem de forma mais sólida e previsível? <br/><br/>A equipe do Studio Veronna está preparada para assumir toda a gestão e produção de conteúdo do seu Instagram.
                   </p>
                 </div>
 
                 <div className="flex flex-col gap-3 mt-4">
-                  <button onClick={handleAcceptUpsell} className="w-full bg-[var(--color-atelier-terracota)] text-white py-5 rounded-[1.5rem] font-bold uppercase tracking-[0.1em] text-[11px] shadow-lg hover:bg-[#8c562e] hover:-translate-y-0.5 transition-all">
+                  <button onClick={handleAcceptUpsell} className="w-full bg-[var(--color-atelier-terracota)] text-white py-5 rounded-[1.5rem] font-bold uppercase tracking-[0.1em] text-[11px] shadow-lg hover:bg-[#234E80] hover:-translate-y-0.5 transition-all">
                     Sim, Quero Conhecer os Serviços de Gestão
                   </button>
                   <button onClick={handleDeclineUpsell} className="w-full bg-transparent border border-transparent hover:border-gray-100 text-[var(--color-atelier-grafite)]/50 py-4 rounded-[1.5rem] font-bold uppercase tracking-widest text-[10px] hover:text-[var(--color-atelier-grafite)] hover:bg-gray-50 transition-colors">

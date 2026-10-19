@@ -5,10 +5,11 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Settings, User, Briefcase, FileText, Camera, 
-  ShieldCheck, Save, Calendar, MapPin, Download, Loader2, Link as LinkIcon, KeyRound, CheckCircle2, Lock, Instagram, Clock
+  ShieldCheck, Save, Calendar, MapPin, Download, Loader2, Link as LinkIcon, KeyRound, CheckCircle2, Lock, Instagram, Clock, PanelLeft, PanelBottom
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { NotificationEngine } from "../../lib/NotificationEngine"; 
+import { useGlobalStore } from "../../contexts/GlobalStore";
 import { getProfileByIdAction, updateProfileAction } from "../actions/profiles";
 import { getProjectsAction } from "../actions/projects";
 
@@ -18,7 +19,8 @@ const showToast = (message: string) => {
 };
 
 export default function ConfiguracoesPage() {
-  const [activeTab, setActiveTab] = useState<"perfil" | "empresa" | "contrato" | "seguranca">("perfil");
+  const { navMode, setNavMode } = useGlobalStore();
+  const [activeTab, setActiveTab] = useState<"perfil" | "empresa" | "navegacao" | "contrato" | "seguranca">("perfil");
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [userId, setUserId] = useState<string | null>(null);
@@ -26,7 +28,7 @@ export default function ConfiguracoesPage() {
   
   const [contractUrl, setContractUrl] = useState<string | null>(null);
 
-  const [avatar, setAvatar] = useState<string>("https://ui-avatars.com/api/?name=User&background=ad6f40&color=fbf4e4");
+  const [avatar, setAvatar] = useState<string>("https://ui-avatars.com/api/?name=User&background=142C48&color=E8E3DD");
   const [formData, setFormData] = useState({
     nome: "",
     email: "",
@@ -74,7 +76,7 @@ export default function ConfiguracoesPage() {
             if (profile.avatar_url) {
               setAvatar(profile.avatar_url);
             } else if (profile.nome) {
-              setAvatar(`https://ui-avatars.com/api/?name=${encodeURIComponent(profile.nome)}&background=ad6f40&color=fbf4e4`);
+              setAvatar(`https://ui-avatars.com/api/?name=${encodeURIComponent(profile.nome)}&background=142C48&color=E8E3DD`);
             }
 
             if (profile.role === 'client') {
@@ -314,6 +316,20 @@ export default function ConfiguracoesPage() {
               </div>
             </button>
 
+            {isTeamMember && (
+              <button 
+                type="button"
+                onClick={() => setActiveTab("navegacao")}
+                className={`px-5 py-4 rounded-[1.5rem] flex items-center gap-4 transition-all ${activeTab === "navegacao" ? "bg-white shadow-md text-[var(--color-atelier-terracota)] border border-[var(--color-atelier-terracota)]/10 scale-[1.02]" : "text-[var(--color-atelier-grafite)]/60 hover:bg-white hover:text-[var(--color-atelier-grafite)] border border-transparent"}`}
+              >
+                <PanelLeft size={20} />
+                <div className="flex flex-col text-left">
+                  <span className="font-roboto text-[13px] font-bold">Barra de Navegação</span>
+                  <span className="font-roboto text-[10px] uppercase tracking-widest opacity-60 mt-0.5">Vertical ou Horizontal</span>
+                </div>
+              </button>
+            )}
+
             {/* ABA DE SEGURANÇA */}
             <button 
               onClick={() => setActiveTab("seguranca")}
@@ -393,6 +409,78 @@ export default function ConfiguracoesPage() {
                           <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 group-focus-within/input:text-[var(--color-atelier-terracota)] pl-1 transition-colors">Biografia / Resumo Profissional</label>
                           <textarea value={formData.bio} onChange={(e) => setFormData({...formData, bio: e.target.value})} className="bg-white border border-transparent focus:border-[var(--color-atelier-terracota)]/40 rounded-[1.5rem] px-6 py-5 text-[13px] font-medium text-[var(--color-atelier-grafite)] min-h-[140px] resize-none outline-none shadow-sm custom-scrollbar transition-all" placeholder="Fale-nos um pouco sobre a sua visão..." />
                         </div>
+
+                        {isTeamMember && (
+                          <div className="flex flex-col gap-3 pt-2 border-t border-[var(--color-atelier-grafite)]/10">
+                            <div className="flex flex-col gap-1">
+                              <label className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 pl-1">
+                                Formato da Barra de Navegação
+                              </label>
+                              <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/50 pl-1">
+                                Escolha entre a visualização Vertical (Sidebar lateral) ou Horizontal (Pílula flutuante).
+                              </p>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-1">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNavMode("vertical");
+                                  showToast("✅ Barra de navegação alterada para Vertical (Sidebar).");
+                                }}
+                                className={`flex items-center gap-4 p-5 rounded-[1.5rem] border transition-all text-left cursor-pointer ${
+                                  navMode === "vertical"
+                                    ? "bg-white border-[var(--color-atelier-terracota)] shadow-md ring-1 ring-[var(--color-atelier-terracota)]/20"
+                                    : "bg-white/60 border-white hover:bg-white text-[var(--color-atelier-grafite)]/70"
+                                }`}
+                              >
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${
+                                  navMode === "vertical"
+                                    ? "bg-[var(--color-atelier-terracota)] text-white"
+                                    : "bg-[var(--color-atelier-grafite)]/5 text-[var(--color-atelier-grafite)]/60"
+                                }`}>
+                                  <PanelLeft size={20} />
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="font-roboto text-[13px] font-bold text-[var(--color-atelier-grafite)]">
+                                    Barra Vertical (Sidebar)
+                                  </span>
+                                  <span className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/55 mt-0.5">
+                                    Menu lateral clássico fixo à esquerda
+                                  </span>
+                                </div>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setNavMode("horizontal");
+                                  showToast("✅ Barra de navegação alterada para Horizontal (Pílula Flutuante).");
+                                }}
+                                className={`flex items-center gap-4 p-5 rounded-[1.5rem] border transition-all text-left cursor-pointer ${
+                                  navMode === "horizontal"
+                                    ? "bg-white border-[var(--color-atelier-terracota)] shadow-md ring-1 ring-[var(--color-atelier-terracota)]/20"
+                                    : "bg-white/60 border-white hover:bg-white text-[var(--color-atelier-grafite)]/70"
+                                }`}
+                              >
+                                <div className={`w-12 h-12 rounded-2xl flex items-center justify-center shrink-0 transition-colors ${
+                                  navMode === "horizontal"
+                                    ? "bg-[var(--color-atelier-terracota)] text-white"
+                                    : "bg-[var(--color-atelier-grafite)]/5 text-[var(--color-atelier-grafite)]/60"
+                                }`}>
+                                  <PanelBottom size={20} />
+                                </div>
+                                <div className="flex flex-col">
+                                  <span className="font-roboto text-[13px] font-bold text-[var(--color-atelier-grafite)]">
+                                    Barra Horizontal (Pílula Flutuante)
+                                  </span>
+                                  <span className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/55 mt-0.5">
+                                    Pílula flutuante minimalista na base da tela
+                                  </span>
+                                </div>
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </>
                     ) : (
                       <>
@@ -442,7 +530,7 @@ export default function ConfiguracoesPage() {
                       px-10 h-14 rounded-[1.5rem] font-roboto font-bold uppercase tracking-[0.1em] text-[11px] flex items-center justify-center gap-3 transition-all shadow-md w-full md:w-auto
                       ${isSaving 
                         ? 'bg-transparent border border-[var(--color-atelier-terracota)] text-[var(--color-atelier-terracota)] shadow-none' 
-                        : 'bg-[var(--color-atelier-terracota)] text-white hover:bg-[#8c562e] hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0'
+                        : 'bg-[var(--color-atelier-terracota)] text-white hover:bg-[#234E80] hover:-translate-y-0.5 disabled:opacity-50 disabled:hover:translate-y-0'
                       }
                     `}
                   >
@@ -454,6 +542,90 @@ export default function ConfiguracoesPage() {
                   </button>
                 </div>
               </motion.form>
+            )}
+
+            {/* ==========================================
+                ABA: BARRA DE NAVEGAÇÃO (APENAS EQUIPA)
+                ========================================== */}
+            {activeTab === "navegacao" && isTeamMember && (
+              <motion.div key="navegacao-tab" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="flex flex-col h-full p-8 md:p-12 gap-8 overflow-y-auto custom-scrollbar">
+                <div className="border-b border-[var(--color-atelier-grafite)]/10 pb-6">
+                  <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">Formato da Barra de Navegação</h2>
+                  <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/60 mt-2 font-medium">
+                    Escolha como prefere visualizar a sua navegação no Atelier: com a Sidebar vertical clássica ou com a Pílula Flutuante horizontal.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNavMode("vertical");
+                      showToast("✅ Barra de navegação alterada para Vertical (Sidebar).");
+                    }}
+                    className={`flex flex-col gap-4 p-7 rounded-[2rem] border transition-all text-left cursor-pointer ${
+                      navMode === "vertical"
+                        ? "bg-white border-[var(--color-atelier-terracota)] shadow-lg ring-2 ring-[var(--color-atelier-terracota)]/20"
+                        : "bg-white/60 border-white hover:bg-white text-[var(--color-atelier-grafite)]/70 shadow-sm"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${
+                        navMode === "vertical"
+                          ? "bg-[var(--color-atelier-terracota)] text-white"
+                          : "bg-[var(--color-atelier-grafite)]/5 text-[var(--color-atelier-grafite)]/60"
+                      }`}>
+                        <PanelLeft size={22} />
+                      </div>
+                      {navMode === "vertical" && (
+                        <span className="px-3 py-1 rounded-full bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] text-[10px] font-bold uppercase tracking-widest">
+                          Ativo
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Vertical (Sidebar)</h3>
+                      <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/60 mt-1.5 leading-relaxed">
+                        Barra lateral fixa à esquerda com acesso rápido a Focus, Studio Veronna, Sintonia, Comunidade e Analytics.
+                      </p>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setNavMode("horizontal");
+                      showToast("✅ Barra de navegação alterada para Horizontal (Pílula Flutuante).");
+                    }}
+                    className={`flex flex-col gap-4 p-7 rounded-[2rem] border transition-all text-left cursor-pointer ${
+                      navMode === "horizontal"
+                        ? "bg-white border-[var(--color-atelier-terracota)] shadow-lg ring-2 ring-[var(--color-atelier-terracota)]/20"
+                        : "bg-white/60 border-white hover:bg-white text-[var(--color-atelier-grafite)]/70 shadow-sm"
+                    }`}
+                  >
+                    <div className="flex items-center justify-between w-full">
+                      <div className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-colors ${
+                        navMode === "horizontal"
+                          ? "bg-[var(--color-atelier-terracota)] text-white"
+                          : "bg-[var(--color-atelier-grafite)]/5 text-[var(--color-atelier-grafite)]/60"
+                      }`}>
+                        <PanelBottom size={22} />
+                      </div>
+                      {navMode === "horizontal" && (
+                        <span className="px-3 py-1 rounded-full bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] text-[10px] font-bold uppercase tracking-widest">
+                          Ativo
+                        </span>
+                      )}
+                    </div>
+                    <div>
+                      <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Horizontal (Pílula Flutuante)</h3>
+                      <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/60 mt-1.5 leading-relaxed">
+                        Visualização limpa em tela cheia com a pílula flutuante inferior contendo Focus, Studio Veronna, Sintonia, Comunidade e Analytics.
+                      </p>
+                    </div>
+                  </button>
+                </div>
+              </motion.div>
             )}
 
             {/* ==========================================

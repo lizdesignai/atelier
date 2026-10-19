@@ -132,7 +132,7 @@ export default function DiaryModule({ activeProjectId, currentProject, onActivit
   if (!activeProjectId) return null;
 
   return (
-    <div className="glass-panel p-6 md:p-8 rounded-[2.5rem] bg-white/60 flex flex-col h-full border border-white shadow-[0_15px_40px_rgba(173,111,64,0.05)]">
+    <div className="glass-panel p-6 md:p-8 rounded-[2.5rem] bg-white/60 flex flex-col h-full border border-white shadow-[0_15px_40px_rgba(20, 44, 72,0.05)]">
       
       {/* HEADER DO MÓDULO */}
       <div className="flex items-center justify-between mb-6 pb-4 border-b border-[var(--color-atelier-grafite)]/5 shrink-0">
@@ -214,7 +214,7 @@ export default function DiaryModule({ activeProjectId, currentProject, onActivit
                   </div>
                   
                   {/* Cartão do Post */}
-                  <div className="flex-1 bg-white border border-[var(--color-atelier-grafite)]/5 shadow-[0_5px_15px_rgba(122,116,112,0.03)] p-5 rounded-2xl flex flex-col group-hover:border-[var(--color-atelier-terracota)]/20 transition-colors">
+                  <div className="flex-1 bg-white border border-[var(--color-atelier-grafite)]/5 shadow-[0_5px_15px_rgba(20, 44, 72,0.03)] p-5 rounded-2xl flex flex-col group-hover:border-[var(--color-atelier-terracota)]/20 transition-colors">
                     
                     <div className="flex justify-between items-start mb-3">
                       <div className="flex items-center gap-1.5">

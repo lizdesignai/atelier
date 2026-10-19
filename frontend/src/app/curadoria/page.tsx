@@ -241,7 +241,7 @@ export default function CuradoriaPage() {
         <motion.div animate={{ scale: [1, 1.05, 1], opacity: [0.3, 0.5, 0.3] }} transition={{ duration: 4, repeat: Infinity }} className="absolute top-1/4 left-1/4 w-96 h-96 bg-[var(--color-atelier-terracota)]/10 rounded-full blur-[120px] pointer-events-none"></motion.div>
         <motion.div animate={{ scale: [1, 1.1, 1], opacity: [0.2, 0.4, 0.2] }} transition={{ duration: 5, repeat: Infinity }} className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-[var(--color-atelier-rose)]/20 rounded-full blur-[120px] pointer-events-none"></motion.div>
         
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-panel bg-white/60 p-10 md:p-16 rounded-[3.5rem] border border-white shadow-[0_30px_60px_rgba(122,116,112,0.1)] flex flex-col items-center text-center max-w-lg relative z-10">
+        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-panel bg-white/60 p-10 md:p-16 rounded-[3.5rem] border border-white shadow-[0_30px_60px_rgba(20, 44, 72,0.1)] flex flex-col items-center text-center max-w-lg relative z-10">
           <div className="w-24 h-24 rounded-full bg-green-50 flex items-center justify-center mb-6 shadow-inner border border-green-100">
             <CheckCircle2 size={40} className="text-green-500" />
           </div>
@@ -416,7 +416,7 @@ export default function CuradoriaPage() {
                     />
                     <div className="flex justify-end gap-2">
                       <button onClick={() => setNewPinCoords(null)} className="px-4 py-2 text-[9px] text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)] hover:bg-gray-50 rounded-lg font-bold uppercase tracking-widest transition-colors">Cancelar</button>
-                      <button onClick={handleSavePin} disabled={isProcessing || !newPinText.trim()} className="px-5 py-2.5 bg-[var(--color-atelier-terracota)] text-white rounded-lg text-[9px] font-bold uppercase tracking-widest disabled:opacity-50 flex items-center gap-2 hover:bg-[#8c562e] transition-colors shadow-md">
+                      <button onClick={handleSavePin} disabled={isProcessing || !newPinText.trim()} className="px-5 py-2.5 bg-[var(--color-atelier-terracota)] text-white rounded-lg text-[9px] font-bold uppercase tracking-widest disabled:opacity-50 flex items-center gap-2 hover:bg-[#234E80] transition-colors shadow-md">
                         {isProcessing ? <Loader2 size={12} className="animate-spin"/> : <Send size={12}/>} Apontar
                       </button>
                     </div>
@@ -531,7 +531,7 @@ export default function CuradoriaPage() {
           <button 
             onClick={() => handleAction('approved')}
             disabled={isProcessing}
-            className="w-full bg-[var(--color-atelier-terracota)] hover:bg-white hover:text-black text-white py-5 rounded-[1.5rem] text-[12px] font-bold uppercase tracking-[0.1em] transition-all shadow-[0_15px_30px_rgba(173,111,64,0.3)] flex items-center justify-center gap-3 hover:-translate-y-1 disabled:opacity-50 disabled:hover:translate-y-0"
+            className="w-full bg-[var(--color-atelier-terracota)] hover:bg-white hover:text-black text-white py-5 rounded-[1.5rem] text-[12px] font-bold uppercase tracking-[0.1em] transition-all shadow-[0_15px_30px_rgba(20, 44, 72,0.3)] flex items-center justify-center gap-3 hover:-translate-y-1 disabled:opacity-50 disabled:hover:translate-y-0"
           >
             {isProcessing ? <Loader2 size={18} className="animate-spin" /> : <CheckCircle2 size={18} />} 
             Aprovar para Publicação

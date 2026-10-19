@@ -7,7 +7,7 @@ import {
   X, Instagram, TrendingUp, Users, Heart, MessageCircle, 
   Sparkles, Activity, Layers, Target, Compass, 
   ArrowUpRight, BarChart3, RefreshCw, CheckCircle2,
-  Video, Eye, Bookmark, Share2, Award, Zap, HelpCircle
+  Video, Eye, Bookmark, Share2, Award, Zap, HelpCircle, History, Calendar, ArrowRight
 } from "lucide-react";
 import { normalizeImageUrl } from "@/lib/imageUtils";
 
@@ -28,7 +28,7 @@ export default function AdvancedInstagramMetricsModal({
   onSync,
   isSyncing = false
 }: AdvancedInstagramMetricsModalProps) {
-  const [activeTab, setActiveTab] = useState<'geral' | 'formatos' | 'pilares' | 'ranking'>('geral');
+  const [activeTab, setActiveTab] = useState<'geral' | 'formatos' | 'pilares' | 'ranking' | 'historico'>('geral');
 
   if (!isOpen) return null;
 
@@ -36,6 +36,8 @@ export default function AdvancedInstagramMetricsModal({
   const metrics = analytics?.metrics || {};
   const posts = analytics?.posts || [];
   const cycle = presencaData?.cycle || null;
+  const comparison = analytics?.comparison || null;
+  const snapshots = analytics?.snapshots || [];
 
   const followersCount = metrics?.followersCount || profile?.followers_count || 1420;
   const followerGain = metrics?.followerGain || 68;
@@ -174,6 +176,22 @@ export default function AdvancedInstagramMetricsModal({
               }`}
             >
               Top Conteúdos ({posts.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('historico')}
+              className={`px-3.5 py-1.5 rounded-xl font-roboto text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                activeTab === 'historico' 
+                  ? 'bg-[var(--color-atelier-grafite)] text-white shadow-xs' 
+                  : 'text-gray-500 hover:text-gray-800 hover:bg-gray-100'
+              }`}
+            >
+              <History size={13} />
+              <span>Evolução & Comparativo</span>
+              {snapshots.length > 0 && (
+                <span className="text-[9.5px] bg-emerald-500/10 text-emerald-700 px-1.5 py-0.2 rounded-full font-bold">
+                  {snapshots.length}
+                </span>
+              )}
             </button>
           </div>
 
@@ -573,6 +591,173 @@ export default function AdvancedInstagramMetricsModal({
               </motion.div>
             )}
 
+            {/* ABA 5: HISTÓRICO & COMPARATIVO (RESULTADO ANTIGO VS NOVO) */}
+            {activeTab === 'historico' && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="space-y-6"
+              >
+                {/* Cartão Comparativo Direto: Última Sincronização */}
+                <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-2xs">
+                  <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                    <div>
+                      <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)]">
+                        Comparativo de Sincronização
+                      </span>
+                      <h4 className="font-elegant text-2xl font-bold text-[var(--color-atelier-grafite)]">
+                        Resultado Anterior vs. Novo
+                      </h4>
+                    </div>
+                    {onSync && (
+                      <button
+                        type="button"
+                        onClick={onSync}
+                        disabled={isSyncing}
+                        className="px-3.5 py-1.5 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 rounded-xl font-roboto text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                      >
+                        <RefreshCw size={12} className={isSyncing ? "animate-spin text-[var(--color-atelier-terracota)]" : ""} />
+                        <span>{isSyncing ? "Sincronizando..." : "Sincronizar Agora"}</span>
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-center">
+                    {/* Lado Esquerdo: Resultado Antigo */}
+                    <div className="p-4 rounded-2xl bg-gray-50 border border-gray-200/80 flex flex-col justify-between min-h-[140px]">
+                      <div>
+                        <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 mb-1 block">
+                          Resultado Anterior
+                        </span>
+                        <span className="font-elegant text-3xl font-bold text-gray-700">
+                          {comparison?.old?.followers 
+                            ? Number(comparison.old.followers).toLocaleString('pt-BR') 
+                            : metrics?.previousFollowersCount 
+                              ? Number(metrics.previousFollowersCount).toLocaleString('pt-BR')
+                              : followersCount.toLocaleString('pt-BR')}
+                        </span>
+                        <span className="text-xs text-gray-500 block mt-1">seguidores auditados</span>
+                      </div>
+                      <div className="mt-3 pt-2 border-t border-gray-200 text-[10px] text-gray-400">
+                        {comparison?.old?.syncedAt ? (
+                          <span>Capturado em {new Date(comparison.old.syncedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                        ) : metrics?.previousSyncedAt ? (
+                          <span>Capturado em {new Date(metrics.previousSyncedAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                        ) : (
+                          <span>Captura inicial</span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Centro: Transição e Delta */}
+                    <div className="flex flex-col items-center justify-center p-4 bg-[var(--color-atelier-creme)]/60 rounded-2xl border border-[var(--color-atelier-terracota)]/20 text-center min-h-[140px]">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--color-atelier-terracota)] mb-1">
+                        Evolução Detectada
+                      </span>
+                      <div className="flex items-center gap-1.5 my-1">
+                        <TrendingUp size={22} className={Number(metrics?.followerGain || 0) >= 0 ? "text-emerald-600" : "text-red-500"} />
+                        <span className={`font-elegant text-3xl font-bold ${Number(metrics?.followerGain || 0) >= 0 ? "text-emerald-600" : "text-red-500"}`}>
+                          {Number(metrics?.followerGain || 0) >= 0 ? '+' : ''}
+                          {Number(metrics?.followerGain || 0).toLocaleString('pt-BR')}
+                        </span>
+                      </div>
+                      <span className="text-xs font-semibold text-gray-600">
+                        seguidores desde a última captura
+                      </span>
+                    </div>
+
+                    {/* Lado Direito: Novo Resultado */}
+                    <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 flex flex-col justify-between min-h-[140px]">
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-800 mb-1">
+                            Novo Resultado
+                          </span>
+                          <span className="text-[9px] uppercase px-1.5 py-0.5 rounded bg-emerald-600 text-white font-bold">
+                            Atual
+                          </span>
+                        </div>
+                        <span className="font-elegant text-3xl font-bold text-emerald-900">
+                          {followersCount.toLocaleString('pt-BR')}
+                        </span>
+                        <span className="text-xs text-emerald-700 block mt-1">seguidores em tempo real</span>
+                      </div>
+                      <div className="mt-3 pt-2 border-t border-emerald-200/60 text-[10px] text-emerald-700">
+                        {profile?.last_synced_at ? (
+                          <span>Atualizado em {new Date(profile.last_synced_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>
+                        ) : (
+                          <span>Coletado agora</span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Linha do Tempo de Sincronizações (Snapshots Salvos) */}
+                <div className="bg-white p-6 rounded-3xl border border-gray-200 shadow-2xs">
+                  <div className="flex items-center justify-between mb-4">
+                    <div>
+                      <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                        Histórico de Monitoramento
+                      </span>
+                      <h4 className="font-elegant text-xl font-bold text-[var(--color-atelier-grafite)]">
+                        Registros Históricos Salvos ({snapshots.length})
+                      </h4>
+                    </div>
+                  </div>
+
+                  {snapshots.length === 0 ? (
+                    <div className="text-center py-8 text-gray-400 text-xs font-roboto">
+                      Nenhum snapshot histórico salvo até o momento. As comparações serão registradas a cada sincronização.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-xs font-roboto">
+                        <thead>
+                          <tr className="border-b border-gray-100 text-[10px] uppercase font-bold text-gray-400 tracking-wider">
+                            <th className="py-2.5 px-3">Data / Hora</th>
+                            <th className="py-2.5 px-3">Seguidores</th>
+                            <th className="py-2.5 px-3">Variação</th>
+                            <th className="py-2.5 px-3">Engajamento</th>
+                            <th className="py-2.5 px-3">Posts no Feed</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-50">
+                          {snapshots.map((snap: any, sIdx: number) => {
+                            const dateStr = snap.created_at
+                              ? new Date(snap.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                              : '—';
+                            const delta = snap.follower_delta !== undefined && snap.follower_delta !== null
+                              ? snap.follower_delta
+                              : (sIdx < snapshots.length - 1 ? (snap.followers_count - (snapshots[sIdx + 1]?.followers_count || snap.followers_count)) : 0);
+
+                            return (
+                              <tr key={snap.id || sIdx} className="hover:bg-gray-50/60 transition-colors">
+                                <td className="py-3 px-3 font-medium text-gray-700">{dateStr}</td>
+                                <td className="py-3 px-3 font-bold text-[var(--color-atelier-grafite)]">
+                                  {Number(snap.followers_count || 0).toLocaleString('pt-BR')}
+                                </td>
+                                <td className="py-3 px-3">
+                                  <span className={`inline-flex items-center gap-1 font-bold ${delta > 0 ? 'text-emerald-600' : delta < 0 ? 'text-red-500' : 'text-gray-400'}`}>
+                                    {delta > 0 ? `+${delta}` : delta}
+                                  </span>
+                                </td>
+                                <td className="py-3 px-3 font-medium text-gray-600">
+                                  {snap.avg_engagement_rate ? `${snap.avg_engagement_rate}%` : '—'}
+                                </td>
+                                <td className="py-3 px-3 font-medium text-gray-600">
+                                  {snap.posts_count || '—'}
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )}
           </div>
 
           {/* Footer Fixo do Modal */}

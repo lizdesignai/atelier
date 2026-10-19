@@ -9,7 +9,7 @@ interface UseDynamicTitleProps {
   baseTitle?: string;
 }
 
-export function useDynamicTitle({ projectName, tabName, baseTitle = "Liz Design" }: UseDynamicTitleProps) {
+export function useDynamicTitle({ projectName, tabName, baseTitle = "Studio Veronna" }: UseDynamicTitleProps) {
   useEffect(() => {
     // Array que guardará as partes do título
     const titleParts = [];

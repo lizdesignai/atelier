@@ -21,13 +21,13 @@ Font.register({
 // 2. ESTÉTICA EDITORIAL ESTRATÉGICA
 const styles = StyleSheet.create({
   page: {
-    backgroundColor: '#fbf4e4',
+    backgroundColor: '#E8E3DD',
     padding: 60,
     paddingBottom: 80, 
     fontFamily: 'Roboto',
   },
   coverPage: {
-    backgroundColor: '#fbf4e4',
+    backgroundColor: '#E8E3DD',
     padding: 60,
     display: 'flex',
     flexDirection: 'column',
@@ -51,7 +51,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textTransform: 'uppercase',
     letterSpacing: 4,
-    color: '#ad6f40',
+    color: '#142C48',
     fontWeight: 700,
     textAlign: 'center',
     marginBottom: 8,
@@ -60,14 +60,14 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textTransform: 'uppercase',
     letterSpacing: 2,
-    color: '#7a7470',
+    color: '#424242',
     textAlign: 'center',
   },
   coverDate: {
     position: 'absolute',
     bottom: 60,
     fontSize: 10,
-    color: '#7a7470',
+    color: '#424242',
     textTransform: 'uppercase',
     letterSpacing: 2,
   },
@@ -77,14 +77,14 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'flex-end',
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(122,116,112,0.2)',
+    borderBottomColor: 'rgba(20, 44, 72,0.2)',
     paddingBottom: 20,
     marginBottom: 30,
   },
   headerTitle: {
     fontFamily: 'Elegant',
     fontSize: 24,
-    color: '#ad6f40',
+    color: '#142C48',
   },
 
   // CAIXAS DE DESTAQUE (Arquétipo)
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     padding: 30,
     borderRadius: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#ad6f40',
+    borderLeftColor: '#142C48',
     marginBottom: 24,
   },
   
@@ -103,7 +103,7 @@ const styles = StyleSheet.create({
     padding: 25,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#f0e6dd',
+    borderColor: '#E2ECF3',
     marginBottom: 24,
   },
 
@@ -111,7 +111,7 @@ const styles = StyleSheet.create({
     fontSize: 10,
     textTransform: 'uppercase',
     letterSpacing: 3,
-    color: '#ad6f40',
+    color: '#142C48',
     fontWeight: 700,
     marginBottom: 12,
   },
@@ -141,7 +141,7 @@ const styles = StyleSheet.create({
   pillarNumber: {
     fontFamily: 'Elegant',
     fontSize: 28,
-    color: '#ad6f40',
+    color: '#142C48',
     marginRight: 20,
   },
   pillarText: {
@@ -159,14 +159,14 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     borderTopWidth: 1,
-    borderTopColor: 'rgba(122,116,112,0.2)',
+    borderTopColor: 'rgba(20, 44, 72,0.2)',
     paddingTop: 15,
   },
   footerText: {
     fontSize: 8,
     textTransform: 'uppercase',
     letterSpacing: 2,
-    color: '#7a7470',
+    color: '#424242',
   },
 });
 
@@ -224,7 +224,7 @@ export default function ConsultoriaPDF({ clientName, instagram, nicho, result }:
         <Text style={styles.coverTitle}>Auditoria Estratégica</Text>
         <Text style={styles.coverSubtitle}>{safeClientName}</Text>
         <Text style={styles.coverDetails}>{safeInstagram} • {safeNicho}</Text>
-        <Text style={styles.coverDate}>{currentDate} • Atelier Liz Design</Text>
+        <Text style={styles.coverDate}>{currentDate} • Atelier Studio Veronna</Text>
       </Page>
 
       {/* CONTEÚDO PRINCIPAL (Paginação Inteligente e Contínua) */}
@@ -296,8 +296,8 @@ export default function ConsultoriaPDF({ clientName, instagram, nicho, result }:
 
         {/* RODAPÉ (Repetido em todas as páginas via fixed) */}
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>Atelier LizDesign</Text>
-          <Text style={styles.footerText}>{safeClientName || 'Atelier Liz Design'}</Text>
+          <Text style={styles.footerText}>Atelier Studio Veronna</Text>
+          <Text style={styles.footerText}>{safeClientName || 'Atelier Studio Veronna'}</Text>
         </View>
       </Page>
     </Document>

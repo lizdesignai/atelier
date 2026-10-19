@@ -310,7 +310,7 @@ const NativeTrelloBoard = ({ boardUrl, onCardClick }: { boardUrl: string, onCard
                     onCardClick(expandedCard);
                     setExpandedCard(null);
                   }}
-                  className="w-full bg-[var(--color-atelier-terracota)] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[12px] hover:bg-[#8c562e] transition-colors shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-2"
+                  className="w-full bg-[var(--color-atelier-terracota)] text-white py-4 rounded-xl font-bold uppercase tracking-widest text-[12px] hover:bg-[#234E80] transition-colors shadow-lg hover:shadow-xl hover:-translate-y-0.5 flex items-center justify-center gap-2"
                 >
                   <PlusCircle size={16} /> Copiar para Formulário de Demanda
                 </button>
@@ -1531,7 +1531,7 @@ export default function ProjectsManager({
                     
                     <button 
                       onClick={() => setIsTrelloSidebarOpen(!isTrelloSidebarOpen)} 
-                      className="px-4 py-2 bg-[var(--color-atelier-terracota)] hover:bg-[#8c562e] rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors flex items-center gap-2 shadow-inner border border-white/10"
+                      className="px-4 py-2 bg-[var(--color-atelier-terracota)] hover:bg-[#234E80] rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors flex items-center gap-2 shadow-inner border border-white/10"
                     >
                       {isTrelloSidebarOpen ? <PanelRightClose size={14}/> : <PanelRightOpen size={14}/>} {isTrelloSidebarOpen ? 'Ocultar Formulário' : 'Nova Demanda'}
                     </button>
