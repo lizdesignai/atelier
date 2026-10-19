@@ -50,13 +50,20 @@ export async function GET(request: Request) {
 
     // --- LÓGICA DE CRIAÇÃO DE LEADS AUTOMÁTICA ---
     const createLeadIfNotExists = async (nome: string, email: string, telefone: string, nicho: string) => {
-      if (!email || email.trim() === '') return;
+      const safeEmail = email && email.trim() !== '' ? email.trim() : null;
+      const safeTelefone = telefone && telefone.trim() !== '' ? telefone.trim() : null;
+      if (!safeEmail && !safeTelefone) return;
       try {
-        const existing = await sql`SELECT id FROM leads WHERE email = ${email}`;
+        let existing = [];
+        if (safeEmail) {
+          existing = await sql`SELECT id FROM leads WHERE email = ${safeEmail}`;
+        } else if (safeTelefone) {
+          existing = await sql`SELECT id FROM leads WHERE telefone = ${safeTelefone}`;
+        }
         if (existing.length === 0) {
           await sql`
             INSERT INTO leads (nome, email, telefone, status, nicho)
-            VALUES (${nome || 'Cliente Sem Nome'}, ${email}, ${telefone || ''}, 'prospect', ${nicho || 'Indefinido'})
+            VALUES (${nome || 'Cliente Sem Nome'}, ${safeEmail || ''}, ${safeTelefone || ''}, 'prospect', ${nicho || 'Indefinido'})
           `;
         }
       } catch (e) {
@@ -68,27 +75,36 @@ export async function GET(request: Request) {
     let emailContent = `<p>Você tem novos formulários recebidos aguardando análise:</p><ul>`;
     
     for (const form of instas) {
-      const nome = form.dados_completos?.Nome || 'Cliente Não Identificado';
-      const email = form.dados_completos?.Email;
-      const zap = form.dados_completos?.WhatsApp;
-      emailContent += `<li><strong>Gerenciamento de Instagram:</strong> ${nome}</li>`;
-      await createLeadIfNotExists(nome, email, zap, 'Instagram');
+      const d = form.dados_completos || {};
+      const nome = d.Nome || form.nome || 'Cliente Não Identificado';
+      const email = d.Email || form.email || '';
+      const zap = d.WhatsApp || form.whatsapp || '';
+      const nicho = d.Nicho || form.nicho || 'Instagram';
+      const posts = d.Quantidade_Posts || form.quantidade_posts || '';
+      const invest = d.Investimento || form.investimento || '';
+      emailContent += `<li><strong>Gerenciamento de Instagram:</strong> ${nome} (${nicho}${posts ? ' • ' + posts + ' posts' : ''}${invest ? ' • ' + invest : ''})</li>`;
+      await createLeadIfNotExists(nome, email, zap, `Instagram - ${nicho}`);
     }
     
     for (const form of idvs) {
-      const nome = form.dados_completos?.Nome || form.Nome || 'Cliente Não Identificado';
-      const email = form.dados_completos?.Email;
-      const zap = form.dados_completos?.WhatsApp;
-      emailContent += `<li><strong>Orçamento Identidade Visual:</strong> ${nome}</li>`;
-      await createLeadIfNotExists(nome, email, zap, 'Identidade Visual');
+      const d = form.dados_completos || {};
+      const nome = d.Nome || form.Nome || 'Cliente Não Identificado';
+      const email = d.Email || form.Email || '';
+      const zap = d.WhatsApp || form.WhatsApp || '';
+      const invest = d.Investimento || form.Investimento || '';
+      const area = d.Nome_Marca_Area || form.Nome_Marca_Area || '';
+      emailContent += `<li><strong>Orçamento Identidade Visual:</strong> ${nome} ${area ? '(' + area + ')' : ''} ${invest ? ' • ' + invest : ''}</li>`;
+      await createLeadIfNotExists(nome, email, zap, area || 'Identidade Visual');
     }
     
     for (const form of consultorias) {
-      const nome = form.dados_completos?.Nome || form.Nome || 'Cliente Não Identificado';
-      const email = form.dados_completos?.Email;
-      const zap = form.dados_completos?.WhatsApp;
-      emailContent += `<li><strong>Consultoria de Posicionamento:</strong> ${nome}</li>`;
-      await createLeadIfNotExists(nome, email, zap, 'Consultoria');
+      const d = form.dados_completos || {};
+      const nome = d.Nome || form.Nome || 'Cliente Não Identificado';
+      const email = d.Email || form.Email || '';
+      const zap = d.WhatsApp || form.WhatsApp || '';
+      const area = d.Nome_Marca_Area || form.Nome_Marca_Area || '';
+      emailContent += `<li><strong>Consultoria de Posicionamento:</strong> ${nome} ${area ? '(' + area + ')' : ''}</li>`;
+      await createLeadIfNotExists(nome, email, zap, area || 'Consultoria');
     }
 
     for (const form of briefingsIdv) {
@@ -96,8 +112,9 @@ export async function GET(request: Request) {
       const nome = form.Nome_Cliente || d.Nome_Cliente || d.nome || 'Cliente Não Identificado';
       const email = form.Email || d.Email || d.email;
       const zap = form.WhatsApp || d.WhatsApp || d.whatsapp;
-      emailContent += `<li><strong>Briefing Identidade Visual:</strong> ${nome}</li>`;
-      await createLeadIfNotExists(nome, email, zap, 'Identidade Visual');
+      const marca = d.Nome_Marca || form.Nome_Marca || d.Nome_Logotipo || form.Nome_Logotipo || '';
+      emailContent += `<li><strong>Briefing Identidade Visual:</strong> ${nome} ${marca ? '• ' + marca : ''}</li>`;
+      await createLeadIfNotExists(nome, email, zap, marca || 'Identidade Visual');
     }
     
     emailContent += `</ul>`;

@@ -20,6 +20,9 @@ interface JTBDMobileViewProps {
   selectedClient: any;
   onSelectClient: (client: any) => void;
   isAdminOrManager: boolean;
+  team?: any[];
+  viewingUserId?: string;
+  onSelectTeamMember?: (userId: string) => void;
   onOpenTaskModal?: (task: any, isFocus?: boolean, isReview?: boolean, isCompleted?: boolean) => void;
   updateTaskStatus: (task: any, newStatus: string) => void;
 }
@@ -34,6 +37,9 @@ export default function JTBDMobileView({
   selectedClient,
   onSelectClient,
   isAdminOrManager,
+  team = [],
+  viewingUserId,
+  onSelectTeamMember,
   onOpenTaskModal,
   updateTaskStatus
 }: JTBDMobileViewProps) {
@@ -239,36 +245,64 @@ export default function JTBDMobileView({
   const safeWalletIndex = Math.min(activeWalletIndex, Math.max(0, filteredWallet.length - 1));
 
   return (
-    <div className="flex lg:hidden flex-col w-full h-full overflow-y-auto custom-scrollbar gap-5 pb-24">
+    <div className="flex lg:hidden flex-col w-full h-auto min-h-full gap-5 pb-32">
       
       {/* ==========================================
           HEADER DO COLABORADOR: LAYOUT COMPACTO HORIZONTAL
           ========================================== */}
-      <div className="w-full bg-[var(--color-atelier-grafite)] p-4 rounded-[2rem] border border-white/10 shadow-sm relative overflow-hidden flex items-center justify-between gap-3 shrink-0">
+      <div className="w-full bg-[var(--color-atelier-grafite)] p-4 rounded-[2rem] border border-white/10 shadow-sm relative overflow-hidden flex flex-col gap-3 shrink-0">
         <div className="absolute right-[-10%] top-[-20%] w-[200px] h-[200px] bg-[var(--color-atelier-terracota)]/20 rounded-full blur-[40px] pointer-events-none" />
         
-        <div className="flex items-center gap-3 min-w-0 relative z-10">
-          <div className="w-11 h-11 rounded-full bg-white/10 overflow-hidden border border-white/20 flex items-center justify-center text-lg font-elegant text-white shrink-0 shadow-inner">
-            {viewedUser?.avatar_url 
-              ? <img src={viewedUser.avatar_url} className="w-full h-full object-cover" alt="Avatar" onError={(e) => { (e.currentTarget as HTMLElement).style.display = "none"; }} /> 
-              : viewedUser?.nome?.charAt(0)}
+        <div className="flex items-center justify-between gap-3 w-full relative z-10">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-11 h-11 rounded-full bg-white/10 overflow-hidden border border-white/20 flex items-center justify-center text-lg font-elegant text-white shrink-0 shadow-inner">
+              {viewedUser?.avatar_url 
+                ? <img src={viewedUser.avatar_url} className="w-full h-full object-cover" alt="Avatar" onError={(e) => { (e.currentTarget as HTMLElement).style.display = "none"; }} /> 
+                : viewedUser?.nome?.charAt(0)}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <span className="text-[8px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)] block">
+                {viewedUser?.role || 'Designer'}
+              </span>
+              <h2 className="font-elegant text-2xl text-white truncate leading-tight">{greeting}</h2>
+            </div>
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-[8px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)] block">
-              {viewedUser?.role || 'Designer'}
-            </span>
-            <h2 className="font-elegant text-2xl text-white truncate leading-tight">{greeting}</h2>
+
+          {/* MÉTRICA DE EFICIÊNCIA APENAS (DIREITA) */}
+          <div className="bg-white/10 border border-white/10 px-3 py-1.5 rounded-xl flex items-center gap-2 shrink-0 relative z-10 shadow-xs">
+            <Activity size={14} className="text-emerald-400" />
+            <div className="flex flex-col items-end">
+              <span className="text-[7px] text-white/50 uppercase tracking-widest font-bold">Eficiência</span>
+              <span className="text-white font-bold text-xs">{eficiencia}%</span>
+            </div>
           </div>
         </div>
 
-        {/* MÉTRICA DE EFICIÊNCIA APENAS (DIREITA) */}
-        <div className="bg-white/10 border border-white/10 px-3 py-1.5 rounded-xl flex items-center gap-2 shrink-0 relative z-10 shadow-xs">
-          <Activity size={14} className="text-emerald-400" />
-          <div className="flex flex-col items-end">
-            <span className="text-[7px] text-white/50 uppercase tracking-widest font-bold">Eficiência</span>
-            <span className="text-white font-bold text-xs">{eficiencia}%</span>
+        {/* SELETOR DE COLABORADOR (PARA GESTOR/ADMIN) */}
+        {isAdminOrManager && team && team.length > 0 && (
+          <div className="relative z-10 pt-2.5 border-t border-white/10 flex items-center gap-2">
+            <div className="flex items-center gap-1.5 text-white/60 text-[10px] uppercase font-bold tracking-wider shrink-0">
+              <UserCircle2 size={14} className="text-[var(--color-atelier-terracota)]" />
+              <span>Colaborador:</span>
+            </div>
+            <div className="relative flex-1">
+              <select
+                value={viewingUserId || viewedUser?.id || ''}
+                onChange={(e) => onSelectTeamMember && onSelectTeamMember(e.target.value)}
+                className="w-full bg-white/10 hover:bg-white/15 text-white text-xs font-bold py-1.5 px-3 rounded-xl border border-white/20 outline-none appearance-none cursor-pointer pr-8 truncate transition-colors"
+              >
+                {team.map((m: any) => (
+                  <option key={m.id} value={m.id} className="bg-[var(--color-atelier-grafite)] text-white">
+                    {m.nome || m.name} ({m.role || 'colaborador'}) {m.id === currentUser?.id ? '★ (Você)' : ''}
+                  </option>
+                ))}
+              </select>
+              <div className="absolute right-2.5 top-1/2 -translate-y-1/2 pointer-events-none text-white/60 text-[10px]">
+                ▼
+              </div>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* ==========================================
@@ -513,6 +547,7 @@ export default function JTBDMobileView({
                       transition={{ type: "spring", stiffness: 350, damping: 25 }}
                       drag={isTop ? "x" : false}
                       dragConstraints={{ left: 0, right: 0 }}
+                      style={{ touchAction: 'pan-y' }}
                       onDragEnd={(e, { offset }) => {
                         if (offset.x < -20 && activeWalletIndex < filteredWallet.length - 1) {
                           setActiveWalletIndex(prev => prev + 1);

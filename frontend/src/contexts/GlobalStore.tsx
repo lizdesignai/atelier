@@ -59,19 +59,15 @@ export function GlobalStoreProvider({ children }: { children: React.ReactNode })
       setNavModeState(savedNav);
     }
 
-    // Sincronização do Tema Visual Studio Veronna
+    // Sincronização do Tema Visual Studio Veronna (Nativo: Claro)
     const savedTheme = (localStorage.getItem("veronna_theme") || localStorage.getItem("atelier_theme")) as ThemeMode | null;
-    if (savedTheme === "light" || savedTheme === "dark" || savedTheme === "veronna") {
-      setThemeState(savedTheme);
-      document.documentElement.setAttribute("data-theme", savedTheme);
-      document.documentElement.classList.remove("light", "dark", "theme-veronna");
-      document.documentElement.classList.add(savedTheme === "veronna" ? "theme-veronna" : savedTheme);
-      updateFavicon(savedTheme);
-    } else {
-      document.documentElement.setAttribute("data-theme", "light");
-      document.documentElement.classList.add("light");
-      updateFavicon("light");
-    }
+    const initialTheme: ThemeMode = (savedTheme === "dark" || savedTheme === "veronna") ? savedTheme : "light";
+    
+    setThemeState(initialTheme);
+    document.documentElement.setAttribute("data-theme", initialTheme);
+    document.documentElement.classList.remove("light", "dark", "theme-veronna");
+    document.documentElement.classList.add(initialTheme === "veronna" ? "theme-veronna" : initialTheme);
+    updateFavicon(initialTheme);
 
     const handleNavModeEvent = (e: Event) => {
       const customEvent = e as CustomEvent<TeamNavMode>;
@@ -82,9 +78,13 @@ export function GlobalStoreProvider({ children }: { children: React.ReactNode })
 
     const handleThemeEvent = (e: Event) => {
       const customEvent = e as CustomEvent<ThemeMode>;
-      if (customEvent.detail === "light" || customEvent.detail === "dark" || customEvent.detail === "veronna") {
-        setThemeState(customEvent.detail);
-        updateFavicon(customEvent.detail);
+      const newTheme = customEvent.detail;
+      if (newTheme === "light" || newTheme === "dark" || newTheme === "veronna") {
+        setThemeState(newTheme);
+        document.documentElement.setAttribute("data-theme", newTheme);
+        document.documentElement.classList.remove("light", "dark", "theme-veronna");
+        document.documentElement.classList.add(newTheme === "veronna" ? "theme-veronna" : newTheme);
+        updateFavicon(newTheme);
       }
     };
 
@@ -105,15 +105,16 @@ export function GlobalStoreProvider({ children }: { children: React.ReactNode })
   }, []);
 
   const setTheme = useCallback((mode: ThemeMode) => {
-    setThemeState(mode);
+    const validMode: ThemeMode = (mode === "dark" || mode === "veronna") ? mode : "light";
+    setThemeState(validMode);
     if (typeof window !== "undefined") {
-      localStorage.setItem("veronna_theme", mode);
-      localStorage.setItem("atelier_theme", mode);
-      document.documentElement.setAttribute("data-theme", mode);
+      localStorage.setItem("veronna_theme", validMode);
+      localStorage.setItem("atelier_theme", validMode);
+      document.documentElement.setAttribute("data-theme", validMode);
       document.documentElement.classList.remove("light", "dark", "theme-veronna");
-      document.documentElement.classList.add(mode === "veronna" ? "theme-veronna" : mode);
-      updateFavicon(mode);
-      window.dispatchEvent(new CustomEvent("veronna_theme_change", { detail: mode }));
+      document.documentElement.classList.add(validMode === "veronna" ? "theme-veronna" : validMode);
+      updateFavicon(validMode);
+      window.dispatchEvent(new CustomEvent("veronna_theme_change", { detail: validMode }));
     }
   }, []);
 

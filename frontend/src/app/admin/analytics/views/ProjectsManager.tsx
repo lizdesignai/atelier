@@ -2170,6 +2170,7 @@ export default function ProjectsManager({
                               transition={{ type: "spring", stiffness: 350, damping: 25 }}
                               drag={isTop ? "x" : false}
                               dragConstraints={{ left: 0, right: 0 }}
+                              style={{ touchAction: 'pan-y' }}
                               onDragEnd={(e, { offset }) => {
                                 if (offset.x < -20 && activeWalletIndex < filteredWallet.length - 1) {
                                   setActiveWalletIndex(prev => prev + 1);

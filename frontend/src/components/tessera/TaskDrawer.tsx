@@ -396,30 +396,30 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
 
   return (
     <div
-      className="fixed inset-0 z-[100] flex justify-end bg-black/70 backdrop-blur-sm animate-in fade-in duration-150"
+      className="fixed inset-0 z-[100000] flex justify-end bg-black/60 backdrop-blur-md animate-in fade-in duration-150"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-2xl bg-stone-950 border-l border-stone-800 h-full flex flex-col shadow-2xl overflow-hidden"
+        className="w-full max-w-2xl bg-[var(--color-atelier-creme)] border-l border-[var(--color-atelier-grafite)]/12 h-full flex flex-col  overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
         {/* Top bar */}
-        <div className="px-6 py-4 border-b border-stone-800/80 bg-stone-900/50 flex items-center justify-between gap-3">
+        <div className="px-6 py-4 border-b border-[var(--color-atelier-grafite)]/12 tess-surface flex items-center justify-between gap-3">
           {data ? (
             <div className="flex items-center gap-2 flex-wrap">
               <StatusBadge status={data.item.status_id} />
               <PriorityBadge priority={data.item.priority} size="sm" />
-              <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-stone-900 border border-stone-800 text-stone-400">
+              <span className="text-[10px] font-roboto tabular-nums uppercase px-2 py-0.5 rounded tess-surface border border-[var(--color-atelier-grafite)]/12 text-[var(--color-atelier-grafite)]/70">
                 {data.item.type}
               </span>
-              <span className="text-[10px] font-mono text-stone-500">v{data.item.version}</span>
+              <span className="text-[10px] font-roboto tabular-nums text-[var(--color-atelier-grafite)]/55">v{data.item.version}</span>
             </div>
           ) : (
-            <div className="text-xs text-stone-400">Carregando detalhes...</div>
+            <div className="text-xs text-[var(--color-atelier-grafite)]/70">Carregando detalhes...</div>
           )}
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-stone-400 hover:text-stone-100 hover:bg-stone-800 transition"
+            className="p-1.5 rounded-lg text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-grafite)]/[0.10] transition"
           >
             <X className="w-5 h-5" />
           </button>
@@ -429,8 +429,8 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
           <div
             className={`px-6 py-2.5 text-xs font-medium flex items-center justify-between border-b ${
               bannerMsg.type === 'ok'
-                ? 'bg-emerald-950/60 border-emerald-800/60 text-emerald-200'
-                : 'bg-rose-950/60 border-rose-800/60 text-rose-200'
+                ? 'bg-[var(--tess-success)]/15 border-[var(--tess-success)]/30 text-[var(--tess-success)]'
+                : 'bg-[var(--tess-danger)]/15 border-[var(--tess-danger)]/30 text-[var(--tess-danger)]'
             }`}
           >
             <span>{bannerMsg.text}</span>
@@ -441,26 +441,26 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
         )}
 
         {isLoading && !data ? (
-          <div className="flex-1 flex items-center justify-center text-xs text-stone-500">
+          <div className="flex-1 flex items-center justify-center text-xs text-[var(--color-atelier-grafite)]/55">
             Carregando item de trabalho...
           </div>
         ) : error ? (
-          <div className="p-6 text-xs text-rose-400">{error}</div>
+          <div className="p-6 text-xs text-[var(--tess-danger)]">{error}</div>
         ) : data ? (
           <>
             {/* Barra de Sessão / Cronômetro Autoritativo & Ações Rápidas */}
-            <div className="px-6 py-3 bg-stone-900/30 border-b border-stone-800/80 flex flex-wrap items-center justify-between gap-3">
+            <div className="px-6 py-3 tess-surface border-b border-[var(--color-atelier-grafite)]/12 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-1.5 text-xs text-stone-300">
-                  <Clock className="w-4 h-4 text-amber-500" />
+                <div className="flex items-center gap-1.5 text-xs text-[var(--color-atelier-grafite)]/85">
+                  <Clock className="w-4 h-4 text-[var(--tess-accent-text)]" />
                   <span>
                     Executado: <strong>{data.sessions.total_minutes}m</strong> / Est.{' '}
                     <strong>{data.item.estimate_minutes}m</strong>
                   </span>
                 </div>
                 {data.sessions.open && (
-                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-mono">
-                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                  <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-[var(--tess-accent)]/15 border border-[var(--tess-accent)]/40 text-[var(--tess-accent-text)] text-xs font-roboto tabular-nums">
+                    <span className="w-2 h-2 rounded-full bg-[var(--tess-accent)] animate-ping" />
                     {formatDuration(liveElapsed)}
                   </span>
                 )}
@@ -470,7 +470,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                 {data.sessions.open ? (
                   <button
                     onClick={() => handleSessionToggle('stop')}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-stone-950 font-semibold text-xs transition"
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-rose-700 hover:bg-rose-600 text-white font-semibold text-xs transition"
                   >
                     <Square className="w-3.5 h-3.5" />
                     <span>Parar Cronômetro</span>
@@ -480,7 +480,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                   !data.item.blocked_at && (
                     <button
                       onClick={() => handleSessionToggle('start')}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-stone-950 font-semibold text-xs transition"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--tess-accent)] hover:bg-[var(--tess-accent-hover)] text-[var(--tess-on-accent)] font-semibold text-xs transition"
                     >
                       <Play className="w-3.5 h-3.5" />
                       <span>Iniciar Foco</span>
@@ -495,8 +495,8 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                     }
                     className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-medium border transition ${
                       data.item.blocked_at
-                        ? 'bg-emerald-950/50 border-emerald-800/60 text-emerald-300 hover:bg-emerald-900/50'
-                        : 'bg-stone-900 border-stone-800 text-stone-300 hover:bg-stone-800'
+                        ? 'bg-[var(--tess-success)]/10 border-[var(--tess-success)]/30 text-[var(--tess-success)] hover:bg-[var(--tess-success)]/20'
+                        : 'tess-surface border-[var(--color-atelier-grafite)]/12 text-[var(--color-atelier-grafite)]/85 hover:bg-[var(--color-atelier-grafite)]/[0.10]'
                     }`}
                   >
                     {data.item.blocked_at ? (
@@ -517,17 +517,17 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
 
             {/* Banner de Bloqueio Ativo ou Formulário de Bloqueio */}
             {data.item.blocked_at && (
-              <div className="px-6 py-3 bg-rose-950/40 border-b border-rose-900/50 flex items-start gap-2.5">
-                <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0 mt-0.5" />
-                <div className="text-xs text-rose-200">
+              <div className="px-6 py-3 bg-[var(--tess-danger)]/10 border-b border-[var(--tess-danger)]/30 flex items-start gap-2.5">
+                <AlertTriangle className="w-4 h-4 text-[var(--tess-danger)] shrink-0 mt-0.5" />
+                <div className="text-xs text-[var(--tess-danger)]">
                   <strong>Item Bloqueado:</strong> {data.item.blocked_reason || 'Sem motivo detalhado.'}
                 </div>
               </div>
             )}
 
             {showBlockInput && !data.item.blocked_at && (
-              <div className="px-6 py-3 bg-stone-900/90 border-b border-stone-800 space-y-2">
-                <label className="block text-xs font-medium text-stone-300">
+              <div className="px-6 py-3 tess-surface border-b border-[var(--color-atelier-grafite)]/12 space-y-2">
+                <label className="block text-xs font-medium text-[var(--color-atelier-grafite)]/85">
                   Qual o motivo do bloqueio? (mínimo 3 caracteres)
                 </label>
                 <div className="flex gap-2">
@@ -536,11 +536,11 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                     value={blockReason}
                     onChange={e => setBlockReason(e.target.value)}
                     placeholder="Ex: Aguardando envio de logo vetorizada pelo cliente"
-                    className="flex-1 px-3 py-1.5 rounded-xl bg-stone-950 border border-stone-800 text-xs text-stone-100"
+                    className="flex-1 px-3 py-1.5 rounded-xl bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-grafite)]/12 text-xs text-[var(--color-atelier-grafite)]"
                   />
                   <button
                     onClick={() => handleToggleBlock(true)}
-                    className="px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-500 text-stone-950 font-semibold text-xs"
+                    className="px-3 py-1.5 rounded-xl bg-rose-700 hover:bg-rose-600 text-white font-semibold text-xs"
                   >
                     Confirmar Bloqueio
                   </button>
@@ -550,13 +550,13 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
 
             {/* Painel de Decisão de Revisão QA (quando em internal_review e gestor) */}
             {data.permissions.canReview && (
-              <div className="px-6 py-3.5 bg-purple-950/30 border-b border-purple-800/40 space-y-3">
+              <div className="px-6 py-3.5 bg-[var(--tess-review)]/10 border-b border-[var(--tess-review)]/30 space-y-3">
                 <div className="flex items-center justify-between gap-2">
                   <div>
-                    <span className="text-xs font-semibold text-purple-200">
+                    <span className="text-xs font-semibold text-[var(--tess-review)]">
                       Decisão de Qualidade (QA Interno)
                     </span>
-                    <p className="text-[11px] text-purple-300/80">
+                    <p className="text-[11px] text-[var(--tess-review)]">
                       Destino ao aprovar:{' '}
                       <strong>{data.item.client_visible ? 'Aprovação do Cliente' : 'Concluído'}</strong>
                     </p>
@@ -564,14 +564,14 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                   <div className="flex items-center gap-2">
                     <button
                       onClick={() => handleReviewDecision('approved')}
-                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-stone-950 font-semibold text-xs transition"
+                      className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-xs transition"
                     >
                       <CheckCircle2 className="w-3.5 h-3.5" />
                       <span>Aprovar QA</span>
                     </button>
                     <button
                       onClick={() => setShowRejectForm(prev => !prev)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600/20 border border-amber-600/50 text-amber-200 hover:bg-amber-600/30 font-medium text-xs transition"
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--tess-accent)]/20 border border-[var(--tess-accent)]/50 text-[var(--tess-accent-text)] hover:bg-[var(--tess-accent)]/30 font-medium text-xs transition"
                     >
                       <RotateCcw className="w-3.5 h-3.5" />
                       <span>Pedir Ajustes</span>
@@ -580,14 +580,14 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                 </div>
 
                 {showRejectForm && (
-                  <div className="p-3 rounded-xl bg-stone-950/90 border border-purple-800/40 space-y-2.5">
+                  <div className="p-3 rounded-xl bg-[var(--color-atelier-creme)]/90 border border-[var(--tess-review)]/30 space-y-2.5">
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       <div>
-                        <label className="block text-[11px] text-stone-400 mb-1">Categoria do Ajuste</label>
+                        <label className="block text-[11px] text-[var(--color-atelier-grafite)]/70 mb-1">Categoria do Ajuste</label>
                         <select
                           value={rejectCategory}
                           onChange={e => setRejectCategory(e.target.value)}
-                          className="w-full px-2.5 py-1.5 rounded-lg bg-stone-900 border border-stone-800 text-xs text-stone-100"
+                          className="w-full px-2.5 py-1.5 rounded-lg tess-surface border border-[var(--color-atelier-grafite)]/12 text-xs text-[var(--color-atelier-grafite)]"
                         >
                           {Object.entries(REASON_LABELS).map(([k, label]) => (
                             <option key={k} value={k}>
@@ -598,7 +598,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                       </div>
                     </div>
                     <div>
-                      <label className="block text-[11px] text-stone-400 mb-1">
+                      <label className="block text-[11px] text-[var(--color-atelier-grafite)]/70 mb-1">
                         Orientação clara para o responsável
                       </label>
                       <textarea
@@ -606,21 +606,21 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                         value={rejectComment}
                         onChange={e => setRejectComment(e.target.value)}
                         placeholder="Descreva o que precisa ser corrigido antes de liberar..."
-                        className="w-full px-3 py-2 rounded-lg bg-stone-900 border border-stone-800 text-xs text-stone-100"
+                        className="w-full px-3 py-2 rounded-lg tess-surface border border-[var(--color-atelier-grafite)]/12 text-xs text-[var(--color-atelier-grafite)]"
                       />
                     </div>
                     <div className="flex justify-end gap-2">
                       <button
                         type="button"
                         onClick={() => setShowRejectForm(false)}
-                        className="px-3 py-1 rounded-lg text-xs text-stone-400 hover:text-stone-200"
+                        className="px-3 py-1 rounded-lg text-xs text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]"
                       >
                         Cancelar
                       </button>
                       <button
                         type="button"
                         onClick={() => handleReviewDecision('request_changes')}
-                        className="px-3.5 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-stone-950 font-semibold text-xs"
+                        className="px-3.5 py-1.5 rounded-lg bg-[var(--tess-accent)] hover:bg-[var(--tess-accent-hover)] text-[var(--tess-on-accent)] font-semibold text-xs"
                       >
                         Enviar para Ajuste
                       </button>
@@ -632,13 +632,13 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
 
             {/* Transições de Status Disponíveis */}
             {data.permissions.canTransition && allowedNextStatuses.length > 0 && (
-              <div className="px-6 py-2.5 bg-stone-950 border-b border-stone-800/80 flex items-center gap-2 flex-wrap">
-                <span className="text-[11px] text-stone-500 mr-1">Mover para:</span>
+              <div className="px-6 py-2.5 bg-[var(--color-atelier-creme)] border-b border-[var(--color-atelier-grafite)]/12 flex items-center gap-2 flex-wrap">
+                <span className="text-[11px] text-[var(--color-atelier-grafite)]/55 mr-1">Mover para:</span>
                 {allowedNextStatuses.map(st => (
                   <button
                     key={st}
                     onClick={() => handleTransition(st)}
-                    className="px-2.5 py-1 rounded-lg bg-stone-900 hover:bg-stone-800 border border-stone-800 text-xs text-stone-200 transition"
+                    className="px-2.5 py-1 rounded-lg tess-surface hover:bg-[var(--color-atelier-grafite)]/[0.10] border border-[var(--color-atelier-grafite)]/12 text-xs text-[var(--color-atelier-grafite)] transition"
                   >
                     {CANONICAL_STATUSES[st]?.label || st}
                   </button>
@@ -647,13 +647,13 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
             )}
 
             {/* Abas */}
-            <div className="px-6 border-b border-stone-800/80 flex items-center gap-5 bg-stone-950">
+            <div className="px-6 border-b border-[var(--color-atelier-grafite)]/12 flex items-center gap-5 bg-[var(--color-atelier-creme)]">
               <button
                 onClick={() => setActiveTab('overview')}
                 className={`py-3 text-xs font-medium border-b-2 transition flex items-center gap-1.5 ${
                   activeTab === 'overview'
-                    ? 'border-amber-500 text-amber-400'
-                    : 'border-transparent text-stone-400 hover:text-stone-200'
+                    ? 'border-[var(--tess-accent)] text-[var(--tess-accent-text)]'
+                    : 'border-transparent text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]'
                 }`}
               >
                 <FileText className="w-3.5 h-3.5" />
@@ -663,8 +663,8 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                 onClick={() => setActiveTab('checklist')}
                 className={`py-3 text-xs font-medium border-b-2 transition flex items-center gap-1.5 ${
                   activeTab === 'checklist'
-                    ? 'border-amber-500 text-amber-400'
-                    : 'border-transparent text-stone-400 hover:text-stone-200'
+                    ? 'border-[var(--tess-accent)] text-[var(--tess-accent-text)]'
+                    : 'border-transparent text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]'
                 }`}
               >
                 <CheckSquare className="w-3.5 h-3.5" />
@@ -676,8 +676,8 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                 onClick={() => setActiveTab('comments')}
                 className={`py-3 text-xs font-medium border-b-2 transition flex items-center gap-1.5 ${
                   activeTab === 'comments'
-                    ? 'border-amber-500 text-amber-400'
-                    : 'border-transparent text-stone-400 hover:text-stone-200'
+                    ? 'border-[var(--tess-accent)] text-[var(--tess-accent-text)]'
+                    : 'border-transparent text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]'
                 }`}
               >
                 <MessageSquare className="w-3.5 h-3.5" />
@@ -687,8 +687,8 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                 onClick={() => setActiveTab('history')}
                 className={`py-3 text-xs font-medium border-b-2 transition flex items-center gap-1.5 ${
                   activeTab === 'history'
-                    ? 'border-amber-500 text-amber-400'
-                    : 'border-transparent text-stone-400 hover:text-stone-200'
+                    ? 'border-[var(--tess-accent)] text-[var(--tess-accent-text)]'
+                    : 'border-transparent text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]'
                 }`}
               >
                 <History className="w-3.5 h-3.5" />
@@ -701,24 +701,24 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
               {activeTab === 'overview' && (
                 <form onSubmit={handleSaveFields} className="space-y-4">
                   <div>
-                    <label className="block text-xs font-medium text-stone-400 mb-1">Título</label>
+                    <label className="block text-xs font-medium text-[var(--color-atelier-grafite)]/70 mb-1">Título</label>
                     <input
                       type="text"
                       disabled={!data.permissions.canEditAll}
                       value={title}
                       onChange={e => setTitle(e.target.value)}
-                      className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-800 text-sm text-stone-100 disabled:opacity-60"
+                      className="w-full px-3.5 py-2 tess-card text-sm text-[var(--color-atelier-grafite)] disabled:opacity-60"
                     />
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-stone-400 mb-1">Tipo</label>
+                      <label className="block text-xs font-medium text-[var(--color-atelier-grafite)]/70 mb-1">Tipo</label>
                       <select
                         disabled={!data.permissions.canEditAll}
                         value={type}
                         onChange={e => setType(e.target.value as WorkItemType)}
-                        className="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-100 disabled:opacity-60"
+                        className="w-full px-3 py-2 tess-card text-xs text-[var(--color-atelier-grafite)] disabled:opacity-60"
                       >
                         <option value="task">Tarefa</option>
                         <option value="deliverable">Entregável</option>
@@ -728,12 +728,12 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-stone-400 mb-1">Prioridade</label>
+                      <label className="block text-xs font-medium text-[var(--color-atelier-grafite)]/70 mb-1">Prioridade</label>
                       <select
                         disabled={!data.permissions.canEditAll}
                         value={priority}
                         onChange={e => setPriority(e.target.value as WorkItemPriority)}
-                        className="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-100 disabled:opacity-60"
+                        className="w-full px-3 py-2 tess-card text-xs text-[var(--color-atelier-grafite)] disabled:opacity-60"
                       >
                         <option value="low">Baixa</option>
                         <option value="medium">Média</option>
@@ -742,8 +742,8 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-stone-400 mb-1">Projeto</label>
-                      <div className="px-3 py-2 rounded-xl bg-stone-900/50 border border-stone-800/80 text-xs text-stone-300 truncate">
+                      <label className="block text-xs font-medium text-[var(--color-atelier-grafite)]/70 mb-1">Projeto</label>
+                      <div className="px-3 py-2 tess-card text-xs text-[var(--color-atelier-grafite)]/85 truncate">
                         {data.item.project_title || 'Interno / Studio'}
                       </div>
                     </div>
@@ -751,12 +751,12 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-stone-400 mb-1">Responsável (Owner)</label>
+                      <label className="block text-xs font-medium text-[var(--color-atelier-grafite)]/70 mb-1">Responsável (Owner)</label>
                       <select
                         disabled={!data.permissions.canEditAll}
                         value={ownerId}
                         onChange={e => setOwnerId(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-100 disabled:opacity-60"
+                        className="w-full px-3 py-2 tess-card text-xs text-[var(--color-atelier-grafite)] disabled:opacity-60"
                       >
                         <option value="">Sem responsável (Inbox)</option>
                         {data.members.map(m => (
@@ -767,12 +767,12 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                       </select>
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-stone-400 mb-1">Revisor QA</label>
+                      <label className="block text-xs font-medium text-[var(--color-atelier-grafite)]/70 mb-1">Revisor QA</label>
                       <select
                         disabled={!data.permissions.canEditAll}
                         value={reviewerId}
                         onChange={e => setReviewerId(e.target.value)}
-                        className="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-100 disabled:opacity-60"
+                        className="w-full px-3 py-2 tess-card text-xs text-[var(--color-atelier-grafite)] disabled:opacity-60"
                       >
                         <option value="">Qualquer Gestor</option>
                         {data.members
@@ -788,27 +788,27 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
 
                   <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
                     <div>
-                      <label className="block text-xs font-medium text-stone-400 mb-1">Prazo Interno</label>
+                      <label className="block text-xs font-medium text-[var(--color-atelier-grafite)]/70 mb-1">Prazo Interno</label>
                       <input
                         type="date"
                         disabled={!data.permissions.canEditAll}
                         value={internalDueAt}
                         onChange={e => setInternalDueAt(e.target.value)}
-                        className="w-full px-2.5 py-2 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-100 disabled:opacity-60"
+                        className="w-full px-2.5 py-2 tess-card text-xs text-[var(--color-atelier-grafite)] disabled:opacity-60"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-stone-400 mb-1">Prazo Cliente</label>
+                      <label className="block text-xs font-medium text-[var(--color-atelier-grafite)]/70 mb-1">Prazo Cliente</label>
                       <input
                         type="date"
                         disabled={!data.permissions.canEditAll}
                         value={dueAt}
                         onChange={e => setDueAt(e.target.value)}
-                        className="w-full px-2.5 py-2 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-100 disabled:opacity-60"
+                        className="w-full px-2.5 py-2 tess-card text-xs text-[var(--color-atelier-grafite)] disabled:opacity-60"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-stone-400 mb-1">Estimado (min)</label>
+                      <label className="block text-xs font-medium text-[var(--color-atelier-grafite)]/70 mb-1">Estimado (min)</label>
                       <input
                         type="number"
                         min={5}
@@ -816,11 +816,11 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                         disabled={!data.permissions.canEditAll}
                         value={estimateMinutes}
                         onChange={e => setEstimateMinutes(Number(e.target.value))}
-                        className="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-100 disabled:opacity-60"
+                        className="w-full px-3 py-2 tess-card text-xs text-[var(--color-atelier-grafite)] disabled:opacity-60"
                       />
                     </div>
                     <div>
-                      <label className="block text-xs font-medium text-stone-400 mb-1">Restante (min)</label>
+                      <label className="block text-xs font-medium text-[var(--color-atelier-grafite)]/70 mb-1">Restante (min)</label>
                       <input
                         type="number"
                         min={0}
@@ -829,7 +829,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                         value={remainingMinutes}
                         onChange={e => setRemainingMinutes(e.target.value)}
                         placeholder="Automático"
-                        className="w-full px-3 py-2 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-100 disabled:opacity-60"
+                        className="w-full px-3 py-2 tess-card text-xs text-[var(--color-atelier-grafite)] disabled:opacity-60"
                       />
                     </div>
                   </div>
@@ -841,27 +841,27 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                       disabled={!data.permissions.canEditAll}
                       checked={clientVisible}
                       onChange={e => setClientVisible(e.target.checked)}
-                      className="rounded border-stone-700 bg-stone-900 text-amber-500"
+                      className="rounded border-[var(--color-atelier-grafite)]/20 tess-surface text-[var(--tess-accent-text)]"
                     />
-                    <label htmlFor="client_visible_chk" className="text-xs text-stone-300">
+                    <label htmlFor="client_visible_chk" className="text-xs text-[var(--color-atelier-grafite)]/85">
                       Visível para aprovação externa do cliente após QA Interno
                     </label>
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-stone-400 mb-1">Descrição / Contexto</label>
+                    <label className="block text-xs font-medium text-[var(--color-atelier-grafite)]/70 mb-1">Descrição / Contexto</label>
                     <textarea
                       rows={3}
                       disabled={!data.permissions.canEdit}
                       value={description}
                       onChange={e => setDescription(e.target.value)}
                       placeholder="Instruções, referências e contexto de execução..."
-                      className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-100 disabled:opacity-60"
+                      className="w-full px-3.5 py-2 tess-card text-xs text-[var(--color-atelier-grafite)] disabled:opacity-60"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-stone-400 mb-1">
+                    <label className="block text-xs font-medium text-[var(--color-atelier-grafite)]/70 mb-1">
                       Critérios de Aceite (Definition of Done)
                     </label>
                     <textarea
@@ -870,19 +870,19 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                       value={acceptanceCriteria}
                       onChange={e => setAcceptanceCriteria(e.target.value)}
                       placeholder="O que é obrigatório conferir antes de aprovar no QA..."
-                      className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-100 disabled:opacity-60"
+                      className="w-full px-3.5 py-2 tess-card text-xs text-[var(--color-atelier-grafite)] disabled:opacity-60"
                     />
                   </div>
 
                   {/* Entregáveis (Links) */}
-                  <div className="p-4 rounded-xl bg-stone-900/60 border border-stone-800 space-y-3">
+                  <div className="p-4 tess-card space-y-3">
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-semibold text-stone-200 flex items-center gap-1.5">
-                        <Link2 className="w-3.5 h-3.5 text-amber-400" />
+                      <span className="text-xs font-semibold text-[var(--color-atelier-grafite)] flex items-center gap-1.5">
+                        <Link2 className="w-3.5 h-3.5 text-[var(--tess-accent-text)]" />
                         <span>Entregáveis & Links ({deliverables.length})</span>
                       </span>
                       {type === 'deliverable' && deliverables.length === 0 && (
-                        <span className="text-[11px] text-amber-400">
+                        <span className="text-[11px] text-[var(--tess-accent-text)]">
                           Obrigatório anexar ao menos 1 link antes de enviar ao QA
                         </span>
                       )}
@@ -893,13 +893,13 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                         {deliverables.map((d, idx) => (
                           <div
                             key={idx}
-                            className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-stone-950 border border-stone-800 text-xs"
+                            className="flex items-center justify-between gap-2 px-3 py-1.5 rounded-lg bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-grafite)]/12 text-xs"
                           >
                             <a
                               href={d.url}
                               target="_blank"
                               rel="noreferrer"
-                              className="text-amber-400 hover:underline flex items-center gap-1.5 truncate"
+                              className="text-[var(--tess-accent-text)] hover:underline flex items-center gap-1.5 truncate"
                             >
                               <ExternalLink className="w-3 h-3 shrink-0" />
                               <span className="truncate">{d.label || d.url}</span>
@@ -908,7 +908,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                               <button
                                 type="button"
                                 onClick={() => handleRemoveDeliverable(idx)}
-                                className="text-stone-500 hover:text-rose-400"
+                                className="text-[var(--color-atelier-grafite)]/55 hover:text-[var(--tess-danger)]"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -925,19 +925,19 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                           value={newDelivLabel}
                           onChange={e => setNewDelivLabel(e.target.value)}
                           placeholder="Rótulo (ex: Figma v1)"
-                          className="sm:col-span-4 px-2.5 py-1.5 rounded-lg bg-stone-950 border border-stone-800 text-xs text-stone-100"
+                          className="sm:col-span-4 px-2.5 py-1.5 rounded-lg bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-grafite)]/12 text-xs text-[var(--color-atelier-grafite)]"
                         />
                         <input
                           type="url"
                           value={newDelivUrl}
                           onChange={e => setNewDelivUrl(e.target.value)}
                           placeholder="https://..."
-                          className="sm:col-span-6 px-2.5 py-1.5 rounded-lg bg-stone-950 border border-stone-800 text-xs text-stone-100"
+                          className="sm:col-span-6 px-2.5 py-1.5 rounded-lg bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-grafite)]/12 text-xs text-[var(--color-atelier-grafite)]"
                         />
                         <button
                           type="button"
                           onClick={handleAddDeliverable}
-                          className="sm:col-span-2 px-2.5 py-1.5 rounded-lg bg-stone-800 hover:bg-stone-700 text-xs text-stone-200 font-medium"
+                          className="sm:col-span-2 px-2.5 py-1.5 rounded-lg bg-[var(--color-atelier-grafite)]/[0.07] hover:bg-[var(--color-atelier-grafite)]/[0.12] text-xs text-[var(--color-atelier-grafite)] font-medium"
                         >
                           Anexar
                         </button>
@@ -950,7 +950,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                       <button
                         type="submit"
                         disabled={isSaving}
-                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-stone-950 font-semibold text-xs transition disabled:opacity-50"
+                        className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[var(--tess-accent)] hover:bg-[var(--tess-accent-hover)] text-[var(--tess-on-accent)] font-semibold text-xs transition disabled:opacity-50"
                       >
                         <Save className="w-3.5 h-3.5" />
                         <span>{isSaving ? 'Salvando...' : 'Salvar Alterações'}</span>
@@ -969,11 +969,11 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                         value={newChecklistTitle}
                         onChange={e => setNewChecklistTitle(e.target.value)}
                         placeholder="Adicionar item de verificação (obrigatório concluir antes do QA)..."
-                        className="flex-1 px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-100"
+                        className="flex-1 px-3.5 py-2 tess-card text-xs text-[var(--color-atelier-grafite)]"
                       />
                       <button
                         type="submit"
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-stone-950 font-semibold text-xs"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--tess-accent)] hover:bg-[var(--tess-accent-hover)] text-[var(--tess-on-accent)] font-semibold text-xs"
                       >
                         <Plus className="w-3.5 h-3.5" />
                         <span>Adicionar</span>
@@ -982,7 +982,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                   )}
 
                   {data.checklist.length === 0 ? (
-                    <div className="py-12 text-center text-xs text-stone-500">
+                    <div className="py-12 text-center text-xs text-[var(--color-atelier-grafite)]/55">
                       Nenhum item de checklist cadastrado para esta tarefa.
                     </div>
                   ) : (
@@ -990,24 +990,24 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                       {data.checklist.map(item => (
                         <div
                           key={item.id}
-                          className="flex items-center justify-between gap-3 p-3 rounded-xl bg-stone-900/60 border border-stone-800"
+                          className="flex items-center justify-between gap-3 p-3 tess-card"
                         >
-                          <label className="flex items-center gap-2.5 text-xs text-stone-200 cursor-pointer flex-1">
+                          <label className="flex items-center gap-2.5 text-xs text-[var(--color-atelier-grafite)] cursor-pointer flex-1">
                             <input
                               type="checkbox"
                               disabled={!data.permissions.canEdit}
                               checked={item.is_completed}
                               onChange={e => handleToggleChecklist(item.id, e.target.checked)}
-                              className="rounded border-stone-700 bg-stone-950 text-amber-500"
+                              className="rounded border-[var(--color-atelier-grafite)]/20 bg-[var(--color-atelier-creme)] text-[var(--tess-accent-text)]"
                             />
-                            <span className={item.is_completed ? 'line-through text-stone-500' : ''}>
+                            <span className={item.is_completed ? 'line-through text-[var(--color-atelier-grafite)]/55' : ''}>
                               {item.title}
                             </span>
                           </label>
                           {data.permissions.canEdit && (
                             <button
                               onClick={() => handleDeleteChecklist(item.id)}
-                              className="p-1 text-stone-500 hover:text-rose-400 transition"
+                              className="p-1 text-[var(--color-atelier-grafite)]/55 hover:text-[var(--tess-danger)] transition"
                             >
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
@@ -1023,7 +1023,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                 <div className="space-y-5">
                   {data.reviews.length > 0 && (
                     <div className="space-y-2">
-                      <h4 className="text-[11px] font-semibold uppercase tracking-wider text-purple-300">
+                      <h4 className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--tess-review)]">
                         Pareceres de Revisão QA ({data.reviews.length})
                       </h4>
                       {data.reviews.map(r => (
@@ -1031,8 +1031,8 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                           key={r.id}
                           className={`p-3 rounded-xl border text-xs space-y-1 ${
                             r.decision === 'approved'
-                              ? 'bg-emerald-950/25 border-emerald-800/40 text-emerald-200'
-                              : 'bg-amber-950/25 border-amber-800/40 text-amber-200'
+                              ? 'bg-[var(--tess-success)]/10 border-[var(--tess-success)]/30 text-[var(--tess-success)]'
+                              : 'bg-[var(--tess-accent)]/10 border-[var(--tess-accent)]/30 text-[var(--tess-accent-text)]'
                           }`}
                         >
                           <div className="flex items-center justify-between text-[11px]">
@@ -1046,7 +1046,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                               {new Date(r.created_at).toLocaleString('pt-BR')}
                             </span>
                           </div>
-                          {r.feedback_comment && <p className="text-stone-200">{r.feedback_comment}</p>}
+                          {r.feedback_comment && <p className="text-[var(--color-atelier-grafite)]">{r.feedback_comment}</p>}
                         </div>
                       ))}
                     </div>
@@ -1058,12 +1058,12 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                       value={newCommentBody}
                       onChange={e => setNewCommentBody(e.target.value)}
                       placeholder="Escreva um comentário ou atualização sobre este item..."
-                      className="w-full px-3.5 py-2 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-100"
+                      className="w-full px-3.5 py-2 tess-card text-xs text-[var(--color-atelier-grafite)]"
                     />
                     <div className="flex justify-end">
                       <button
                         type="submit"
-                        className="px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-stone-950 font-semibold text-xs"
+                        className="px-3.5 py-1.5 rounded-xl bg-[var(--tess-accent)] hover:bg-[var(--tess-accent-hover)] text-[var(--tess-on-accent)] font-semibold text-xs"
                       >
                         Publicar Comentário
                       </button>
@@ -1072,20 +1072,20 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
 
                   <div className="space-y-2.5">
                     {data.comments.length === 0 ? (
-                      <div className="py-8 text-center text-xs text-stone-500">
+                      <div className="py-8 text-center text-xs text-[var(--color-atelier-grafite)]/55">
                         Nenhum comentário registrado ainda.
                       </div>
                     ) : (
                       data.comments.map(c => (
                         <div
                           key={c.id}
-                          className="p-3.5 rounded-xl bg-stone-900/60 border border-stone-800 space-y-1"
+                          className="p-3.5 tess-card space-y-1"
                         >
-                          <div className="flex items-center justify-between text-[11px] text-stone-400">
-                            <strong className="text-stone-200">{c.author_name || 'Equipe'}</strong>
+                          <div className="flex items-center justify-between text-[11px] text-[var(--color-atelier-grafite)]/70">
+                            <strong className="text-[var(--color-atelier-grafite)]">{c.author_name || 'Equipe'}</strong>
                             <span>{new Date(c.created_at).toLocaleString('pt-BR')}</span>
                           </div>
-                          <p className="text-xs text-stone-300 whitespace-pre-wrap">{c.body}</p>
+                          <p className="text-xs text-[var(--color-atelier-grafite)]/85 whitespace-pre-wrap">{c.body}</p>
                         </div>
                       ))
                     )}
@@ -1096,18 +1096,18 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
               {activeTab === 'history' && (
                 <div className="space-y-2.5">
                   {data.history.length === 0 ? (
-                    <div className="py-10 text-center text-xs text-stone-500">Sem histórico de transições.</div>
+                    <div className="py-10 text-center text-xs text-[var(--color-atelier-grafite)]/55">Sem histórico de transições.</div>
                   ) : (
                     data.history.map(h => (
                       <div
                         key={h.id}
-                        className="p-3 rounded-xl bg-stone-900/60 border border-stone-800 flex items-start justify-between gap-3 text-xs"
+                        className="p-3 tess-card flex items-start justify-between gap-3 text-xs"
                       >
                         <div className="space-y-1">
-                          <div className="text-stone-200">
+                          <div className="text-[var(--color-atelier-grafite)]">
                             {h.from_status ? (
                               <>
-                                <span className="text-stone-400">
+                                <span className="text-[var(--color-atelier-grafite)]/70">
                                   {CANONICAL_STATUSES[h.from_status as WorkItemStatus]?.label || h.from_status}
                                 </span>{' '}
                                 →{' '}
@@ -1115,13 +1115,13 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ itemId, onClose, onUpdat
                             ) : (
                               'Criado em '
                             )}
-                            <strong className="text-amber-400">
+                            <strong className="text-[var(--tess-accent-text)]">
                               {CANONICAL_STATUSES[h.to_status as WorkItemStatus]?.label || h.to_status}
                             </strong>
                           </div>
-                          {h.reason && <p className="text-[11px] text-stone-400">{h.reason}</p>}
+                          {h.reason && <p className="text-[11px] text-[var(--color-atelier-grafite)]/70">{h.reason}</p>}
                         </div>
-                        <div className="text-right text-[11px] text-stone-500 shrink-0">
+                        <div className="text-right text-[11px] text-[var(--color-atelier-grafite)]/55 shrink-0">
                           <div>{h.changed_by_name || 'Sistema'}</div>
                           <div>{new Date(h.created_at).toLocaleString('pt-BR')}</div>
                         </div>

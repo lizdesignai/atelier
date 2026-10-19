@@ -14,33 +14,34 @@ export const metadata = {
   description: "Studio de Construção & Gestão de Marcas",
   icons: {
     icon: [
+      { url: "/images/Ativo 5.svg", type: "image/svg+xml" },
       { url: "/images/Ativo 5.svg", media: "(prefers-color-scheme: light)", type: "image/svg+xml" },
-      { url: "/images/Ativo 2.svg", media: "(prefers-color-scheme: dark)", type: "image/svg+xml" },
-      { url: "/images/Ativo 2.svg", type: "image/svg+xml" }
+      { url: "/images/Ativo 2.svg", media: "(prefers-color-scheme: dark)", type: "image/svg+xml" }
     ],
-    shortcut: "/images/Ativo 2.svg",
-    apple: "/images/Ativo 2.svg",
+    shortcut: "/images/Ativo 5.svg",
+    apple: "/images/Ativo 5.svg",
   },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR" className={roboto.variable} suppressHydrationWarning>
+    <html lang="pt-BR" className={`${roboto.variable} light`} data-theme="light" suppressHydrationWarning>
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-        <link id="dynamic-favicon" rel="icon" href="/images/Ativo 2.svg" type="image/svg+xml" />
+        <link id="dynamic-favicon" rel="icon" href="/images/Ativo 5.svg" type="image/svg+xml" />
         <script
           dangerouslySetInnerHTML={{
             __html: `
               (function() {
                 try {
-                  var t = localStorage.getItem('veronna_theme') || localStorage.getItem('atelier_theme');
-                  if (!t) {
-                    t = (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+                  var t = localStorage.getItem('veronna_theme');
+                  if (t !== 'dark' && t !== 'veronna') {
+                    t = 'light';
                   }
                   document.documentElement.setAttribute('data-theme', t);
+                  document.documentElement.classList.remove('light', 'dark', 'theme-veronna');
                   if (t === 'veronna') {
                     document.documentElement.classList.add('theme-veronna');
                   } else if (t === 'dark') {

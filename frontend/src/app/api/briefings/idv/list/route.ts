@@ -47,7 +47,8 @@ export async function GET() {
         Nome_Cliente: b.Nome_Cliente || d.Nome_Cliente || b.nome || d.nome || 'Cliente',
         Email: b.Email || d.Email || b.email || d.email || '',
         WhatsApp: b.WhatsApp || d.WhatsApp || b.whatsapp || d.whatsapp || '',
-        Nome_Logotipo: b.Nome_Logotipo || d.Nome_Logotipo || b.nome_logo || d.nome_logo || '',
+        Nome_Marca: b.Nome_Marca || d.Nome_Marca || b.nome_marca || d.nome_marca || b.Nome_Logotipo || d.Nome_Logotipo || b.nome_logo || d.nome_logo || '',
+        Nome_Logotipo: b.Nome_Marca || d.Nome_Marca || b.nome_marca || d.nome_marca || b.Nome_Logotipo || d.Nome_Logotipo || b.nome_logo || d.nome_logo || '',
       };
 
       const idKey = String(b.id || '');

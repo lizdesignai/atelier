@@ -21,6 +21,7 @@ import { useProfile } from "../../hooks/useProfile";
 import { useProjects } from "../../hooks/useProjects";
 import { useGlobalStore } from "../../contexts/GlobalStore";
 import { getProductTypeFromProject, getClientServiceLabel } from "@/lib/productHelper";
+import VeronnaSymbol from "./../brand/VeronnaSymbol";
 
 interface AppSidebarProps {
   userRole: string;
@@ -46,6 +47,12 @@ const ROUTE_NAMES: Record<string, string> = {
   '/canais': 'Canais',
   '/comunidade': 'Vêneto',
   '/admin/jtbd': 'Focus',
+  '/tessera': 'Tessera',
+  '/tessera/focus': 'Tessera · Meu Focus',
+  '/tessera/projects': 'Tessera · Projetos',
+  '/tessera/reviews': 'Tessera · Revisão & QA',
+  '/tessera/templates': 'Tessera · Templates',
+  '/tessera/workload': 'Tessera · Capacidade',
   '/admin/gestao': 'Produtividade',
   '/admin/projetos': 'Studio Veronna',
   '/admin/motion-studio': 'Veronna Motion Studio',
@@ -446,7 +453,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
           {/* MENU PARA EQUIPA DO ESTÚDIO */}
           {isTeamMember && (
             <>
-              <NavItem href="/tessera" icon={<Sparkles size={18} strokeWidth={1.5} className="text-amber-600" />} label="Tessera OS" collapsed={isCollapsed} active={pathname.startsWith('/tessera')} />
+              <NavItem href="/tessera" icon={<VeronnaSymbol size={17} fillColor="currentColor" />} label="Tessera" collapsed={isCollapsed} active={pathname.startsWith('/tessera')} />
               <NavItem href="/admin/jtbd" icon={<Crosshair size={18} strokeWidth={1.5} />} label="Focus" collapsed={isCollapsed} active={pathname === '/admin/jtbd' || pathname.startsWith('/admin/jtbd/')} />
               <NavItem href="/admin/gerenciamento" icon={<Compass size={18} strokeWidth={1.5} />} label="Presença" collapsed={isCollapsed} active={pathname === '/admin/gerenciamento' || pathname.startsWith('/admin/gerenciamento') || pathname === '/cockpit'} />
               <NavItem href="/admin/projetos" icon={<FolderKanban size={18} strokeWidth={1.5} />} label="Studio Veronna" collapsed={isCollapsed} active={pathname === '/admin/projetos' || pathname.startsWith('/admin/projetos/')} />

@@ -26,12 +26,17 @@ export function CuradoriaStage({ projectId, clientId, projectData, briefingData,
   const [logoFile, setLogoFile] = useState<File | null>(null);
   const [isUploadingLogo, setIsUploadingLogo] = useState(false);
 
+  const ans = briefingData?.answers || {};
   const [formData, setFormData] = useState({
-    cor_desejada: briefingData?.answers?.cor_desejada || '',
-    cor_nao_desejada: briefingData?.answers?.cor_nao_desejada || '',
-    referencias: briefingData?.answers?.referencias || '',
-    adjetivos_positivos: briefingData?.answers?.adjetivos_positivos || ([] as string[]),
-    logo_atual_url: briefingData?.answers?.logo_atual_url || '',
+    cor_desejada: ans.cor_desejada || ans.Cor_Desejada || ans.cor_desejada_qual || ans.Cor_Desejada_Qual || '',
+    cor_nao_desejada: ans.cor_nao_desejada || ans.Cor_Nao_Desejada || ans.cor_indesejada || ans.Cor_Indesejada || '',
+    referencias: ans.referencias || ans.Referencias_Inspiracoes || ans.marcas_admiradas || ans.Marcas_Admiradas || '',
+    adjetivos_positivos: (Array.isArray(ans.adjetivos_positivos) ? ans.adjetivos_positivos : (typeof ans.adjetivos_positivos === 'string' ? ans.adjetivos_positivos.split(',').map((s: string) => s.trim()) : null)) ||
+      (Array.isArray(ans.Adjetivos_Positivos) ? ans.Adjetivos_Positivos : (typeof ans.Adjetivos_Positivos === 'string' ? ans.Adjetivos_Positivos.split(',').map((s: string) => s.trim()) : null)) ||
+      (typeof ans.atributos_top3 === 'string' ? ans.atributos_top3.split(',').map((s: string) => s.trim()) : null) ||
+      (typeof ans.Atributos_Top3 === 'string' ? ans.Atributos_Top3.split(',').map((s: string) => s.trim()) : null) ||
+      ([] as string[]),
+    logo_atual_url: ans.logo_atual_url || '',
   });
 
   const handleInput = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -182,19 +187,19 @@ export function CuradoriaStage({ projectId, clientId, projectData, briefingData,
           <div className="bg-white/80 p-5 rounded-2xl shadow-sm border border-white">
              <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 block mb-1">Modelo de Negócio</span>
              <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/80 leading-relaxed">
-               {briefingData?.answers?.produtos_servicos || "Alinhado com a equipe estratégica."}
+               {ans.produtos_servicos || ans.Produtos_Servicos || ans.o_que_vende || ans.O_Que_Vende || "Alinhado com a equipe estratégica."}
              </p>
           </div>
           <div className="bg-white/80 p-5 rounded-2xl shadow-sm border border-white">
              <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 block mb-1">Proposta de Valor</span>
              <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/80 leading-relaxed">
-               {briefingData?.answers?.proposito || "Definido no QG de Imersão."}
+               {ans.proposito || ans.Proposito || ans.pitch_10s || ans.Pitch_10s || ans.frase_resumo || ans.Frase_Resumo || "Definido no QG de Imersão."}
              </p>
           </div>
           <div className="bg-white/80 p-5 rounded-2xl shadow-sm border border-white">
              <span className="font-roboto text-[9px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 block mb-1">Público-Alvo</span>
              <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/80 leading-relaxed">
-               {briefingData?.answers?.resumo_publico || "Mapeado e documentado pelo Studio Veronna."}
+               {ans.resumo_publico || ans.Resumo_Publico || ans.perfil_cliente || ans.Perfil_Cliente || "Mapeado e documentado pelo Studio Veronna."}
              </p>
           </div>
         </div>

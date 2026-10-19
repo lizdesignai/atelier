@@ -141,25 +141,25 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-20 px-4 bg-black/70 backdrop-blur-sm animate-in fade-in duration-150">
+    <div className="fixed inset-0 z-[100000] flex items-start justify-center pt-20 px-4 bg-black/60 backdrop-blur-md animate-in fade-in duration-150">
       <div 
-        className="w-full max-w-xl bg-stone-900 border border-stone-800 rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+        className="w-full max-w-xl tess-solid rounded-[2rem]  overflow-hidden flex flex-col"
         onClick={e => e.stopPropagation()}
       >
         {/* Campo de Busca */}
-        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-stone-800">
-          <Search className="w-5 h-5 text-stone-400" />
+        <div className="flex items-center gap-3 px-4 py-3.5 border-b border-[var(--color-atelier-grafite)]/12">
+          <Search className="w-5 h-5 text-[var(--color-atelier-grafite)]/70" />
           <input
             type="text"
             autoFocus
             value={query}
             onChange={e => setQuery(e.target.value)}
             placeholder="Digite um comando, destino ou ação..."
-            className="flex-1 bg-transparent text-sm text-stone-100 placeholder-stone-500 focus:outline-none"
+            className="flex-1 bg-transparent text-sm text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40 focus:outline-none"
           />
           <button 
             onClick={onClose}
-            className="p-1 rounded text-stone-500 hover:text-stone-300 hover:bg-stone-800 transition"
+            className="p-1 rounded text-[var(--color-atelier-grafite)]/55 hover:text-[var(--color-atelier-grafite)]/85 hover:bg-[var(--color-atelier-grafite)]/[0.10] transition"
           >
             <X className="w-4 h-4" />
           </button>
@@ -168,7 +168,7 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         {/* Lista de Comandos */}
         <div className="max-h-80 overflow-y-auto p-2 space-y-1">
           {filtered.length === 0 ? (
-            <div className="py-8 text-center text-xs text-stone-500">
+            <div className="py-8 text-center text-xs text-[var(--color-atelier-grafite)]/55">
               Nenhum comando correspondente encontrado.
             </div>
           ) : (
@@ -184,17 +184,17 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
                   }}
                   onMouseEnter={() => setSelectedIndex(idx)}
                   className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-left text-xs transition ${
-                    isSelected ? 'bg-amber-600/15 text-amber-300 font-medium' : 'text-stone-300 hover:bg-stone-800/60'
+                    isSelected ? 'bg-[var(--tess-accent)]/15 text-[var(--tess-accent-text)] font-medium' : 'text-[var(--color-atelier-grafite)]/85 hover:bg-[var(--color-atelier-grafite)]/[0.10]'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <Icon className={`w-4 h-4 ${isSelected ? 'text-amber-400' : 'text-stone-400'}`} />
+                    <Icon className={`w-4 h-4 ${isSelected ? 'text-[var(--tess-accent-text)]' : 'text-[var(--color-atelier-grafite)]/70'}`} />
                     <span>{item.title}</span>
                   </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] text-stone-500 uppercase tracking-wider">{item.category}</span>
+                    <span className="text-[10px] text-[var(--color-atelier-grafite)]/55 uppercase tracking-[0.18em]">{item.category}</span>
                     {item.shortcut && (
-                      <kbd className="px-1.5 py-0.5 rounded bg-stone-800 border border-stone-700 text-[10px] text-stone-400 font-mono">
+                      <kbd className="px-1.5 py-0.5 rounded bg-[var(--color-atelier-grafite)]/[0.07] border border-[var(--color-atelier-grafite)]/20 text-[10px] text-[var(--color-atelier-grafite)]/70 font-roboto tabular-nums">
                         {item.shortcut}
                       </kbd>
                     )}
@@ -206,8 +206,8 @@ export const CommandPaletteModal: React.FC<CommandPaletteModalProps> = ({
         </div>
 
         {/* Rodapé Informativo */}
-        <div className="px-4 py-2 bg-stone-950/60 border-t border-stone-800/80 flex items-center justify-between text-[11px] text-stone-500">
-          <span>Navegue com <kbd className="font-mono text-stone-400">↑</kbd> <kbd className="font-mono text-stone-400">↓</kbd> e selecione com <kbd className="font-mono text-stone-400">Enter</kbd></span>
+        <div className="px-4 py-2 bg-[var(--color-atelier-creme)]/60 border-t border-[var(--color-atelier-grafite)]/12 flex items-center justify-between text-[11px] text-[var(--color-atelier-grafite)]/55">
+          <span>Navegue com <kbd className="font-roboto tabular-nums text-[var(--color-atelier-grafite)]/70">↑</kbd> <kbd className="font-roboto tabular-nums text-[var(--color-atelier-grafite)]/70">↓</kbd> e selecione com <kbd className="font-roboto tabular-nums text-[var(--color-atelier-grafite)]/70">Enter</kbd></span>
           <span>Tessera v1.0</span>
         </div>
       </div>

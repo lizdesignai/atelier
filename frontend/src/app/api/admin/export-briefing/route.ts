@@ -22,17 +22,17 @@ export async function GET(req: Request) {
     
     let briefings = [];
     if (clientEmail) {
-      briefings = await sql`SELECT * FROM briefings_identidade_visual WHERE "Email" ILIKE ${clientEmail} ORDER BY created_at DESC LIMIT 1`;
+      briefings = await sql`SELECT * FROM briefings_identidade_visual WHERE "Email" ILIKE ${clientEmail} OR (dados_completos->>'Email') ILIKE ${clientEmail} ORDER BY created_at DESC LIMIT 1`;
     }
     if (!briefings.length && clientNome) {
-      briefings = await sql`SELECT * FROM briefings_identidade_visual WHERE "Nome_Cliente" ILIKE ${'%' + clientNome + '%'} ORDER BY created_at DESC LIMIT 1`;
+      briefings = await sql`SELECT * FROM briefings_identidade_visual WHERE "Nome_Cliente" ILIKE ${'%' + clientNome + '%'} OR (dados_completos->>'Nome_Cliente') ILIKE ${'%' + clientNome + '%'} OR (dados_completos->>'Nome_Marca') ILIKE ${'%' + clientNome + '%'} ORDER BY created_at DESC LIMIT 1`;
     }
 
     if (!briefings.length) {
         return NextResponse.json({ error: 'Nenhum briefing preenchido por este cliente ainda.' }, { status: 404 });
     }
     
-    const b = briefings[0].dados_completos || briefings[0];
+    const b = { ...briefings[0], ...(briefings[0].dados_completos || {}) };
     
     return NextResponse.json({ success: true, data: b });
 

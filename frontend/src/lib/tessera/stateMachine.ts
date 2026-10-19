@@ -90,25 +90,27 @@ export function getStatusTone(status: WorkItemStatus): {
   border: string;
   dot: string;
 } {
+  // Tokens --tess-* definidos em globals.css (derivados da paleta Studio Veronna
+  // e adaptados aos temas Light | Dark | Veronna).
   switch (status) {
     case 'inbox':
-      return { bg: 'bg-stone-100', text: 'text-stone-700', border: 'border-stone-300', dot: 'bg-stone-400' };
+      return { bg: 'bg-[var(--color-atelier-grafite)]/[0.07]', text: 'text-[var(--color-atelier-grafite)]/75', border: 'border-[var(--color-atelier-grafite)]/20', dot: 'bg-[var(--color-atelier-grafite)]/45' };
     case 'ready':
-      return { bg: 'bg-blue-50', text: 'text-blue-700', border: 'border-blue-200', dot: 'bg-blue-500' };
+      return { bg: 'bg-[var(--tess-info)]/12', text: 'text-[var(--tess-info)]', border: 'border-[var(--tess-info)]/30', dot: 'bg-[var(--tess-info)]' };
     case 'in_progress':
-      return { bg: 'bg-amber-50', text: 'text-amber-800', border: 'border-amber-200', dot: 'bg-amber-500' };
+      return { bg: 'bg-[var(--tess-accent)]/12', text: 'text-[var(--tess-accent-text)]', border: 'border-[var(--tess-accent)]/30', dot: 'bg-[var(--tess-accent)]' };
     case 'internal_review':
-      return { bg: 'bg-purple-50', text: 'text-purple-700', border: 'border-purple-200', dot: 'bg-purple-500' };
+      return { bg: 'bg-[var(--tess-review)]/12', text: 'text-[var(--tess-review)]', border: 'border-[var(--tess-review)]/30', dot: 'bg-[var(--tess-review)]' };
     case 'client_approval':
-      return { bg: 'bg-sky-50', text: 'text-sky-800', border: 'border-sky-200', dot: 'bg-sky-500' };
+      return { bg: 'bg-[var(--tess-bordo)]/12', text: 'text-[var(--tess-bordo)]', border: 'border-[var(--tess-bordo)]/30', dot: 'bg-[var(--tess-bordo)]' };
     case 'scheduled':
-      return { bg: 'bg-indigo-50', text: 'text-indigo-700', border: 'border-indigo-200', dot: 'bg-indigo-500' };
+      return { bg: 'bg-[var(--tess-warn)]/12', text: 'text-[var(--tess-warn)]', border: 'border-[var(--tess-warn)]/30', dot: 'bg-[var(--tess-warn)]' };
     case 'done':
-      return { bg: 'bg-emerald-50', text: 'text-emerald-800', border: 'border-emerald-200', dot: 'bg-emerald-500' };
+      return { bg: 'bg-[var(--tess-success)]/12', text: 'text-[var(--tess-success)]', border: 'border-[var(--tess-success)]/30', dot: 'bg-[var(--tess-success)]' };
     case 'canceled':
-      return { bg: 'bg-rose-50', text: 'text-rose-700', border: 'border-rose-200', dot: 'bg-rose-400' };
+      return { bg: 'bg-[var(--tess-danger)]/12', text: 'text-[var(--tess-danger)]', border: 'border-[var(--tess-danger)]/30', dot: 'bg-[var(--tess-danger)]' };
     default:
-      return { bg: 'bg-gray-100', text: 'text-gray-700', border: 'border-gray-300', dot: 'bg-gray-400' };
+      return { bg: 'bg-[var(--color-atelier-grafite)]/[0.07]', text: 'text-[var(--color-atelier-grafite)]/75', border: 'border-[var(--color-atelier-grafite)]/20', dot: 'bg-[var(--color-atelier-grafite)]/45' };
   }
 }
 

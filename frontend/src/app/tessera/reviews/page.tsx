@@ -189,16 +189,16 @@ export default function TesseraReviewsPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-200">
       {/* Cabeçalho */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-800/80">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--color-atelier-grafite)]/12">
         <div>
-          <h1 className="text-xl font-semibold text-stone-100 flex items-center gap-2.5">
-            <Inbox className="w-5 h-5 text-purple-400" />
+          <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-3">
+            <Inbox className="w-5 h-5 text-[var(--tess-review)]" />
             <span>Inbox de QA & Revisão Interna</span>
-            <span className="text-xs font-mono font-normal text-purple-300 px-2 py-0.5 rounded-full bg-purple-950/60 border border-purple-800/40">
+            <span className="text-xs font-roboto tabular-nums font-normal text-[var(--tess-review)] px-2 py-0.5 rounded-full bg-[var(--tess-review)]/15 border border-[var(--tess-review)]/30">
               {counts.total} na fila
             </span>
-          </h1>
-          <p className="text-xs text-stone-400 mt-1">
+          </h2>
+          <p className="text-xs text-[var(--color-atelier-grafite)]/70 mt-1">
             Portão de qualidade com verificação automática de elegibilidade, controle de rodadas de retrabalho e aprovação em lote segura.
           </p>
         </div>
@@ -207,14 +207,14 @@ export default function TesseraReviewsPage() {
           {isManager && counts.eligible > 0 && (
             <button
               onClick={selectAllEligible}
-              className="px-3 py-1.5 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-300 hover:bg-stone-800 transition"
+              className="px-3 py-1.5 tess-card text-xs text-[var(--color-atelier-grafite)]/85 hover:bg-[var(--color-atelier-grafite)]/[0.10] transition"
             >
               Selecionar Elegíveis ({counts.eligible})
             </button>
           )}
           <button
             onClick={loadReviews}
-            className="p-2 rounded-xl bg-stone-900 border border-stone-800 text-stone-400 hover:text-stone-200 transition"
+            className="p-2 tess-card text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)] transition"
           >
             <RefreshCw className="w-4 h-4" />
           </button>
@@ -223,11 +223,11 @@ export default function TesseraReviewsPage() {
 
       {/* Filtros Rápidos */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="inline-flex rounded-xl bg-stone-900 p-1 border border-stone-800">
+        <div className="inline-flex rounded-xl tess-surface p-1 border border-[var(--color-atelier-grafite)]/12">
           <button
             onClick={() => setFilter('all')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-              filter === 'all' ? 'bg-purple-600 text-stone-950 font-semibold' : 'text-stone-400 hover:text-stone-200'
+              filter === 'all' ? 'bg-purple-700 text-white font-semibold' : 'text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]'
             }`}
           >
             Todos ({counts.total})
@@ -236,8 +236,8 @@ export default function TesseraReviewsPage() {
             onClick={() => setFilter('eligible')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
               filter === 'eligible'
-                ? 'bg-emerald-600 text-stone-950 font-semibold'
-                : 'text-stone-400 hover:text-stone-200'
+                ? 'bg-emerald-700 text-white font-semibold'
+                : 'text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]'
             }`}
           >
             Elegíveis p/ Aprovação ({counts.eligible})
@@ -246,8 +246,8 @@ export default function TesseraReviewsPage() {
             onClick={() => setFilter('ineligible')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
               filter === 'ineligible'
-                ? 'bg-amber-600 text-stone-950 font-semibold'
-                : 'text-stone-400 hover:text-stone-200'
+                ? 'bg-[var(--tess-accent)] text-[var(--tess-on-accent)] font-semibold'
+                : 'text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]'
             }`}
           >
             Com Pendências ({counts.ineligible})
@@ -256,8 +256,8 @@ export default function TesseraReviewsPage() {
             onClick={() => setFilter('overdue')}
             className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
               filter === 'overdue'
-                ? 'bg-rose-600 text-stone-950 font-semibold'
-                : 'text-stone-400 hover:text-stone-200'
+                ? 'bg-rose-700 text-white font-semibold'
+                : 'text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]'
             }`}
           >
             Prazo Vencido ({counts.overdue})
@@ -266,21 +266,21 @@ export default function TesseraReviewsPage() {
 
         {/* Barra de Ação em Lote */}
         {isManager && selectedIds.size > 0 && (
-          <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-emerald-950/60 border border-emerald-700/60">
-            <span className="text-xs text-emerald-200 font-medium">
+          <div className="flex items-center gap-3 px-4 py-2 rounded-xl bg-[var(--tess-success)]/15 border border-[var(--tess-success)]/30">
+            <span className="text-xs text-[var(--tess-success)] font-medium">
               {selectedIds.size} item(ns) selecionado(s)
             </span>
             <button
               disabled={isSubmitting}
               onClick={handleBulkApprove}
-              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-400 text-stone-950 font-semibold text-xs transition"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-semibold text-xs transition"
             >
               <CheckCircle2 className="w-3.5 h-3.5" />
               <span>Aprovar Lote</span>
             </button>
             <button
               onClick={() => setSelectedIds(new Set())}
-              className="text-xs text-stone-400 hover:text-stone-200"
+              className="text-xs text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]"
             >
               Limpar
             </button>
@@ -292,8 +292,8 @@ export default function TesseraReviewsPage() {
         <div
           className={`p-3.5 rounded-xl border text-xs flex items-center justify-between ${
             banner.type === 'ok'
-              ? 'bg-emerald-950/60 border-emerald-800/60 text-emerald-200'
-              : 'bg-rose-950/60 border-rose-800/60 text-rose-200'
+              ? 'bg-[var(--tess-success)]/15 border-[var(--tess-success)]/30 text-[var(--tess-success)]'
+              : 'bg-[var(--tess-danger)]/15 border-[var(--tess-danger)]/30 text-[var(--tess-danger)]'
           }`}
         >
           <span>{banner.text}</span>
@@ -306,10 +306,10 @@ export default function TesseraReviewsPage() {
       {/* Lista de Itens */}
       <div className="space-y-3">
         {isLoading ? (
-          <div className="py-16 text-center text-xs text-stone-500">Carregando Inbox de QA...</div>
+          <div className="py-16 text-center text-xs text-[var(--color-atelier-grafite)]/55">Carregando Inbox de QA...</div>
         ) : filteredItems.length === 0 ? (
-          <div className="py-16 rounded-2xl bg-stone-900/40 border border-stone-800 text-center text-xs text-stone-500 flex flex-col items-center gap-2">
-            <CheckCircle2 className="w-8 h-8 text-emerald-400" />
+          <div className="py-16 tess-card text-center text-xs text-[var(--color-atelier-grafite)]/55 flex flex-col items-center gap-2">
+            <CheckCircle2 className="w-8 h-8 text-[var(--tess-success)]" />
             <span>Nenhum item encontrado neste filtro de revisão.</span>
           </div>
         ) : (
@@ -320,10 +320,10 @@ export default function TesseraReviewsPage() {
                 key={item.id}
                 className={`p-4 rounded-2xl border flex flex-col lg:flex-row lg:items-center justify-between gap-4 transition ${
                   !item.eligibility.eligible
-                    ? 'bg-amber-950/15 border-amber-800/50'
+                    ? 'bg-[var(--tess-accent)]/10 border-[var(--tess-accent)]/30'
                     : isSelected
-                    ? 'bg-purple-950/25 border-purple-600/60'
-                    : 'bg-stone-900/60 border-stone-800 hover:border-stone-700'
+                    ? 'bg-[var(--tess-review)]/10 border-[var(--tess-review)]/60'
+                    : 'tess-surface border-[var(--color-atelier-grafite)]/12 hover:border-[var(--color-atelier-grafite)]/25'
                 }`}
               >
                 <div className="flex items-start gap-3 flex-1">
@@ -332,7 +332,7 @@ export default function TesseraReviewsPage() {
                       type="checkbox"
                       checked={isSelected}
                       onChange={() => toggleSelect(item.id)}
-                      className="mt-1 rounded border-stone-700 bg-stone-950 text-emerald-500"
+                      className="mt-1 rounded border-[var(--color-atelier-grafite)]/20 bg-[var(--color-atelier-creme)] text-[var(--tess-success)]"
                     />
                   )}
 
@@ -342,24 +342,24 @@ export default function TesseraReviewsPage() {
                   >
                     <div className="flex items-center gap-2 flex-wrap">
                       <PriorityBadge priority={item.priority} size="sm" />
-                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-stone-950 border border-stone-800 text-stone-400">
+                      <span className="text-[10px] font-roboto tabular-nums uppercase px-2 py-0.5 rounded bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-grafite)]/12 text-[var(--color-atelier-grafite)]/70">
                         {item.type}
                       </span>
-                      <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-purple-950/60 border border-purple-800/40 text-purple-300">
+                      <span className="text-[10px] font-roboto tabular-nums px-2 py-0.5 rounded bg-[var(--tess-review)]/15 border border-[var(--tess-review)]/30 text-[var(--tess-review)]">
                         Rodada #{item.revision_rounds + 1}
                       </span>
-                      <span className="text-[10px] px-2 py-0.5 rounded bg-stone-950 border border-stone-800 text-stone-400">
+                      <span className="text-[10px] px-2 py-0.5 rounded bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-grafite)]/12 text-[var(--color-atelier-grafite)]/70">
                         Destino: {item.client_visible ? 'Aprovação do Cliente' : 'Concluído'}
                       </span>
                     </div>
 
-                    <h3 className="text-sm font-semibold text-stone-100 hover:text-amber-300 transition">
+                    <h3 className="text-sm font-semibold text-[var(--color-atelier-grafite)] hover:text-[var(--tess-accent-text)] transition">
                       {item.title}
                     </h3>
 
-                    <p className="text-[11px] text-stone-400">
-                      Projeto: <strong className="text-stone-200">{item.project_title || 'Studio'}</strong> •
-                      Responsável: <strong className="text-stone-200">{item.owner_name || 'Sem dono'}</strong> •
+                    <p className="text-[11px] text-[var(--color-atelier-grafite)]/70">
+                      Projeto: <strong className="text-[var(--color-atelier-grafite)]">{item.project_title || 'Studio'}</strong> •
+                      Responsável: <strong className="text-[var(--color-atelier-grafite)]">{item.owner_name || 'Sem dono'}</strong> •
                       Checklist:{' '}
                       <strong>
                         {item.checklist_completed || 0}/{item.checklist_total || 0}
@@ -375,7 +375,7 @@ export default function TesseraReviewsPage() {
                             target="_blank"
                             rel="noreferrer"
                             onClick={e => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-stone-950 border border-stone-800 text-[11px] text-amber-400 hover:underline"
+                            className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-grafite)]/12 text-[11px] text-[var(--tess-accent-text)] hover:underline"
                           >
                             <ExternalLink className="w-3 h-3" />
                             <span>{d.label}</span>
@@ -389,9 +389,9 @@ export default function TesseraReviewsPage() {
                         {item.eligibility.reasons.map((r, i) => (
                           <span
                             key={i}
-                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-amber-950/80 border border-amber-800/60 text-[11px] text-amber-200"
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-[var(--tess-accent)]/15 border border-[var(--tess-accent)]/30 text-[11px] text-[var(--tess-accent-text)]"
                           >
-                            <ShieldAlert className="w-3 h-3 text-amber-400" />
+                            <ShieldAlert className="w-3 h-3 text-[var(--tess-accent-text)]" />
                             <span>{r}</span>
                           </span>
                         ))}
@@ -404,7 +404,7 @@ export default function TesseraReviewsPage() {
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => setDrawerItemId(item.id)}
-                    className="px-3 py-1.5 rounded-xl bg-stone-950 border border-stone-800 text-xs text-stone-300 hover:bg-stone-800 transition"
+                    className="px-3 py-1.5 rounded-xl bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-grafite)]/12 text-xs text-[var(--color-atelier-grafite)]/85 hover:bg-[var(--color-atelier-grafite)]/[0.10] transition"
                   >
                     Inspecionar
                   </button>
@@ -414,7 +414,7 @@ export default function TesseraReviewsPage() {
                       <button
                         disabled={isSubmitting}
                         onClick={() => setRejectItem(item)}
-                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-600/20 border border-amber-600/50 text-amber-200 hover:bg-amber-600/30 text-xs font-medium transition"
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--tess-accent)]/20 border border-[var(--tess-accent)]/50 text-[var(--tess-accent-text)] hover:bg-[var(--tess-accent)]/30 text-xs font-medium transition"
                       >
                         <RotateCcw className="w-3.5 h-3.5" />
                         <span>Pedir Ajustes</span>
@@ -423,7 +423,7 @@ export default function TesseraReviewsPage() {
                       <button
                         disabled={!item.eligibility.eligible || isSubmitting}
                         onClick={() => handleSingleApprove(item)}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-40 text-stone-950 font-semibold text-xs transition"
+                        className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-emerald-700 hover:bg-emerald-600 disabled:opacity-40 text-white font-semibold text-xs transition"
                       >
                         <Check className="w-3.5 h-3.5" />
                         <span>Aprovar</span>
@@ -440,37 +440,37 @@ export default function TesseraReviewsPage() {
       {/* Modal Pedir Ajustes */}
       {rejectItem && (
         <div
-          className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm"
+          className="fixed inset-0 z-[100001] flex items-center justify-center p-4 bg-black/60 backdrop-blur-md"
           onClick={() => setRejectItem(null)}
         >
           <div
-            className="w-full max-w-md bg-stone-900 border border-stone-800 rounded-2xl p-6 space-y-4"
+            className="w-full max-w-md tess-solid rounded-[2rem] p-6 space-y-4"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-stone-100 flex items-center gap-2">
-                <RotateCcw className="w-4 h-4 text-amber-400" />
+              <h3 className="text-sm font-semibold text-[var(--color-atelier-grafite)] flex items-center gap-2">
+                <RotateCcw className="w-4 h-4 text-[var(--tess-accent-text)]" />
                 <span>Solicitar Ajustes (Retorno à Execução)</span>
               </h3>
-              <button onClick={() => setRejectItem(null)} className="text-stone-500 hover:text-stone-300">
+              <button onClick={() => setRejectItem(null)} className="text-[var(--color-atelier-grafite)]/55 hover:text-[var(--color-atelier-grafite)]/85">
                 <X className="w-4 h-4" />
               </button>
             </div>
 
-            <p className="text-xs text-stone-400">
-              Item: <strong className="text-stone-200">{rejectItem.title}</strong> (Rodada #
+            <p className="text-xs text-[var(--color-atelier-grafite)]/70">
+              Item: <strong className="text-[var(--color-atelier-grafite)]">{rejectItem.title}</strong> (Rodada #
               {rejectItem.revision_rounds + 1})
             </p>
 
             <form onSubmit={handleConfirmReject} className="space-y-3">
               <div>
-                <label className="block text-xs font-medium text-stone-300 mb-1">
+                <label className="block text-xs font-medium text-[var(--color-atelier-grafite)]/85 mb-1">
                   Categoria Estruturada do Motivo
                 </label>
                 <select
                   value={rejectCategory}
                   onChange={e => setRejectCategory(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-stone-950 border border-stone-800 text-xs text-stone-100"
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-grafite)]/12 text-xs text-[var(--color-atelier-grafite)]"
                 >
                   {Object.entries(REASON_LABELS).map(([k, label]) => (
                     <option key={k} value={k}>
@@ -481,7 +481,7 @@ export default function TesseraReviewsPage() {
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-stone-300 mb-1">
+                <label className="block text-xs font-medium text-[var(--color-atelier-grafite)]/85 mb-1">
                   Descrição detalhada do ajuste (mín. 3 caracteres)
                 </label>
                 <textarea
@@ -491,7 +491,7 @@ export default function TesseraReviewsPage() {
                   value={rejectComment}
                   onChange={e => setRejectComment(e.target.value)}
                   placeholder="Explique o que deve ser ajustado antes de reenviar ao QA..."
-                  className="w-full px-3 py-2 rounded-xl bg-stone-950 border border-stone-800 text-xs text-stone-100"
+                  className="w-full px-3 py-2 rounded-xl bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-grafite)]/12 text-xs text-[var(--color-atelier-grafite)]"
                 />
               </div>
 
@@ -499,14 +499,14 @@ export default function TesseraReviewsPage() {
                 <button
                   type="button"
                   onClick={() => setRejectItem(null)}
-                  className="px-3 py-1.5 rounded-xl text-xs text-stone-400 hover:text-stone-200"
+                  className="px-3 py-1.5 rounded-xl text-xs text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]"
                 >
                   Cancelar
                 </button>
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="px-4 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-stone-950 font-semibold text-xs"
+                  className="px-4 py-1.5 rounded-xl bg-[var(--tess-accent)] hover:bg-[var(--tess-accent-hover)] text-[var(--tess-on-accent)] font-semibold text-xs"
                 >
                   {isSubmitting ? 'Enviando...' : 'Confirmar Pedido de Ajuste'}
                 </button>

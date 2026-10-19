@@ -78,6 +78,7 @@ export default function OverviewDashboard({
   const [taskFilterCollab, setTaskFilterCollab] = useState<string>('all');
   const [taskFilterClient, setTaskFilterClient] = useState<string>('all');
   const [isMobileSearchActive, setIsMobileSearchActive] = useState(false);
+  const [isMobileCollabOpen, setIsMobileCollabOpen] = useState(false);
   const [activeQueueIndex, setActiveQueueIndex] = useState(0);
 
   // Modal Studio
@@ -632,20 +633,89 @@ export default function OverviewDashboard({
                 </button>
              </div>
            ) : (
-             <div className="flex items-center justify-between w-full animate-[fadeIn_0.2s_ease-out]">
-               <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] flex items-baseline gap-2">
-                 Fila. <span className="font-roboto font-normal text-xs text-[var(--color-atelier-grafite)]/50 tracking-wider">({activeTasksForQueue.length} tarefas)</span>
-               </h2>
-               <div className="flex items-center gap-2">
-                 <button onClick={() => setIsMobileSearchActive(true)} className="w-9 h-9 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-terracota)]">
-                   <Search size={16} />
-                 </button>
-                 
-                 {/* Filtros Simplificados */}
-                 <button onClick={() => setTaskFilterClient(taskFilterClient === 'all' ? clientsWithTasks[0]?.id || 'all' : 'all')} className={`w-9 h-9 rounded-full shadow-sm border flex items-center justify-center ${taskFilterClient !== 'all' ? 'bg-[var(--color-atelier-terracota)] text-white border-[var(--color-atelier-terracota)]' : 'bg-white border-gray-100 text-[var(--color-atelier-grafite)]/60'}`}>
-                   <FolderKanban size={16} />
-                 </button>
+             <div className="flex flex-col w-full gap-2 animate-[fadeIn_0.2s_ease-out]">
+               <div className="flex items-center justify-between w-full">
+                 <h2 className="font-elegant text-3xl sm:text-4xl text-[var(--color-atelier-grafite)] flex items-baseline gap-2">
+                   Fila. <span className="font-roboto font-normal text-xs text-[var(--color-atelier-grafite)]/50 tracking-wider">
+                     ({activeTasksForQueue.filter(t => (taskFilterCollab === 'all' || t.assigned_to === taskFilterCollab) && (taskFilterClient === 'all' || t.project_id === taskFilterClient || t.projects?.id === taskFilterClient)).length} tarefas)
+                   </span>
+                 </h2>
+                 <div className="flex items-center gap-2">
+                   <button onClick={() => { setIsMobileSearchActive(true); setIsMobileCollabOpen(false); }} className="w-9 h-9 rounded-full bg-white shadow-sm border border-gray-100 flex items-center justify-center text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-terracota)]" title="Buscar">
+                     <Search size={16} />
+                   </button>
+
+                   {/* Filtro Colaborador Mobile */}
+                   <button 
+                     onClick={() => setIsMobileCollabOpen(!isMobileCollabOpen)} 
+                     className={`w-9 h-9 rounded-full shadow-sm border flex items-center justify-center transition-all ${
+                       taskFilterCollab !== 'all' 
+                         ? 'bg-[var(--color-atelier-terracota)] text-white border-[var(--color-atelier-terracota)]' 
+                         : 'bg-white border-gray-100 text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-terracota)]'
+                     }`}
+                     title="Filtrar por Colaborador"
+                   >
+                     <UserCircle2 size={16} />
+                   </button>
+                   
+                   {/* Filtros Simplificados */}
+                   <button onClick={() => setTaskFilterClient(taskFilterClient === 'all' ? clientsWithTasks[0]?.id || 'all' : 'all')} className={`w-9 h-9 rounded-full shadow-sm border flex items-center justify-center ${taskFilterClient !== 'all' ? 'bg-[var(--color-atelier-terracota)] text-white border-[var(--color-atelier-terracota)]' : 'bg-white border-gray-100 text-[var(--color-atelier-grafite)]/60'}`} title="Filtrar por Cliente">
+                     <FolderKanban size={16} />
+                   </button>
+                 </div>
                </div>
+
+               {/* Dropdown Mobile de Filtro de Colaborador */}
+               {isMobileCollabOpen && (
+                 <div className="w-full bg-white/95 backdrop-blur-md rounded-2xl border border-gray-200/80 p-3 shadow-md flex flex-col gap-2">
+                   <div className="flex items-center justify-between pb-1 border-b border-gray-100">
+                     <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/60 flex items-center gap-1.5">
+                       <UserCircle2 size={12} className="text-[var(--color-atelier-terracota)]" />
+                       Atividades por Colaborador
+                     </span>
+                     <button onClick={() => setIsMobileCollabOpen(false)} className="text-gray-400 hover:text-gray-600">
+                       <X size={14} />
+                     </button>
+                   </div>
+                   <div className="flex flex-wrap gap-1.5 max-h-36 overflow-y-auto custom-scrollbar pt-1">
+                     <button
+                       onClick={() => { setTaskFilterCollab('all'); setIsMobileCollabOpen(false); }}
+                       className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
+                         taskFilterCollab === 'all'
+                           ? 'bg-[var(--color-atelier-terracota)] text-white'
+                           : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                       }`}
+                     >
+                       Todos Colaboradores
+                     </button>
+                     {team.map(member => (
+                       <button
+                         key={member.id}
+                         onClick={() => { setTaskFilterCollab(member.id); setIsMobileCollabOpen(false); }}
+                         className={`px-3 py-1 rounded-full text-xs font-bold transition-all flex items-center gap-1.5 ${
+                           taskFilterCollab === member.id
+                             ? 'bg-[var(--color-atelier-terracota)] text-white'
+                             : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                         }`}
+                       >
+                         <span>{member.name?.split(" ")[0] || member.nome?.split(" ")[0]}</span>
+                       </button>
+                     ))}
+                   </div>
+                 </div>
+               )}
+
+               {/* Tag de Filtro Ativo */}
+               {taskFilterCollab !== 'all' && (
+                 <div className="flex items-center gap-2">
+                   <span className="text-[10px] font-bold text-[var(--color-atelier-terracota)] bg-[var(--color-atelier-terracota)]/10 px-2 py-0.5 rounded-md flex items-center gap-1">
+                     Filtrando por: {team.find(m => m.id === taskFilterCollab)?.nome || 'Colaborador'}
+                     <button onClick={() => setTaskFilterCollab('all')} className="ml-1 hover:text-red-500">
+                       <X size={10} />
+                     </button>
+                   </span>
+                 </div>
+               )}
              </div>
            )}
         </div>

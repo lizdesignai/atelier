@@ -4,22 +4,17 @@
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { 
-  LayoutDashboard, 
-  CheckSquare, 
-  FolderKanban, 
-  Inbox, 
-  FileCode, 
-  Users, 
-  Search, 
-  Plus, 
-  ChevronLeft, 
-  ChevronRight,
-  ExternalLink,
-  Shield,
-  LogOut,
-  Building2,
-  Sparkles
+import { motion } from 'framer-motion';
+import {
+  LayoutDashboard,
+  CheckSquare,
+  FolderKanban,
+  Inbox,
+  FileCode,
+  Users,
+  Search,
+  Plus,
+  Loader2
 } from 'lucide-react';
 import { CommandPaletteModal } from './CommandPaletteModal';
 import { NewWorkItemModal } from './NewWorkItemModal';
@@ -29,16 +24,32 @@ interface TesseraShellProps {
   children: React.ReactNode;
 }
 
+const TEAM_ROLES = ['admin', 'gestor', 'colaborador'];
+
+const NAV_ITEMS = [
+  { label: 'Centro de Comando', path: '/tessera', icon: LayoutDashboard },
+  { label: 'Meu Focus', path: '/tessera/focus', icon: CheckSquare },
+  { label: 'Projetos & Carteira', path: '/tessera/projects', icon: FolderKanban },
+  { label: 'Revisão & QA', path: '/tessera/reviews', icon: Inbox },
+  { label: 'Templates', path: '/tessera/templates', icon: FileCode },
+  { label: 'Capacidade', path: '/tessera/workload', icon: Users }
+];
+
+/**
+ * Casca do Tessera.
+ * O Tessera vive DENTRO do Atelier: a barra lateral/superior, o fundo ambiente,
+ * a tipografia (Awesome / Analog / Roboto) e os temas Light | Dark | Veronna
+ * vêm da shell global. Aqui entram apenas a marca, a navegação interna e as ações.
+ */
 export const TesseraShell: React.FC<TesseraShellProps> = ({ children }) => {
   const pathname = usePathname();
   const router = useRouter();
 
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [access, setAccess] = useState<'checking' | 'granted'>('checking');
   const [isCommandPaletteOpen, setIsCommandPaletteOpen] = useState(false);
   const [isNewTaskModalOpen, setIsNewTaskModalOpen] = useState(false);
-  const [userData, setUserData] = useState<{ name: string; email: string; role: string; avatar?: string } | null>(null);
 
-  // Escuta global para atalho Ctrl+K ou Cmd+K
+  // Atalho global Ctrl+K / Cmd+K
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
@@ -50,187 +61,123 @@ export const TesseraShell: React.FC<TesseraShellProps> = ({ children }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Carregar dados de sessão
+  // Guarda de acesso: o Tessera é exclusivo da equipe do estúdio
   useEffect(() => {
-    fetch('/api/auth/me')
+    let cancelled = false;
+    fetch('/api/auth/me', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
-        if (data.authenticated && data.user) {
-          setUserData({
-            name: data.user.nome || 'Gestor',
-            email: data.user.email,
-            role: data.user.role || 'gestor',
-            avatar: data.user.avatar_url
-          });
+        if (cancelled) return;
+        if (data?.authenticated && TEAM_ROLES.includes(data.user?.role)) {
+          setAccess('granted');
+        } else if (data?.authenticated) {
+          router.replace('/');
+        } else {
+          router.replace('/login');
         }
       })
-      .catch(() => {});
-  }, []);
+      .catch(() => {
+        if (!cancelled) router.replace('/login');
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [router]);
 
-  const navItems = [
-    { label: 'Centro de Comando', path: '/tessera', icon: LayoutDashboard },
-    { label: 'Meu Focus', path: '/tessera/focus', icon: CheckSquare },
-    { label: 'Projetos & Carteira', path: '/tessera/projects', icon: FolderKanban },
-    { label: 'Inbox de QA & Revisão', path: '/tessera/reviews', icon: Inbox },
-    { label: 'Templates de Fluxo', path: '/tessera/templates', icon: FileCode },
-    { label: 'Capacidade & Workload', path: '/tessera/workload', icon: Users },
-  ];
+  const isActive = (path: string) =>
+    path === '/tessera' ? pathname === '/tessera' : pathname.startsWith(path);
 
-  const handleLogout = async () => {
-    try {
-      await fetch('/api/auth/logout', { method: 'POST' });
-    } catch {}
-    router.replace('/login');
-  };
+  if (access === 'checking') {
+    return (
+      <div className="flex h-full min-h-[400px] items-center justify-center">
+        <Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" />
+      </div>
+    );
+  }
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-stone-950 text-stone-100 font-sans selection:bg-amber-600 selection:text-stone-950">
-      {/* 1. Barra Lateral Esquerda (Sidebar) */}
-      <aside 
-        className={`flex flex-col border-r border-stone-800/80 bg-stone-950/95 transition-all duration-300 relative z-30 select-none ${
-          isCollapsed ? 'w-16' : 'w-64'
-        }`}
-      >
-        {/* Topo / Marca Tessera */}
-        <div className="h-14 flex items-center justify-between px-4 border-b border-stone-800/80">
-          {!isCollapsed && (
-            <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-br from-[#2B0912] via-[#4A1220] to-[#1A050A] ring-1 ring-[#C5A059]/45 flex items-center justify-center text-[#E5C98B] shadow-md shadow-black/40">
-                <VeronnaSymbol size={18} fillColor="#E5C98B" />
-              </div>
-              <div>
-                <span className="font-semibold text-sm tracking-[0.14em] text-stone-100">TESSERA</span>
-                <span className="text-[10px] text-[#E5C98B] font-mono ml-1.5 px-1.5 py-0.2 rounded bg-[#4A1220]/50 border border-[#C5A059]/30">v1.0</span>
-              </div>
-            </div>
-          )}
-          {isCollapsed && (
-            <div className="mx-auto w-8 h-8 rounded-xl bg-gradient-to-br from-[#2B0912] via-[#4A1220] to-[#1A050A] ring-1 ring-[#C5A059]/45 flex items-center justify-center text-[#E5C98B]">
-              <VeronnaSymbol size={18} fillColor="#E5C98B" />
-            </div>
-          )}
-          <button
-            onClick={() => setIsCollapsed(!isCollapsed)}
-            className="p-1 rounded-md text-stone-500 hover:text-stone-300 hover:bg-stone-900 transition"
-            title={isCollapsed ? 'Expandir barra lateral' : 'Recolher barra lateral'}
-          >
-            {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
+    <div className="tess-scope relative z-10 flex flex-col h-full w-full max-w-[1500px] mx-auto font-roboto text-[var(--color-atelier-grafite)] px-4 pt-4 md:px-8 md:pt-6">
+      {/* 1. Cabeçalho editorial: marca + ações */}
+      <header className="shrink-0 flex flex-wrap items-center justify-between gap-4 pb-5">
+        <div className="flex items-center gap-4 min-w-0">
+          <div className="relative w-12 h-12 shrink-0 rounded-full tess-surface flex items-center justify-center shadow-[0_8px_24px_-8px_rgba(20,44,72,0.25)] ring-1 ring-[var(--color-atelier-grafite)]/10">
+            <div className="absolute inset-0 rounded-full bg-[var(--color-atelier-terracota)]/10 blur-md" />
+            <VeronnaSymbol
+              size={26}
+              fillColor="var(--color-atelier-terracota)"
+              className="relative z-10 drop-shadow-sm"
+            />
+          </div>
+          <div className="min-w-0">
+            <span className="tess-eyebrow block truncate">Studio Veronna · Sistema Operacional</span>
+            <h1 className="font-elegant text-3xl md:text-4xl leading-none mt-1 text-[var(--color-atelier-grafite)]">
+              Tessera <span className="italic text-xl md:text-2xl align-middle text-[var(--tess-bordo)]">gestão &amp; criação</span>
+            </h1>
+          </div>
         </div>
 
-        {/* Itens de Navegação Principal */}
-        <nav className="flex-1 py-4 px-2 space-y-1 overflow-y-auto custom-scrollbar">
-          {navItems.map((item) => {
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsCommandPaletteOpen(true)}
+            className="hidden sm:flex items-center justify-between gap-3 w-64 px-4 py-2.5 rounded-full tess-surface ring-1 ring-[var(--color-atelier-grafite)]/10 text-xs text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)] hover:ring-[var(--color-atelier-grafite)]/25 transition-all"
+          >
+            <span className="flex items-center gap-2">
+              <Search className="w-3.5 h-3.5" />
+              Busca universal
+            </span>
+            <kbd className="px-1.5 py-0.5 rounded-md bg-[var(--color-atelier-grafite)]/[0.07] text-[10px] font-roboto tabular-nums">
+              Ctrl K
+            </kbd>
+          </button>
+
+          <button
+            onClick={() => setIsNewTaskModalOpen(true)}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[var(--tess-accent)] hover:bg-[var(--tess-accent-hover)] text-[var(--tess-on-accent)] font-bold text-xs tracking-wide shadow-[0_10px_24px_-8px_var(--tess-accent)] transition-all active:scale-95"
+          >
+            <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
+            <span>Novo Item</span>
+          </button>
+        </div>
+      </header>
+
+      {/* 2. Navegação interna (pílula magnética, mesma física da sidebar do Atelier) */}
+      <nav className="shrink-0 pb-6 -mx-1 px-1 overflow-x-auto custom-scrollbar">
+        <div className="inline-flex items-center gap-1 p-1.5 rounded-full tess-surface ring-1 ring-[var(--color-atelier-grafite)]/10">
+          {NAV_ITEMS.map(item => {
             const Icon = item.icon;
-            const isActive = pathname === item.path || (item.path !== '/tessera' && pathname.startsWith(item.path));
+            const active = isActive(item.path);
             return (
-              <button
+              <Link
                 key={item.path}
-                onClick={() => router.push(item.path)}
-                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-medium transition group ${
-                  isActive
-                    ? 'bg-amber-600/15 text-amber-300 border border-amber-800/40'
-                    : 'text-stone-400 hover:text-stone-200 hover:bg-stone-900/80'
-                } ${isCollapsed ? 'justify-center px-0' : ''}`}
-                title={isCollapsed ? item.label : undefined}
+                href={item.path}
+                className={`relative flex items-center gap-2 px-4 py-2 rounded-full text-[12px] whitespace-nowrap transition-colors duration-300 outline-none ${
+                  active
+                    ? 'text-[var(--tess-accent-text)] font-bold'
+                    : 'text-[var(--color-atelier-grafite)]/60 font-medium hover:text-[var(--color-atelier-grafite)]'
+                }`}
               >
-                <Icon className={`w-4 h-4 shrink-0 ${isActive ? 'text-amber-400' : 'text-stone-400 group-hover:text-stone-200'}`} />
-                {!isCollapsed && <span className="truncate">{item.label}</span>}
-              </button>
+                {active && (
+                  <motion.div
+                    layoutId="tessera-nav-pill"
+                    className="absolute inset-0 rounded-full bg-[var(--color-atelier-creme)] shadow-[0_4px_16px_rgba(20,44,72,0.12)] ring-1 ring-[var(--color-atelier-grafite)]/10 -z-10"
+                    transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+                  />
+                )}
+                <Icon className="w-4 h-4 shrink-0" strokeWidth={1.6} />
+                <span>{item.label}</span>
+              </Link>
             );
           })}
-        </nav>
-
-        {/* Rodapé da Sidebar */}
-        <div className="p-3 border-t border-stone-800/80 space-y-2">
-          {/* Alternador de Retorno ao Atelier Legado */}
-          <button
-            onClick={() => router.push('/admin/jtbd')}
-            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-[11px] font-medium text-stone-400 hover:text-stone-200 hover:bg-stone-900 transition border border-stone-800/60 ${
-              isCollapsed ? 'justify-center px-0' : ''
-            }`}
-            title="Alternar para Atelier Clássico"
-          >
-            <ExternalLink className="w-3.5 h-3.5 text-stone-500" />
-            {!isCollapsed && <span className="truncate">Atelier Clássico</span>}
-          </button>
-
-          {/* Perfil & Logout */}
-          <div className={`flex items-center justify-between pt-1 ${isCollapsed ? 'flex-col gap-2' : ''}`}>
-            <div className="flex items-center gap-2.5 min-w-0">
-              <div className="w-7 h-7 rounded-full bg-stone-800 border border-stone-700 flex items-center justify-center text-xs font-medium text-stone-300 shrink-0">
-                {userData?.avatar ? (
-                  <img src={userData.avatar} alt="" className="w-full h-full rounded-full object-cover" />
-                ) : (
-                  userData?.name?.charAt(0) || 'U'
-                )}
-              </div>
-              {!isCollapsed && (
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-stone-200 truncate">{userData?.name || 'Carregando...'}</p>
-                  <p className="text-[10px] text-stone-500 uppercase tracking-wider truncate">{userData?.role || 'Colaborador'}</p>
-                </div>
-              )}
-            </div>
-            <button
-              onClick={handleLogout}
-              className="p-1.5 rounded-lg text-stone-500 hover:text-rose-400 hover:bg-stone-900 transition"
-              title="Encerrar sessão"
-            >
-              <LogOut className="w-4 h-4" />
-            </button>
-          </div>
         </div>
-      </aside>
+      </nav>
 
-      {/* 2. Conteúdo Central + Topbar */}
-      <div className="flex-1 flex flex-col h-full overflow-hidden relative">
-        {/* Topbar Persistente */}
-        <header className="h-14 border-b border-stone-800/80 bg-stone-950/80 backdrop-blur-md px-6 flex items-center justify-between shrink-0 z-20">
-          {/* Seletor de Organização / Workspace */}
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-stone-900/90 border border-stone-800 text-xs text-stone-300">
-              <Building2 className="w-3.5 h-3.5 text-amber-500" />
-              <span className="font-medium text-stone-200">Studio Veronna</span>
-              <span className="text-[10px] text-stone-500 font-mono">/ Operação Principal</span>
-            </div>
-          </div>
+      {/* 3. Conteúdo da rota */}
+      <main className="flex-1 min-h-0 overflow-y-auto custom-scrollbar pb-20">
+        {children}
+      </main>
 
-          {/* Busca Universal & Ações Rápidas */}
-          <div className="flex items-center gap-3">
-            {/* Gatilho do Command Palette */}
-            <button
-              onClick={() => setIsCommandPaletteOpen(true)}
-              className="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-stone-900/80 hover:bg-stone-900 border border-stone-800 text-xs text-stone-400 hover:text-stone-200 transition shadow-sm w-64 justify-between"
-            >
-              <div className="flex items-center gap-2">
-                <Search className="w-3.5 h-3.5 text-stone-500" />
-                <span>Busca universal...</span>
-              </div>
-              <kbd className="px-1.5 py-0.5 rounded bg-stone-800 border border-stone-700 text-[10px] text-stone-400 font-mono">
-                Ctrl K
-              </kbd>
-            </button>
-
-            {/* Botão + Criar Item de Trabalho */}
-            <button
-              onClick={() => setIsNewTaskModalOpen(true)}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-stone-950 font-medium text-xs shadow-md shadow-amber-950/40 transition active:scale-95"
-            >
-              <Plus className="w-3.5 h-3.5 stroke-[2.5]" />
-              <span>Novo Item</span>
-            </button>
-          </div>
-        </header>
-
-        {/* Área de Conteúdo Renderizada */}
-        <main className="flex-1 overflow-y-auto bg-stone-950 p-6 custom-scrollbar">
-          {children}
-        </main>
-      </div>
-
-      {/* Modais Globais do Tessera */}
-      <CommandPaletteModal 
+      {/* Modais globais do Tessera */}
+      <CommandPaletteModal
         isOpen={isCommandPaletteOpen}
         onClose={() => setIsCommandPaletteOpen(false)}
         onOpenNewTaskModal={() => setIsNewTaskModalOpen(true)}
@@ -240,7 +187,6 @@ export const TesseraShell: React.FC<TesseraShellProps> = ({ children }) => {
         isOpen={isNewTaskModalOpen}
         onClose={() => setIsNewTaskModalOpen(false)}
         onCreated={() => {
-          // Dispara evento para telas recarregarem dados
           window.dispatchEvent(new CustomEvent('tessera:itemCreated'));
         }}
       />

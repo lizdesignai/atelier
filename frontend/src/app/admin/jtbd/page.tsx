@@ -560,7 +560,7 @@ export default function JTBDPage() {
   const isViewingSelf = viewingUserId === currentUser?.id;
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-70px)] lg:h-[calc(100vh-60px)] max-w-[1500px] mx-auto relative z-10 px-4 overflow-hidden">
+    <div className="flex flex-col h-auto lg:h-[calc(100vh-60px)] min-h-full max-w-[1500px] mx-auto relative z-10 px-4 overflow-visible lg:overflow-hidden pb-12 lg:pb-0">
       
       {/* MOBILE VIEW (LG:HIDDEN) */}
       <JTBDMobileView 
@@ -582,6 +582,9 @@ export default function JTBDPage() {
           }
         }}
         isAdminOrManager={isAdminOrManager}
+        team={team}
+        viewingUserId={viewingUserId}
+        onSelectTeamMember={(userId) => setViewingUserId(userId)}
         onOpenTaskModal={(task, isFocus, isReview, isCompleted) => {
           setActiveTaskModal({ 
             task, 

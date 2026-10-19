@@ -132,29 +132,29 @@ export const CommandCenterView: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto space-y-6 animate-in fade-in duration-200">
       {/* 1. Cabeçalho Executivo */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-stone-800/80">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-[var(--color-atelier-grafite)]/12">
         <div>
-          <h1 className="text-xl font-semibold text-stone-100 flex items-center gap-2.5">
+          <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-3">
             <span>Centro de Comando</span>
-            <span className="text-xs font-mono font-normal text-amber-400 px-2 py-0.5 rounded-full bg-amber-950/60 border border-amber-800/40">
+            <span className="text-xs font-roboto tabular-nums font-normal text-[var(--tess-accent-text)] px-2 py-0.5 rounded-full bg-[var(--tess-accent)]/15 border border-[var(--tess-accent)]/30">
               Live Ops
             </span>
-          </h1>
-          <p className="text-xs text-stone-400 mt-1">
+          </h2>
+          <p className="text-xs text-[var(--color-atelier-grafite)]/70 mt-1">
             Visão consolidada de decisões pendentes, projetos em risco e fluxo de capacidade do Studio.
           </p>
         </div>
 
         <div className="flex items-center gap-3">
           {actionMessage && (
-            <span className="text-xs text-emerald-400 font-medium animate-pulse">
+            <span className="text-xs text-[var(--tess-success)] font-medium animate-pulse">
               {actionMessage}
             </span>
           )}
           <button
             onClick={() => loadData()}
             disabled={isLoading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-stone-900 border border-stone-800 text-xs text-stone-300 hover:text-stone-100 hover:bg-stone-800 transition"
+            className="flex items-center gap-1.5 px-3 py-1.5 tess-card text-xs text-[var(--color-atelier-grafite)]/85 hover:text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-grafite)]/[0.10] transition"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
             <span>Atualizar</span>
@@ -164,57 +164,57 @@ export const CommandCenterView: React.FC = () => {
 
       {/* 2. Cartões de Estado de Fluxo (TOC & Capacity) */}
       <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-        <div className="p-3.5 rounded-2xl bg-stone-900/60 border border-stone-800/80">
-          <p className="text-[11px] font-medium text-stone-400">Projetos Ativos</p>
-          <p className="text-xl font-bold text-stone-100 mt-1 font-mono">{data?.stats.active_projects ?? '—'}</p>
+        <div className="p-3.5 tess-card">
+          <p className="text-[11px] font-medium text-[var(--color-atelier-grafite)]/70">Projetos Ativos</p>
+          <p className="text-xl font-bold text-[var(--color-atelier-grafite)] mt-1 font-roboto tabular-nums">{data?.stats.active_projects ?? '—'}</p>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-stone-900/60 border border-stone-800/80">
-          <p className="text-[11px] font-medium text-amber-400">Em Execução</p>
-          <p className="text-xl font-bold text-amber-300 mt-1 font-mono">{data?.stats.work_items_in_progress ?? '—'}</p>
+        <div className="p-3.5 tess-card">
+          <p className="text-[11px] font-medium text-[var(--tess-accent-text)]">Em Execução</p>
+          <p className="text-xl font-bold text-[var(--tess-accent-text)] mt-1 font-roboto tabular-nums">{data?.stats.work_items_in_progress ?? '—'}</p>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-stone-900/60 border border-rose-900/30 bg-rose-950/10">
-          <p className="text-[11px] font-medium text-rose-400">Prazos em Risco</p>
-          <p className="text-xl font-bold text-rose-300 mt-1 font-mono">{data?.stats.work_items_at_risk ?? '—'}</p>
+        <div className="p-3.5 tess-card border border-[var(--tess-danger)]/30 bg-[var(--tess-danger)]/10">
+          <p className="text-[11px] font-medium text-[var(--tess-danger)]">Prazos em Risco</p>
+          <p className="text-xl font-bold text-[var(--tess-danger)] mt-1 font-roboto tabular-nums">{data?.stats.work_items_at_risk ?? '—'}</p>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-stone-900/60 border border-amber-900/30 bg-amber-950/10">
-          <p className="text-[11px] font-medium text-amber-400">Bloqueados</p>
-          <p className="text-xl font-bold text-amber-300 mt-1 font-mono">{data?.stats.work_items_blocked ?? '—'}</p>
+        <div className="p-3.5 tess-card border border-[var(--tess-warn)]/30 bg-[var(--tess-warn)]/10">
+          <p className="text-[11px] font-medium text-[var(--tess-warn)]">Bloqueados</p>
+          <p className="text-xl font-bold text-[var(--tess-warn)] mt-1 font-roboto tabular-nums">{data?.stats.work_items_blocked ?? '—'}</p>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-stone-900/60 border border-purple-900/30 bg-purple-950/10">
-          <p className="text-[11px] font-medium text-purple-400">Revisão QA</p>
-          <p className="text-xl font-bold text-purple-300 mt-1 font-mono">{data?.stats.pending_internal_reviews ?? '—'}</p>
+        <div className="p-3.5 tess-card border border-[var(--tess-review)]/30 bg-[var(--tess-review)]/10">
+          <p className="text-[11px] font-medium text-[var(--tess-review)]">Revisão QA</p>
+          <p className="text-xl font-bold text-[var(--tess-review)] mt-1 font-roboto tabular-nums">{data?.stats.pending_internal_reviews ?? '—'}</p>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-stone-900/60 border border-sky-900/30 bg-sky-950/10">
-          <p className="text-[11px] font-medium text-sky-400">Aguard. Cliente</p>
-          <p className="text-xl font-bold text-sky-300 mt-1 font-mono">{data?.stats.pending_client_approvals ?? '—'}</p>
+        <div className="p-3.5 tess-card border border-[var(--tess-info)]/30 bg-[var(--tess-info)]/10">
+          <p className="text-[11px] font-medium text-[var(--tess-info)]">Aguard. Cliente</p>
+          <p className="text-xl font-bold text-[var(--tess-info)] mt-1 font-roboto tabular-nums">{data?.stats.pending_client_approvals ?? '—'}</p>
         </div>
 
-        <div className="p-3.5 rounded-2xl bg-stone-900/60 border border-emerald-900/30 bg-emerald-950/10">
-          <p className="text-[11px] font-medium text-emerald-400">Concluídos Hoje</p>
-          <p className="text-xl font-bold text-emerald-300 mt-1 font-mono">{data?.stats.today_completed ?? '—'}</p>
+        <div className="p-3.5 tess-card border border-[var(--tess-success)]/30 bg-[var(--tess-success)]/10">
+          <p className="text-[11px] font-medium text-[var(--tess-success)]">Concluídos Hoje</p>
+          <p className="text-xl font-bold text-[var(--tess-success)] mt-1 font-roboto tabular-nums">{data?.stats.today_completed ?? '—'}</p>
         </div>
       </div>
 
       {/* 3. Faixa de Alertas Críticos & Decisões do Gestor */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-stone-400 flex items-center gap-2">
-            <Flame className="w-4 h-4 text-rose-400" />
+          <h2 className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-atelier-grafite)]/70 flex items-center gap-2">
+            <Flame className="w-4 h-4 text-[var(--tess-danger)]" />
             <span>Fila de Decisões Críticas & Desbloqueios</span>
           </h2>
-          <span className="text-[11px] text-stone-500">
+          <span className="text-[11px] text-[var(--color-atelier-grafite)]/55">
             {data?.critical_alerts.length || 0} pendências prioritárias
           </span>
         </div>
 
         {data?.critical_alerts.length === 0 ? (
-          <div className="p-6 rounded-2xl bg-stone-900/40 border border-stone-800 text-center text-xs text-stone-400 flex items-center justify-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+          <div className="p-6 tess-card text-center text-xs text-[var(--color-atelier-grafite)]/70 flex items-center justify-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-[var(--tess-success)]" />
             <span>Nenhum alerta crítico ativo. Todas as entregas estão fluindo normalmente.</span>
           </div>
         ) : (
@@ -222,37 +222,37 @@ export const CommandCenterView: React.FC = () => {
             {data?.critical_alerts.map(alert => (
               <div 
                 key={alert.id}
-                className="p-4 rounded-2xl bg-stone-900/80 border border-stone-800 flex flex-col justify-between space-y-3 hover:border-stone-700 transition"
+                className="p-4 tess-card flex flex-col justify-between space-y-3 hover:border-[var(--color-atelier-grafite)]/25 transition"
               >
                 <div>
                   <div className="flex items-start justify-between gap-2">
-                    <span className="text-xs font-semibold text-stone-200 line-clamp-1">{alert.title}</span>
+                    <span className="text-xs font-semibold text-[var(--color-atelier-grafite)] line-clamp-1">{alert.title}</span>
                     {alert.type === 'blocked' ? (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-amber-950/60 text-amber-300 border border-amber-800/40 shrink-0">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--tess-accent)]/15 text-[var(--tess-accent-text)] border border-[var(--tess-accent)]/30 shrink-0">
                         Bloqueado
                       </span>
                     ) : alert.type === 'sla_breach' ? (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-950/60 text-purple-300 border border-purple-800/40 shrink-0">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--tess-review)]/15 text-[var(--tess-review)] border border-[var(--tess-review)]/30 shrink-0">
                         QA Pendente
                       </span>
                     ) : (
-                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-rose-950/60 text-rose-300 border border-rose-800/40 shrink-0">
+                      <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-[var(--tess-danger)]/15 text-[var(--tess-danger)] border border-[var(--tess-danger)]/30 shrink-0">
                         Prazo Crítico
                       </span>
                     )}
                   </div>
-                  <p className="text-[11px] text-stone-400 mt-2 leading-relaxed">
-                    <strong className="text-stone-300">Por que importa:</strong> {alert.why_it_matters}
+                  <p className="text-[11px] text-[var(--color-atelier-grafite)]/70 mt-2 leading-relaxed">
+                    <strong className="text-[var(--color-atelier-grafite)]/85">Por que importa:</strong> {alert.why_it_matters}
                   </p>
-                  <p className="text-[11px] text-stone-500 mt-1">
-                    <strong className="text-stone-400">Impacto:</strong> {alert.consequence}
+                  <p className="text-[11px] text-[var(--color-atelier-grafite)]/55 mt-1">
+                    <strong className="text-[var(--color-atelier-grafite)]/70">Impacto:</strong> {alert.consequence}
                   </p>
                 </div>
 
-                <div className="pt-3 border-t border-stone-800/80 flex items-center justify-between">
-                  <div className="text-[11px] text-stone-400">
-                    <span className="text-stone-500">Resp: </span>
-                    <span className="font-medium text-stone-300">{alert.responsible_name}</span>
+                <div className="pt-3 border-t border-[var(--color-atelier-grafite)]/12 flex items-center justify-between">
+                  <div className="text-[11px] text-[var(--color-atelier-grafite)]/70">
+                    <span className="text-[var(--color-atelier-grafite)]/55">Resp: </span>
+                    <span className="font-medium text-[var(--color-atelier-grafite)]/85">{alert.responsible_name}</span>
                   </div>
                   <button
                     onClick={() => {
@@ -262,7 +262,7 @@ export const CommandCenterView: React.FC = () => {
                         handleQuickTransition(alert.target_id, 'in_progress');
                       }
                     }}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-600/20 hover:bg-amber-600/30 border border-amber-800/50 text-[11px] font-medium text-amber-300 transition"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[var(--tess-accent)]/20 hover:bg-[var(--tess-accent)]/30 border border-[var(--tess-accent)]/30 text-[11px] font-medium text-[var(--tess-accent-text)] transition"
                   >
                     <span>{alert.action_type === 'qa_review' ? 'Aprovar QA' : 'Desbloquear'}</span>
                     <ArrowRight className="w-3 h-3" />
@@ -275,18 +275,18 @@ export const CommandCenterView: React.FC = () => {
       </div>
 
       {/* 4. Projetos em Risco & Fases (IDV Intel + Instagram + Mapa) */}
-      <div className="p-5 rounded-2xl bg-stone-900/60 border border-stone-800/80 space-y-4">
+      <div className="p-5 tess-card space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <FolderKanban className="w-4 h-4 text-amber-500" />
-            <h2 className="text-sm font-semibold text-stone-200">Radar de Projetos & Fases Ativas</h2>
+            <FolderKanban className="w-4 h-4 text-[var(--tess-accent-text)]" />
+            <h2 className="font-elegant text-lg text-[var(--color-atelier-grafite)]">Radar de Projetos & Fases Ativas</h2>
           </div>
-          <span className="text-xs text-stone-500">Baseada no histórico de saúde e entregáveis</span>
+          <span className="text-xs text-[var(--color-atelier-grafite)]/55">Baseada no histórico de saúde e entregáveis</span>
         </div>
 
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs text-stone-300">
-            <thead className="bg-stone-950/60 text-stone-400 uppercase text-[10px] tracking-wider border-b border-stone-800">
+          <table className="w-full text-left text-xs text-[var(--color-atelier-grafite)]/85">
+            <thead className="bg-[var(--color-atelier-creme)]/60 text-[var(--color-atelier-grafite)]/70 uppercase text-[10px] tracking-wider border-b border-[var(--color-atelier-grafite)]/12">
               <tr>
                 <th className="py-2.5 px-3">Projeto / Conta</th>
                 <th className="py-2.5 px-3">Linha de Serviço</th>
@@ -296,41 +296,41 @@ export const CommandCenterView: React.FC = () => {
                 <th className="py-2.5 px-3 text-right">Data de Entrega</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-stone-800/60">
+            <tbody className="divide-y divide-[var(--color-atelier-grafite)]/10">
               {data?.projects_at_risk.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-6 text-center text-stone-500">
+                  <td colSpan={6} className="py-6 text-center text-[var(--color-atelier-grafite)]/55">
                     Nenhum projeto registrado no radar.
                   </td>
                 </tr>
               ) : (
                 data?.projects_at_risk.map(project => (
-                  <tr key={project.id} className="hover:bg-stone-800/30 transition">
-                    <td className="py-2.5 px-3 font-medium text-stone-200">{project.title}</td>
-                    <td className="py-2.5 px-3 uppercase text-[10px] font-mono text-stone-400">
+                  <tr key={project.id} className="hover:bg-[var(--color-atelier-grafite)]/[0.10] transition">
+                    <td className="py-2.5 px-3 font-medium text-[var(--color-atelier-grafite)]">{project.title}</td>
+                    <td className="py-2.5 px-3 uppercase text-[10px] font-roboto tabular-nums text-[var(--color-atelier-grafite)]/70">
                       {project.service_type}
                     </td>
                     <td className="py-2.5 px-3">
-                      <span className="px-2 py-0.5 rounded-full bg-stone-800 text-stone-300 text-[11px]">
+                      <span className="px-2 py-0.5 rounded-full bg-[var(--color-atelier-grafite)]/[0.07] text-[var(--color-atelier-grafite)]/85 text-[11px]">
                         {project.stage_label}
                       </span>
                     </td>
                     <td className="py-2.5 px-3">
                       <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] font-medium ${
                         project.health === 'green' 
-                          ? 'bg-emerald-950/40 text-emerald-300 border border-emerald-800/40' 
+                          ? 'bg-[var(--tess-success)]/10 text-[var(--tess-success)] border border-[var(--tess-success)]/30' 
                           : project.health === 'yellow'
-                          ? 'bg-amber-950/40 text-amber-300 border border-amber-800/40'
-                          : 'bg-rose-950/40 text-rose-300 border border-rose-800/40'
+                          ? 'bg-[var(--tess-warn)]/10 text-[var(--tess-warn)] border border-[var(--tess-warn)]/30'
+                          : 'bg-[var(--tess-danger)]/10 text-[var(--tess-danger)] border border-[var(--tess-danger)]/30'
                       }`}>
                         <span className={`w-1.5 h-1.5 rounded-full ${
-                          project.health === 'green' ? 'bg-emerald-400' : project.health === 'yellow' ? 'bg-amber-400' : 'bg-rose-400'
+                          project.health === 'green' ? 'bg-[var(--tess-success)]' : project.health === 'yellow' ? 'bg-[var(--tess-warn)]' : 'bg-[var(--tess-danger)]'
                         }`} />
                         {project.health === 'green' ? 'Saudável' : project.health === 'yellow' ? 'Alerta' : 'Crítico'}
                       </span>
                     </td>
-                    <td className="py-2.5 px-3 text-stone-400 max-w-xs truncate">{project.risk_cause}</td>
-                    <td className="py-2.5 px-3 text-right font-mono text-stone-300">
+                    <td className="py-2.5 px-3 text-[var(--color-atelier-grafite)]/70 max-w-xs truncate">{project.risk_cause}</td>
+                    <td className="py-2.5 px-3 text-right font-roboto tabular-nums text-[var(--color-atelier-grafite)]/85">
                       {project.baseline_due_date ? new Date(project.baseline_due_date).toLocaleDateString('pt-BR') : '—'}
                     </td>
                   </tr>
@@ -342,18 +342,18 @@ export const CommandCenterView: React.FC = () => {
       </div>
 
       {/* 5. Tabela de Trabalho Ativo (Work Items) com Filtros Rápidos */}
-      <div className="p-5 rounded-2xl bg-stone-900/60 border border-stone-800/80 space-y-4">
+      <div className="p-5 tess-card space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div className="flex items-center gap-2">
-            <Layers className="w-4 h-4 text-amber-500" />
-            <h2 className="text-sm font-semibold text-stone-200">Fila Central de Trabalho (Work Items)</h2>
+            <Layers className="w-4 h-4 text-[var(--tess-accent-text)]" />
+            <h2 className="font-elegant text-lg text-[var(--color-atelier-grafite)]">Fila Central de Trabalho (Work Items)</h2>
           </div>
 
-          <div className="flex items-center gap-1.5 bg-stone-950/60 p-1 rounded-xl border border-stone-800 text-xs">
+          <div className="flex items-center gap-1.5 bg-[var(--color-atelier-creme)]/60 p-1 rounded-xl border border-[var(--color-atelier-grafite)]/12 text-xs">
             <button
               onClick={() => setSelectedFilter('all')}
               className={`px-2.5 py-1 rounded-lg transition ${
-                selectedFilter === 'all' ? 'bg-stone-800 text-stone-100 font-medium' : 'text-stone-400 hover:text-stone-200'
+                selectedFilter === 'all' ? 'bg-[var(--color-atelier-grafite)]/[0.07] text-[var(--color-atelier-grafite)] font-medium' : 'text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]'
               }`}
             >
               Todos ({workItems.length})
@@ -361,7 +361,7 @@ export const CommandCenterView: React.FC = () => {
             <button
               onClick={() => setSelectedFilter('in_progress')}
               className={`px-2.5 py-1 rounded-lg transition ${
-                selectedFilter === 'in_progress' ? 'bg-stone-800 text-amber-300 font-medium' : 'text-stone-400 hover:text-stone-200'
+                selectedFilter === 'in_progress' ? 'bg-[var(--color-atelier-grafite)]/[0.07] text-[var(--tess-accent-text)] font-medium' : 'text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]'
               }`}
             >
               Em Execução
@@ -369,7 +369,7 @@ export const CommandCenterView: React.FC = () => {
             <button
               onClick={() => setSelectedFilter('review')}
               className={`px-2.5 py-1 rounded-lg transition ${
-                selectedFilter === 'review' ? 'bg-stone-800 text-purple-300 font-medium' : 'text-stone-400 hover:text-stone-200'
+                selectedFilter === 'review' ? 'bg-[var(--color-atelier-grafite)]/[0.07] text-[var(--tess-review)] font-medium' : 'text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]'
               }`}
             >
               Em Revisão QA
@@ -377,7 +377,7 @@ export const CommandCenterView: React.FC = () => {
             <button
               onClick={() => setSelectedFilter('blocked')}
               className={`px-2.5 py-1 rounded-lg transition ${
-                selectedFilter === 'blocked' ? 'bg-stone-800 text-rose-300 font-medium' : 'text-stone-400 hover:text-stone-200'
+                selectedFilter === 'blocked' ? 'bg-[var(--color-atelier-grafite)]/[0.07] text-[var(--tess-danger)] font-medium' : 'text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]'
               }`}
             >
               Bloqueados
@@ -386,9 +386,9 @@ export const CommandCenterView: React.FC = () => {
         </div>
 
         {/* Lista de Itens */}
-        <div className="divide-y divide-stone-800/80">
+        <div className="divide-y divide-[var(--color-atelier-grafite)]/10">
           {filteredItems.length === 0 ? (
-            <div className="py-12 text-center text-xs text-stone-500">
+            <div className="py-12 text-center text-xs text-[var(--color-atelier-grafite)]/55">
               Nenhum item encontrado para o filtro selecionado. Clique em &quot;Novo Item&quot; para iniciar uma demanda.
             </div>
           ) : (
@@ -397,7 +397,7 @@ export const CommandCenterView: React.FC = () => {
               return (
                 <div 
                   key={item.id}
-                  className="py-3 px-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-stone-850/40 rounded-xl transition"
+                  className="py-3 px-2 flex flex-col sm:flex-row sm:items-center justify-between gap-3 hover:bg-[var(--color-atelier-grafite)]/[0.10] rounded-xl transition"
                 >
                   <div className="flex items-start gap-3 min-w-0">
                     <button
@@ -405,8 +405,8 @@ export const CommandCenterView: React.FC = () => {
                       title={isBlocked ? 'Item bloqueado. Clique para desbloquear.' : 'Clique para marcar bloqueio.'}
                       className={`p-1.5 rounded-lg border transition shrink-0 mt-0.5 ${
                         isBlocked 
-                          ? 'bg-rose-950/60 border-rose-800/60 text-rose-400 hover:bg-rose-900/60' 
-                          : 'bg-stone-900 border-stone-800 text-stone-500 hover:text-stone-300'
+                          ? 'bg-[var(--tess-danger)]/15 border-[var(--tess-danger)]/30 text-[var(--tess-danger)] hover:bg-[var(--tess-danger)]/20' 
+                          : 'tess-surface border-[var(--color-atelier-grafite)]/12 text-[var(--color-atelier-grafite)]/55 hover:text-[var(--color-atelier-grafite)]/85'
                       }`}
                     >
                       {isBlocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
@@ -417,21 +417,21 @@ export const CommandCenterView: React.FC = () => {
                       onClick={() => setDrawerItemId(item.id)}
                     >
                       <div className="flex items-center gap-2">
-                        <span className="text-xs font-medium text-stone-200 hover:text-amber-300 truncate transition">{item.title}</span>
+                        <span className="text-xs font-medium text-[var(--color-atelier-grafite)] hover:text-[var(--tess-accent-text)] truncate transition">{item.title}</span>
                         {item.urgency_override && (
-                          <span className="px-1.5 py-0.2 rounded text-[10px] bg-rose-950 text-rose-300 border border-rose-800/50 font-bold">
+                          <span className="px-1.5 py-0.2 rounded text-[10px] bg-[var(--tess-danger)]/10 text-[var(--tess-danger)] border border-[var(--tess-danger)]/30 font-bold">
                             HOJE
                           </span>
                         )}
                       </div>
-                      <div className="flex items-center gap-3 mt-1 text-[11px] text-stone-500">
+                      <div className="flex items-center gap-3 mt-1 text-[11px] text-[var(--color-atelier-grafite)]/55">
                         <span>{item.project_title || 'Sem Projeto'}</span>
                         <span>•</span>
                         <span>Estimativa: {item.estimate_minutes}m</span>
                         {item.internal_due_at && (
                           <>
                             <span>•</span>
-                            <span className="text-stone-400">
+                            <span className="text-[var(--color-atelier-grafite)]/70">
                               Prazo: {new Date(item.internal_due_at).toLocaleDateString('pt-BR')}
                             </span>
                           </>
@@ -439,7 +439,7 @@ export const CommandCenterView: React.FC = () => {
                         {isBlocked && (
                           <>
                             <span>•</span>
-                            <span className="text-rose-400 font-medium">Bloqueado: {item.blocked_reason}</span>
+                            <span className="text-[var(--tess-danger)] font-medium">Bloqueado: {item.blocked_reason}</span>
                           </>
                         )}
                       </div>
@@ -454,7 +454,7 @@ export const CommandCenterView: React.FC = () => {
                     {item.status_id === 'inbox' && (
                       <button
                         onClick={() => handleQuickTransition(item.id, 'ready')}
-                        className="px-2 py-1 rounded-lg bg-stone-800 hover:bg-stone-700 text-[11px] text-stone-300 transition"
+                        className="px-2 py-1 rounded-lg bg-[var(--color-atelier-grafite)]/[0.07] hover:bg-[var(--color-atelier-grafite)]/[0.12] text-[11px] text-[var(--color-atelier-grafite)]/85 transition"
                       >
                         Pronto
                       </button>
@@ -462,7 +462,7 @@ export const CommandCenterView: React.FC = () => {
                     {item.status_id === 'ready' && (
                       <button
                         onClick={() => handleQuickTransition(item.id, 'in_progress')}
-                        className="px-2 py-1 rounded-lg bg-amber-600 hover:bg-amber-500 text-stone-950 font-medium text-[11px] transition"
+                        className="px-2 py-1 rounded-lg bg-[var(--tess-accent)] hover:bg-[var(--tess-accent-hover)] text-[var(--tess-on-accent)] font-medium text-[11px] transition"
                       >
                         Iniciar
                       </button>
@@ -470,7 +470,7 @@ export const CommandCenterView: React.FC = () => {
                     {item.status_id === 'in_progress' && (
                       <button
                         onClick={() => handleQuickTransition(item.id, 'internal_review')}
-                        className="px-2 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-medium text-[11px] transition"
+                        className="px-2 py-1 rounded-lg bg-purple-700 hover:bg-purple-600 text-white font-medium text-[11px] transition"
                       >
                         Enviar QA
                       </button>
@@ -478,7 +478,7 @@ export const CommandCenterView: React.FC = () => {
                     {item.status_id === 'internal_review' && (
                       <button
                         onClick={() => handleQuickQaApprove(item.id)}
-                        className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-[11px] transition"
+                        className="px-2 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-medium text-[11px] transition"
                       >
                         Aprovar QA
                       </button>
@@ -486,7 +486,7 @@ export const CommandCenterView: React.FC = () => {
                     {item.status_id === 'client_approval' && (
                       <button
                         onClick={() => handleQuickTransition(item.id, 'done')}
-                        className="px-2 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-[11px] transition"
+                        className="px-2 py-1 rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white font-medium text-[11px] transition"
                       >
                         Concluir
                       </button>

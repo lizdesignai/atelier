@@ -68,10 +68,13 @@ export async function GET() {
       const d = b.dados_completos || {};
       const nome = b.Nome_Cliente || d.Nome_Cliente || b.nome || d.nome || 'Cliente';
       const email = b.Email || d.Email || b.email || d.email || '';
-      const empresa = b.Nome_Logotipo || d.Nome_Logotipo || b.nome_logo || d.nome_logo || '';
+      const empresa = b.Nome_Marca || d.Nome_Marca || b.nome_marca || d.nome_marca || b.Nome_Logotipo || d.Nome_Logotipo || b.nome_logo || d.nome_logo || '';
 
       // Skip invalid empty test submissions
       if ((!nome || nome === 'null') && (!email || email === 'null')) continue;
+
+      // Merge answers prioritizing dados_completos
+      const mergedAnswers = { ...b, ...d };
 
       addBriefing({
         id: b.id,
@@ -84,7 +87,7 @@ export async function GET() {
           email,
           empresa
         },
-        answers: { ...b, ...d },
+        answers: mergedAnswers,
         raw: b,
         source_table: 'briefings_identidade_visual'
       });

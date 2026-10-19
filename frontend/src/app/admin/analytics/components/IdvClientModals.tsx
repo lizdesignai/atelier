@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FileText, X, Loader2, AlertCircle, Image as ImageIcon, UploadCloud, Check } from 'lucide-react';
 import { uploadFile, dbInsert, dbSelect, dbUpdate } from '@/lib/dbClient';
+import { normalizeBriefingAnswers } from '@/lib/briefingConstants';
 
 export function IdvBriefingModal({ isOpen, onClose, project }: { isOpen: boolean; onClose: () => void; project: any }) {
   const [data, setData] = useState<any>(null);
@@ -52,15 +53,12 @@ export function IdvBriefingModal({ isOpen, onClose, project }: { isOpen: boolean
              </div>
            ) : data ? (
              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {Object.entries(data).map(([key, value]) => {
-                   if (key === 'id' || key === 'created_at' || key === 'updated_at' || key === 'dados_completos' || key === 'lido' || key === 'notificado') return null;
-                   return (
-                     <div key={key} className="flex flex-col gap-1.5 p-4 rounded-xl bg-[#faf9f8] border border-gray-100 hover:border-[var(--color-atelier-terracota)]/30 transition-colors">
-                       <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{key.replace(/_/g, ' ')}</span>
-                       <span className="text-[13px] text-[var(--color-atelier-grafite)] font-medium">{typeof value === 'object' ? JSON.stringify(value) : String(value)}</span>
-                     </div>
-                   );
-                })}
+                {normalizeBriefingAnswers(data).map(item => (
+                   <div key={item.key} className="flex flex-col gap-1.5 p-4 rounded-xl bg-[#faf9f8] border border-gray-100 hover:border-[var(--color-atelier-terracota)]/30 transition-colors">
+                     <span className="text-[10px] font-bold text-gray-500 uppercase tracking-widest">{item.label}</span>
+                     <span className="text-[13px] text-[var(--color-atelier-grafite)] font-medium whitespace-pre-wrap">{typeof item.value === 'object' ? JSON.stringify(item.value) : String(item.value)}</span>
+                   </div>
+                ))}
              </div>
            ) : null}
         </div>

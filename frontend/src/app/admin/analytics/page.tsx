@@ -1169,7 +1169,7 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
   if (isGlobalLoading || isLocalLoading) return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-70px)] md:h-[calc(100vh-60px)] max-w-[1400px] mx-auto relative z-10 pb-4 md:pb-6 gap-3 md:gap-6 px-4 overflow-hidden">
+    <div className="flex flex-col h-auto lg:h-[calc(100vh-60px)] min-h-full max-w-[1400px] mx-auto relative z-10 pb-32 md:pb-6 gap-3 md:gap-6 px-4 overflow-visible lg:overflow-hidden">
       
       <header className="shrink-0 flex flex-row items-center justify-between gap-4 mt-6 animate-[fadeInUp_0.5s_ease-out] relative">
         
@@ -1270,7 +1270,7 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
 
       <LiveExecutionBar liveTasks={liveTasks} />
 
-      <div className="flex-1 min-h-0 relative flex flex-col lg:flex-row gap-3 md:gap-6 px-0 lg:px-0 overflow-hidden lg:overflow-visible pb-2 lg:pb-0">
+      <div className="flex-1 min-h-0 relative flex flex-col lg:flex-row gap-3 md:gap-6 px-0 lg:px-0 overflow-visible lg:overflow-visible pb-2 lg:pb-0">
         <AnimatePresence mode="wait">
           {activeView === 'analytics' && (
             <motion.div key="analytics" initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} className="w-full h-auto lg:h-full flex flex-col lg:flex-row gap-6 lg:absolute lg:inset-0">

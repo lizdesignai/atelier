@@ -148,26 +148,26 @@ export default function TesseraProjectsPage() {
   return (
     <div className="max-w-[1600px] mx-auto space-y-5 animate-in fade-in duration-200">
       {/* Cabeçalho + Switcher de Views */}
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-stone-800/80">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-[var(--color-atelier-grafite)]/12">
         <div>
-          <h1 className="text-xl font-semibold text-stone-100 flex items-center gap-2.5">
-            <FolderKanban className="w-5 h-5 text-amber-500" />
+          <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-3">
+            <FolderKanban className="w-5 h-5 text-[var(--tess-accent-text)]" />
             <span>Core Work & Carteira Unificada</span>
-            <span className="text-xs font-mono font-normal text-stone-400 px-2 py-0.5 rounded-full bg-stone-900 border border-stone-800">
+            <span className="text-xs font-roboto tabular-nums font-normal text-[var(--color-atelier-grafite)]/70 px-2 py-0.5 rounded-full tess-surface border border-[var(--color-atelier-grafite)]/12">
               {items.length} itens
             </span>
-          </h1>
-          <p className="text-xs text-stone-400 mt-1">
+          </h2>
+          <p className="text-xs text-[var(--color-atelier-grafite)]/70 mt-1">
             Múltiplas visualizações sobre a mesma fonte canônica de verdade — Kanban com limites de WIP, Lista, Calendário e Carteira.
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="inline-flex rounded-xl bg-stone-900 p-1 border border-stone-800">
+          <div className="inline-flex rounded-xl tess-surface p-1 border border-[var(--color-atelier-grafite)]/12">
             <button
               onClick={() => setViewMode('kanban')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                viewMode === 'kanban' ? 'bg-amber-600 text-stone-950 shadow' : 'text-stone-400 hover:text-stone-200'
+                viewMode === 'kanban' ? 'bg-[var(--tess-accent)] text-[var(--tess-on-accent)] shadow' : 'text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]'
               }`}
             >
               <Columns3 className="w-3.5 h-3.5" />
@@ -176,7 +176,7 @@ export default function TesseraProjectsPage() {
             <button
               onClick={() => setViewMode('list')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                viewMode === 'list' ? 'bg-amber-600 text-stone-950 shadow' : 'text-stone-400 hover:text-stone-200'
+                viewMode === 'list' ? 'bg-[var(--tess-accent)] text-[var(--tess-on-accent)] shadow' : 'text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]'
               }`}
             >
               <List className="w-3.5 h-3.5" />
@@ -185,7 +185,7 @@ export default function TesseraProjectsPage() {
             <button
               onClick={() => setViewMode('calendar')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                viewMode === 'calendar' ? 'bg-amber-600 text-stone-950 shadow' : 'text-stone-400 hover:text-stone-200'
+                viewMode === 'calendar' ? 'bg-[var(--tess-accent)] text-[var(--tess-on-accent)] shadow' : 'text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]'
               }`}
             >
               <CalendarIcon className="w-3.5 h-3.5" />
@@ -194,7 +194,7 @@ export default function TesseraProjectsPage() {
             <button
               onClick={() => setViewMode('portfolio')}
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition ${
-                viewMode === 'portfolio' ? 'bg-amber-600 text-stone-950 shadow' : 'text-stone-400 hover:text-stone-200'
+                viewMode === 'portfolio' ? 'bg-[var(--tess-accent)] text-[var(--tess-on-accent)] shadow' : 'text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)]'
               }`}
             >
               <Briefcase className="w-3.5 h-3.5" />
@@ -204,7 +204,7 @@ export default function TesseraProjectsPage() {
 
           <button
             onClick={() => setIsNewModalOpen(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-stone-950 font-semibold text-xs transition"
+            className="flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-[var(--tess-accent)] hover:bg-[var(--tess-accent-hover)] text-[var(--tess-on-accent)] font-semibold text-xs transition"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Novo Item</span>
@@ -212,7 +212,7 @@ export default function TesseraProjectsPage() {
 
           <button
             onClick={loadBoard}
-            className="p-2 rounded-xl bg-stone-900 border border-stone-800 text-stone-400 hover:text-stone-200 transition"
+            className="p-2 tess-card text-[var(--color-atelier-grafite)]/70 hover:text-[var(--color-atelier-grafite)] transition"
             title="Recarregar"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -221,22 +221,22 @@ export default function TesseraProjectsPage() {
       </div>
 
       {/* Barra de Filtros */}
-      <div className="p-3.5 rounded-2xl bg-stone-900/50 border border-stone-800/80 flex flex-wrap items-center gap-3">
+      <div className="p-3.5 tess-card flex flex-wrap items-center gap-3">
         <div className="relative flex-1 min-w-[200px]">
-          <Search className="w-3.5 h-3.5 text-stone-500 absolute left-3 top-1/2 -translate-y-1/2" />
+          <Search className="w-3.5 h-3.5 text-[var(--color-atelier-grafite)]/55 absolute left-3 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchQ}
             onChange={e => setSearchQ(e.target.value)}
             placeholder="Filtrar por título da demanda..."
-            className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-stone-950 border border-stone-800 text-xs text-stone-200 placeholder-stone-500"
+            className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-grafite)]/12 text-xs text-[var(--color-atelier-grafite)] placeholder:text-[var(--color-atelier-grafite)]/40"
           />
         </div>
 
         <select
           value={filterProject}
           onChange={e => setFilterProject(e.target.value)}
-          className="px-3 py-1.5 rounded-xl bg-stone-950 border border-stone-800 text-xs text-stone-300"
+          className="px-3 py-1.5 rounded-xl bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-grafite)]/12 text-xs text-[var(--color-atelier-grafite)]/85"
         >
           <option value="">Todos os Projetos</option>
           {projects.map(p => (
@@ -249,7 +249,7 @@ export default function TesseraProjectsPage() {
         <select
           value={filterOwner}
           onChange={e => setFilterOwner(e.target.value)}
-          className="px-3 py-1.5 rounded-xl bg-stone-950 border border-stone-800 text-xs text-stone-300"
+          className="px-3 py-1.5 rounded-xl bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-grafite)]/12 text-xs text-[var(--color-atelier-grafite)]/85"
         >
           <option value="">Todos os Responsáveis</option>
           {members.map(m => (
@@ -262,7 +262,7 @@ export default function TesseraProjectsPage() {
         <select
           value={filterPriority}
           onChange={e => setFilterPriority(e.target.value)}
-          className="px-3 py-1.5 rounded-xl bg-stone-950 border border-stone-800 text-xs text-stone-300"
+          className="px-3 py-1.5 rounded-xl bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-grafite)]/12 text-xs text-[var(--color-atelier-grafite)]/85"
         >
           <option value="">Todas as Prioridades</option>
           <option value="urgent">Urgente</option>
@@ -271,31 +271,31 @@ export default function TesseraProjectsPage() {
           <option value="low">Baixa</option>
         </select>
 
-        <label className="inline-flex items-center gap-1.5 text-xs text-stone-300 cursor-pointer px-2.5 py-1.5 rounded-xl bg-stone-950 border border-stone-800">
+        <label className="inline-flex items-center gap-1.5 text-xs text-[var(--color-atelier-grafite)]/85 cursor-pointer px-2.5 py-1.5 rounded-xl bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-grafite)]/12">
           <input
             type="checkbox"
             checked={onlyBlocked}
             onChange={e => setOnlyBlocked(e.target.checked)}
-            className="rounded border-stone-700 bg-stone-900 text-rose-500"
+            className="rounded border-[var(--color-atelier-grafite)]/20 tess-surface text-[var(--tess-danger)]"
           />
           <span>Só Bloqueados</span>
         </label>
 
-        <label className="inline-flex items-center gap-1.5 text-xs text-stone-300 cursor-pointer px-2.5 py-1.5 rounded-xl bg-stone-950 border border-stone-800">
+        <label className="inline-flex items-center gap-1.5 text-xs text-[var(--color-atelier-grafite)]/85 cursor-pointer px-2.5 py-1.5 rounded-xl bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-grafite)]/12">
           <input
             type="checkbox"
             checked={includeClosed}
             onChange={e => setIncludeClosed(e.target.checked)}
-            className="rounded border-stone-700 bg-stone-900 text-amber-500"
+            className="rounded border-[var(--color-atelier-grafite)]/20 tess-surface text-[var(--tess-accent-text)]"
           />
           <span>Histórico Concluídos</span>
         </label>
       </div>
 
       {bannerError && (
-        <div className="p-3.5 rounded-xl bg-rose-950/60 border border-rose-800/60 text-xs text-rose-200 flex items-center justify-between">
+        <div className="p-3.5 rounded-xl bg-[var(--tess-danger)]/15 border border-[var(--tess-danger)]/30 text-xs text-[var(--tess-danger)] flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+            <AlertTriangle className="w-4 h-4 text-[var(--tess-danger)] shrink-0" />
             <span>{bannerError}</span>
           </div>
           <button onClick={() => setBannerError(null)} className="text-[11px] underline">
@@ -305,7 +305,7 @@ export default function TesseraProjectsPage() {
       )}
 
       {isLoading ? (
-        <div className="py-20 text-center text-xs text-stone-500">Carregando itens de trabalho...</div>
+        <div className="py-20 text-center text-xs text-[var(--color-atelier-grafite)]/55">Carregando itens de trabalho...</div>
       ) : (
         <>
           {/* 1. KANBAN COM LIMITES DE WIP */}
@@ -323,71 +323,71 @@ export default function TesseraProjectsPage() {
                     key={statusKey}
                     onDragOver={e => e.preventDefault()}
                     onDrop={() => handleDropStatus(statusKey)}
-                    className={`w-72 shrink-0 rounded-2xl border flex flex-col max-h-[75vh] transition ${
-                      isOverWip
-                        ? 'bg-rose-950/15 border-rose-800/60'
-                        : 'bg-stone-900/40 border-stone-800/80'
-                    }`}
-                  >
-                    {/* Header da Coluna */}
-                    <div className="p-3.5 border-b border-stone-800/80 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <StatusBadge status={statusKey} size="sm" />
-                      </div>
-                      <div className="flex items-center gap-1.5">
-                        <span
-                          className={`text-[11px] font-mono px-2 py-0.5 rounded-full border ${
-                            isOverWip
-                              ? 'bg-rose-950/80 border-rose-700 text-rose-200 font-bold'
-                              : isAtWip
-                              ? 'bg-amber-950/80 border-amber-700 text-amber-200'
-                              : 'bg-stone-950 border-stone-800 text-stone-400'
-                          }`}
-                        >
-                          {colItems.length}
-                          {typeof limit === 'number' && limit > 0 ? ` / WIP ${limit}` : ''}
-                        </span>
-                      </div>
-                    </div>
+                    className={`w-72 shrink-0 rounded-[2rem] border flex flex-col max-h-[75vh] transition ${
+                       isOverWip
+                         ? 'bg-[var(--tess-danger)]/10 border-[var(--tess-danger)]/30'
+                         : 'tess-surface border-[var(--color-atelier-grafite)]/12'
+                     }`}
+                   >
+                     {/* Header da Coluna */}
+                     <div className="p-4 border-b border-[var(--color-atelier-grafite)]/12 flex items-center justify-between">
+                       <div className="flex items-center gap-2">
+                         <StatusBadge status={statusKey} size="sm" />
+                       </div>
+                       <div className="flex items-center gap-1.5">
+                         <span
+                           className={`text-[11px] font-roboto tabular-nums px-2 py-0.5 rounded-full border ${
+                             isOverWip
+                               ? 'bg-[var(--tess-danger)]/15 border-[var(--tess-danger)]/30 text-[var(--tess-danger)] font-bold'
+                               : isAtWip
+                               ? 'bg-[var(--tess-accent)]/15 border-[var(--tess-accent)]/30 text-[var(--tess-accent-text)]'
+                               : 'bg-[var(--color-atelier-creme)] border-[var(--color-atelier-grafite)]/12 text-[var(--color-atelier-grafite)]/70'
+                           }`}
+                         >
+                           {colItems.length}
+                           {typeof limit === 'number' && limit > 0 ? ` / WIP ${limit}` : ''}
+                         </span>
+                       </div>
+                     </div>
 
-                    {isOverWip && (
-                      <div className="px-3 py-1.5 bg-rose-950/60 border-b border-rose-900/60 text-[10px] text-rose-200 flex items-center gap-1.5">
-                        <AlertTriangle className="w-3 h-3 text-rose-400 shrink-0" />
-                        <span>Acima do limite de WIP ({limit})! Priorize concluir ou revisar.</span>
-                      </div>
-                    )}
+                     {isOverWip && (
+                       <div className="px-3 py-1.5 bg-[var(--tess-danger)]/15 border-b border-[var(--tess-danger)]/30 text-[10px] text-[var(--tess-danger)] flex items-center gap-1.5">
+                         <AlertTriangle className="w-3 h-3 text-[var(--tess-danger)] shrink-0" />
+                         <span>Acima do limite de WIP ({limit})! Priorize concluir ou revisar.</span>
+                       </div>
+                     )}
 
-                    {/* Cards */}
-                    <div className="p-2.5 space-y-2.5 overflow-y-auto flex-1">
-                      {colItems.length === 0 ? (
-                        <div className="py-10 text-center text-[11px] text-stone-600">Vazio</div>
-                      ) : (
-                        colItems.map(item => {
-                          const isOverdue =
-                            item.internal_due_at &&
-                            !['done', 'canceled'].includes(item.status_id) &&
-                            new Date(item.internal_due_at).getTime() < Date.now();
-                          return (
-                            <div
-                              key={item.id}
-                              draggable
-                              onDragStart={() => setDraggedItemId(item.id)}
-                              onClick={() => setSelectedItemId(item.id)}
-                              className={`p-3 rounded-xl border cursor-pointer transition space-y-2 ${
-                                item.blocked_at
-                                  ? 'bg-rose-950/25 border-rose-800/60 hover:border-rose-600'
-                                  : 'bg-stone-950/80 border-stone-800/80 hover:border-amber-700/50'
-                              }`}
+                     {/* Cards */}
+                     <div className="p-3 space-y-2.5 overflow-y-auto custom-scrollbar flex-1">
+                       {colItems.length === 0 ? (
+                         <div className="py-10 text-center text-[11px] text-[var(--color-atelier-grafite)]/45">Vazio</div>
+                       ) : (
+                         colItems.map(item => {
+                           const isOverdue =
+                             item.internal_due_at &&
+                             !['done', 'canceled'].includes(item.status_id) &&
+                             new Date(item.internal_due_at).getTime() < Date.now();
+                           return (
+                             <div
+                               key={item.id}
+                               draggable
+                               onDragStart={() => setDraggedItemId(item.id)}
+                               onClick={() => setSelectedItemId(item.id)}
+                               className={`p-3.5 rounded-2xl border cursor-pointer transition-all space-y-2 hover:-translate-y-0.5 hover:shadow-[0_10px_24px_-10px_rgba(20,44,72,0.25)] ${
+                                 item.blocked_at
+                                   ? 'bg-[var(--tess-danger)]/10 border-[var(--tess-danger)]/30 hover:border-[var(--tess-danger)]'
+                                   : 'bg-[var(--color-atelier-creme)]/80 border-[var(--color-atelier-grafite)]/12 hover:border-[var(--tess-accent)]/30'
+                               }`}
                             >
                               <div className="flex items-center justify-between gap-1.5">
-                                <span className="text-[10px] font-mono text-stone-400 truncate">
+                                <span className="text-[10px] font-roboto tabular-nums text-[var(--color-atelier-grafite)]/70 truncate">
                                   {item.project_title || 'Studio'}
                                 </span>
                                 <div className="flex items-center gap-1 shrink-0">
                                   {item.urgency_override && (
                                     <span
                                       title="Forçado para Hoje pelo Gestor"
-                                      className="p-0.5 rounded bg-amber-500/20 text-amber-300"
+                                      className="p-0.5 rounded bg-[var(--tess-accent)]/20 text-[var(--tess-accent-text)]"
                                     >
                                       <Flame className="w-3 h-3" />
                                     </span>
@@ -396,30 +396,30 @@ export default function TesseraProjectsPage() {
                                 </div>
                               </div>
 
-                              <h4 className="text-xs font-medium text-stone-100 leading-snug line-clamp-2">
+                              <h4 className="text-xs font-medium text-[var(--color-atelier-grafite)] leading-snug line-clamp-2">
                                 {item.title}
                               </h4>
 
                               {item.blocked_at && (
-                                <div className="px-2 py-1 rounded bg-rose-950/60 border border-rose-800/40 text-[10px] text-rose-300 flex items-center gap-1 truncate">
+                                <div className="px-2 py-1 rounded bg-[var(--tess-danger)]/15 border border-[var(--tess-danger)]/30 text-[10px] text-[var(--tess-danger)] flex items-center gap-1 truncate">
                                   <Lock className="w-3 h-3 shrink-0" />
                                   <span className="truncate">{item.blocked_reason || 'Bloqueado'}</span>
                                 </div>
                               )}
 
-                              <div className="pt-2 border-t border-stone-800/60 flex items-center justify-between text-[10px] text-stone-400">
+                              <div className="pt-2 border-t border-[var(--color-atelier-grafite)]/12 flex items-center justify-between text-[10px] text-[var(--color-atelier-grafite)]/70">
                                 <span className="truncate max-w-[110px]">
                                   {item.owner_name || 'Sem dono'}
                                 </span>
                                 <div className="flex items-center gap-2 shrink-0">
                                   {(item.checklist_total || 0) > 0 && (
                                     <span className="inline-flex items-center gap-0.5">
-                                      <CheckSquare className="w-3 h-3 text-stone-500" />
+                                      <CheckSquare className="w-3 h-3 text-[var(--color-atelier-grafite)]/55" />
                                       {item.checklist_completed}/{item.checklist_total}
                                     </span>
                                   )}
                                   {item.internal_due_at && (
-                                    <span className={isOverdue ? 'text-rose-400 font-semibold' : ''}>
+                                    <span className={isOverdue ? 'text-[var(--tess-danger)] font-semibold' : ''}>
                                       {new Date(item.internal_due_at).toLocaleDateString('pt-BR', {
                                         day: '2-digit',
                                         month: '2-digit',
@@ -441,11 +441,11 @@ export default function TesseraProjectsPage() {
 
           {/* 2. LISTA / TABELA OPERACIONAL */}
           {viewMode === 'list' && (
-            <div className="rounded-2xl bg-stone-900/50 border border-stone-800 overflow-hidden">
+            <div className="tess-card overflow-hidden">
               <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                   <thead>
-                    <tr className="border-b border-stone-800 text-[11px] uppercase tracking-wider text-stone-400 bg-stone-950/60">
+                    <tr className="border-b border-[var(--color-atelier-grafite)]/12 text-[11px] uppercase tracking-[0.18em] text-[var(--color-atelier-grafite)]/70 bg-[var(--color-atelier-creme)]/60">
                       <th className="py-3 px-4">Demanda</th>
                       <th className="py-3 px-3">Status</th>
                       <th className="py-3 px-3">Prioridade</th>
@@ -456,10 +456,10 @@ export default function TesseraProjectsPage() {
                       <th className="py-3 px-3">Prazo Interno</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-stone-800/60 text-xs">
+                  <tbody className="divide-y divide-[var(--color-atelier-grafite)]/10 text-xs">
                     {items.length === 0 ? (
                       <tr>
-                        <td colSpan={8} className="py-12 text-center text-stone-500">
+                        <td colSpan={8} className="py-12 text-center text-[var(--color-atelier-grafite)]/55">
                           Nenhum item encontrado para os filtros selecionados.
                         </td>
                       </tr>
@@ -473,13 +473,13 @@ export default function TesseraProjectsPage() {
                           <tr
                             key={item.id}
                             onClick={() => setSelectedItemId(item.id)}
-                            className="hover:bg-stone-800/40 cursor-pointer transition"
+                            className="hover:bg-[var(--color-atelier-grafite)]/[0.10] cursor-pointer transition"
                           >
                             <td className="py-3 px-4">
                               <div className="flex items-center gap-2">
-                                {item.blocked_at && <Lock className="w-3.5 h-3.5 text-rose-400 shrink-0" />}
-                                {item.urgency_override && <Flame className="w-3.5 h-3.5 text-amber-400 shrink-0" />}
-                                <span className="font-medium text-stone-100">{item.title}</span>
+                                {item.blocked_at && <Lock className="w-3.5 h-3.5 text-[var(--tess-danger)] shrink-0" />}
+                                {item.urgency_override && <Flame className="w-3.5 h-3.5 text-[var(--tess-accent-text)] shrink-0" />}
+                                <span className="font-medium text-[var(--color-atelier-grafite)]">{item.title}</span>
                               </div>
                             </td>
                             <td className="py-3 px-3">
@@ -488,23 +488,23 @@ export default function TesseraProjectsPage() {
                             <td className="py-3 px-3">
                               <PriorityBadge priority={item.priority} size="sm" />
                             </td>
-                            <td className="py-3 px-3 text-stone-300">{item.project_title || 'Studio'}</td>
-                            <td className="py-3 px-3 text-stone-300">{item.owner_name || '—'}</td>
-                            <td className="py-3 px-3 text-stone-400 font-mono text-[11px]">
+                            <td className="py-3 px-3 text-[var(--color-atelier-grafite)]/85">{item.project_title || 'Studio'}</td>
+                            <td className="py-3 px-3 text-[var(--color-atelier-grafite)]/85">{item.owner_name || '—'}</td>
+                            <td className="py-3 px-3 text-[var(--color-atelier-grafite)]/70 font-roboto tabular-nums text-[11px]">
                               {(item.checklist_total || 0) > 0
                                 ? `${item.checklist_completed}/${item.checklist_total}`
                                 : '—'}
                             </td>
-                            <td className="py-3 px-3 text-stone-400 font-mono text-[11px]">
+                            <td className="py-3 px-3 text-[var(--color-atelier-grafite)]/70 font-roboto tabular-nums text-[11px]">
                               {item.actual_minutes}m / {item.estimate_minutes}m
                             </td>
                             <td className="py-3 px-3">
                               {item.internal_due_at ? (
-                                <span className={isOverdue ? 'text-rose-400 font-semibold' : 'text-stone-300'}>
+                                <span className={isOverdue ? 'text-[var(--tess-danger)] font-semibold' : 'text-[var(--color-atelier-grafite)]/85'}>
                                   {new Date(item.internal_due_at).toLocaleDateString('pt-BR')}
                                 </span>
                               ) : (
-                                <span className="text-stone-500">—</span>
+                                <span className="text-[var(--color-atelier-grafite)]/55">—</span>
                               )}
                             </td>
                           </tr>
@@ -519,15 +519,15 @@ export default function TesseraProjectsPage() {
 
           {/* 3. CALENDÁRIO DE ENTREGAS */}
           {viewMode === 'calendar' && (
-            <div className="rounded-2xl bg-stone-900/50 border border-stone-800 p-5 space-y-4">
+            <div className="tess-card p-5 space-y-4">
               <div className="flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-stone-100 capitalize">
+                <h2 className="text-sm font-semibold text-[var(--color-atelier-grafite)] capitalize">
                   {calMonth.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
                 </h2>
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() - 1, 1))}
-                    className="p-1.5 rounded-lg bg-stone-900 border border-stone-800 text-stone-300 hover:bg-stone-800"
+                    className="p-1.5 rounded-lg tess-surface border border-[var(--color-atelier-grafite)]/12 text-[var(--color-atelier-grafite)]/85 hover:bg-[var(--color-atelier-grafite)]/[0.10]"
                   >
                     <ChevronLeft className="w-4 h-4" />
                   </button>
@@ -536,20 +536,20 @@ export default function TesseraProjectsPage() {
                       const now = new Date();
                       setCalMonth(new Date(now.getFullYear(), now.getMonth(), 1));
                     }}
-                    className="px-3 py-1 rounded-lg bg-stone-900 border border-stone-800 text-xs text-stone-300 hover:bg-stone-800"
+                    className="px-3 py-1 rounded-lg tess-surface border border-[var(--color-atelier-grafite)]/12 text-xs text-[var(--color-atelier-grafite)]/85 hover:bg-[var(--color-atelier-grafite)]/[0.10]"
                   >
                     Mês Atual
                   </button>
                   <button
                     onClick={() => setCalMonth(new Date(calMonth.getFullYear(), calMonth.getMonth() + 1, 1))}
-                    className="p-1.5 rounded-lg bg-stone-900 border border-stone-800 text-stone-300 hover:bg-stone-800"
+                    className="p-1.5 rounded-lg tess-surface border border-[var(--color-atelier-grafite)]/12 text-[var(--color-atelier-grafite)]/85 hover:bg-[var(--color-atelier-grafite)]/[0.10]"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
                 </div>
               </div>
 
-              <div className="grid grid-cols-7 gap-2 text-center text-[11px] font-semibold uppercase tracking-wider text-stone-400">
+              <div className="grid grid-cols-7 gap-2 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-atelier-grafite)]/70">
                 <div>Dom</div>
                 <div>Seg</div>
                 <div>Ter</div>
@@ -565,15 +565,15 @@ export default function TesseraProjectsPage() {
                     key={idx}
                     className={`min-h-[110px] rounded-xl p-2 border flex flex-col gap-1.5 ${
                       cell.dayNumber
-                        ? 'bg-stone-950/70 border-stone-800/80'
-                        : 'bg-stone-950/20 border-stone-900/40'
+                        ? 'bg-[var(--color-atelier-creme)]/70 border-[var(--color-atelier-grafite)]/12'
+                        : 'bg-[var(--color-atelier-creme)]/20 border-[var(--color-atelier-grafite)]/12'
                     }`}
                   >
                     {cell.dayNumber && (
-                      <div className="text-[11px] font-mono text-stone-400 flex items-center justify-between">
+                      <div className="text-[11px] font-roboto tabular-nums text-[var(--color-atelier-grafite)]/70 flex items-center justify-between">
                         <span>{cell.dayNumber}</span>
                         {cell.items.length > 0 && (
-                          <span className="text-[10px] px-1.5 rounded bg-stone-900 text-amber-400">
+                          <span className="text-[10px] px-1.5 rounded tess-surface text-[var(--tess-accent-text)]">
                             {cell.items.length}
                           </span>
                         )}
@@ -584,7 +584,7 @@ export default function TesseraProjectsPage() {
                         <button
                           key={it.id}
                           onClick={() => setSelectedItemId(it.id)}
-                          className="w-full text-left px-2 py-1 rounded bg-stone-900 hover:bg-stone-800 border border-stone-800 text-[10px] text-stone-200 truncate block"
+                          className="w-full text-left px-2 py-1 rounded tess-surface hover:bg-[var(--color-atelier-grafite)]/[0.10] border border-[var(--color-atelier-grafite)]/12 text-[10px] text-[var(--color-atelier-grafite)] truncate block"
                         >
                           {it.title}
                         </button>
@@ -605,31 +605,31 @@ export default function TesseraProjectsPage() {
                 return (
                   <div
                     key={p.id}
-                    className="p-5 rounded-2xl bg-stone-900/60 border border-stone-800 space-y-3 flex flex-col justify-between"
+                    className="p-5 tess-card space-y-3 flex flex-col justify-between"
                   >
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-mono uppercase tracking-wider text-amber-400 font-semibold px-2 py-0.5 rounded bg-amber-950/40 border border-amber-900/40">
+                        <span className="text-[10px] font-roboto tabular-nums uppercase tracking-[0.18em] text-[var(--tess-accent-text)] font-semibold px-2 py-0.5 rounded bg-[var(--tess-accent)]/10 border border-[var(--tess-accent)]/30">
                           {p.service_type}
                         </span>
-                        <span className="text-[11px] text-stone-400">
+                        <span className="text-[11px] text-[var(--color-atelier-grafite)]/70">
                           {projItems.length} itens ({blockedCount} bloq.)
                         </span>
                       </div>
-                      <h3 className="text-sm font-semibold text-stone-100">{p.title}</h3>
-                      <p className="text-xs text-stone-400">Cliente: {p.client_name}</p>
+                      <h3 className="text-sm font-semibold text-[var(--color-atelier-grafite)]">{p.title}</h3>
+                      <p className="text-xs text-[var(--color-atelier-grafite)]/70">Cliente: {p.client_name}</p>
                     </div>
 
-                    <div className="pt-3 border-t border-stone-800/80 flex items-center justify-between text-xs">
-                      <span className="text-stone-400">
-                        Fase: <strong className="text-stone-200">{p.stage_label}</strong>
+                    <div className="pt-3 border-t border-[var(--color-atelier-grafite)]/12 flex items-center justify-between text-xs">
+                      <span className="text-[var(--color-atelier-grafite)]/70">
+                        Fase: <strong className="text-[var(--color-atelier-grafite)]">{p.stage_label}</strong>
                       </span>
                       <button
                         onClick={() => {
                           setFilterProject(p.id);
                           setViewMode('kanban');
                         }}
-                        className="text-amber-400 hover:underline font-medium"
+                        className="text-[var(--tess-accent-text)] hover:underline font-medium"
                       >
                         Filtrar Quadro →
                       </button>

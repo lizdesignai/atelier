@@ -2,6 +2,12 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Font, Image } from '@react-pdf/renderer';
 import { stripEmojis } from '@/lib/pdfUtils';
+import { FORM_LABELS } from '@/lib/briefingConstants';
+
+const IGNORED_FORM_KEYS = new Set([
+  'id', 'created_at', 'updated_at', 'lido', 'notificado', 
+  'table_name', 'tipo', '__savedat', '_draft_id', '__currentstep'
+]);
 
 // 1. REGISTO DE FONTES DE LUXO
 Font.register({
@@ -160,14 +166,16 @@ export default function FormularioPDF({ formType, clientName, dadosCompletos, cu
         {/* MAPEAMENTO DO BRIEFING LIMPO */}
         {Object.entries(dadosCompletos || {}).map(([key, val]: any, index) => {
           if (!val) return null;
+          if (IGNORED_FORM_KEYS.has(key.toLowerCase())) return null;
           
-          const niceLabel = key.replace(/_/g, ' ');
+          const niceLabel = FORM_LABELS[key] || FORM_LABELS[key.toLowerCase()] || key.replace(/_/g, ' ');
           let displayValue = val;
 
           // Se for um Array
           if (Array.isArray(val)) {
             displayValue = val.join(', ');
           }
+          if (typeof displayValue === 'string' && displayValue.trim() === '') return null;
           
           return (
             <View key={index} style={styles.qaContainer} wrap>

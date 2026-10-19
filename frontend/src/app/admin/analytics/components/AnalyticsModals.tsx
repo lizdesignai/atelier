@@ -438,7 +438,7 @@ export default function AnalyticsModals({
         {selectedCollab && (
           <div className="fixed inset-0 z-[100000] flex items-center justify-center px-4">
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedCollab(null)} className="absolute inset-0 bg-black/40 backdrop-blur-sm" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-[var(--color-atelier-creme)] p-8 rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-3xl border border-white/40 flex flex-col h-[85vh]">
+            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-[var(--color-atelier-creme)] p-4 sm:p-8 rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl relative z-10 w-full max-w-3xl border border-white/40 flex flex-col max-h-[90vh] h-[90vh] sm:h-[85vh] my-auto">
               
               <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-6 shrink-0">
                 <div className="flex items-center gap-4">
@@ -453,7 +453,7 @@ export default function AnalyticsModals({
                 <button onClick={() => setSelectedCollab(null)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] bg-white p-2 rounded-full shadow-sm"><X size={20}/></button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6 shrink-0">
+              <div className="grid grid-cols-3 gap-2 sm:gap-4 mt-3 sm:mt-6 shrink-0">
                 {(() => {
                   const myTasks = activeTasksForQueue.filter(t => t.assigned_to === selectedCollab.id);
                   const estHours = (myTasks.reduce((acc, t) => acc + (t.estimated_time || 0), 0) / 60).toFixed(1);
@@ -488,7 +488,7 @@ export default function AnalyticsModals({
                 })()}
               </div>
 
-              <div className="mt-6 flex-1 bg-white rounded-[2rem] p-6 md:p-8 border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col min-h-0">
+              <div className="mt-3 sm:mt-6 flex-1 bg-white rounded-[1.5rem] sm:rounded-[2rem] p-4 sm:p-6 md:p-8 border border-[var(--color-atelier-grafite)]/5 shadow-sm flex flex-col min-h-0">
                 <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mb-4 shrink-0 flex items-center gap-2"><FolderKanban size={14}/> Próximas Tarefas</h4>
                 <div className="flex-1 overflow-y-auto custom-scrollbar pr-2 flex flex-col gap-3">
                   {activeTasksForQueue.filter(t => t.assigned_to === selectedCollab.id).map(task => {

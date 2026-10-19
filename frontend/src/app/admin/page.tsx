@@ -6,6 +6,12 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase"; 
 import { 
+  FORM_LABELS, 
+  BRIEFING_LABELS, 
+  BRIEFING_CATEGORIES, 
+  normalizeBriefingAnswers 
+} from "../../lib/briefingConstants"; 
+import { 
   Loader2, Sparkles, BrainCircuit, FileText, Calendar, 
   Save, Plus, X, Phone, Mail, Instagram, Briefcase, 
   Clock, CheckCircle, AlertCircle, FileSearch, Trash2, ArrowRight, Download,
@@ -269,6 +275,22 @@ export default function AdminDashboard() {
 
   const renderFormularioCard = (form: any) => {
     const isInsta = (form.tipo || '').toLowerCase().includes('insta') || (form.tipo || '').toLowerCase().includes('gerenciamento');
+    const d = form.dados_completos || {};
+    const nicho = d.Nicho || form.nicho || '';
+    const posts = d.Quantidade_Posts || form.quantidade_posts || '';
+    const invest = d.Investimento || form.Investimento || form.investimento || '';
+    const marcaArea = d.Nome_Marca_Area || form.Nome_Marca_Area || form.nome_marca_area || '';
+    
+    let subtitle = "Orçamento Solicitado";
+    if (isInsta) {
+      if (nicho && posts) subtitle = `${nicho} • ${posts} posts${invest ? ` • ${invest}` : ''}`;
+      else if (nicho) subtitle = `${nicho}${invest ? ` • ${invest}` : ''}`;
+      else if (invest) subtitle = `Investimento: ${invest}`;
+    } else {
+      if (marcaArea && invest) subtitle = `${marcaArea} • ${invest}`;
+      else if (marcaArea) subtitle = marcaArea;
+      else if (invest) subtitle = `Investimento: ${invest}`;
+    }
     
     return (
       <div 
@@ -295,7 +317,7 @@ export default function AdminDashboard() {
                 <span className="px-1.5 py-0.5 rounded text-[8px] font-black uppercase tracking-widest bg-orange-500 text-white animate-pulse">NEW</span>
               )}
             </div>
-            <span className="text-[10px] uppercase font-bold tracking-widest text-gray-400">Orçamento Solicitado</span>
+            <span className="text-[10px] uppercase font-bold tracking-widest text-gray-400 line-clamp-1">{subtitle}</span>
           </div>
         </div>
         <div className="flex items-center gap-4">
@@ -308,6 +330,9 @@ export default function AdminDashboard() {
 
   const renderBriefingCard = (brief: any) => {
     const isInsta = brief.briefing_type === 'INSTA';
+    const clientName = brief.profiles?.nome || brief.answers?.Nome_Cliente || brief.answers?.nome || "Cliente";
+    const brandName = brief.profiles?.empresa || brief.answers?.Nome_Marca || brief.answers?.nome_marca || brief.answers?.Nome_Logotipo || "";
+
     return (
       <div 
         key={`briefing-${brief.briefing_type}-${brief.id}`} 
@@ -316,12 +341,13 @@ export default function AdminDashboard() {
       >
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-gray-50 text-gray-600 rounded-xl flex items-center justify-center font-elegant text-xl">
-            {(brief.profiles?.nome || "C").charAt(0).toUpperCase()}
+            {clientName.charAt(0).toUpperCase()}
           </div>
           <div>
             <div className="flex items-center gap-2 mb-1">
               <h4 className="font-bold text-[14px] text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors">
-                {brief.profiles?.nome || "Cliente"}
+                {clientName}
+                {brandName ? <span className="font-normal text-gray-400 font-sans text-xs ml-1.5">• {brandName}</span> : null}
               </h4>
               <span className={`text-[8px] px-1.5 py-0.5 rounded font-bold uppercase ${isInsta ? 'bg-amber-100 text-amber-800' : 'bg-emerald-100 text-emerald-800'}`}>
                 {isInsta ? 'Instagram' : 'Identidade Visual'}
@@ -796,11 +822,61 @@ export default function AdminDashboard() {
               
               <div className="flex-1 overflow-y-auto custom-scrollbar p-6 flex flex-col gap-6 bg-[#FAFAFA]">
                 {selectedItem.type === 'formulario' ? (
-                  // MAPEAR DADOS DO FORMULÁRIO EXTERNO (JSON COMPLETO)
+                  // MAPEAR DADOS DO FORMULÁRIO EXTERNO COM HIGHLIGHTS E LABELS HUMANIZADAS
                   <div className="flex flex-col gap-4">
-                     {Object.entries(selectedItem.data.dados_completos || {}).map(([key, value]) => (
-                        <DataField key={key} label={key.replace(/_/g, ' ')} value={String(value)} />
-                     ))}
+                    {(() => {
+                      const dados = selectedItem.data.dados_completos || {};
+                      const invest = dados.Investimento || dados.investimento;
+                      const vaga = dados.Ciente_Vaga || dados.ciente_vaga;
+                      const posts = dados.Quantidade_Posts || dados.quantidade_posts;
+                      const porte = dados.Porte_Empresa || dados.porte_empresa;
+                      
+                      const ignoredFormKeys = new Set([
+                        'id', 'created_at', 'updated_at', 'lido', 'notificado', 
+                        'table_name', 'tipo', '__savedat', '_draft_id', '__currentstep'
+                      ]);
+
+                      return (
+                        <>
+                          {/* HIGHLIGHTS STRIP */}
+                          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-2">
+                            {invest && (
+                              <div className="p-3 bg-amber-500/10 border border-amber-300/40 rounded-xl flex flex-col">
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-amber-800">Investimento</span>
+                                <span className="text-[12px] font-bold text-amber-950 mt-0.5">{invest}</span>
+                              </div>
+                            )}
+                            {vaga && (
+                              <div className="p-3 bg-emerald-500/10 border border-emerald-300/40 rounded-xl flex flex-col">
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-800">Ciente da Vaga</span>
+                                <span className="text-[12px] font-bold text-emerald-950 mt-0.5">{vaga}</span>
+                              </div>
+                            )}
+                            {posts && (
+                              <div className="p-3 bg-blue-500/10 border border-blue-300/40 rounded-xl flex flex-col">
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-blue-800">Frequência</span>
+                                <span className="text-[12px] font-bold text-blue-950 mt-0.5">{posts} posts</span>
+                              </div>
+                            )}
+                            {porte && (
+                              <div className="p-3 bg-purple-500/10 border border-purple-300/40 rounded-xl flex flex-col">
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-purple-800">Porte / Perfil</span>
+                                <span className="text-[12px] font-bold text-purple-950 mt-0.5 truncate" title={porte}>{porte}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          {/* CAMPOS DETALHADOS COM LABELS HUMANIZADAS */}
+                          {Object.entries(dados).map(([key, value]) => {
+                            if (!value || ignoredFormKeys.has(key.toLowerCase())) return null;
+                            const displayVal = Array.isArray(value) ? value.join(', ') : String(value);
+                            if (displayVal.trim() === '') return null;
+                            const label = FORM_LABELS[key] || FORM_LABELS[key.toLowerCase()] || key.replace(/_/g, ' ');
+                            return <DataField key={key} label={label} value={displayVal} />;
+                          })}
+                        </>
+                      );
+                    })()}
                   </div>
                 ) : selectedItem.type === 'consultoria' ? (
                   // MAPEAR CONSULTORIA DO PAINEL MAKE/REST / BANCO UNIFICADO
@@ -908,201 +984,130 @@ export default function AdminDashboard() {
                      <DataField label="Ponto de Chegada (Endgame)" value={selectedItem.data.answers?.ponto_chegada} />
                   </div>
                 ) : (
-                  // MAPEAR BRIEFING DE IDENTIDADE VISUAL
-                   // MAPEAR BRIEFING DE IDENTIDADE VISUAL COMPLETO (120 CAMPOS)
-                   <div className="flex flex-col gap-4">
-                      {/* DADOS BÁSICOS DE CONTATO */}
-                      <DataField label="Nome do Cliente" value={selectedItem.data.answers?.Nome_Cliente || selectedItem.data.answers?.nome || selectedItem.data.profiles?.nome} />
-                      <DataField label="WhatsApp" value={selectedItem.data.answers?.WhatsApp || selectedItem.data.answers?.whatsapp} />
-                      <DataField label="E-mail" value={selectedItem.data.answers?.Email || selectedItem.data.answers?.email || selectedItem.data.profiles?.email} />
-                      <div className="h-px bg-gray-200 my-2"></div>
-
-                      {/* RENDERIZAÇÃO INTELIGENTE DE TODOS OS DEMAIS CAMPOS PREENCHIDOS */}
+                   // MAPEAR BRIEFING DE IDENTIDADE VISUAL COM SEÇÕES CATEGORIZADAS
+                   <div className="flex flex-col gap-6">
                       {(() => {
-                        const answers = selectedItem.data.answers || {};
-                        const ignoredKeys = new Set([
-                          'id', 'created_at', 'updated_at', 'notificado', 'lido', 'dados_completos',
-                          'Nome_Cliente', 'nome', 'WhatsApp', 'whatsapp', 'Email', 'email', 'status_marca'
-                        ]);
+                        const rawAnswers = selectedItem.data.answers || {};
+                        const normalized = normalizeBriefingAnswers(rawAnswers);
+                        const answerMap = new Map();
+                        normalized.forEach(item => {
+                          answerMap.set(item.key.toLowerCase(), item);
+                        });
 
-                        const LABELS: Record<string, string> = {
-                          // Origem e Negócio
-                          Nome_Logotipo: "Nome no Logotipo",
-                          nome_logo: "Nome no Logotipo",
-                          Significado_Nome: "Significado do Nome",
-                          significado_nome: "Significado do Nome",
-                          tem_significado_nome: "Significado do Nome (Opção)",
-                          Tagline: "Tagline Desejada",
-                          tagline: "Tagline Desejada",
-                          Slogan: "Slogan Corporativo",
-                          slogan: "Slogan Corporativo",
-                          Produtos_Servicos: "Produtos e Serviços",
-                          produtos_servicos: "Produtos e Serviços",
-                          o_que_vende: "O que a marca vende?",
-                          tipo_produto: "Tipo de Produto / Serviço",
-                          tipo_produto_outro: "Tipo de Produto (Detalhe)",
-                          motivo_nascimento: "Motivo do Nascimento da Marca",
-                          motivo_escolha_negocio: "Por que escolheu este negócio?",
-                          historia_importante: "História Marcante",
-                          Motivo_Abertura: "Motivo de Abertura / História",
-                          motivo_abertura: "Motivo de Abertura / História",
-                          conceito_inseparavel: "Conceito Inseparável",
-                          frase_resumo: "Frase Resumo da Marca",
-                          pitch_10s: "Pitch de 10 Segundos",
-                          Proposito: "Propósito da Marca",
-                          proposito: "Propósito da Marca",
-                          Tempo_Mercado: "Tempo de Mercado",
-                          tempo_mercado: "Tempo de Mercado",
+                        const renderedLowerKeys = new Set();
 
-                          // Essência e Emoção
-                          Emoji_Empresa: "Emoji da Marca",
-                          emoji_empresa: "Emoji da Marca",
-                          emoji: "Emoji da Marca",
-                          Musica_Empresa: "Música da Marca",
-                          musica_empresa: "Música da Marca",
-                          musica: "Música da Marca",
-                          Sentimento_Empresa: "Sentimento Core",
-                          sentimento: "Sentimento Core",
-                          sentimento_desejado: "Sentimento Desejado",
-                          sentimento_desejado_outro: "Sentimento Desejado (Detalhe)",
-                          Sentimento_Marca: "Sentimento Exigido da Marca",
-                          sentimento_marca: "Sentimento Exigido da Marca",
-                          Sentimento_Consumidor: "Sentimento do Consumidor",
-                          sentimento_consumidor: "Sentimento do Consumidor",
-                          Missao: "Missão de Negócio",
-                          missao: "Missão de Negócio",
+                        const renderSection = (category) => {
+                          const categoryItems = [];
+                          for (const k of category.keys) {
+                            const found = answerMap.get(k.toLowerCase());
+                            if (found && !renderedLowerKeys.has(k.toLowerCase())) {
+                              categoryItems.push({ key: k, label: found.label, value: found.value });
+                              renderedLowerKeys.add(k.toLowerCase());
+                            }
+                          }
 
-                          // Público
-                          Genero_Publico: "Gênero do Público",
-                          genero: "Gênero do Público",
-                          Genero_Publico_Outro: "Gênero (Detalhe)",
-                          genero_outro: "Gênero (Detalhe)",
-                          Classe_Social: "Classe Social",
-                          classe: "Classe Social",
-                          Classe_Social_Outro: "Classe Social (Detalhe)",
-                          classe_outro: "Classe Social (Detalhe)",
-                          Idade_Publico: "Idade do Público",
-                          idade: "Idade do Público",
-                          Idade_Publico_Outro: "Faixa Etária (Detalhe)",
-                          idade_outro: "Faixa Etária (Detalhe)",
-                          Resumo_Publico: "Resumo do Público",
-                          resumo_publico: "Resumo do Público",
-                          perfil_cliente: "Perfil do Cliente Ideal",
-                          problema_cliente: "Problema que a Marca Resolve",
-                          influencia_compra: "Influência na Compra",
-                          influencia_compra_outro: "Influência na Compra (Detalhe)",
-                          cliente_indesejado: "Cliente Indesejado",
+                          if (categoryItems.length === 0) return null;
 
-                          // Concorrência e Diferenciais
-                          Links_Concorrentes: "Links dos Concorrentes",
-                          concorrentes_links: "Links dos Concorrentes",
-                          concorrentes: "Principais Concorrentes",
-                          concorrentes_bom: "O que os Concorrentes fazem de Bom",
-                          O_Que_Nao_Fazer: "O Que NÃO Fazer",
-                          nao_fazer: "O Que NÃO Fazer",
-                          fazer_diferente: "O que fará de Diferente",
-                          evitar_mercado: "O que Evitar do Mercado",
-                          Diferencial: "Diferenciais Competitivos",
-                          diferencial: "Diferenciais Competitivos",
-                          diferenca_outros: "Diferença em Relação aos Outros",
-                          diferenca_percebida: "Diferença Percebida pelo Cliente",
-                          algo_diferente: "Oferta Diferenciada",
-                          motivo_compra: "Por que compram de você?",
+                          return (
+                            <div key={category.id} className="flex flex-col gap-3 bg-white/60 p-5 rounded-2xl border border-gray-100 shadow-2xs">
+                              <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
+                                <h4 className="font-bold text-[12px] uppercase tracking-wider text-[var(--color-atelier-terracota)]">
+                                  {category.title}
+                                </h4>
+                              </div>
 
-                          // Atributos e Personalidade
-                          atributos_gerais: "Atributos Gerais",
-                          atributos_gerais_outro: "Atributos Gerais (Detalhe)",
-                          atributos_top3: "Top 3 Atributos",
-                          Top_3_Adjetivos: "Top 3 Adjetivos",
-                          top_3_adjetivos: "Top 3 Adjetivos",
-                          Adjetivos_Positivos: "Adjetivos Positivos",
-                          adjetivos_positivos: "Adjetivos Positivos",
-                          Adjetivos_Positivos_Outro: "Adjetivos Positivos (Detalhe)",
-                          atributos_nao_transmitir: "Atributos a NÃO Transmitir",
-                          atributos_nao_transmitir_outro: "Atributos a NÃO Transmitir (Detalhe)",
-                          Adjetivos_Negativos: "Adjetivos Negativos",
-                          adjetivos_negativos: "Adjetivos Negativos",
-                          Adjetivos_Negativos_Outro: "Adjetivos Negativos (Detalhe)",
-                          porque_atributos: "Por que esses atributos?",
-
-                          // Eixos de Posicionamento
-                          eixo_tradicional_contemporanea: "Eixo: Tradicional (1) ↔ Contemporânea (5)",
-                          eixo_seria_descontraida: "Eixo: Séria (1) ↔ Descontraída (5)",
-                          eixo_acessivel_exclusiva: "Eixo: Acessível (1) ↔ Exclusiva (5)",
-                          eixo_discreta_ousada: "Eixo: Discreta (1) ↔ Ousada (5)",
-                          eixo_racional_emocional: "Eixo: Racional (1) ↔ Emocional (5)",
-                          eixo_minimalista_expressiva: "Eixo: Minimalista (1) ↔ Expressiva (5)",
-
-                          // Percepção e Futuro
-                          percepcao_primeiravez: "Percepção Primeira Vez",
-                          percepcao_poscompra: "Percepção Pós-Compra",
-                          percepcao_indesejada: "Percepção Indesejada",
-                          falta_marca: "O que Falta na Marca Hoje",
-                          Visao_5_Anos: "Visão em 5 Anos",
-                          visao_5_anos: "Visão em 5 Anos",
-                          empresa_hoje: "Empresa Hoje",
-                          empresa_5_anos: "Empresa em 5 Anos",
-                          representacao_futuro: "Representação de Futuro",
-                          expansao: "Planos de Expansão",
-                          como_expandir: "Como Pretende Expandir",
-                          unica_coisa_resolver: "Principal Problema a Resolver",
-                          validacao_espelho: "Validação Espelho",
-                          ajustes_espelho: "Ajustes no Espelho",
-
-                          // Universo Visual e Estilo
-                          Referencias_Inspiracoes: "Referências Visuais e Inspirações",
-                          referencias: "Referências Visuais",
-                          marcas_admiradas: "Marcas Admiradas",
-                          gosto_referencias: "O que gosta nas Referências",
-                          gosto_referencias_outro: "Referências (Detalhe)",
-                          marcas_nao_admiradas: "Marcas NÃO Admiradas",
-                          nao_gosto_referencias: "O que não gosta nas Referências",
-                          ambiente_proximo: "Ambiente Próximo da Marca",
-                          ambiente_proximo_outro: "Ambiente Próximo (Detalhe)",
-                          atmosfera_combinada: "Atmosfera da Marca",
-                          universo_evitar: "Universo Visual a Evitar",
-                          Cor_Desejada: "Cores Desejadas",
-                          cor_desejada: "Cores Desejadas",
-                          cor_desejada_opcao: "Opção de Cor",
-                          cor_desejada_qual: "Qual Cor Desejada",
-                          Cor_Nao_Desejada: "Cores Indesejadas",
-                          cor_indesejada: "Cores Indesejadas",
-                          Simbolo_Especifico: "Símbolo Específico",
-                          simbolo_desejado: "Símbolo Desejado",
-                          simbolo_indesejado: "Símbolo Indesejado",
-                          identidade_preservar: "O que Preservar da Identidade Atual",
-                          identidade_abandonar: "O que Abandonar da Identidade Atual",
-                          Sobre_Logo_Atual: "Sobre o Logo Atual",
-                          logo_atual: "Sobre o Logo Atual",
-
-                          // Aplicações e Finalização
-                          Onde_Verao_Identidade: "Onde Verão a Identidade",
-                          onde_verao: "Onde Verão a Identidade",
-                          aplicacoes: "Aplicações Previstas",
-                          aplicacoes_outro: "Aplicações (Detalhe)",
-                          aplicacao_principal: "Aplicação Principal",
-                          aplicacao_especial: "Aplicação Especial",
-                          Motivo_Escolha_Liz: "Motivo da Escolha do Atelier",
-                          motivo_escolha: "Motivo da Escolha do Atelier",
-                          Ideias_Livres_Extras: "Considerações Finais",
-                          ideias_livres: "Considerações Finais",
-                          consideracoes_finais: "Considerações Finais"
+                              {category.isEixos ? (
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                  {categoryItems.map(item => {
+                                    const score = parseInt(String(item.value), 10);
+                                    const isValidScore = !isNaN(score) && score >= 1 && score <= 5;
+                                    return (
+                                      <div key={item.key} className="bg-white p-4 rounded-xl border border-gray-100 flex flex-col gap-2">
+                                        <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)]">
+                                          {item.label}
+                                        </span>
+                                        {isValidScore ? (
+                                          <div className="flex flex-col gap-1 mt-1">
+                                            <div className="flex justify-between text-[10px] text-gray-400 font-bold">
+                                              <span>1 (Mínimo)</span>
+                                              <span className="text-[var(--color-atelier-terracota)] font-black text-[12px]">Nível {score}/5</span>
+                                              <span>5 (Máximo)</span>
+                                            </div>
+                                            <div className="w-full bg-gray-100 h-2.5 rounded-full overflow-hidden flex">
+                                              <div 
+                                                className="bg-[var(--color-atelier-terracota)] h-full rounded-full transition-all"
+                                                style={{ width: `${(score / 5) * 100}%` }}
+                                              />
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <span className="text-sm font-medium text-[var(--color-atelier-grafite)]">{String(item.value)}</span>
+                                        )}
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              ) : (
+                                <div className="flex flex-col gap-3">
+                                  {categoryItems.map(item => (
+                                    <DataField key={item.key} label={item.label} value={item.value} />
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          );
                         };
 
-                        const renderedKeys = new Set<string>();
+                        const sections = BRIEFING_CATEGORIES.map(cat => renderSection(cat)).filter(Boolean);
 
-                        return Object.entries(answers).map(([key, val]) => {
-                          if (!val || ignoredKeys.has(key) || renderedKeys.has(key)) return null;
-
-                          // Normalizar arrays
-                          const displayValue = Array.isArray(val) ? val.join(', ') : val;
-                          if (typeof displayValue === 'string' && displayValue.trim() === '') return null;
-
-                          const label = LABELS[key] || key.replace(/_/g, ' ');
-                          renderedKeys.add(key);
-
-                          return <DataField key={key} label={label} value={displayValue} />;
+                        // Itens não categorizados restantes
+                        const remainingItems = [];
+                        normalized.forEach(item => {
+                          if (!renderedLowerKeys.has(item.key.toLowerCase())) {
+                            remainingItems.push(item);
+                          }
                         });
+
+                        return (
+                          <>
+                            {/* HERO RESUMO DE CONTATO */}
+                            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-[var(--color-atelier-terracota)]/5 p-4 rounded-2xl border border-[var(--color-atelier-terracota)]/20">
+                              <div>
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 block">Marca</span>
+                                <span className="text-[13px] font-bold text-[var(--color-atelier-grafite)]">
+                                  {rawAnswers.Nome_Marca || rawAnswers.nome_marca || rawAnswers.Nome_Logotipo || selectedItem.data.profiles?.empresa || 'Não informado'}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 block">WhatsApp</span>
+                                <span className="text-[13px] font-bold text-[var(--color-atelier-grafite)]">
+                                  {rawAnswers.WhatsApp || rawAnswers.whatsapp || 'Não informado'}
+                                </span>
+                              </div>
+                              <div>
+                                <span className="text-[9px] font-bold uppercase tracking-widest text-gray-400 block">E-mail</span>
+                                <span className="text-[13px] font-bold text-[var(--color-atelier-grafite)] truncate block" title={rawAnswers.Email || rawAnswers.email}>
+                                  {rawAnswers.Email || rawAnswers.email || selectedItem.data.profiles?.email || 'Não informado'}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* SEÇÕES CATEGORIZADAS */}
+                            {sections}
+
+                            {/* CAMPOS ADICIONAIS RESTANTES */}
+                            {remainingItems.length > 0 && (
+                              <div className="flex flex-col gap-3 bg-white/60 p-5 rounded-2xl border border-gray-100 shadow-2xs">
+                                <h4 className="font-bold text-[12px] uppercase tracking-wider text-[var(--color-atelier-terracota)] pb-2 border-b border-gray-100">
+                                  11. Outras Informações Coletadas
+                                </h4>
+                                {remainingItems.map(item => (
+                                  <DataField key={item.key} label={item.label} value={item.value} />
+                                ))}
+                              </div>
+                            )}
+                          </>
+                        );
                       })()}
                    </div>
                 )}

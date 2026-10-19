@@ -157,21 +157,6 @@ export default function ClientShell({ children }: { children: React.ReactNode })
     }, 1000);
   };
 
-  const isTessera = pathname?.startsWith("/tessera");
-
-  if (isTessera) {
-    return (
-      <QueryClientProvider client={queryClient}>
-        <GlobalStoreProvider>
-          <GlobalToast />
-          <div className="w-full h-full overflow-hidden bg-stone-900 text-stone-100 font-sans">
-            {children}
-          </div>
-        </GlobalStoreProvider>
-      </QueryClientProvider>
-    );
-  }
-
   return (
     <QueryClientProvider client={queryClient}>
       <GlobalStoreProvider>

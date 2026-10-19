@@ -13,22 +13,22 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({ priority, size = '
     urgent: {
       label: 'Urgente',
       icon: AlertCircle,
-      bg: 'bg-rose-950/40 text-rose-300 border-rose-800/50'
+      bg: 'bg-[var(--tess-danger)]/12 text-[var(--tess-danger)] border-[var(--tess-danger)]/30'
     },
     high: {
       label: 'Alta',
       icon: ArrowUp,
-      bg: 'bg-amber-950/40 text-amber-300 border-amber-800/50'
+      bg: 'bg-[var(--tess-warn)]/12 text-[var(--tess-warn)] border-[var(--tess-warn)]/30'
     },
     medium: {
       label: 'Média',
       icon: Minus,
-      bg: 'bg-stone-800 text-stone-300 border-stone-700'
+      bg: 'bg-[var(--color-atelier-grafite)]/[0.07] text-[var(--color-atelier-grafite)]/80 border-[var(--color-atelier-grafite)]/20'
     },
     low: {
       label: 'Baixa',
       icon: ArrowDown,
-      bg: 'bg-stone-900 text-stone-400 border-stone-800'
+      bg: 'bg-[var(--color-atelier-grafite)]/[0.03] text-[var(--color-atelier-grafite)]/55 border-[var(--color-atelier-grafite)]/12'
     }
   };
 
@@ -36,8 +36,8 @@ export const PriorityBadge: React.FC<PriorityBadgeProps> = ({ priority, size = '
   const Icon = config.icon;
 
   return (
-    <span className={`inline-flex items-center gap-1 rounded border font-medium ${config.bg} ${
-      size === 'sm' ? 'px-1.5 py-0.5 text-[11px]' : 'px-2 py-0.5 text-xs'
+    <span className={`inline-flex items-center gap-1 rounded-full border font-medium ${config.bg} ${
+      size === 'sm' ? 'px-2 py-0.5 text-[11px]' : 'px-2.5 py-0.5 text-xs'
     }`}>
       <Icon className="w-3 h-3" />
       <span>{config.label}</span>
