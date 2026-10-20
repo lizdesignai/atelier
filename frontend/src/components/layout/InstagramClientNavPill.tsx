@@ -28,10 +28,10 @@ export default function InstagramClientNavPill() {
     setMounted(true);
   }, []);
 
-  const userRole = profile?.role || session?.user?.role || "client";
-  const isTeamMember = ["admin", "gestor", "colaborador"].includes(userRole);
+  const userRole = profile?.role || session?.user?.role || null;
+  const isTeamMember = userRole ? ["admin", "gestor", "colaborador"].includes(userRole) : false;
   const isContador = userRole === "contador";
-  const isClient = !isTeamMember && !isContador;
+  const isClient = userRole === "client";
   const sessionUserId = session?.user?.id || profile?.id;
 
   useEffect(() => {
@@ -62,8 +62,8 @@ export default function InstagramClientNavPill() {
     };
   }, [sessionUserId, isTeamMember, navMode]);
 
-  // Não renderizar na página de login ou antes do mount no cliente
-  if (pathname === "/login" || !mounted || typeof document === "undefined") return null;
+  // Não renderizar na página de login, antes do mount no cliente ou sem papel definido
+  if (pathname === "/login" || !mounted || typeof document === "undefined" || !userRole) return null;
 
   // Caso seja membro da equipe (exibe no modo horizontal ou na Gestão de Instagram)
   if (isTeamMember) {

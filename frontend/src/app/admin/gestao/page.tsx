@@ -38,6 +38,10 @@ export default function GestaoPage() {
           .single();
 
         setCurrentUser(profile);
+        if (profile && (profile.role === 'admin' || profile.role === 'gestor')) {
+          window.location.replace('/tessera/productivity');
+          return;
+        }
       } catch (error) {
         console.error("Erro na autenticação do Módulo de Gestão:", error);
       } finally {

@@ -10,7 +10,8 @@ import type { TesseraOrganization } from './types';
 
 export type TesseraAccess = 'team' | 'manager';
 
-const TEAM_ROLES = new Set(['admin', 'gestor', 'colaborador']);
+// O Tessera é restrito exclusivamente à alta direção: gestores e administradores. Colaboradores operam via Focus (/admin/jtbd).
+const ALLOWED_TESSERA_ROLES = new Set(['admin', 'gestor']);
 const MANAGER_ROLES = new Set(['admin', 'gestor']);
 
 export interface TesseraUser {
@@ -65,8 +66,8 @@ export async function requireTessera(access: TesseraAccess = 'team'): Promise<Te
   const profile = rows[0] as (TesseraUser & { contract_status?: string | null }) | undefined;
   if (!profile) return { ok: false, status: 401, error: 'Usuário não encontrado.' };
 
-  if (!TEAM_ROLES.has(profile.role)) {
-    return { ok: false, status: 403, error: 'Acesso restrito à equipe do estúdio.' };
+  if (!ALLOWED_TESSERA_ROLES.has(profile.role)) {
+    return { ok: false, status: 403, error: 'Acesso restrito a gestores e administradores.' };
   }
   if (profile.contract_status === 'dismissed') {
     return { ok: false, status: 403, error: 'Contrato encerrado.' };

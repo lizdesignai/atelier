@@ -50,20 +50,21 @@ export default function ConfiguracoesPage() {
   useEffect(() => {
     const fetchProfileData = async () => {
       try {
-        const res = await fetch('/api/auth/me');
+        const res = await fetch('/api/auth/me', { credentials: 'include' });
         const data = await res.json();
-        if (!res.ok || data.authenticated === false) throw new Error('Não autenticado');
+        if (!res.ok || data.authenticated === false || !data.user) throw new Error('Não autenticado');
         
         if (data.user) {
           setUserId(data.user.id);
           
-          const profile = await getProfileByIdAction(data.user.id);
+          const profile = await getProfileByIdAction(data.user.id).catch(() => null);
 
-          if (profile) {
-            setUserRole(profile.role);
+          const currentProfile = profile || data.user;
+          if (currentProfile) {
+            setUserRole(currentProfile.role || 'client');
             setFormData({
-              nome: profile.nome || "",
-              email: profile.email || data.user.email || "",
+              nome: currentProfile.nome || "",
+              email: currentProfile.email || data.user.email || "",
               aniversario: profile.aniversario || "",
               bio: profile.bio || "",
               empresa: profile.empresa || "",
@@ -73,15 +74,15 @@ export default function ConfiguracoesPage() {
               instagram: profile.instagram || ""
             });
             
-            if (profile.avatar_url) {
-              setAvatar(profile.avatar_url);
-            } else if (profile.nome) {
-              setAvatar(`https://ui-avatars.com/api/?name=${encodeURIComponent(profile.nome)}&background=142C48&color=E8E3DD`);
+            if (currentProfile.avatar_url) {
+              setAvatar(currentProfile.avatar_url);
+            } else if (currentProfile.nome) {
+              setAvatar(`https://ui-avatars.com/api/?name=${encodeURIComponent(currentProfile.nome)}&background=142C48&color=E8E3DD`);
             }
 
-            if (profile.role === 'client') {
-              const projects = await getProjectsAction();
-              const activeProj = projects.find((p: any) => p.status === 'active');
+            if (currentProfile.role === 'client') {
+              const projects = await getProjectsAction().catch(() => []);
+              const activeProj = projects?.find((p: any) => p.status === 'active');
               if (activeProj?.contract_url) {
                 setContractUrl(activeProj.contract_url);
               }

@@ -14,7 +14,9 @@ import {
   Users,
   Search,
   Plus,
-  Loader2
+  Loader2,
+  Activity,
+  Target
 } from 'lucide-react';
 import { CommandPaletteModal } from './CommandPaletteModal';
 import { NewWorkItemModal } from './NewWorkItemModal';
@@ -24,15 +26,17 @@ interface TesseraShellProps {
   children: React.ReactNode;
 }
 
-const TEAM_ROLES = ['admin', 'gestor', 'colaborador'];
+const ALLOWED_ROLES = ['admin', 'gestor'];
 
 const NAV_ITEMS = [
   { label: 'Centro de Comando', path: '/tessera', icon: LayoutDashboard },
   { label: 'Meu Focus', path: '/tessera/focus', icon: CheckSquare },
   { label: 'Projetos & Carteira', path: '/tessera/projects', icon: FolderKanban },
+  { label: 'Produtividade', path: '/tessera/productivity', icon: Activity },
+  { label: 'IDV Intel', path: '/tessera/idv-intel', icon: Target },
   { label: 'Revisão & QA', path: '/tessera/reviews', icon: Inbox },
-  { label: 'Templates', path: '/tessera/templates', icon: FileCode },
-  { label: 'Capacidade', path: '/tessera/workload', icon: Users }
+  { label: 'Capacidade', path: '/tessera/workload', icon: Users },
+  { label: 'Templates', path: '/tessera/templates', icon: FileCode }
 ];
 
 /**
@@ -61,17 +65,21 @@ export const TesseraShell: React.FC<TesseraShellProps> = ({ children }) => {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // Guarda de acesso: o Tessera é exclusivo da equipe do estúdio
+  // Guarda de acesso: o Tessera é restrito a gestores e administradores
   useEffect(() => {
     let cancelled = false;
     fetch('/api/auth/me', { credentials: 'include' })
       .then(res => res.json())
       .then(data => {
         if (cancelled) return;
-        if (data?.authenticated && TEAM_ROLES.includes(data.user?.role)) {
+        if (data?.authenticated && ALLOWED_ROLES.includes(data.user?.role)) {
           setAccess('granted');
         } else if (data?.authenticated) {
-          router.replace('/');
+          if (data.user?.role === 'colaborador') {
+            router.replace('/admin/jtbd');
+          } else {
+            router.replace('/');
+          }
         } else {
           router.replace('/login');
         }

@@ -62,6 +62,9 @@ export async function GET(request: NextRequest) {
           CASE WHEN asb.id IS NOT NULL THEN
             json_build_object('id', asb.id, 'name', asb.name, 'trello_url', asb.trello_url)
           ELSE null END as agency_subclients,
+          CASE WHEN assignee.id IS NOT NULL THEN
+            json_build_object('id', assignee.id, 'nome', assignee.nome, 'avatar_url', assignee.avatar_url, 'role', assignee.role)
+          ELSE null END as assignee,
           (
             SELECT json_agg(json_build_object('image_url', sp.image_url, 'status', sp.status, 'created_at', sp.created_at))
             FROM "social_posts" sp
@@ -71,6 +74,7 @@ export async function GET(request: NextRequest) {
         LEFT JOIN "projects" p ON t.project_id = p.id
         LEFT JOIN "profiles" pr ON p.client_id = pr.id
         LEFT JOIN "agency_subclients" asb ON t.subclient_id = asb.id
+        LEFT JOIN "profiles" assignee ON t.assigned_to = assignee.id
         WHERE t.assigned_to IN (${ph})
         ORDER BY t.priority_score DESC NULLS LAST, t.deadline ASC
       `, teamIds);

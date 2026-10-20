@@ -129,7 +129,7 @@ export async function getCommandCenterData(orgId: string): Promise<CommandCenter
   const projectRows = await sql.query(`
     SELECT 
       proj.id,
-      COALESCE(prof.empresa, prof.nome, 'Projeto Ativo') as title,
+      COALESCE(NULLIF(TRIM(prof.empresa), ''), prof.nome, proj.type, 'Projeto Ativo') as title,
       COALESCE(prof.nome, 'Cliente') as client_name,
       COALESCE(proj.service_type, proj.type, 'idv') as service_type,
       COALESCE(proj.idv_phase, proj.fase, 'Em Produção') as stage_label,
@@ -199,7 +199,7 @@ export async function getWorkItems(orgId: string, filters: {
       w.*,
       p.nome as owner_name,
       p.avatar_url as owner_avatar,
-      COALESCE(prof_client.empresa, prof_client.nome, 'Projeto') as project_title,
+      COALESCE(NULLIF(TRIM(prof_client.empresa), ''), prof_client.nome, proj.type, 'Projeto') as project_title,
       prof_client.nome as client_name,
       (SELECT COUNT(*) FROM public.tessera_checklist_items c WHERE c.work_item_id = w.id) as checklist_total,
       (SELECT COUNT(*) FROM public.tessera_checklist_items c WHERE c.work_item_id = w.id AND c.is_completed = true) as checklist_completed

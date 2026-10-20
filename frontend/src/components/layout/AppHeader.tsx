@@ -20,14 +20,17 @@ import VeronnaSymbol from "../brand/VeronnaSymbol";
 
 interface AppHeaderProps {
   handleLogout: () => void;
+  userRole?: string | null;
 }
 
-export default function AppHeader({ handleLogout }: AppHeaderProps) {
+export default function AppHeader({ handleLogout, userRole }: AppHeaderProps) {
   const router = useRouter();
   const { data: profile } = useProfile();
   const { navMode, setNavMode, theme, setTheme } = useGlobalStore();
   const userProfile = profile;
-  const isTeamMember = ["admin", "gestor", "colaborador"].includes(userProfile?.role);
+  const effectiveRole = userProfile?.role || userRole;
+  const isTeamMember = ["admin", "gestor", "colaborador"].includes(effectiveRole || "");
+  const isManagerOrAdmin = ["admin", "gestor"].includes(effectiveRole || "");
   
   // Estados do Sistema de Notificações
   const [notifications, setNotifications] = useState<any[]>([]);
@@ -364,7 +367,7 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                     {/* CONTEÚDO DOS APPS: GRADE OU LISTA */}
                     {appsViewMode === 'grid' ? (
                       <div className="grid grid-cols-3 gap-2 pt-1">
-                        {isTeamMember && (
+                        {isManagerOrAdmin && (
                           <button
                             type="button"
                             onClick={() => { setIsNavMenuOpen(false); router.push('/tessera'); }}
@@ -435,32 +438,6 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
 
                         <button
                           type="button"
-                          onClick={() => { setIsNavMenuOpen(false); router.push('/admin/analytics/idv'); }}
-                          className="flex flex-col items-center justify-center p-2.5 rounded-2xl hover:bg-black/[0.03] transition-all group cursor-pointer active:scale-95"
-                        >
-                          <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-rose-100 text-rose-600 group-hover:bg-rose-500 group-hover:text-white transition-all shadow-xs">
-                            <Target size={18} />
-                          </div>
-                          <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)] text-center leading-tight mt-1.5 w-full truncate">
-                            IDV Intel
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => { setIsNavMenuOpen(false); router.push('/admin/gestao'); }}
-                          className="flex flex-col items-center justify-center p-2.5 rounded-2xl hover:bg-black/[0.03] transition-all group cursor-pointer active:scale-95"
-                        >
-                          <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-emerald-100 text-emerald-600 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-xs">
-                            <Activity size={18} />
-                          </div>
-                          <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)] text-center leading-tight mt-1.5 w-full truncate">
-                            Produtividade
-                          </span>
-                        </button>
-
-                        <button
-                          type="button"
                           onClick={() => { setIsNavMenuOpen(false); router.push('/admin/motion-studio'); }}
                           title="Veronna Motion Studio"
                           className="flex flex-col items-center justify-center p-2.5 rounded-2xl hover:bg-black/[0.03] transition-all group cursor-pointer active:scale-95"
@@ -473,7 +450,7 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                           </span>
                         </button>
 
-                        {(userProfile?.role === 'admin' || userProfile?.role === 'gestor') && (
+                        {(effectiveRole === 'admin' || effectiveRole === 'gestor') && (
                           <button
                             type="button"
                             onClick={() => { setIsNavMenuOpen(false); router.push('/admin'); }}
@@ -488,7 +465,7 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                           </button>
                         )}
 
-                        {userProfile?.role === 'admin' && (
+                        {effectiveRole === 'admin' && (
                           <button
                             type="button"
                             onClick={() => { setIsNavMenuOpen(false); router.push('/admin/financeiro'); }}
@@ -505,7 +482,7 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                       </div>
                     ) : (
                       <div className="flex flex-col gap-1 pt-1">
-                        {isTeamMember && (
+                        {isManagerOrAdmin && (
                           <button
                             type="button"
                             onClick={() => { setIsNavMenuOpen(false); router.push('/tessera'); }}
@@ -579,34 +556,6 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
 
                         <button
                           type="button"
-                          onClick={() => { setIsNavMenuOpen(false); router.push('/admin/analytics/idv'); }}
-                          className="flex items-center gap-3 px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors text-left"
-                        >
-                          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-rose-100 text-rose-600 shrink-0">
-                            <Target size={14} />
-                          </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="truncate">IDV Intelligence</span>
-                            <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 font-normal truncate">Métricas Atelier Method</span>
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => { setIsNavMenuOpen(false); router.push('/admin/gestao'); }}
-                          className="flex items-center gap-3 px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors text-left"
-                        >
-                          <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-100 text-emerald-600 shrink-0">
-                            <Activity size={14} />
-                          </div>
-                          <div className="flex flex-col min-w-0">
-                            <span className="truncate">Produtividade</span>
-                            <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 font-normal truncate">Performance da Equipa</span>
-                          </div>
-                        </button>
-
-                        <button
-                          type="button"
                           onClick={() => { setIsNavMenuOpen(false); router.push('/admin/motion-studio'); }}
                           className="flex items-center gap-3 px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors text-left"
                         >
@@ -619,7 +568,7 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                           </div>
                         </button>
 
-                        {(userProfile?.role === 'admin' || userProfile?.role === 'gestor') && (
+                        {(effectiveRole === 'admin' || effectiveRole === 'gestor') && (
                           <button
                             type="button"
                             onClick={() => { setIsNavMenuOpen(false); router.push('/admin'); }}
@@ -635,7 +584,7 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                           </button>
                         )}
 
-                        {userProfile?.role === 'admin' && (
+                        {effectiveRole === 'admin' && (
                           <button
                             type="button"
                             onClick={() => { setIsNavMenuOpen(false); router.push('/admin/financeiro'); }}
@@ -709,7 +658,7 @@ export default function AppHeader({ handleLogout }: AppHeaderProps) {
                         {userProfile?.nome || "Utilizador"}
                       </p>
                       <p className="text-[9px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-wider font-semibold truncate mt-0.5">
-                        {userProfile?.empresa || (userProfile?.role === 'admin' ? 'Administrador' : userProfile?.role === 'gestor' ? 'Gestor' : userProfile?.role === 'colaborador' ? 'Colaborador' : 'Cliente')}
+                        {userProfile?.empresa || (effectiveRole === 'admin' ? 'Administrador' : effectiveRole === 'gestor' ? 'Gestor' : effectiveRole === 'colaborador' ? 'Colaborador' : 'Cliente')}
                       </p>
                     </div>
                     <button 

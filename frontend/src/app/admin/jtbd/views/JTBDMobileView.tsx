@@ -192,14 +192,15 @@ export default function JTBDMobileView({
 
   const reviewTasks = useMemo(() => tasksPool.filter(t => {
     if (!isReviewStatus(t.status)) return false;
-    const matchesUser = t.assigned_to === viewedUser?.id;
+    // Se for Gestor/Admin no próprio espaço, mostra todas as demandas em revisão da equipe (admin e colaboradores)
+    const matchesUser = (isAdminOrManager && isViewingSelf) ? true : (t.assigned_to === viewedUser?.id);
     if (!matchesUser) return false;
     if (selectedClient) {
       const matchesClient = selectedClient.type === 'project' ? t.project_id === selectedClient.id : t.subclient_id === selectedClient.id;
       if (!matchesClient) return false;
     }
     return isFromCurrentMonth(t);
-  }), [tasksPool, viewedUser?.id, selectedClient, currentMonth, currentYear]);
+  }), [tasksPool, viewedUser?.id, selectedClient, currentMonth, currentYear, isAdminOrManager, isViewingSelf]);
 
   // 5. Tarefas Concluídas (EXIBE AS TAREFAS CONCLUÍDAS DO MÊS) — MEMOIZADO
   const completedTasks = useMemo(() => tasksPool.filter(t => {

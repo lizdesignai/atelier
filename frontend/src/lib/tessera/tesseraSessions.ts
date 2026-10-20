@@ -42,7 +42,36 @@ export async function getActiveSession(orgId: string, userId: string): Promise<T
       LIMIT 1;`,
     [userId, orgId],
   );
-  return (rows[0] as TesseraSession) || null;
+  if (rows[0]) return rows[0] as TesseraSession;
+
+  // Fallback: se o colaborador iniciou a sessão via Focus nativo (/admin/jtbd)
+  const wsRows = await sqlClient().query(
+    `SELECT ws.id, ws.user_id, ws.task_id AS work_item_id, ws.start_time AS started_at,
+            EXTRACT(EPOCH FROM (NOW() - ws.start_time))::int AS elapsed_seconds,
+            COALESCE(t.title, 'Tarefa em Foco') AS item_title
+       FROM public.work_sessions ws
+       LEFT JOIN public.tasks t ON t.id = ws.task_id
+      WHERE ws.user_id = $1::uuid AND ws.end_time IS NULL
+      LIMIT 1;`,
+    [userId],
+  );
+  if (wsRows[0]) {
+    const ws = wsRows[0] as any;
+    return {
+      id: ws.id,
+      user_id: ws.user_id,
+      work_item_id: ws.work_item_id,
+      started_at: ws.started_at,
+      ended_at: null,
+      minutes: null,
+      capped: false,
+      source: 'focus_timer',
+      elapsed_seconds: ws.elapsed_seconds,
+      item_title: ws.item_title,
+    } as TesseraSession;
+  }
+
+  return null;
 }
 
 export async function startSession(orgId: string, itemId: string, actor: Actor) {
@@ -112,12 +141,24 @@ export async function closeOpenSessionsForItem(itemId: string) {
 
 export async function workedTodayMinutes(userId: string, timezone: string): Promise<number> {
   const rows = await sqlClient().query(
-    `SELECT COALESCE(SUM(CASE WHEN ended_at IS NULL
-                              THEN ROUND(EXTRACT(EPOCH FROM (NOW() - started_at)) / 60)
-                              ELSE minutes END), 0)::int AS m
-       FROM public.tessera_work_sessions
-      WHERE user_id = $1::uuid
-        AND started_at >= (date_trunc('day', NOW() AT TIME ZONE $2) AT TIME ZONE $2);`,
+    `SELECT (
+       COALESCE((
+         SELECT SUM(CASE WHEN ended_at IS NULL
+                         THEN ROUND(EXTRACT(EPOCH FROM (NOW() - started_at)) / 60)
+                         ELSE minutes END)
+           FROM public.tessera_work_sessions
+          WHERE user_id = $1::uuid
+            AND started_at >= (date_trunc('day', NOW() AT TIME ZONE $2) AT TIME ZONE $2)
+       ), 0)
+       +
+       COALESCE((
+         SELECT SUM(COALESCE(duration_minutes, ROUND(EXTRACT(EPOCH FROM (COALESCE(end_time, NOW()) - start_time)) / 60)))
+           FROM public.work_sessions
+          WHERE user_id = $1::uuid
+            AND start_time >= (date_trunc('day', NOW() AT TIME ZONE $2) AT TIME ZONE $2)
+            AND id NOT IN (SELECT id FROM public.tessera_work_sessions)
+       ), 0)
+     )::int AS m;`,
     [userId, timezone],
   );
   return Number((rows[0] as any)?.m || 0);

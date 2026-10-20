@@ -3,7 +3,7 @@
 // src/app/admin/jtbd/views/DailyKanban.tsx
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, AlertTriangle, CheckCircle2, Image as ImageIcon, PlayCircle, FileText, User, Briefcase, X } from "lucide-react";
+import { Clock, AlertTriangle, CheckCircle2, Image as ImageIcon, PlayCircle, FileText, User, Briefcase, X, Filter, Check, ChevronDown } from "lucide-react";
 import TaskCard from "../components/TaskCard";
 import { supabase } from "../../../../lib/supabase";
 import ClientAssetsModal from "../../../../components/ClientAssetsModal";
@@ -50,7 +50,20 @@ export default function DailyKanban({
   // ==========================================================================
   const [activeTaskModal, setActiveTaskModal] = useState<{task: any, isFocus: boolean, isReview: boolean, isCompleted: boolean} | null>(null);
   const [activeAssetsTask, setActiveAssetsTask] = useState<any | null>(null);
-  const [reviewFilter, setReviewFilter] = useState<'team' | 'mine'>('team');
+  const [reviewFilter, setReviewFilter] = useState<'all' | 'team' | 'mine'>('all');
+  const [isFilterDropdownOpen, setIsFilterDropdownOpen] = useState(false);
+
+  useEffect(() => {
+    if (!isFilterDropdownOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('#review-filter-dropdown-container')) {
+        setIsFilterDropdownOpen(false);
+      }
+    };
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  }, [isFilterDropdownOpen]);
   const [showArchiveModal, setShowArchiveModal] = useState(false);
   const [archiveSearch, setArchiveSearch] = useState('');
 
@@ -67,7 +80,15 @@ export default function DailyKanban({
   // 🟢 UNIFICAÇÃO DA FILA: Junta as tarefas pendentes com as em andamento
   const activeQueueTasks = [...inProgressTasks, ...pendingTasks];
   
-  const visibleReviewTasks = isAdminOrManager ? reviewTasks.filter(t => reviewFilter === 'mine' ? t.assigned_to === currentUser?.id : t.assigned_to !== currentUser?.id) : reviewTasks;
+  const teamReviewCount = reviewTasks.filter(t => t.assigned_to !== currentUser?.id).length;
+  const myReviewCount = reviewTasks.filter(t => t.assigned_to === currentUser?.id).length;
+  const visibleReviewTasks = isAdminOrManager 
+    ? reviewTasks.filter(t => {
+        if (reviewFilter === 'mine') return t.assigned_to === currentUser?.id;
+        if (reviewFilter === 'team') return t.assigned_to !== currentUser?.id;
+        return true; // 'all'
+      }) 
+    : reviewTasks;
   const todaysCompleted = completedTasks.filter(t => {
     const d = t.completed_at ? new Date(t.completed_at) : (t.updated_at ? new Date(t.updated_at) : new Date(t.deadline));
     const diffTime = new Date().getTime() - d.getTime();
@@ -406,12 +427,13 @@ export default function DailyKanban({
             onDragOver={handleDragOver}
             onDrop={(e) => handleDropIntercept(e, 'pending')}
           >
-            <div className="absolute inset-0 bg-white/50 backdrop-blur-xl rounded-[2.5rem] border border-white shadow-sm group-hover/col:shadow-md transition-shadow duration-300 overflow-hidden pointer-events-none z-0"></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-[#FDFBF7]/85 to-white/90 backdrop-blur-2xl rounded-[2.5rem] border border-[var(--color-atelier-grafite)]/10 shadow-[0_12px_40px_rgba(44,43,41,0.06)] group-hover/col:shadow-lg transition-shadow duration-300 overflow-hidden pointer-events-none z-0"></div>
             
             <div className="relative z-10 flex flex-col h-full p-6">
               <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
-                  <PlayCircle size={20} className="text-[var(--color-atelier-grafite)]/50"/> {selectedClient ? 'Fila do Cliente' : 'Fila'}
+                  <PlayCircle size={20} className="text-[var(--color-atelier-terracota)]"/> 
+                  <span>{selectedClient ? 'Fila do Cliente' : 'Mesa de Execução'}</span>
                 </h3>
                 <span className="bg-white px-3 py-1 rounded-lg text-[11px] font-bold text-[var(--color-atelier-grafite)]/60 shadow-sm border border-[var(--color-atelier-grafite)]/5">
                   {activeQueueTasks.length}
@@ -448,23 +470,27 @@ export default function DailyKanban({
             onDragOver={handleDragOver}
             onDrop={(e) => handleDropIntercept(e, 'review')}
           >
-            <div className="absolute inset-0 bg-orange-50/60 backdrop-blur-xl rounded-[2.5rem] border border-orange-200 shadow-[inset_0_4px_20px_rgba(249,115,22,0.03)] group-hover/col:shadow-md transition-shadow duration-300 overflow-hidden pointer-events-none z-0">
-              <div className="absolute top-[-50px] right-[-50px] w-40 h-40 bg-orange-400/10 rounded-full blur-3xl"></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-[#FDFBF7]/95 via-white/85 to-[#FDFBF7]/95 backdrop-blur-2xl rounded-[2.5rem] border border-[var(--color-atelier-terracota)]/25 shadow-[0_12px_40px_rgba(163,92,66,0.08)] group-hover/col:shadow-lg transition-shadow duration-300 overflow-hidden pointer-events-none z-0">
+              <div className="absolute top-[-50px] right-[-50px] w-48 h-48 bg-[var(--color-atelier-terracota)]/12 rounded-full blur-3xl pointer-events-none"></div>
             </div>
             
             <div className="relative z-10 flex flex-col h-full p-6">
               <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-orange-200/50 pb-4">
                 <h3 className="font-elegant text-2xl text-orange-900 flex items-center gap-2">
-                  <AlertTriangle size={20} className="text-orange-500"/> Revisão</h3>
+                  <AlertTriangle size={20} className="text-[var(--color-atelier-terracota)]"/> 
+                  <span>Curadoria & Revisão</span></h3>
                 <div className="flex items-center gap-2">
                   
                     
                     {isAdminOrManager && (
-                      <div className="flex bg-white rounded-lg p-0.5 border border-orange-200 items-center">
-                        <button onClick={() => setReviewFilter('mine')} className={`px-2 py-1 text-[9px] font-bold rounded-md transition-colors uppercase ${reviewFilter === 'mine' ? 'bg-orange-100 text-orange-800' : 'text-gray-400'}`}>Minhas</button>
-                        <button onClick={() => setReviewFilter('team')} className={`px-2 py-1 text-[9px] font-bold rounded-md transition-colors uppercase ${reviewFilter === 'team' ? 'bg-orange-100 text-orange-800' : 'text-gray-400'}`}>Equipe</button>
+                      <div className="flex bg-[var(--color-atelier-champagne)]/40 rounded-xl p-1 border border-[var(--color-atelier-grafite)]/10 items-center gap-1 shadow-2xs">
+                        <button onClick={() => setReviewFilter('all')} className={`px-2.5 py-1 text-[9px] font-bold rounded-lg transition-all uppercase tracking-wider ${reviewFilter === 'all' ? 'bg-white text-[var(--color-atelier-grafite)] shadow-2xs font-extrabold' : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'}`}>Todas ({reviewTasks.length})</button>
+                        <button onClick={() => setReviewFilter('team')} className={`px-2.5 py-1 text-[9px] font-bold rounded-lg transition-all uppercase tracking-wider ${reviewFilter === 'team' ? 'bg-white text-[var(--color-atelier-grafite)] shadow-2xs font-extrabold' : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'}`}>Equipe ({teamReviewCount})</button>
+                        <button onClick={() => setReviewFilter('mine')} className={`px-2.5 py-1 text-[9px] font-bold rounded-lg transition-all uppercase tracking-wider ${reviewFilter === 'mine' ? 'bg-white text-[var(--color-atelier-grafite)] shadow-2xs font-extrabold' : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'}`}>Minhas ({myReviewCount})</button>
                         {handleBatchComplete && visibleReviewTasks.length > 0 && (
-                          <button onClick={() => handleBatchComplete(visibleReviewTasks)} className="ml-1 px-2 py-1 text-[9px] font-bold rounded-md bg-green-500 hover:bg-green-600 text-white transition-colors uppercase shadow-sm">A-ALL</button>
+                          <button onClick={() => handleBatchComplete(visibleReviewTasks)} className="ml-1.5 px-3 py-1 text-[9px] font-bold rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white transition-all uppercase tracking-wider shadow-xs flex items-center gap-1">
+                            <CheckCircle2 size={11} /> Aprovar Lote
+                          </button>
                         )}
                       </div>
                     )}
@@ -487,7 +513,7 @@ export default function DailyKanban({
                       Aguardando Aprovações
                     </motion.div>
                   ) : (
-                    reviewTasks.map(task => renderTask(task, false, true, false))
+                    visibleReviewTasks.map(task => renderTask(task, false, true, false))
                   )}
                 </AnimatePresence>
               </div>
@@ -502,12 +528,13 @@ export default function DailyKanban({
             onDragOver={handleDragOver}
             onDrop={(e) => handleDropIntercept(e, 'completed')}
           >
-            <div className="absolute inset-0 bg-white/40 backdrop-blur-md rounded-[2.5rem] border border-white/80 shadow-sm overflow-hidden pointer-events-none z-0"></div>
+            <div className="absolute inset-0 bg-gradient-to-b from-white/90 via-[#FDFBF7]/85 to-white/90 backdrop-blur-2xl rounded-[2.5rem] border border-[var(--color-atelier-grafite)]/10 shadow-[0_12px_40px_rgba(44,43,41,0.06)] overflow-hidden pointer-events-none z-0"></div>
             
             <div className="relative z-10 flex flex-col h-full p-6">
               <div className="flex justify-between items-center mb-6 px-2 shrink-0 border-b border-[var(--color-atelier-grafite)]/10 pb-4">
                 <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
-                  <CheckCircle2 size={20} className="text-green-500"/> Concluídas
+                  <CheckCircle2 size={20} className="text-emerald-700"/> 
+                  <span>Entregas Validadas</span>
                 </h3>
               </div>
               

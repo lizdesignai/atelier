@@ -4,11 +4,19 @@ import { Resend } from 'resend';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
+function formatAbsoluteUrl(link?: string): string {
+  const baseUrl = process.env.NEXT_PUBLIC_SITE_URL || process.env.APP_URL || 'https://atelier.lizdesign.com.br';
+  if (!link) return baseUrl;
+  if (link.startsWith('http://') || link.startsWith('https://')) return link;
+  return `${baseUrl.replace(/\/$/, '')}/${link.replace(/^\//, '')}`;
+}
+
 // ============================================================================
 // TEMPLATE FACTORY: Orquestrador de Mensagens (App-Like Push Notifications)
 // ============================================================================
 function getEmailTemplate(type: string, data: any) {
   const { clientName, projectName, taskName, link, extraInfo, subject: customSubject, body: customBody } = data;
+  const absoluteLink = formatAbsoluteUrl(link);
   
   // Variáveis padrão da interface do Card
   let subject = "Notificação do Sistema";
@@ -18,6 +26,41 @@ function getEmailTemplate(type: string, data: any) {
   let icon = "🔔"; // Ícone principal do Card
 
   switch (type) {
+    // -------------------------------------------------------------
+    // 0. SINTONIA & COMUNICAÇÃO CORPORATIVA
+    // -------------------------------------------------------------
+    case 'sintonia_mention':
+      subject = `[Sintonia] ${clientName || 'Alguém'} mencionou você`;
+      icon = "💬";
+      title = "Você foi Mencionado";
+      message = customBody || `<strong>${clientName || 'Um colaborador'}</strong> mencionou você na Sintonia: <em>"${extraInfo || 'Confira a mensagem no painel'}"</em>`;
+      buttonText = "Abrir Sintonia";
+      break;
+
+    case 'sintonia_dm':
+      subject = `[Sintonia] Mensagem Direta de ${clientName || 'Colega'}`;
+      icon = "✉️";
+      title = "Nova Mensagem Privada";
+      message = customBody || `Você recebeu uma nova mensagem direta de <strong>${clientName || 'um colaborador'}</strong>: <em>"${extraInfo || 'Acesse para responder'}"</em>`;
+      buttonText = "Responder na Sintonia";
+      break;
+
+    case 'sintonia_channel':
+      subject = `[Sintonia] Mensagem em #${projectName || 'operacao-atelier'}`;
+      icon = "📢";
+      title = `Canal #${projectName || 'operacao-atelier'}`;
+      message = customBody || `Existe uma nova mensagem prioritária no canal da equipe.`;
+      buttonText = "Acessar Canal";
+      break;
+
+    case 'chat_activity':
+      subject = `[Sintonia] Nova mensagem de ${clientName || "Colaborador"}`;
+      icon = "💬";
+      title = "Comunicação na Sintonia";
+      message = customBody || `Há uma nova comunicação na Sintonia aguardando seu acompanhamento.`;
+      buttonText = "Abrir Sintonia";
+      break;
+
     // -------------------------------------------------------------
     // 1. NOTIFICAÇÕES PARA O CLIENTE
     // -------------------------------------------------------------
@@ -152,14 +195,6 @@ function getEmailTemplate(type: string, data: any) {
       buttonText = "Ler Feedback";
       break;
 
-    case 'chat_activity':
-      subject = `[Sintonia] Mensagem de ${clientName || "Colaborador"}`;
-      icon = "💬";
-      title = "Nova Mensagem";
-      message = `Há uma nova comunicação na Sintonia aguardando sua resposta.`;
-      buttonText = "Abrir Sintonia";
-      break;
-
     case 'fever_chart_alert':
       subject = `[RISCO] Alerta: ${projectName}`;
       icon = "⚠️";
@@ -200,63 +235,90 @@ function getEmailTemplate(type: string, data: any) {
       break;
   }
 
-  // 🟢 PREVENÇÃO: Limpa imagens em Base64 do corpo do e-mail (evita strings de 30kb+ vazando)
+  // Prevenção: Limpa imagens em Base64 do corpo do e-mail
   if (typeof message === 'string') {
     message = message.replace(/data:image\/[^;]+;base64,[a-zA-Z0-9+/=]+/g, '[Imagem Ocultada no E-mail]');
   }
 
-  // 🟢 TEMPLATE HTML "APP-LIKE" (Estilo Notificação Push do iOS/macOS)
+  // TEMPLATE HTML REFINADO (Design Executivo Studio Veronna)
   const html = `
     <!DOCTYPE html>
-    <html lang="pt-PT">
+    <html lang="pt-BR">
     <head>
       <meta charset="utf-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <title>${subject}</title>
     </head>
-    <body style="margin: 0; padding: 0; background-color: #f4f4f5; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased;">
-      <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #f4f4f5; padding: 40px 20px;">
+    <body style="margin: 0; padding: 0; background-color: #faf9f6; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; -webkit-font-smoothing: antialiased; color: #18181b;">
+      <table width="100%" border="0" cellspacing="0" cellpadding="0" style="background-color: #faf9f6; padding: 48px 20px;">
         <tr>
           <td align="center">
             
-            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 420px; background-color: #ffffff; border-radius: 24px; box-shadow: 0 12px 32px rgba(0,0,0,0.06); border: 1px solid #f0f0f0; overflow: hidden;">
+            <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 440px; background-color: #ffffff; border-radius: 28px; box-shadow: 0 16px 40px rgba(0,0,0,0.06); border: 1px solid #ebe8e2; overflow: hidden;">
               
+              <!-- Top Branding Bar -->
               <tr>
-                <td align="center" style="padding: 40px 30px 16px;">
-                  <div style="display: inline-block; width: 56px; height: 56px; border-radius: 18px; background-color: #fcf4ef; border: 1px solid #f8e5d7; font-size: 26px; line-height: 56px; text-align: center; margin-bottom: 20px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
+                <td style="padding: 24px 32px 0; border-bottom: 1px solid #f4f2ee;">
+                  <table width="100%" border="0" cellspacing="0" cellpadding="0">
+                    <tr>
+                      <td align="left" style="padding-bottom: 16px;">
+                        <span style="font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #a45037;">STUDIO VERONNA</span>
+                      </td>
+                      <td align="right" style="padding-bottom: 16px;">
+                        <span style="font-size: 10px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; color: #a1a1aa; background-color: #f4f2ee; padding: 4px 10px; border-radius: 10px;">SINTONIA</span>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <!-- Card Header & Icon -->
+              <tr>
+                <td align="center" style="padding: 36px 32px 16px;">
+                  <div style="display: inline-block; width: 60px; height: 60px; border-radius: 20px; background-color: #fdf5f2; border: 1px solid #f6ded5; font-size: 28px; line-height: 60px; text-align: center; margin-bottom: 18px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
                     ${icon}
                   </div>
-                  <h1 style="margin: 0; font-size: 22px; color: #18181b; font-weight: 700; letter-spacing: -0.5px; line-height: 1.2;">
+                  <h1 style="margin: 0; font-size: 21px; color: #18181b; font-weight: 700; letter-spacing: -0.4px; line-height: 1.25;">
                     ${title}
                   </h1>
                 </td>
               </tr>
 
+              <!-- Message Body -->
               <tr>
-                <td align="center" style="padding: 0 30px 32px;">
-                  <p style="margin: 0; font-size: 15px; line-height: 1.6; color: #52525b;">
+                <td align="center" style="padding: 0 32px 28px;">
+                  <p style="margin: 0; font-size: 14.5px; line-height: 1.6; color: #52525b;">
                     ${message}
                   </p>
                 </td>
               </tr>
               
+              <!-- CTA Button -->
               <tr>
-                <td align="center" style="padding: 0 30px 40px;">
-                  <a href="${link || 'https://atelier.lizdesign.com.br'}" style="display: inline-block; width: 100%; box-sizing: border-box; background-color: #18181b; color: #ffffff; text-decoration: none; padding: 18px 24px; border-radius: 14px; font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px; text-align: center; transition: background-color 0.2s;">
-                    ${buttonText}
+                <td align="center" style="padding: 0 32px 36px;">
+                  <a href="${absoluteLink}" style="display: inline-block; width: 100%; box-sizing: border-box; background-color: #18181b; color: #ffffff; text-decoration: none; padding: 16px 24px; border-radius: 16px; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 1.2px; text-align: center; box-shadow: 0 4px 14px rgba(0,0,0,0.12);">
+                    ${buttonText} &rarr;
                   </a>
                 </td>
               </tr>
 
+              <!-- Footer -->
               <tr>
-                <td align="center" style="padding: 20px; background-color: #fafafa; border-top: 1px solid #f4f4f5;">
-                  <p style="margin: 0; font-size: 10px; color: #a1a1aa; text-transform: uppercase; letter-spacing: 1.5px; font-weight: 600;">
-                    Studio Veronna &nbsp;&bull;&nbsp;
+                <td align="center" style="padding: 20px 32px; background-color: #fcfbfa; border-top: 1px solid #f4f2ee;">
+                  <p style="margin: 0; font-size: 11px; color: #a1a1aa; line-height: 1.5;">
+                    Esta é uma notificação automática da central de operações Atelier.<br/>
+                    <strong style="color: #71717a;">Studio Veronna</strong> &bull; Design Estratégico & Identidade
                   </p>
                 </td>
               </tr>
 
             </table>
-            </td>
+
+            <p style="margin-top: 24px; font-size: 11px; color: #a1a1aa;">
+              Acesse o sistema em <a href="https://atelier.lizdesign.com.br" style="color: #71717a; text-decoration: underline;">atelier.lizdesign.com.br</a>
+            </p>
+
+          </td>
         </tr>
       </table>
     </body>
@@ -282,23 +344,35 @@ export async function POST(request: Request) {
     const fromEmail = 'Studio Veronna <sistema@lizdesign.com.br>'; 
 
     // Obtém o template (App-Like)
-    const { subject, html } = getEmailTemplate(type, { clientName, projectName, taskName, link, extraInfo, subject: customSubject, body: customBody });
+    const { subject, html } = getEmailTemplate(type, { 
+      clientName, 
+      projectName, 
+      taskName, 
+      link, 
+      extraInfo, 
+      subject: customSubject, 
+      body: customBody 
+    });
 
-    // 🟢 Correção de Arquitetura: Transforma sempre em Array para o disparo em lote
     const recipients = Array.isArray(to) ? to : [to];
 
-    const data = await resend.emails.send({
+    const { data, error: resendError } = await resend.emails.send({
       from: fromEmail,
       to: recipients,
       subject: subject,
       html: html,
     });
 
-    console.log(`[Notify API] E-mail do tipo '${type}' disparado com sucesso para ${recipients.length} destinatário(s).`);
+    if (resendError) {
+      console.error("[Notify API] Falha Resend:", resendError);
+      return NextResponse.json({ error: resendError.message, details: resendError }, { status: 500 });
+    }
+
+    console.log(`[Notify API] E-mail do tipo '${type}' disparado com sucesso para ${recipients.length} destinatário(s): ${recipients.join(', ')}`);
     return NextResponse.json({ success: true, data });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("[Notify API] Falha Crítica ao enviar e-mail:", error);
-    return NextResponse.json({ error: 'Erro de processamento interno ao enviar e-mail.' }, { status: 500 });
+    return NextResponse.json({ error: error?.message || 'Erro de processamento interno ao enviar e-mail.' }, { status: 500 });
   }
 }

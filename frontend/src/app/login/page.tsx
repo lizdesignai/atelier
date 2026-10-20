@@ -8,6 +8,7 @@ import {
   Lock, ShieldCheck, Mail, KeyRound, 
   Loader2, ArrowLeft, RefreshCw, Smartphone
 } from "lucide-react";
+import { queryClient } from "@/lib/queryClient";
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -207,10 +208,16 @@ export default function LoginPage() {
       const role = data.user?.role || 'client';
       const destination = data.redirectUrl || data.user?.redirectUrl || (role === 'client' ? "/" : role === 'contador' ? "/admin/financeiro" : "/admin/jtbd");
       
+      // Sincronizar cache do React Query antes da transição
+      if (data.user) {
+        queryClient.setQueryData(["session"], { user: data.user });
+      }
+      queryClient.invalidateQueries();
+
       setIsSuccessState(true);
       setTimeout(() => {
-        router.push(destination);
-      }, 1800);
+        window.location.href = destination;
+      }, 1500);
 
     } catch (error: any) {
       showToast(error.message);
@@ -248,10 +255,16 @@ export default function LoginPage() {
       const role = data.user?.role || 'client';
       const destination = data.redirectUrl || data.user?.redirectUrl || (role === 'client' ? "/" : role === 'contador' ? "/admin/financeiro" : "/admin/jtbd");
       
+      // Sincronizar cache do React Query antes da transição
+      if (data.user) {
+        queryClient.setQueryData(["session"], { user: data.user });
+      }
+      queryClient.invalidateQueries();
+
       setIsSuccessState(true);
       setTimeout(() => {
-        router.push(destination);
-      }, 1800);
+        window.location.href = destination;
+      }, 1500);
 
     } catch (error: any) {
       showToast(error.message);

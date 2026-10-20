@@ -13,7 +13,7 @@ export const ITEM_SELECT = `
   SELECT w.*,
     p.nome AS owner_name,
     p.avatar_url AS owner_avatar,
-    CASE WHEN pr.id IS NULL THEN NULL ELSE COALESCE(pc.empresa, pc.nome) END AS project_title,
+    CASE WHEN pr.id IS NULL THEN NULL ELSE COALESCE(NULLIF(TRIM(pc.empresa), ''), pc.nome, pr.type, 'Projeto') END AS project_title,
     pc.nome AS client_name,
     (SELECT COUNT(*)::int FROM public.tessera_checklist_items c WHERE c.work_item_id = w.id) AS checklist_total,
     (SELECT COUNT(*)::int FROM public.tessera_checklist_items c WHERE c.work_item_id = w.id AND c.is_completed) AS checklist_completed
@@ -57,7 +57,10 @@ export async function getOrgSettings(orgId: string): Promise<OrgSettings> {
 
 export async function isOrgMember(orgId: string, userId: string): Promise<boolean> {
   const rows = await sqlClient().query(
-    `SELECT 1 FROM public.tessera_memberships WHERE organization_id = $1::uuid AND user_id = $2::uuid LIMIT 1;`,
+    `SELECT 1 FROM public.tessera_memberships WHERE organization_id = $1::uuid AND user_id = $2::uuid
+     UNION
+     SELECT 1 FROM public.profiles WHERE id = $2::uuid AND role IN ('admin', 'gestor', 'colaborador')
+     LIMIT 1;`,
     [orgId, userId],
   );
   return rows.length > 0;
@@ -79,11 +82,12 @@ export interface OrgMember {
 
 export async function listOrgMembers(orgId: string): Promise<OrgMember[]> {
   const rows = await sqlClient().query(
-    `SELECT p.id, COALESCE(p.nome, p.email, 'Membro') AS name, p.email, m.role, p.avatar_url, m.weekly_capacity_hours
-       FROM public.tessera_memberships m
-       JOIN public.profiles p ON p.id = m.user_id
-      WHERE m.organization_id = $1::uuid
-        AND COALESCE(p.role, '') IN ('admin', 'gestor', 'colaborador')
+    `SELECT p.id, COALESCE(p.nome, p.email, 'Membro') AS name, p.email, p.role, p.avatar_url,
+            COALESCE(m.weekly_capacity_hours, 30)::numeric AS weekly_capacity_hours
+       FROM public.profiles p
+       LEFT JOIN public.tessera_memberships m ON m.user_id = p.id AND m.organization_id = $1::uuid
+      WHERE COALESCE(p.role, '') IN ('admin', 'gestor', 'colaborador')
+        AND COALESCE(p.contract_status, 'active') != 'dismissed'
       ORDER BY p.nome ASC NULLS LAST;`,
     [orgId],
   );
@@ -101,7 +105,7 @@ export interface OrgProject {
 export async function listOrgProjects(): Promise<OrgProject[]> {
   const rows = await sqlClient().query(
     `SELECT pr.id,
-            COALESCE(pc.empresa, pc.nome, 'Projeto Ativo') AS title,
+            COALESCE(NULLIF(TRIM(pc.empresa), ''), pc.nome, pr.type, 'Projeto Ativo') AS title,
             COALESCE(pc.nome, 'Cliente') AS client_name,
             COALESCE(pr.service_type, pr.type, 'idv') AS service_type,
             COALESCE(pr.idv_phase, pr.fase, 'Em Produção') AS stage_label

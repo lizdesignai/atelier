@@ -208,6 +208,35 @@ export default function TaskCard({
     };
   }, [task.status, task.started_at]);
 
+  // 🟢 PERSISTÊNCIA REAL DE TEMPO (HEARTBEAT A CADA 60 SEGUNDOS)
+  useEffect(() => {
+    if (task.status !== 'in_progress') return;
+
+    const heartbeatTimer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/tasks/${task.id}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            requestedStatus: 'heartbeat', 
+            minutes: 1, 
+            userId: currentUser?.id 
+          })
+        });
+        if (res.ok) {
+          const { data } = await res.json();
+          if (data && typeof data.actual_time === 'number') {
+            task.actual_time = data.actual_time;
+          }
+        }
+      } catch (err) {
+        console.warn("Heartbeat time sync error:", err);
+      }
+    }, 60000);
+
+    return () => clearInterval(heartbeatTimer);
+  }, [task.id, task.status, currentUser?.id]);
+
   const displayImageUrl = normalizeImageUrl(task.attachment_url || relatedPost?.image_url);
   const isRejectedByClient = relatedPost?.status === 'needs_revision';
   const isPdf = displayImageUrl?.toLowerCase().includes('.pdf');
@@ -493,6 +522,16 @@ export default function TaskCard({
                   {task.projects?.type === 'Identidade Visual' ? <Target size={10}/> : <Activity size={10}/>}
                   {(task.agency_subclients?.name || task.projects?.profiles?.nome)?.split(" ")[0]} • {task.stage}
                 </div>
+                {task.assignee?.nome && (
+                  <span className="pointer-events-auto inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-[var(--color-atelier-champagne)]/40 text-[var(--color-atelier-grafite)] border border-[var(--color-atelier-grafite)]/10 text-[9px] font-bold tracking-wider">
+                    {task.assignee?.avatar_url ? (
+                      <img src={task.assignee.avatar_url} alt={task.assignee.nome} className="w-3.5 h-3.5 rounded-full object-cover" />
+                    ) : (
+                      <UserCircle2 size={11} className="text-[var(--color-atelier-terracota)]" />
+                    )}
+                    <span>{task.assignee.nome.split(" ")[0]}</span>
+                  </span>
+                )}
                 {(task.agency_subclients?.trello_url || task.projects?.trello_url) && (
                   <a
                     href={task.agency_subclients?.trello_url || task.projects?.trello_url}
@@ -613,18 +652,28 @@ export default function TaskCard({
               <div className="flex items-center gap-2 relative z-10 pointer-events-auto">
                 <>
                   {task.status === 'pending' && (
-                    <button onClick={(e) => { e.stopPropagation(); onAction('in_progress'); }} className="bg-blue-50 border border-blue-200 text-blue-600 hover:bg-blue-600 hover:text-white px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-colors shadow-sm flex items-center gap-2">
-                      <PlayCircle size={14} /> Iniciar
+                    <button 
+                      onClick={(e) => { e.stopPropagation(); onAction('in_progress'); }} 
+                      className="bg-[var(--color-atelier-terracota)] hover:brightness-110 text-white px-3.5 h-8.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm flex items-center gap-1.5 active:scale-95"
+                    >
+                      <PlayCircle size={13} /> Iniciar Demanda
                     </button>
                   )}
 
                   {isFocus && (
                     <>
-                      <button onClick={(e) => { e.stopPropagation(); onAction('pending'); }} className="bg-gray-50 border border-gray-200 text-gray-600 hover:bg-gray-200 w-9 h-9 rounded-xl flex items-center justify-center transition-colors shadow-sm" title="Pausar">
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onAction('pending'); }} 
+                        className="bg-white border border-[var(--color-atelier-grafite)]/15 text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-creme)] w-8.5 h-8.5 rounded-xl flex items-center justify-center transition-colors shadow-2xs active:scale-95" 
+                        title="Pausar"
+                      >
                         <PauseCircle size={14} />
                       </button>
-                      <button onClick={(e) => { e.stopPropagation(); onAction('review'); }} className="bg-orange-500 border border-orange-600 text-white hover:bg-orange-600 px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_10px_rgba(249,115,22,0.3)] hover:-translate-y-0.5 flex items-center gap-1">
-                        Revisão <ChevronRight size={14}/>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); onAction('review'); }} 
+                        className="bg-[var(--color-atelier-grafite)] hover:brightness-125 text-white px-3.5 h-8.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm hover:-translate-y-0.5 flex items-center gap-1.5 active:scale-95"
+                      >
+                        Revisão <ChevronRight size={13}/>
                       </button>
                     </>
                   )}
@@ -647,7 +696,7 @@ export default function TaskCard({
                           )}
                         </div>
                       ) : isAdmin ? (
-                        <button onClick={(e) => { e.stopPropagation(); onAction('completed'); }} className="bg-green-500 border border-green-600 text-white hover:bg-green-600 px-4 h-9 rounded-xl text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_4px_10px_rgba(34,197,94,0.3)] hover:-translate-y-0.5 flex items-center gap-1">
+                        <button onClick={(e) => { e.stopPropagation(); onAction('completed'); }} className="bg-emerald-700 border border-emerald-800 text-white hover:bg-emerald-600 px-3.5 h-8.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-all shadow-sm hover:-translate-y-0.5 flex items-center gap-1.5 active:scale-95">
                           Aprovar <CheckCircle2 size={14}/>
                         </button>
                       ) : (
@@ -1119,14 +1168,19 @@ export default function TaskCard({
               </div>
 
               {/* 🟢 TELEMETRIA DE PRODUÇÃO (SEM TÍTULO E SUBTÍTULO - APENAS TEMPO E BOTÃO INICIAR/FINALIZAR) */}
-              <div className="bg-blue-50/60 border border-blue-100/80 rounded-2xl p-4 flex items-center justify-between gap-3 shrink-0 order-2 shadow-sm">
+              <div className="bg-[var(--color-atelier-champagne)]/20 border border-[var(--color-atelier-grafite)]/10 rounded-2xl p-4 flex items-center justify-between gap-3 shrink-0 order-2 shadow-2xs">
                 <div className="flex items-center gap-3">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${task.status === 'in_progress' ? 'bg-blue-600 text-white animate-pulse' : 'bg-blue-100 text-blue-600'}`}>
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${task.status === 'in_progress' ? 'bg-[var(--color-atelier-terracota)] text-white animate-pulse' : 'bg-[var(--color-atelier-champagne)]/50 text-[var(--color-atelier-grafite)]'}`}>
                     <Timer size={20} />
                   </div>
-                  <span className="font-elegant text-2xl font-bold text-blue-900 tracking-wider">
-                    {formatTime(totalSpentSeconds)}
-                  </span>
+                  <div className="flex flex-col">
+                    <span className="font-elegant text-2xl font-bold text-[var(--color-atelier-grafite)] tracking-wider">
+                      {formatTime(totalSpentSeconds)}
+                    </span>
+                    <span className="text-[9px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">
+                      {task.status === 'in_progress' ? 'Gravando tempo real no servidor' : 'Tempo investido acumulado'}
+                    </span>
+                  </div>
                 </div>
 
                 <div>
@@ -1139,10 +1193,11 @@ export default function TaskCard({
                         onAction('review');
                         handleCloseModal();
                       }}
-                      className="w-10 h-10 bg-green-500 hover:bg-green-600 text-white rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center cursor-pointer touch-manipulation"
+                      className="h-10 px-4 bg-emerald-700 hover:bg-emerald-600 text-white rounded-xl transition-all shadow-sm active:scale-95 flex items-center gap-2 cursor-pointer font-bold text-xs uppercase tracking-wider"
                       title="Finalizar (Mover para Revisão)"
                     >
-                      <CheckCircle2 size={20} />
+                      <CheckCircle2 size={16} />
+                      <span>Finalizar</span>
                     </button>
                   ) : (
                     <button
@@ -1152,10 +1207,11 @@ export default function TaskCard({
                         e.stopPropagation();
                         onAction('in_progress');
                       }}
-                      className="w-10 h-10 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all shadow-md active:scale-95 flex items-center justify-center cursor-pointer touch-manipulation"
+                      className="h-10 px-4 bg-[var(--color-atelier-terracota)] hover:brightness-110 text-white rounded-xl transition-all shadow-sm active:scale-95 flex items-center gap-2 cursor-pointer font-bold text-xs uppercase tracking-wider"
                       title="Iniciar Contagem"
                     >
-                      <PlayCircle size={20} />
+                      <PlayCircle size={16} />
+                      <span>Iniciar Demanda</span>
                     </button>
                   )}
                 </div>

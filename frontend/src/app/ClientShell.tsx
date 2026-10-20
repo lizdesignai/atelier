@@ -113,10 +113,11 @@ export default function ClientShell({ children }: { children: React.ReactNode })
         const response = await fetch("/api/auth/me", { credentials: "include" });
         const data = await response.json();
         
-        if (!response.ok || data.authenticated === false) {
+        if (!response.ok || data.authenticated === false || !data.user) {
           // Não autenticado
+          queryClient.setQueryData(["session"], null);
           if (!isLoginPage) {
-            router.replace("/login");
+            window.location.href = "/login";
           }
           setIsInitializing(false);
           return;
@@ -126,16 +127,20 @@ export default function ClientShell({ children }: { children: React.ReactNode })
         const role = user?.role || 'client';
         setUserRole(role);
 
+        // Sincronizar autoritativamente o cache de sessão do React Query
+        queryClient.setQueryData(["session"], data);
+
         if (isLoginPage) {
           const destination = data.redirectUrl || data.user?.redirectUrl || (role === "client" ? "/" : role === "contador" ? "/admin/financeiro" : "/admin/jtbd");
-          router.replace(destination);
+          window.location.href = destination;
+          return;
         }
 
-        timer = setTimeout(() => setIsInitializing(false), 500);
+        timer = setTimeout(() => setIsInitializing(false), 200);
       } catch {
         // Erro de rede — se não está na página de login, redirecionar
         if (!isLoginPage) {
-          router.replace("/login");
+          window.location.href = "/login";
         }
         setIsInitializing(false);
       }
@@ -149,12 +154,14 @@ export default function ClientShell({ children }: { children: React.ReactNode })
 
   const handleLogout = async () => {
     triggerToast("A encerrar sessão com segurança...");
+    queryClient.setQueryData(["session"], null);
+    queryClient.clear();
     setTimeout(async () => {
       try {
         await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
       } catch {}
-      router.replace("/login");
-    }, 1000);
+      window.location.href = "/login";
+    }, 800);
   };
 
   return (
@@ -162,8 +169,8 @@ export default function ClientShell({ children }: { children: React.ReactNode })
       <GlobalStoreProvider>
         <GlobalToast />
         
-        {!isLoginPage && <InstagramClientNavPill />}
-        {!isLoginPage && <ClientProjectChatWidget />}
+        {!isLoginPage && !isInitializing && userRole && <InstagramClientNavPill />}
+        {!isLoginPage && !isInitializing && userRole && <ClientProjectChatWidget />}
 
         <div className="flex flex-1 w-full h-full relative">
           <VeronnaAmbientBackground />
@@ -189,7 +196,7 @@ export default function ClientShell({ children }: { children: React.ReactNode })
             className="flex-1 flex flex-col h-screen overflow-hidden relative z-10 w-full"
           >
             {!isLoginPage && userRole && !isSidebarHidden && (
-              <AppHeader handleLogout={handleLogout} />
+              <AppHeader handleLogout={handleLogout} userRole={userRole} />
             )}
 
             <main className={`flex-1 overflow-hidden flex flex-col ${isLoginPage || isSidebarHidden ? "p-0" : "px-4 md:px-12 pt-14 md:pt-4 pb-24 md:py-8"}`}>

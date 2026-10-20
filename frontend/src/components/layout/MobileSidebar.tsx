@@ -155,7 +155,7 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
     { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : isTeamMember ? [
-    { href: '/tessera', icon: <VeronnaSymbol size={18} fillColor="currentColor" className="text-[var(--color-veronna-bordo)]" />, label: 'Tessera' },
+    ...(isManagerOrAdmin ? [{ href: '/tessera', icon: <VeronnaSymbol size={18} fillColor="currentColor" className="text-[var(--color-veronna-bordo)]" />, label: 'Tessera' }] : []),
     { href: '/admin/jtbd', icon: <Crosshair size={20} strokeWidth={1.5} />, label: 'Focus' },
     { href: '/admin/projetos', icon: <FolderKanban size={20} strokeWidth={1.5} />, label: 'Studio Veronna' },
     { href: '/admin/motion-studio', icon: <LayoutDashboard size={20} strokeWidth={1.5} />, label: 'Veronna Motion Studio' },

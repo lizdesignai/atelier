@@ -70,15 +70,16 @@ export default function DailyJamDropdown({ userProfile, onClose }: { userProfile
   useEffect(() => {
     fetchJamMembers();
     
-    const channel = supabase.channel('profiles-jam')
-      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'profiles' }, () => {
-        fetchJamMembers();
-      })
-      .subscribe();
+    const handleJamUpdated = () => fetchJamMembers();
+    window.addEventListener("jamUpdated", handleJamUpdated);
+
+    // Polling suave enquanto o dropdown estiver aberto
+    const interval = setInterval(fetchJamMembers, 6000);
 
     return () => {
-      supabase.removeChannel(channel);
-    }
+      window.removeEventListener("jamUpdated", handleJamUpdated);
+      clearInterval(interval);
+    };
   }, []);
 
   const fetchJamMembers = async () => {
@@ -103,7 +104,9 @@ export default function DailyJamDropdown({ userProfile, onClose }: { userProfile
       if (error) throw error;
       
       setIsEditing(false);
+      window.dispatchEvent(new CustomEvent("jamUpdated"));
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Vibe atualizada com sucesso!" }));
+      window.dispatchEvent(new CustomEvent("jamUpdated"));
     } catch (e) {
       console.error(e);
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao salvar. Verifique se as colunas existem no BD." }));

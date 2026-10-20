@@ -20,16 +20,53 @@ export async function PATCH(
     // Begin transaction-like execution
     let result;
 
-    if (requestedStatus === 'in_progress') {
-      // Starting the task
+    if (requestedStatus === 'heartbeat' || body.action === 'heartbeat') {
+      // Periodic heartbeat while task is actively running - persists elapsed time
+      const minutesToAdd = Math.max(1, Number(body.minutes) || 1);
       const updateQuery = `
         UPDATE tasks 
-        SET status = $1, updated_at = NOW(), started_at = COALESCE(started_at, NOW())
+        SET actual_time = COALESCE(actual_time, 0) + $1,
+            started_at = NOW(),
+            updated_at = NOW()
+        WHERE id = $2 AND status = 'in_progress'
+        RETURNING *
+      `;
+      result = await (sql as any).query(updateQuery, [minutesToAdd, taskId]);
+
+      if (body.userId) {
+        await (sql as any).query(`
+          UPDATE work_sessions 
+          SET duration_minutes = COALESCE(duration_minutes, 0) + $1
+          WHERE id = (
+            SELECT id FROM work_sessions 
+            WHERE task_id = $2 AND user_id = $3 AND end_time IS NULL
+            ORDER BY start_time DESC LIMIT 1
+          )
+        `, [minutesToAdd, taskId, body.userId]);
+      }
+
+    } else if (requestedStatus === 'in_progress') {
+      // Starting the task - if starting fresh, started_at is NOW()
+      const updateQuery = `
+        UPDATE tasks 
+        SET status = $1,
+            updated_at = NOW(),
+            started_at = CASE 
+              WHEN status = 'in_progress' AND started_at IS NOT NULL THEN started_at 
+              ELSE NOW() 
+            END
         WHERE id = $2 RETURNING *
       `;
       result = await (sql as any).query(updateQuery, [requestedStatus, taskId]);
 
       if (body.userId) {
+        // Close any stale open sessions first to prevent duplicates
+        await (sql as any).query(`
+          UPDATE work_sessions 
+          SET end_time = NOW() 
+          WHERE task_id = $1 AND user_id = $2 AND end_time IS NULL
+        `, [taskId, body.userId]);
+
         // Insert new open work_session
         await (sql as any).query(`
           INSERT INTO work_sessions (task_id, user_id, start_time)
@@ -38,10 +75,17 @@ export async function PATCH(
       }
 
     } else if (['pending', 'review', 'completed', 'pending_client_approval'].includes(requestedStatus)) {
-      // Stopping the task
+      // Stopping, pausing, or completing the task - compute and save actual_time
       let updateQuery = `
         UPDATE tasks 
-        SET status = $1, updated_at = NOW()
+        SET status = $1,
+            actual_time = COALESCE(actual_time, 0) + CASE 
+              WHEN started_at IS NOT NULL AND EXTRACT(EPOCH FROM (NOW() - started_at)) >= 15 
+              THEN GREATEST(1, ROUND(EXTRACT(EPOCH FROM (NOW() - started_at)) / 60))
+              ELSE 0 
+            END,
+            started_at = NULL,
+            updated_at = NOW()
       `;
       if (requestedStatus === 'completed' || requestedStatus === 'pending_client_approval') {
         updateQuery += `, completed_at = NOW()`;
@@ -62,7 +106,7 @@ export async function PATCH(
           await (sql as any).query(`
             UPDATE work_sessions 
             SET end_time = NOW(),
-                duration_minutes = GREATEST(0, FLOOR(EXTRACT(EPOCH FROM (NOW() - start_time)) / 60))
+                duration_minutes = GREATEST(1, ROUND(EXTRACT(EPOCH FROM (NOW() - start_time)) / 60))
             WHERE id = $1
           `, [openSession.id]);
         }

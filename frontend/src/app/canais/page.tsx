@@ -200,7 +200,7 @@ export default function CanaisClientePage() {
         `💬 Chat: Mensagem de ${clientName}`,
         `O cliente enviou uma mensagem no canal #${activeChannel?.name}.`,
         "info",
-        "/admin/inbox"
+        "/admin/fio"
       );
       scrollToBottom();
     }
@@ -236,7 +236,7 @@ export default function CanaisClientePage() {
         `📎 Chat: Anexo de ${clientName}`,
         `O cliente enviou um novo arquivo no canal #${activeChannel?.name}.`,
         "info",
-        "/admin/inbox"
+        "/admin/fio"
       );
 
       setMessageText("");

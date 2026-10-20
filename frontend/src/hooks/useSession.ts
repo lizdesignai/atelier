@@ -40,10 +40,15 @@ export function useSession() {
       }
 
       const data = await response.json();
+      if (!data || data.authenticated === false || !data.user) {
+        return null;
+      }
+
       return data as SessionData;
     },
-    staleTime: 1000 * 60 * 5, // Cache de 5 minutos
+    staleTime: (query) => (query.state.data?.user ? 1000 * 60 * 5 : 0),
     gcTime: 1000 * 60 * 10,
     retry: false, // Não tentar novamente em caso de 401
+    refetchOnWindowFocus: true,
   });
 }

@@ -6,22 +6,32 @@ export type NotificationType = 'info' | 'success' | 'warning' | 'error' | 'actio
 export class NotificationEngine {
   
   /**
-   * 🟢 UTILITÁRIO: Validação de Segurança de E-mail
-   * Impede o disparo de APIs pagas para domínios de teste/fictícios.
+   * 🟢 UTILITÁRIO: Base URL para Chamadas de API e E-mails
    */
-  private static isValidRealEmail(email: string | null | undefined): boolean {
-    if (!email) return false;
-    
-    // Lista de domínios fictícios que estamos usando em ambiente de homologação
-    const fakeDomains = ['gestor.com', 'admin.com', 'teste.com', 'example.com', 'atelier.local'];
-    const domain = email.split('@')[1];
-    
-    // Retorna true apenas se o e-mail for válido e não pertencer à lista de fakes
-    return email.includes('@') && !fakeDomains.includes(domain);
+  private static getBaseUrl(): string {
+    if (typeof window !== 'undefined') return '';
+    return process.env.NEXT_PUBLIC_SITE_URL || process.env.APP_URL || 'https://atelier.lizdesign.com.br';
   }
 
   /**
-   * Dispara uma notificação para um utilizador específico (Cliente ou Colaborador)
+   * 🟢 UTILITÁRIO: Validação de Segurança de E-mail
+   * Impede o disparo de APIs pagas para domínios de teste/fictícios.
+   */
+  public static isValidRealEmail(email: string | null | undefined): boolean {
+    if (!email) return false;
+    const trimmed = email.trim().toLowerCase();
+    if (!trimmed.includes('@') || !trimmed.includes('.')) return false;
+    
+    // Lista de domínios fictícios que estamos usando em ambiente de homologação
+    const fakeDomains = ['teste.com', 'example.com', 'atelier.local'];
+    const domain = trimmed.split('@')[1];
+    
+    // Retorna true apenas se o e-mail for válido e não pertencer à lista de fakes
+    return Boolean(domain && !fakeDomains.includes(domain));
+  }
+
+  /**
+   * Dispara uma notificação in-app para um utilizador específico (Cliente ou Colaborador)
    */
   static async notifyUser(
     userId: string,
@@ -59,7 +69,7 @@ export class NotificationEngine {
       // 1. Encontra quem são os líderes do Atelier
       const { data: managers, error: fetchError } = await supabase
         .from('profiles')
-        .select('id, email')
+        .select('id, email, nome')
         .in('role', ['admin', 'gestor']);
 
       if (fetchError) throw fetchError;
@@ -71,37 +81,45 @@ export class NotificationEngine {
         title,
         message,
         type,
-        action_url: actionUrl,
+        action_url: actionUrl || '/admin/fio',
         is_read: false
       }));
 
-      // 3. Dispara tudo de uma vez para otimizar requisições (Performance)
+      // 3. Dispara no banco (In-App)
       const { error: insertError } = await supabase
         .from('notifications')
         .insert(notificationsToInsert);
 
       if (insertError) throw insertError;
 
-      // 4. DISPARO DE E-MAIL (Blindado contra e-mails fictícios e com Rota Corrigida)
-      // O filtro garante que só tentaremos enviar para e-mails reais (ex: @gmail.com, domínio da agência)
+      // 4. DISPARO DE E-MAIL (Blindado contra e-mails fictícios)
       const validManagerEmails = managers
         .map(m => m.email)
         .filter(this.isValidRealEmail); 
       
       if (validManagerEmails.length > 0) {
-        fetch('/api/notify', {
+        const baseUrl = this.getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/notify`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             to: validManagerEmails,
-            type: 'custom', // 🟢 Informa ao Orquestrador que é uma mensagem dinâmica
+            type: 'custom',
             subject: title,
             body: message,
-            link: actionUrl
+            link: actionUrl || '/admin/fio'
           })
-        }).catch(err => console.log("Aviso silencioso: Falha no disparo de e-mail de notificação de Gestão", err));
+        }).catch(err => {
+          console.error("❌ Falha na requisição /api/notify para Gestão:", err);
+          return null;
+        });
+
+        if (res && !res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          console.error("❌ Erro retornado por /api/notify (Gestão):", errBody);
+        }
       } else {
-        console.warn("⚠️ NotificationEngine: Disparo de e-mail cancelado. Nenhum gestor possui um e-mail válido/real configurado.");
+        console.warn("⚠️ NotificationEngine: Nenhum gestor possui um e-mail válido configurado.");
       }
 
     } catch (error) {
@@ -132,32 +150,90 @@ export class NotificationEngine {
 
       if (error) throw error;
 
-      // 2. Busca e-mail real do colaborador
-      const { data: collab } = await supabase
+      // 2. Busca e-mail do destinatário
+      const { data: targetUser } = await supabase
         .from('profiles')
-        .select('email')
+        .select('email, role, nome')
         .eq('id', userId)
         .single();
 
-      if (collab && this.isValidRealEmail(collab.email)) {
-        fetch('/api/notify', {
+      if (targetUser && this.isValidRealEmail(targetUser.email)) {
+        const baseUrl = this.getBaseUrl();
+        const res = await fetch(`${baseUrl}/api/notify`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            to: collab.email,
+            to: targetUser.email,
             type: emailTemplateType, 
             subject: title,
             body: message,
-            link: extraData.link || '/canais',
+            link: extraData.link || (targetUser.role === 'client' || targetUser.role === 'cliente' ? '/cockpit' : '/admin/fio'),
+            clientName: extraData.clientName,
             taskName: extraData.taskName,
             projectName: extraData.projectName,
             extraInfo: extraData.extraInfo
           })
-        }).catch(err => console.log("Aviso silencioso: Falha no disparo de e-mail para usuário", err));
+        }).catch(err => {
+          console.error("❌ Falha na requisição /api/notify para usuário:", err);
+          return null;
+        });
+
+        if (res && !res.ok) {
+          const errBody = await res.json().catch(() => ({}));
+          console.error("❌ Erro retornado por /api/notify (Usuário):", errBody);
+        }
       }
     } catch (error) {
       console.error('❌ Erro no NotificationEngine (notifyUserWithEmail):', error);
     }
+  }
+
+  /**
+   * Notificação de Menção na Sintonia
+   */
+  static async notifySintoniaMention(
+    targetUserId: string,
+    senderName: string,
+    channelName: string,
+    snippet: string,
+    channelId: string,
+    isClient: boolean = false
+  ) {
+    const link = isClient ? '/cockpit' : `/admin/fio?channel=${channelId}`;
+    await this.notifyUserWithEmail(
+      targetUserId,
+      `[Sintonia] ${senderName} mencionou você`,
+      `Você foi mencionado por <strong>${senderName}</strong> no canal <strong>#${channelName}</strong>.`,
+      'sintonia_mention',
+      {
+        link,
+        clientName: senderName,
+        projectName: channelName,
+        extraInfo: snippet
+      }
+    );
+  }
+
+  /**
+   * Notificação de Mensagem Direta (DM) na Sintonia
+   */
+  static async notifySintoniaDM(
+    targetUserId: string,
+    senderName: string,
+    snippet: string,
+    channelId: string
+  ) {
+    await this.notifyUserWithEmail(
+      targetUserId,
+      `[Sintonia] Nova mensagem de ${senderName}`,
+      `<strong>${senderName}</strong> enviou uma mensagem direta na Sintonia: <em>"${snippet}"</em>`,
+      'sintonia_dm',
+      {
+        link: `/admin/fio?channel=${channelId}`,
+        clientName: senderName,
+        extraInfo: snippet
+      }
+    );
   }
 
   /**

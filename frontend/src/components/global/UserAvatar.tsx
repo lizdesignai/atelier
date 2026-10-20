@@ -30,8 +30,8 @@ export default function UserAvatar({ profile, size = 'md', className = '' }: Use
     zen: '🧘'
   };
 
-  const name = profile?.nome || 'Atelier';
-  const initial = name.charAt(0)?.toUpperCase() || '?';
+  const name = profile?.nome || 'Studio Veronna';
+  const initial = profile?.nome ? profile.nome.trim().charAt(0)?.toUpperCase() : 'V';
   const moodEmoji = profile?.current_mood ? moodMap[profile.current_mood.toLowerCase()] : null;
 
   const emojiSizeMap = {
@@ -41,7 +41,11 @@ export default function UserAvatar({ profile, size = 'md', className = '' }: Use
   };
   const currentEmojiConfig = emojiSizeMap[size];
 
-  const resolvedAvatarUrl = getSafeAvatarUrl(profile?.avatar_url, name);
+  const resolvedAvatarUrl = profile?.avatar_url 
+    ? getSafeAvatarUrl(profile.avatar_url, name) 
+    : profile?.nome 
+      ? getSafeAvatarUrl(null, name) 
+      : null;
 
   return (
     <div className="relative inline-flex shrink-0">

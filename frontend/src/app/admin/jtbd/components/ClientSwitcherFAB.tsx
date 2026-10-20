@@ -68,37 +68,6 @@ export default function ClientSwitcherFAB({
         
         {/* DESKTOP-ONLY EXTRA ACTIONS */}
         <div className="hidden md:flex flex-col-reverse items-end gap-3">
-          {/* Urgent Mode Switcher */}
-          <button
-            onClick={() => {
-              onSelectUrgentView();
-              setIsOpen(false);
-            }}
-            className={`flex items-center gap-2 px-5 py-3 rounded-full shadow-lg transition-all font-bold text-xs ${
-              currentMode === 'urgent' 
-                ? 'bg-amber-500 text-white shadow-amber-200'
-                : 'bg-white text-gray-700 border border-gray-100 hover:bg-amber-50 hover:text-amber-600'
-            }`}
-          >
-            <Zap size={16} className={currentMode === 'urgent' ? 'animate-pulse text-yellow-200' : ''} />
-            <span>⚡ Urgências 24h</span>
-          </button>
-
-          {/* Ad-Hoc Priority (Admin / Gestor) */}
-          {isAdminOrManager && (
-            <button 
-              onClick={() => {
-                onOpenAdHocModal();
-                setIsOpen(false);
-              }} 
-              className="flex items-center gap-2 bg-red-500 text-white px-5 py-2.5 rounded-full shadow-lg hover:bg-red-600 transition-colors font-bold text-xs"
-            >
-              <span>Atribuir Prioridade</span> <Flame size={16} />
-            </button>
-          )}
-
-          <div className="w-12 h-[1px] bg-gray-300 mr-2 my-1"></div>
-
           {/* List of Assigned Clients */}
           {assignedClients.map((client) => {
             const isSelected = currentMode === 'monthly' && selectedClient?.id === client.id;
