@@ -53,7 +53,7 @@ export async function POST(request: Request) {
     const resendApiKey = process.env.RESEND_API_KEY;
     if (resendApiKey) {
       const resend = new Resend(resendApiKey);
-      const origin = request.headers.get('origin') || 'http://localhost:3000';
+      const origin = request.headers.get('origin') || process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001';
       const resetUrl = `${origin}/login?reset=${resetToken}`;
 
       try {

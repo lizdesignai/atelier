@@ -483,17 +483,92 @@ export default function DailyKanban({
                   
                     
                     {isAdminOrManager && (
-                      <div className="flex bg-[var(--color-atelier-champagne)]/40 rounded-xl p-1 border border-[var(--color-atelier-grafite)]/10 items-center gap-1 shadow-2xs">
-                        <button onClick={() => setReviewFilter('all')} className={`px-2.5 py-1 text-[9px] font-bold rounded-lg transition-all uppercase tracking-wider ${reviewFilter === 'all' ? 'bg-white text-[var(--color-atelier-grafite)] shadow-2xs font-extrabold' : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'}`}>Todas ({reviewTasks.length})</button>
-                        <button onClick={() => setReviewFilter('team')} className={`px-2.5 py-1 text-[9px] font-bold rounded-lg transition-all uppercase tracking-wider ${reviewFilter === 'team' ? 'bg-white text-[var(--color-atelier-grafite)] shadow-2xs font-extrabold' : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'}`}>Equipe ({teamReviewCount})</button>
-                        <button onClick={() => setReviewFilter('mine')} className={`px-2.5 py-1 text-[9px] font-bold rounded-lg transition-all uppercase tracking-wider ${reviewFilter === 'mine' ? 'bg-white text-[var(--color-atelier-grafite)] shadow-2xs font-extrabold' : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'}`}>Minhas ({myReviewCount})</button>
-                        {handleBatchComplete && visibleReviewTasks.length > 0 && (
-                          <button onClick={() => handleBatchComplete(visibleReviewTasks)} className="ml-1.5 px-3 py-1 text-[9px] font-bold rounded-lg bg-emerald-700 hover:bg-emerald-600 text-white transition-all uppercase tracking-wider shadow-xs flex items-center gap-1">
-                            <CheckCircle2 size={11} /> Aprovar Lote
+                    <div id="review-filter-dropdown-container" className="relative">
+                      <button
+                        onClick={() => setIsFilterDropdownOpen(prev => !prev)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider rounded-xl border transition-all shadow-2xs ${
+                          isFilterDropdownOpen || reviewFilter !== 'all'
+                            ? 'bg-white text-orange-950 border-orange-300 ring-2 ring-orange-200/50'
+                            : 'bg-white/80 text-stone-600 hover:text-stone-900 hover:bg-white border-stone-200/80'
+                        }`}
+                        title="Filtrar tarefas de Curadoria & Revisão"
+                      >
+                        <Filter size={11} className={reviewFilter !== 'all' ? 'text-orange-600' : 'text-stone-400'} />
+                        <span>
+                          {reviewFilter === 'all' ? 'Todas' : reviewFilter === 'team' ? 'Equipe' : 'Minhas'}
+                        </span>
+                        <ChevronDown size={11} className={`text-stone-400 transition-transform duration-200 ${isFilterDropdownOpen ? 'rotate-180 text-orange-600' : ''}`} />
+                      </button>
+
+                      {isFilterDropdownOpen && (
+                        <div className="absolute right-0 top-full mt-1.5 w-48 bg-white/95 backdrop-blur-md rounded-2xl border border-orange-200/80 shadow-xl py-1.5 z-50 text-[11px] animate-in fade-in zoom-in-95 duration-150">
+                          <div className="px-3 py-1 text-[9px] uppercase tracking-wider font-extrabold text-stone-400 border-b border-stone-100 mb-1">
+                            Filtrar exibição
+                          </div>
+                          
+                          <button
+                            onClick={() => { setReviewFilter('all'); setIsFilterDropdownOpen(false); }}
+                            className={`w-full flex items-center justify-between px-3 py-1.5 text-left transition-colors ${
+                              reviewFilter === 'all'
+                                ? 'bg-orange-50 font-bold text-orange-900'
+                                : 'text-stone-600 hover:bg-stone-50'
+                            }`}
+                          >
+                            <span className="flex items-center gap-2">
+                              {reviewFilter === 'all' ? <Check size={12} className="text-orange-600 stroke-[3]" /> : <span className="w-3" />}
+                              Todas as tarefas
+                            </span>
+                            <span className="text-[10px] font-bold bg-stone-100 text-stone-600 px-1.5 py-0.5 rounded-md">
+                              {reviewTasks.length}
+                            </span>
                           </button>
-                        )}
-                      </div>
-                    )}
+
+                          <button
+                            onClick={() => { setReviewFilter('team'); setIsFilterDropdownOpen(false); }}
+                            className={`w-full flex items-center justify-between px-3 py-1.5 text-left transition-colors ${
+                              reviewFilter === 'team'
+                                ? 'bg-orange-50 font-bold text-orange-900'
+                                : 'text-stone-600 hover:bg-stone-50'
+                            }`}
+                          >
+                            <span className="flex items-center gap-2">
+                              {reviewFilter === 'team' ? <Check size={12} className="text-orange-600 stroke-[3]" /> : <span className="w-3" />}
+                              Apenas da equipe
+                            </span>
+                            <span className="text-[10px] font-bold bg-stone-100 text-stone-600 px-1.5 py-0.5 rounded-md">
+                              {teamReviewCount}
+                            </span>
+                          </button>
+
+                          <button
+                            onClick={() => { setReviewFilter('mine'); setIsFilterDropdownOpen(false); }}
+                            className={`w-full flex items-center justify-between px-3 py-1.5 text-left transition-colors ${
+                              reviewFilter === 'mine'
+                                ? 'bg-orange-50 font-bold text-orange-900'
+                                : 'text-stone-600 hover:bg-stone-50'
+                            }`}
+                          >
+                            <span className="flex items-center gap-2">
+                              {reviewFilter === 'mine' ? <Check size={12} className="text-orange-600 stroke-[3]" /> : <span className="w-3" />}
+                              Apenas minhas
+                            </span>
+                            <span className="text-[10px] font-bold bg-stone-100 text-stone-600 px-1.5 py-0.5 rounded-md">
+                              {myReviewCount}
+                            </span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {isAdminOrManager && handleBatchComplete && visibleReviewTasks.length > 0 && (
+                    <button 
+                      onClick={() => handleBatchComplete(visibleReviewTasks)} 
+                      className="px-2.5 py-1 text-[9px] font-bold rounded-xl bg-emerald-700 hover:bg-emerald-600 text-white transition-all uppercase tracking-wider shadow-xs flex items-center gap-1"
+                      title="Aprovar em lote todas as tarefas visíveis"
+                    >
+                      <CheckCircle2 size={11} /> Aprovar Lote
+                    </button>
+                  )}
   
                   <span className="bg-white px-3 py-1 rounded-lg text-[11px] font-bold text-orange-600 shadow-sm border border-orange-200">
                     {visibleReviewTasks.length}

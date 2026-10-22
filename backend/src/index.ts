@@ -12,7 +12,7 @@ if (!process.env.POSTGRES_URL || process.env.POSTGRES_URL.includes('supabase.co'
 }
 
 const app = express();
-const port = process.env.PORT || 8080;
+const port = process.env.PORT || 8001;
 
 // Middlewares de Segurança e Otimização
 app.use(helmet());

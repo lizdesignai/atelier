@@ -39,7 +39,7 @@ export class AnalyticsController {
             ELSE null END as team_performance
           FROM profiles p
           LEFT JOIN team_performance tp ON p.id = tp.user_id
-          WHERE p.role IN ('admin', 'gestor', 'colaborador')
+          WHERE p.role IN ('admin', 'gestor', 'colaborador') AND (p.contract_status IS NULL OR p.contract_status != 'dismissed')
         `,
         sql`SELECT id, project_id, task_type, assignee_id, created_at FROM routing_rules`,
         sql`

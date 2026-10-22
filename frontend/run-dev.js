@@ -8,8 +8,9 @@ if (!currentOptions.includes('--max-old-space-size')) {
 
 console.log('[DevRunner] Starting Next.js with NODE_OPTIONS:', process.env.NODE_OPTIONS);
 
+const port = process.env.PORT || '3001';
 const nextBin = require.resolve('next/dist/bin/next');
-const child = spawn(process.execPath, [nextBin, 'dev'], {
+const child = spawn(process.execPath, [nextBin, 'dev', '-p', port], {
   stdio: 'inherit',
   env: process.env,
   cwd: __dirname

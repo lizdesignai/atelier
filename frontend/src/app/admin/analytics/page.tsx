@@ -221,7 +221,7 @@ export default function AnalyticsPage() {
       const { data } = await response.json();
 
       if (data.team) {
-        setTeam(data.team);
+        setTeam(data.team.filter((m: any) => m.contract_status !== 'dismissed'));
       }
       if (data.routingRules) setRoutingRules(data.routingRules);
       if (data.agencies) setAgencies(data.agencies);
@@ -281,7 +281,7 @@ export default function AnalyticsPage() {
       console.warn("Executando fallback direto do Supabase para o Analytics:", error);
       try {
         const { data: rawTeamData } = await supabase.from('profiles').select('*').in('role', ['admin', 'gestor', 'colaborador']).order('nome');
-        const teamData = rawTeamData;
+        const teamData = rawTeamData?.filter((m: any) => m.contract_status !== 'dismissed') || [];
         const { data: agData } = await supabase.from('agencies').select('*').order('name');
         const { data: subData } = await supabase.from('agency_subclients').select('*').order('name');
         const { data: taskData } = await supabase.from('tasks').select('*, projects(profiles(nome), type, client_id), agency_subclients(id, name)').order('created_at', { ascending: false });
@@ -1169,9 +1169,9 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
   if (isGlobalLoading || isLocalLoading) return <div className="flex h-[calc(100vh-80px)] items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
 
   return (
-    <div className="flex flex-col h-auto lg:h-[calc(100vh-60px)] min-h-full max-w-[1400px] mx-auto relative z-10 pb-32 md:pb-6 gap-3 md:gap-6 px-4 overflow-visible lg:overflow-hidden">
+    <div className="flex flex-col h-auto lg:h-[calc(100vh-60px)] min-h-full max-w-[1400px] mx-auto relative z-10 pb-32 md:pb-6 gap-3 md:gap-3.5 px-4 overflow-visible lg:overflow-hidden">
       
-      <header className="shrink-0 flex flex-row items-center justify-between gap-4 mt-6 animate-[fadeInUp_0.5s_ease-out] relative">
+      <header className="shrink-0 flex flex-row items-center justify-between gap-4 mt-3 md:mt-4 animate-[fadeInUp_0.5s_ease-out] relative">
         
         <div className="transition-opacity duration-300 opacity-100 flex-1 min-w-0 pr-4">
           {activeView === 'dona' && (
@@ -1219,15 +1219,9 @@ const db = b.deadline ? new Date(b.deadline).getTime() : Infinity;
             </>
           )}
           {activeView === 'analytics' && (
-            <>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="bg-[var(--color-atelier-grafite)]/10 text-[var(--color-atelier-grafite)] w-8 h-8 rounded-xl flex items-center justify-center">
-                  <BrainCircuit size={16} className="text-[var(--color-atelier-terracota)]" />
-                </span>
-                <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/50">Gestão do Studio Veronna</span>
-              </div>
-              <h1 className="font-elegant text-3xl md:text-4xl text-[var(--color-atelier-grafite)] truncate">Estratégia & <span className="text-[var(--color-atelier-terracota)] italic">Analytics.</span></h1>
-            </>
+            <h1 className="font-elegant text-2xl md:text-3xl text-[var(--color-atelier-grafite)] truncate">
+              Estratégia & <span className="text-[var(--color-atelier-terracota)] italic">Analytics.</span>
+            </h1>
           )}
         </div>
 

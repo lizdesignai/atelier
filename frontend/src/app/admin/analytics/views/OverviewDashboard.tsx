@@ -184,61 +184,59 @@ export default function OverviewDashboard({
           <div className="w-full h-full flex flex-col gap-2 min-h-0 relative">
             
             {/* WIDGET 1: PRÓXIMAS TAREFAS */}
-            <div className="flex flex-col min-h-0 shrink-0 h-[34%] relative overflow-hidden transition-all pt-2">
-              <div className="pb-3 mb-1 shrink-0 flex flex-col gap-3">
-                <div className="flex justify-between items-center mb-1">
-                    <div className="flex items-center gap-4">
-                      <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">Próximas Tarefas</h3>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <div className="relative flex items-center">
-                          <button onClick={() => setIsMobileSearchActive(!isMobileSearchActive)} className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-all">
-                             <Search size={14} />
-                          </button>
-                          <AnimatePresence>
-                            {isMobileSearchActive && (
-                              <motion.input 
-                                initial={{ width: 0, opacity: 0 }}
-                                animate={{ width: 180, opacity: 1 }}
-                                exit={{ width: 0, opacity: 0 }}
-                                type="text" 
-                                placeholder="Buscar..." 
-                                value={taskSearch} 
-                                onChange={(e)=>setTaskSearch(e.target.value)} 
-                                autoFocus
-                                className="absolute right-10 bg-white border border-gray-200 rounded-xl py-1.5 pl-3 pr-3 text-[11px] outline-none focus:border-[var(--color-atelier-terracota)] shadow-xl transition-all text-[var(--color-atelier-grafite)] font-bold z-30" 
-                              />
-                            )}
-                          </AnimatePresence>
-                      </div>
-                      
-                      {/* Filtro Colaborador */}
-                      <div className="relative group/collab z-40">
-                         <button className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-all">
-                           <UserCircle2 size={16} />
-                         </button>
-                         <div className="absolute top-full right-0 mt-1 bg-white border border-gray-100 shadow-xl rounded-xl p-1.5 flex flex-col gap-1 w-56 opacity-0 pointer-events-none group-hover/collab:opacity-100 group-hover/collab:pointer-events-auto transition-all max-h-48 overflow-y-auto custom-scrollbar">
-                            <button onClick={() => setTaskFilterCollab('all')} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors ${taskFilterCollab === 'all' ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-[var(--color-atelier-grafite)]/70'}`}>Todos Colaboradores</button>
-                            {team.map(member => (
-                              <button key={member.id} onClick={() => setTaskFilterCollab(member.id)} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors truncate ${taskFilterCollab === member.id ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-[var(--color-atelier-grafite)]/70'}`}>{member.name || member.nome}</button>
-                            ))}
-                         </div>
-                      </div>
-                      
-                      {/* Filtro Cliente */}
-                      <div className="relative group/client z-40">
-                         <button className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-all">
-                           <FolderKanban size={16} />
-                         </button>
-                         <div className="absolute top-full right-0 mt-1 bg-white border border-gray-100 shadow-xl rounded-xl p-1.5 flex flex-col gap-1 w-72 opacity-0 pointer-events-none group-hover/client:opacity-100 group-hover/client:pointer-events-auto transition-all max-h-64 overflow-y-auto custom-scrollbar">
-                            <button onClick={() => setTaskFilterClient('all')} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors whitespace-normal break-words ${taskFilterClient === 'all' ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-[var(--color-atelier-grafite)]/70'}`}>Todos Clientes</button>
-                            {clientsWithTasks.map(client => (
-                              <button key={client.id as string} onClick={() => setTaskFilterClient(client.id as string)} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors whitespace-normal break-words ${taskFilterClient === client.id ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-[var(--color-atelier-grafite)]/70'}`}>{client.name}</button>
-                            ))}
-                         </div>
-                      </div>
-                    </div>
+            <div className="flex flex-col min-h-[175px] flex-[38] relative overflow-hidden transition-all pt-1">
+              <div className="pb-2 mb-0.5 shrink-0 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <h3 className="font-elegant text-lg lg:text-xl text-[var(--color-atelier-grafite)] leading-none">Próximas Tarefas</h3>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <div className="relative flex items-center">
+                      <button onClick={() => setIsMobileSearchActive(!isMobileSearchActive)} className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-all">
+                         <Search size={14} />
+                      </button>
+                      <AnimatePresence>
+                        {isMobileSearchActive && (
+                          <motion.input 
+                            initial={{ width: 0, opacity: 0 }}
+                            animate={{ width: 180, opacity: 1 }}
+                            exit={{ width: 0, opacity: 0 }}
+                            type="text" 
+                            placeholder="Buscar..." 
+                            value={taskSearch} 
+                            onChange={(e)=>setTaskSearch(e.target.value)} 
+                            autoFocus
+                            className="absolute right-10 bg-white border border-gray-200 rounded-xl py-1.5 pl-3 pr-3 text-[11px] outline-none focus:border-[var(--color-atelier-terracota)] shadow-xl transition-all text-[var(--color-atelier-grafite)] font-bold z-30" 
+                          />
+                        )}
+                      </AnimatePresence>
+                  </div>
+                  
+                  {/* Filtro Colaborador */}
+                  <div className="relative group/collab z-40">
+                     <button className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-all">
+                       <UserCircle2 size={16} />
+                     </button>
+                     <div className="absolute top-full right-0 mt-1 bg-white border border-gray-100 shadow-xl rounded-xl p-1.5 flex flex-col gap-1 w-56 opacity-0 pointer-events-none group-hover/collab:opacity-100 group-hover/collab:pointer-events-auto transition-all max-h-48 overflow-y-auto custom-scrollbar">
+                        <button onClick={() => setTaskFilterCollab('all')} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors ${taskFilterCollab === 'all' ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-[var(--color-atelier-grafite)]/70'}`}>Todos Colaboradores</button>
+                        {team.map(member => (
+                          <button key={member.id} onClick={() => setTaskFilterCollab(member.id)} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors truncate ${taskFilterCollab === member.id ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-[var(--color-atelier-grafite)]/70'}`}>{member.name || member.nome}</button>
+                        ))}
+                     </div>
+                  </div>
+                  
+                  {/* Filtro Cliente */}
+                  <div className="relative group/client z-40">
+                     <button className="w-8 h-8 rounded-full bg-white shadow-sm flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-all">
+                       <FolderKanban size={16} />
+                     </button>
+                     <div className="absolute top-full right-0 mt-1 bg-white border border-gray-100 shadow-xl rounded-xl p-1.5 flex flex-col gap-1 w-72 opacity-0 pointer-events-none group-hover/client:opacity-100 group-hover/client:pointer-events-auto transition-all max-h-64 overflow-y-auto custom-scrollbar">
+                        <button onClick={() => setTaskFilterClient('all')} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors whitespace-normal break-words ${taskFilterClient === 'all' ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-[var(--color-atelier-grafite)]/70'}`}>Todos Clientes</button>
+                        {clientsWithTasks.map(client => (
+                          <button key={client.id as string} onClick={() => setTaskFilterClient(client.id as string)} className={`text-left text-xs px-3 py-1.5 rounded-lg transition-colors whitespace-normal break-words ${taskFilterClient === client.id ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] font-bold' : 'hover:bg-gray-50 text-[var(--color-atelier-grafite)]/70'}`}>{client.name}</button>
+                        ))}
+                     </div>
+                  </div>
                 </div>
               </div>
 
@@ -266,15 +264,15 @@ export default function OverviewDashboard({
                              exit={{ opacity: 0, scale: 0.95 }}
                              transition={{ duration: 0.2 }}
                              onClick={() => isBulkMode ? toggleTaskSelection(task.id) : null}
-                             className={`w-full shrink-0 snap-center p-5 rounded-[1.5rem] border flex flex-col justify-between gap-4 group transition-all duration-300 shadow-sm ${isBulkMode ? 'cursor-pointer hover:scale-[1.02]' : ''} ${isSelected ? 'bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)] shadow-md' : 'bg-white/80 backdrop-blur-md border-[var(--color-atelier-grafite)]/5 hover:border-[var(--color-atelier-terracota)]/30 hover:shadow-md'}`}
+                             className={`w-full h-full shrink-0 snap-center p-3.5 sm:p-4 rounded-[1.3rem] border flex flex-col justify-between gap-2.5 group transition-all duration-300 shadow-sm ${isBulkMode ? 'cursor-pointer hover:scale-[1.02]' : ''} ${isSelected ? 'bg-[var(--color-atelier-terracota)]/5 border-[var(--color-atelier-terracota)] shadow-md' : 'bg-white/80 backdrop-blur-md border-[var(--color-atelier-grafite)]/5 hover:border-[var(--color-atelier-terracota)]/30 hover:shadow-md'}`}
                            >
-                             <div className="flex flex-col flex-1 w-full" onClick={(e) => { if (isBulkMode) return; setEditingTask(task); }}>
+                             <div className="flex flex-col flex-1 min-h-0 w-full justify-start overflow-hidden cursor-pointer" onClick={(e) => { if (isBulkMode) return; setEditingTask(task); }}>
                                {/* Cabeçalho: Client name */}
-                               <div className="flex items-center justify-between w-full mb-1">
-                                 <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/40 truncate" title={task.projects?.profiles?.nome}>
+                               <div className="flex items-center justify-between w-full mb-1 shrink-0">
+                                 <span className="text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/45 truncate pr-2" title={task.projects?.profiles?.nome}>
                                    {task.projects?.profiles?.nome || "Studio Veronna"}
                                  </span>
-                                 <div className="flex items-center gap-2">
+                                 <div className="flex items-center gap-1.5 shrink-0">
                                    {task.urgency && <Flame size={12} className="text-orange-500 shrink-0"/>}
                                    {isBulkMode && (
                                      <div className="shrink-0 text-[var(--color-atelier-terracota)]" onClick={(e) => { e.stopPropagation(); toggleTaskSelection(task.id); }}>
@@ -284,12 +282,15 @@ export default function OverviewDashboard({
                                  </div>
                                </div>
                                {/* Title */}
-                               <span className="font-roboto font-bold text-[15px] text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors leading-tight line-clamp-2 mt-1" title={task.title}>{task.title}</span>
+                               <span className="font-roboto font-bold text-[14px] text-[var(--color-atelier-grafite)] group-hover:text-[var(--color-atelier-terracota)] transition-colors leading-snug line-clamp-2" title={task.title}>
+                                 {task.title}
+                               </span>
                              </div>
                              
-                             <div className="flex items-center justify-between mt-auto pt-3 border-t border-[var(--color-atelier-grafite)]/5">
-                               <div className="flex items-center gap-2">
-                                 <div className="w-6 h-6 rounded-full overflow-hidden border border-white shadow-sm bg-gray-100 flex items-center justify-center shrink-0">
+                             {/* Footer: Usuário, Data e Confirmação protegidos contra compressão */}
+                             <div className="flex items-center justify-between mt-auto pt-2 border-t border-[var(--color-atelier-grafite)]/5 shrink-0 w-full gap-2">
+                               <div className="flex items-center gap-1.5 min-w-0">
+                                 <div className="w-5 h-5 rounded-full overflow-hidden border border-white shadow-sm bg-gray-100 flex items-center justify-center shrink-0">
                                    {task.profiles?.avatar_url ? (
                                      <img 
                                        src={normalizeImageUrl(task.profiles.avatar_url)} 
@@ -304,15 +305,20 @@ export default function OverviewDashboard({
                                    {task.profiles?.nome?.split(' ')[0] || "Não Atribuído"}
                                  </span>
                                </div>
-                               
-                               <div className="flex items-center gap-2">
-                                 <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] bg-[var(--color-atelier-terracota)]/10 px-2 py-0.5 rounded-md">
-                                   <Calendar size={10} className="inline mr-1" />
+                                
+                               <div className="flex items-center gap-1.5 shrink-0">
+                                 <span className="text-[9.5px] font-bold uppercase tracking-wider text-[var(--color-atelier-terracota)] bg-[var(--color-atelier-terracota)]/10 px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0 whitespace-nowrap">
+                                   <Calendar size={10} className="shrink-0" />
                                    {new Date(task.deadline).toLocaleDateString('pt-BR', {day:'2-digit', month:'short'})}
                                  </span>
                                  {!isBulkMode && (
-                                   <button onClick={(e) => { e.stopPropagation(); handleCompleteTask(task.id); }} className="w-6 h-6 rounded-full bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-500 hover:text-white transition-all shadow-sm border border-green-200" title="Finalizar Tarefa">
-                                     <Check size={10} strokeWidth={3} />
+                                   <button 
+                                     type="button"
+                                     onClick={(e) => { e.stopPropagation(); handleCompleteTask(task.id); }} 
+                                     className="w-6 h-6 rounded-full bg-green-50 text-green-600 flex items-center justify-center hover:bg-green-500 hover:text-white transition-all shadow-sm border border-green-200 shrink-0 cursor-pointer active:scale-90" 
+                                     title="Finalizar Tarefa"
+                                   >
+                                     <Check size={11} strokeWidth={3} />
                                    </button>
                                  )}
                                </div>
@@ -329,13 +335,13 @@ export default function OverviewDashboard({
               {activeTasksForQueue.filter(t => t.title.toLowerCase().includes(taskSearch.toLowerCase()) || t.projects?.profiles?.nome?.toLowerCase().includes(taskSearch.toLowerCase()))
                      .filter(t => taskFilterCollab === 'all' || t.assigned_to === taskFilterCollab)
                      .filter(t => taskFilterClient === 'all' || t.project_id === taskFilterClient || t.projects?.id === taskFilterClient).length > 0 && (
-              <div className="flex justify-center items-center gap-3 pt-3 shrink-0 z-10">
+              <div className="flex justify-center items-center gap-2 pt-1.5 shrink-0 z-10">
                 <button onClick={(e) => {
                    const container = e.currentTarget.closest('.flex-col')?.querySelector('.queue-slider');
                    if(container) container.scrollBy({ left: -container.clientWidth, behavior: 'smooth' });
-                }} className="w-7 h-7 rounded-full bg-white shadow-md flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-all active:scale-95 border border-gray-100"><ChevronLeft size={16}/></button>
+                }} className="w-6 h-6 rounded-full bg-white shadow-sm flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-all active:scale-95 border border-gray-100 shrink-0"><ChevronLeft size={14}/></button>
                 
-                <div className="flex gap-1.5 items-center px-2">
+                <div className="flex gap-1.5 items-center px-1.5">
                   {activeTasksForQueue.filter(t => t.title.toLowerCase().includes(taskSearch.toLowerCase()) || t.projects?.profiles?.nome?.toLowerCase().includes(taskSearch.toLowerCase()))
                      .filter(t => taskFilterCollab === 'all' || t.assigned_to === taskFilterCollab)
                      .filter(t => taskFilterClient === 'all' || t.project_id === taskFilterClient || t.projects?.id === taskFilterClient).slice(0, 5).map((_, i) => (
@@ -351,13 +357,13 @@ export default function OverviewDashboard({
                 <button onClick={(e) => {
                    const container = e.currentTarget.closest('.flex-col')?.querySelector('.queue-slider');
                    if(container) container.scrollBy({ left: container.clientWidth, behavior: 'smooth' });
-                }} className="w-7 h-7 rounded-full bg-white shadow-md flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-all active:scale-95 border border-gray-100"><ChevronRight size={16}/></button>
+                }} className="w-6 h-6 rounded-full bg-white shadow-sm flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-terracota)] transition-all active:scale-95 border border-gray-100 shrink-0"><ChevronRight size={14}/></button>
               </div>
               )}
             </div>
 
             {/* WIDGET 2: CARTEIRA UNIFICADA */}
-            <div className="flex flex-col min-h-0 shrink-0 h-[66%] relative overflow-hidden transition-all pt-3 border-t border-[var(--color-atelier-grafite)]/10">
+            <div className="flex flex-col min-h-[220px] flex-[62] relative overflow-hidden transition-all pt-2 border-t border-[var(--color-atelier-grafite)]/10">
               <div className="pb-3 mb-1 shrink-0 flex items-center justify-between gap-2">
                 <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] shrink-0">Carteira</h3>
                 
@@ -513,7 +519,7 @@ export default function OverviewDashboard({
                             if(setSelectedEntityId) setSelectedEntityId(item.id); 
                             if(setSelectedEntityType) setSelectedEntityType(item.type as any);
                           }} 
-                          className={`w-full h-full shrink-0 flex flex-col justify-end p-7 rounded-[2.2rem] text-left transition-all duration-300 border shadow-lg cursor-pointer relative overflow-hidden ${isSelected ? 'border-white/60 ring-4 ring-[var(--color-atelier-terracota)]/20 shadow-xl' : 'border-white/20 hover:shadow-xl'}`}
+                          className={`w-full h-full shrink-0 flex flex-col justify-end p-5 sm:p-6 rounded-[2rem] text-left transition-all duration-300 border shadow-lg cursor-pointer relative overflow-hidden ${isSelected ? 'border-white/60 ring-4 ring-[var(--color-atelier-terracota)]/20 shadow-xl' : 'border-white/20 hover:shadow-xl'}`}
                        >
                           {/* Background Image & Gradient */}
                           <div className="absolute inset-0 z-0 pointer-events-none">

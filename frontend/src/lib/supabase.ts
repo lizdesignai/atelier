@@ -208,7 +208,7 @@ supabase.auth.getSession = async () => {
     // Client-side (Browser) OR Server-side fallback: fetch from /api/auth/me
     // Note: If running on server, we should use absolute URL or just rely on server actions directly.
     // For now, most supabase.auth.getSession() calls are on the client side.
-    const baseUrl = typeof window !== 'undefined' ? '' : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const baseUrl = typeof window !== 'undefined' ? '' : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001';
     const res = await fetch(`${baseUrl}/api/auth/me`);
     if (!res.ok) return { data: { session: null }, error: null };
 
@@ -247,7 +247,7 @@ supabase.auth.getUser = async () => {
 // @ts-ignore
 supabase.auth.signOut = async () => {
   try {
-    const baseUrl = typeof window !== 'undefined' ? '' : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+    const baseUrl = typeof window !== 'undefined' ? '' : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001';
     await fetch(`${baseUrl}/api/auth/logout`, { method: 'POST' });
   } catch {}
   return { error: null };
@@ -281,7 +281,7 @@ supabase.storage.from = (bucket: string) => {
         if (fileOptions?.upsert) formData.append('upsert', 'true');
         if (fileOptions?.contentType) formData.append('contentType', fileOptions.contentType);
 
-        const baseUrl = typeof window !== 'undefined' ? '' : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000';
+        const baseUrl = typeof window !== 'undefined' ? '' : process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3001';
         const res = await fetch(`${baseUrl}/api/storage/upload`, {
           method: 'POST',
           body: formData,
