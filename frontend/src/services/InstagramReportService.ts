@@ -130,8 +130,8 @@ export class InstagramReportService {
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
     // Snapshot do mês anterior
-    const { data: snapshot } = await supabase
-      .from('instagram_snapshots')
+    const { data: snapshot } = await (supabase
+      .from('instagram_snapshots') as any)
       .select('*')
       .eq('project_id', projectId)
       .order('created_at', { ascending: false })
@@ -139,15 +139,15 @@ export class InstagramReportService {
       .single();
 
     // Foco do Projeto
-    const { data: project } = await supabase
-      .from('projects')
+    const { data: project } = await (supabase
+      .from('projects') as any)
       .select('current_focus, name, type')
       .eq('id', projectId)
       .single();
 
     // 🧠 INJEÇÃO DE CONTEXTO: O que a equipa realmente executou neste mês?
-    const { data: contentPlans } = await supabase
-      .from('content_planning')
+    const { data: contentPlans } = await (supabase
+      .from('content_planning') as any)
       .select('hook, pillar, briefing')
       .eq('project_id', projectId)
       .in('status', ['approved', 'published'])
@@ -246,7 +246,7 @@ export class InstagramReportService {
     const now = new Date();
     
     // 1. Grava o Snapshot (Registo histórico imutável)
-    const { error: snapError } = await supabase.from('instagram_snapshots').insert({
+    const { error: snapError } = await (supabase.from('instagram_snapshots') as any).insert({
       project_id: projectId,
       followers_count: metrics.followersCount,
       posts_count: metrics.postsCount,
@@ -258,7 +258,7 @@ export class InstagramReportService {
     if (snapError) throw snapError;
 
     // 2. Grava o Relatório para a equipa gerencial revisar antes de ir para o cliente
-    const { error: repError } = await supabase.from('monthly_reports').insert({
+    const { error: repError } = await (supabase.from('monthly_reports') as any).insert({
       project_id: projectId,
       report_month_year: now.toISOString(),
       executive_summary: aiOutput.executive_summary,
