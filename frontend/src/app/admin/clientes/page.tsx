@@ -8,7 +8,7 @@ import {
   Users, Search, Filter, Plus, ArrowRight, 
   Mail, Building, Calendar, MoreVertical, 
   CheckCircle2, Clock, AlertCircle, X, Trash2, Ban, Loader2,
-  DollarSign, Briefcase, RotateCcw, Sparkles, FileSearch, User, 
+  DollarSign, Briefcase, RotateCcw, Activity, Layers, FileSearch, User, 
   Settings, Trello, ExternalLink, CreditCard, Compass, PauseCircle, Play,
   Lock, Copy
 } from "lucide-react";
@@ -945,7 +945,7 @@ export default function BaseClientesPage() {
                             {project.status === 'delivered' || project.calculatedProgress === 100 ? (
                               <><CheckCircle2 size={12} className="text-green-500"/> 100%</>
                             ) : (
-                              <><Sparkles size={12} className="text-[var(--color-atelier-terracota)] opacity-50"/> {project.calculatedProgress}%</>
+                              <><Activity size={12} className="text-[var(--color-atelier-terracota)] opacity-50"/> {project.calculatedProgress}%</>
                             )}
                           </span>
                         </div>
@@ -1020,11 +1020,11 @@ export default function BaseClientesPage() {
                               {(project.isLead || project.isOrphanClient) ? (
                                 <>
                                   <button onClick={() => handleMenuAction('IniciarProjetoLead', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] hover:bg-[var(--color-atelier-terracota)]/5 transition-colors w-full text-left font-bold">
-                                    <Sparkles size={14} /> Iniciar Projeto Ativo
+                                    <Play size={14} /> Iniciar Projeto Ativo
                                   </button>
                                   {project.isLead && (
                                     <button onClick={() => handleMenuAction('ConverterMapa', project)} className="px-4 py-2.5 flex items-center gap-2 text-[11px] font-roboto font-bold uppercase tracking-widest text-green-600 hover:bg-green-50 transition-colors w-full text-left">
-                                      <Sparkles size={14} /> Gerar O Mapa
+                                      <Compass size={14} /> Gerar O Mapa
                                     </button>
                                   )}
                                 </>
@@ -1093,7 +1093,7 @@ export default function BaseClientesPage() {
                         }}
                         className="bg-[var(--color-atelier-terracota)] text-white px-5 py-2.5 rounded-[1rem] font-roboto font-bold uppercase tracking-widest text-[10px] hover:bg-[var(--color-atelier-grafite)] transition-all shadow-sm flex items-center gap-2"
                       >
-                        Iniciar Projeto <Sparkles size={14} />
+                        Iniciar Projeto <Play size={14} />
                       </button>
                     )}
                   </div>
@@ -1362,7 +1362,7 @@ export default function BaseClientesPage() {
 
                   <div className="glass-panel p-6 border border-white">
                     <h3 className="font-roboto text-[12px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] mb-4 flex items-center gap-2">
-                      <Sparkles size={14} className="text-[var(--color-atelier-terracota)]"/> 2. Estrutura do Serviço
+                      <Layers size={14} className="text-[var(--color-atelier-terracota)]"/> 2. Estrutura do Serviço
                     </h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
@@ -1714,7 +1714,7 @@ export default function BaseClientesPage() {
               <div className="flex items-center justify-between border-b border-gray-100 pb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-2xl bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center shadow-inner">
-                    <Sparkles size={22} />
+                    <CheckCircle2 size={22} />
                   </div>
                   <div>
                     <h3 className="font-elegant text-2xl font-bold text-[var(--color-atelier-grafite)]">

@@ -6,8 +6,8 @@ import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Compass, ChevronRight, Clock, CheckCircle2, AlertTriangle, Send,
-  Eye, Sparkles, FileText, Calendar, Loader2, Pencil, Check, X,
-  ArrowRight, Package, Image as ImageIcon, Video, MessageSquare, PauseCircle, Download, UploadCloud, ExternalLink
+  Eye, Lightbulb, FileText, Calendar, Loader2, Pencil, Check, X,
+  ArrowRight, Package, Image as ImageIcon, Video, MessageSquare, PauseCircle, Download, UploadCloud, ExternalLink, RefreshCw
 } from "lucide-react";
 import { pdf } from '@react-pdf/renderer';
 import DirecionamentoEstrategicoPDF from "@/components/pdf/DirecionamentoEstrategicoPDF";
@@ -41,6 +41,10 @@ export default function PresencaDashboard({ activeProjectId, currentProject }: P
   const [adjustNote, setAdjustNote] = useState<Record<string, string>>({});
   const [saving, setSaving] = useState(false);
   const [uploadingTaskId, setUploadingTaskId] = useState<string | null>(null);
+  const [isRenewModalOpen, setIsRenewModalOpen] = useState(false);
+  const [isRenewing, setIsRenewing] = useState(false);
+  const [renewLearnings, setRenewLearnings] = useState("");
+  const [renewNextDecision, setRenewNextDecision] = useState("");
 
   const handleUploadAsset = async (taskId: string, file: File) => {
     if (!file) return;
@@ -144,6 +148,34 @@ export default function PresencaDashboard({ activeProjectId, currentProject }: P
   }, [activeProjectId]);
 
   useEffect(() => { setLoading(true); fetchData(); }, [fetchData]);
+
+  const handleRenewCycle = async () => {
+    setIsRenewing(true);
+    try {
+      const res = await fetch('/api/presenca/cycle', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: activeProjectId,
+          action: 'advance',
+          learnings: renewLearnings.trim() || undefined,
+          nextDecision: renewNextDecision.trim() || undefined,
+        })
+      });
+      const json = await res.json();
+      if (!res.ok || json.error) throw new Error(json.error || 'Erro ao renovar ciclo');
+      showToast(`✨ Ciclo ${json.cycle?.cycle_number || ''} iniciado com sucesso! Demandas geradas.`);
+      setIsRenewModalOpen(false);
+      setRenewLearnings("");
+      setRenewNextDecision("");
+      await fetchData();
+    } catch (e: any) {
+      console.error(e);
+      showToast(e.message || 'Erro ao renovar ciclo');
+    } finally {
+      setIsRenewing(false);
+    }
+  };
 
   const resolveAdjustment = async (taskId: string) => {
     setSaving(true);
@@ -360,6 +392,15 @@ export default function PresencaDashboard({ activeProjectId, currentProject }: P
               <p className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">{metrics.daysRemaining}</p>
               <p className={`${label} text-[var(--color-atelier-grafite)]/40`}>dias restantes</p>
             </div>
+            <button
+              onClick={() => setIsRenewModalOpen(true)}
+              disabled={isRenewing}
+              className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-[var(--color-atelier-terracota)] to-[#83421d] hover:brightness-110 text-white font-roboto text-[11px] font-bold uppercase tracking-wider flex items-center gap-2 shadow-sm transition-all cursor-pointer active:scale-95 disabled:opacity-50 shrink-0"
+              title="Encerrar ciclo atual e iniciar novo ciclo com geração automática de demandas"
+            >
+              <RefreshCw size={13} className={isRenewing ? "animate-spin" : ""} />
+              <span>Renovar Ciclo</span>
+            </button>
           </div>
         </div>
 
@@ -791,7 +832,7 @@ export default function PresencaDashboard({ activeProjectId, currentProject }: P
                           )}
                           {piece.ig_hypothesis && (
                             <div className="bg-amber-50/50 border border-amber-200/50 rounded-xl p-3">
-                              <p className={`${label} text-amber-600 mb-1 flex items-center gap-1`}><Sparkles size={10} /> O que estamos testando</p>
+                              <p className={`${label} text-amber-600 mb-1 flex items-center gap-1`}><Lightbulb size={10} /> O que estamos testando</p>
                               <p className="text-[12px] text-amber-800/80">{piece.ig_hypothesis}</p>
                             </div>
                           )}
@@ -1008,6 +1049,114 @@ export default function PresencaDashboard({ activeProjectId, currentProject }: P
           )}
         </div>
       </div>
-    </div>
+    
+      {/* MODAL DE RENOVAÇÃO DE CICLO */}
+      <AnimatePresence>
+        {isRenewModalOpen && (
+          <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-2xl border border-white/80 relative flex flex-col gap-5"
+            >
+              <div className="flex items-start justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-orange-50 border border-orange-100 flex items-center justify-center text-[var(--color-atelier-terracota)]">
+                    <RefreshCw size={22} className={isRenewing ? "animate-spin" : ""} />
+                  </div>
+                  <div>
+                    <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] font-bold">
+                      Renovar Ciclo de Instagram
+                    </h3>
+                    <p className="font-roboto text-xs text-gray-500 mt-0.5">
+                      Transição do Ciclo {cycle.cycle_number} para o Ciclo {cycle.cycle_number + 1}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsRenewModalOpen(false)}
+                  className="p-1 rounded-full text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="p-4 rounded-2xl bg-[var(--color-atelier-creme)]/40 border border-[var(--color-atelier-terracota)]/15 text-xs text-gray-600 space-y-2">
+                <p>
+                  • O <strong>Ciclo {cycle.cycle_number}</strong> será arquivado como histórico oficial.
+                </p>
+                <p>
+                  • Um novo <strong>Ciclo {cycle.cycle_number + 1}</strong> será criado com período de 30 dias.
+                </p>
+                <p>
+                  • A data de faturamento do projeto será avançada para o novo período.
+                </p>
+                <p>
+                  • As peças de conteúdo e demandas contratuais do novo ciclo serão geradas automaticamente na esteira de produção.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div>
+                  <label className="block text-[10px] font-roboto font-bold uppercase tracking-wider text-gray-500 mb-1">
+                    Aprendizados do Ciclo {cycle.cycle_number} (Opcional)
+                  </label>
+                  <textarea
+                    value={renewLearnings}
+                    onChange={(e) => setRenewLearnings(e.target.value)}
+                    placeholder="Quais formatos, ganchos ou pilares performaram melhor neste ciclo?"
+                    rows={2}
+                    className="w-full p-3 rounded-xl border border-gray-200 text-xs font-roboto focus:outline-none focus:ring-2 focus:ring-[var(--color-atelier-terracota)]/30 resize-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-roboto font-bold uppercase tracking-wider text-gray-500 mb-1">
+                    Direcionamento para o Ciclo {cycle.cycle_number + 1} (Opcional)
+                  </label>
+                  <textarea
+                    value={renewNextDecision}
+                    onChange={(e) => setRenewNextDecision(e.target.value)}
+                    placeholder="Foco prioritário do novo ciclo (ex: conversão no direct, autoridade em Reels)..."
+                    rows={2}
+                    className="w-full p-3 rounded-xl border border-gray-200 text-xs font-roboto focus:outline-none focus:ring-2 focus:ring-[var(--color-atelier-terracota)]/30 resize-none"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 pt-2 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setIsRenewModalOpen(false)}
+                  disabled={isRenewing}
+                  className="px-4 py-2 rounded-xl text-xs font-roboto font-bold uppercase text-gray-500 hover:bg-gray-100 transition-colors"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={handleRenewCycle}
+                  disabled={isRenewing}
+                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-[var(--color-atelier-terracota)] to-[#83421d] hover:brightness-110 text-white font-roboto text-xs font-bold uppercase tracking-wider flex items-center gap-2 shadow-md transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                >
+                  {isRenewing ? (
+                    <>
+                      <Loader2 size={14} className="animate-spin" />
+                      <span>Renovando Ciclo...</span>
+                    </>
+                  ) : (
+                    <>
+                      <RefreshCw size={14} />
+                      <span>Confirmar & Iniciar Ciclo {cycle.cycle_number + 1}</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+</div>
   );
 }

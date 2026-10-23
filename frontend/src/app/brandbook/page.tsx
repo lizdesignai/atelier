@@ -9,7 +9,7 @@ import { NotificationEngine } from "../../lib/NotificationEngine";
 import { 
   Loader2, Target, Eye, MessageSquare, 
   UploadCloud, CheckCircle2, ArrowRight, BrainCircuit, 
-  Sparkles, X, ChevronRight
+  Palette, X, ChevronRight
 } from "lucide-react";
 
 const showToast = (message: string) => {
@@ -314,7 +314,7 @@ export default function BrandDNALaboratory() {
       
       await NotificationEngine.notifyManagement(
         "🧬 Brand DNA Forjado",
-        `O cliente ${project.profiles?.nome} concluiu o Brand Lab e o DNA foi sintetizado. Próxima fase: Territórios.`,
+        `O cliente ${project.profiles?.nome} concluiu a Curadoria Visual e o DNA foi sintetizado. Próxima fase: Territórios.`,
         "success",
         `/admin/projetos?id=${project.id}`
       );
@@ -335,7 +335,7 @@ export default function BrandDNALaboratory() {
       <header className="py-4 md:py-6 flex justify-between items-center shrink-0 z-20 px-6 max-w-[1400px] w-full mx-auto animate-[fadeInUp_0.5s_ease-out]">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <div className="w-8 h-8 rounded-xl bg-white/40 flex items-center justify-center border border-white shadow-sm"><Sparkles size={14} className="text-[var(--color-atelier-terracota)]" /></div>
+            <div className="w-8 h-8 rounded-xl bg-white/40 flex items-center justify-center border border-white shadow-sm"><Palette size={14} className="text-[var(--color-atelier-terracota)]" /></div>
             <span className="font-roboto text-[10px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Laboratório</span>
           </div>
           <h1 className="font-elegant text-2xl md:text-3xl text-[var(--color-atelier-grafite)] leading-none mt-1">Brand DNA</h1>
@@ -639,7 +639,7 @@ export default function BrandDNALaboratory() {
                   <div className="relative z-10">
                     <div className="flex items-center gap-3 mb-8">
                       <div className="w-12 h-12 rounded-[1.2rem] bg-[var(--color-atelier-terracota)]/10 flex items-center justify-center border border-[var(--color-atelier-terracota)]/20 shadow-inner">
-                        <Sparkles className="text-[var(--color-atelier-terracota)]" size={20} />
+                        <Palette className="text-[var(--color-atelier-terracota)]" size={20} />
                       </div>
                       <div>
                         <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] leading-none">O DNA da sua Marca</h2>

@@ -145,7 +145,7 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
   ] : [
     { href: '/', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
     { href: '/cofre', icon: <Lock size={20} strokeWidth={1.5} />, label: 'Cofre' },
-    { href: '/referencias', icon: <Compass size={20} strokeWidth={1.5} />, label: 'Inspiração' },
+    { href: '/referencias', icon: <Compass size={20} strokeWidth={1.5} />, label: 'Curadoria' },
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ];
@@ -180,7 +180,7 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
   ] : [
     { href: '/', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
     { href: '/cofre', icon: <Lock size={20} strokeWidth={1.5} />, label: 'O Cofre' },
-    { href: '/referencias', icon: <Compass size={20} strokeWidth={1.5} />, label: 'Referências' },
+    { href: '/referencias', icon: <Compass size={20} strokeWidth={1.5} />, label: 'Curadoria' },
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ];

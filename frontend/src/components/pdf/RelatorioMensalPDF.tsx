@@ -264,7 +264,7 @@ export default function RelatorioMensalPDF({ clientName, instagramHandle, monthN
         <Text style={styles.coverTitle}>Relatório Executivo</Text>
         <Text style={styles.coverSubtitle}>{clientName}</Text>
         <Text style={styles.coverHandle}>{instagramHandle}</Text>
-        <Text style={styles.coverDate}>{monthName} • Atelier Studio Veronna</Text>
+        <Text style={styles.coverDate}>{monthName} • Studio Veronna</Text>
       </Page>
 
       {/* CONTEÚDO PRINCIPAL */}
@@ -311,7 +311,7 @@ export default function RelatorioMensalPDF({ clientName, instagramHandle, monthN
 
         {/* RODAPÉ FIXED */}
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>Atelier Studio Veronna</Text>
+          <Text style={styles.footerText}>Studio Veronna</Text>
           <Text style={styles.footerText}>Emitido a {currentDate}</Text>
         </View>
 

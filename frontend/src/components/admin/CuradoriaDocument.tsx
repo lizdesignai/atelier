@@ -94,7 +94,7 @@ export default function CuradoriaDocument({ adminRefs, projectName }: CuradoriaD
 
       {/* RODAPÉ */}
       <div style={{ marginTop: '60px', paddingTop: '20px', borderTop: '1px solid #e5e5e5', textAlign: 'center' }}>
-        <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '2px', color: '#999999' }}>Atelier Studio Veronna • Relatório Confidencial de Curadoria</p>
+        <p style={{ fontSize: '9px', textTransform: 'uppercase', letterSpacing: '2px', color: '#999999' }}>Studio Veronna • Relatório Confidencial de Curadoria</p>
       </div>
     </div>
   );

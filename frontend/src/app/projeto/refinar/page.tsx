@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Loader2, Sparkles, CheckCircle2, Clock, Circle } from "lucide-react";
+import { Loader2, Gem, CheckCircle2, Clock, Circle } from "lucide-react";
 
 import { getClientActiveProjectAction } from "../../actions/clientProject";
 
@@ -47,14 +47,14 @@ export default function RefinarPage() {
     <div className="flex flex-col h-[calc(100vh-80px)] w-full max-w-[1400px] mx-auto px-5 md:px-8 lg:px-12 relative z-10 pb-12 gap-6 overflow-y-auto custom-scrollbar">
       <header className="pt-6 flex flex-col gap-2 shrink-0 animate-[fadeInUp_0.8s_ease-out]">
         <div className="flex items-center gap-3">
-          <Sparkles size={24} className="text-[var(--color-atelier-terracota)]" />
+          <Gem size={24} className="text-[var(--color-atelier-terracota)]" />
           <span className="micro-title text-[var(--color-atelier-terracota)] tracking-[0.3em]">REFINAR</span>
         </div>
         <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/60">Ajustes e polimento final</p>
       </header>
       
       <div className="glass-panel p-6 sm:p-8 rounded-[2rem] flex flex-col sm:flex-row items-center sm:items-start text-center sm:text-left gap-4 text-[var(--color-atelier-grafite)] mb-4">
-        <Sparkles size={32} className="text-[var(--color-atelier-terracota)]" />
+        <Gem size={32} className="text-[var(--color-atelier-terracota)]" />
         <div>
           <h2 className="font-elegant text-2xl mb-2">Trabalho em andamento</h2>
           <p className="font-roboto text-sm opacity-80">Estamos aplicando os refinamentos baseados no seu feedback para garantir o melhor resultado.</p>

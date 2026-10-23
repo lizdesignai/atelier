@@ -10,7 +10,7 @@ import { normalizeImageUrl, handleAvatarError } from "../../lib/imageUtils";
 import { 
   CheckCircle2, XCircle, MessageSquare, 
   Send, Loader2, ArrowLeft, MapPin, 
-  Heart, Sparkles, Clock, ImageIcon, MousePointerClick
+  Heart, Palette, Clock, ImageIcon, MousePointerClick
 } from "lucide-react";
 
 interface SocialPost {
@@ -298,7 +298,7 @@ export default function CuradoriaPage() {
             <ArrowLeft size={16} /> Retornar ao Meu Espaço
           </button>
           <div className="font-roboto text-[10px] uppercase tracking-widest font-bold text-white bg-black/40 backdrop-blur-xl px-6 py-3 rounded-full border border-white/10 flex items-center gap-3 shadow-2xl">
-            <Sparkles size={14} className="text-[var(--color-atelier-terracota)]" /> Curadoria Visual <span className="text-white/20">|</span> {currentIndex + 1} de {posts.length}
+            <Palette size={14} className="text-[var(--color-atelier-terracota)]" /> Curadoria Visual <span className="text-white/20">|</span> {currentIndex + 1} de {posts.length}
           </div>
         </div>
         

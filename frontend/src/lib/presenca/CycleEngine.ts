@@ -205,26 +205,81 @@ export class CycleEngine {
   }
 
   // ==========================================================================
-  // 3. AVANÇAR CICLO (fecha atual, abre próximo)
+  // 3. AVANÇAR / RENOVAR CICLO (fecha atual, abre próximo com geração de demandas)
   // ==========================================================================
   static async advanceCycle(projectId: string, learnings?: string, nextDecision?: string) {
     const db = sql();
     await ensurePresencaSchema(db);
 
-    // Fechar ciclo atual
+    // Buscar projeto com datas de faturamento e contrato
+    const [project] = await db`
+      SELECT id, client_id, billing_date, contract_start, created_at, type, service_type, posts_quantity, videos_quantity, current_cycle_id
+      FROM projects WHERE id = ${projectId} LIMIT 1
+    `;
+    if (!project) throw new Error('Projeto não encontrado.');
+
+    // Buscar ciclo atual aberto
     const [openCycle] = await db`
-      SELECT id FROM ig_cycles
+      SELECT * FROM ig_cycles
       WHERE project_id = ${projectId} AND status = 'open'
       ORDER BY period_start DESC LIMIT 1
     `;
+
     if (openCycle) {
+      // 1. Fechar ciclo anterior
       await this.closeCycle(openCycle.id, learnings, nextDecision);
+
+      // 2. Calcular novo período (+1 mês a partir do término do ciclo anterior)
+      const prevEnd = new Date(openCycle.period_end);
+      const nextStart = new Date(prevEnd);
+      nextStart.setUTCDate(nextStart.getUTCDate() + 1);
+
+      const nextEnd = new Date(nextStart);
+      nextEnd.setUTCMonth(nextEnd.getUTCMonth() + 1);
+      nextEnd.setUTCDate(nextEnd.getUTCDate() - 1);
+
+      const nextStartIso = nextStart.toISOString().split('T')[0];
+      const nextEndIso = nextEnd.toISOString().split('T')[0];
+      const nextNumber = (openCycle.cycle_number || 1) + 1;
+
+      const inheritedPillars = openCycle.pillars || { descoberta: 25, autoridade: 25, relacionamento: 25, conversao: 25 };
+      const inheritedKind = openCycle.objective_kind || null;
+
+      // 3. Inserir novo ciclo
+      const [newCycle] = await db`
+        INSERT INTO ig_cycles (
+          project_id, client_id, cycle_number,
+          period_start, period_end, status,
+          objective_kind, pillars
+        ) VALUES (
+          ${projectId}, ${project.client_id}, ${nextNumber},
+          ${nextStartIso}, ${nextEndIso}, 'open',
+          ${inheritedKind}, ${JSON.stringify(inheritedPillars)}
+        )
+        ON CONFLICT (project_id, period_start) DO UPDATE
+          SET cycle_number = ${nextNumber}, status = 'open', updated_at = NOW()
+        RETURNING *
+      `;
+
+      // 4. Atualizar referência no projeto e avançar data de cobrança
+      await db`
+        UPDATE projects
+        SET current_cycle_id = ${newCycle.id},
+            billing_date = ${nextStartIso}
+        WHERE id = ${projectId}
+      `;
+
+      // 5. Arquivar tarefas concluídas do ciclo anterior
+      await this.archivePreviousCompletedTasks(projectId, newCycle.id, newCycle.period_start);
+
+      // 6. Gerar demandas mandatórias e peças do novo ciclo
+      await this.generateCycleDemands(projectId, newCycle, project);
+
+      return newCycle;
     }
 
-    // Limpar current_cycle_id para forçar criação de novo
+    // Se não havia ciclo aberto, garantir criação padrão
     await db`UPDATE projects SET current_cycle_id = NULL WHERE id = ${projectId}`;
-
-    // Criar novo ciclo
     return this.ensureCurrentCycle(projectId);
   }
 

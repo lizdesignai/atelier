@@ -12,7 +12,7 @@ import {
   normalizeBriefingAnswers 
 } from "../../lib/briefingConstants"; 
 import { 
-  Loader2, Sparkles, BrainCircuit, FileText, Calendar, 
+  Loader2, BrainCircuit, FileText, Calendar, 
   Save, Plus, X, Phone, Mail, Instagram, Briefcase, 
   Clock, CheckCircle, AlertCircle, FileSearch, Trash2, ArrowRight, Download,
   Star, ThumbsUp, TrendingUp, Award, MessageSquareHeart, Activity, LayoutDashboard, Users, FileSignature, FileEdit, Compass

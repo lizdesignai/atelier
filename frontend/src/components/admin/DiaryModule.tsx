@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Image as ImageIcon, Send, Loader2, Clock, Trash2, Sparkles } from "lucide-react";
+import { Image as ImageIcon, Send, Loader2, Clock, Trash2, PenTool } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 
 interface DiaryModuleProps {
@@ -199,7 +199,7 @@ export default function DiaryModule({ activeProjectId, currentProject, onActivit
            <div className="flex items-center justify-center h-full"><Loader2 className="animate-spin text-[var(--color-atelier-terracota)]" /></div>
          ) : diaryPosts.length === 0 ? (
            <div className="flex flex-col items-center justify-center h-full opacity-40 py-10">
-             <Sparkles size={32} className="mb-3 text-[var(--color-atelier-grafite)]" />
+             <PenTool size={32} className="mb-3 text-[var(--color-atelier-grafite)]" />
              <p className="text-[14px] font-elegant">A jornada ainda não começou.</p>
            </div>
          ) : (

@@ -103,7 +103,7 @@ export default function ShareCard({ clientName, totalDelta, currentTotal }: Shar
 
             {/* Footer */}
             <div className="relative z-10 text-center mb-12 flex flex-col items-center">
-              <span className="text-3xl font-bold uppercase tracking-[0.3em] text-[#424242]/80">Atelier Studio Veronna</span>
+              <span className="text-3xl font-bold uppercase tracking-[0.3em] text-[#424242]/80">Studio Veronna</span>
               <div className="w-16 h-1 bg-[#142C48] mt-6" />
             </div>
           </div>

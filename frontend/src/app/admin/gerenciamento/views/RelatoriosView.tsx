@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { 
-  FileText, Sparkles, TrendingUp, Download, CheckCircle2, 
+  FileText, TrendingUp, Download, CheckCircle2, 
   Loader2, Instagram, Edit3, Play
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -237,7 +237,7 @@ export default function RelatoriosView({ activeProjectId, currentProject }: Rela
             {isGenerating ? (
               <><Loader2 size={16} className="animate-spin" /> Processando Dados...</>
             ) : (
-              <><Sparkles size={16} className="text-[var(--color-atelier-terracota)]"/> Gerar Novo Relatório</>
+              <><TrendingUp size={16} className="text-[var(--color-atelier-terracota)]"/> Gerar Novo Relatório</>
             )}
           </button>
         ) : (
@@ -251,7 +251,7 @@ export default function RelatoriosView({ activeProjectId, currentProject }: Rela
       {isGenerating ? (
         <div className="flex-1 flex flex-col items-center justify-center bg-white/20">
             <motion.div animate={{ scale: [1, 1.1, 1] }} transition={{ duration: 2, repeat: Infinity }} className="w-20 h-20 bg-[var(--color-atelier-terracota)]/10 rounded-full flex items-center justify-center mb-6 shadow-inner">
-              <Sparkles size={32} className="text-[var(--color-atelier-terracota)]" />
+              <TrendingUp size={32} className="text-[var(--color-atelier-terracota)]" />
             </motion.div>
             <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">O Assistente está redigindo a análise...</h3>
             <p className="font-roboto text-[13px] text-[var(--color-atelier-grafite)]/50 mt-2 font-medium">Extraindo métricas, cruzando dados e desenhando o plano de ação.</p>

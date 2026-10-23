@@ -15,7 +15,7 @@ import {
   RefreshCw,
   User,
   Calendar,
-  Sparkles,
+  Activity,
   X,
 } from 'lucide-react';
 import { StatusBadge } from '@/components/tessera/StatusBadge';
@@ -240,7 +240,7 @@ export default function TesseraFocusPage() {
             <div className="flex flex-wrap items-center justify-between gap-4">
               <div className="space-y-0.5">
                 <span className="text-xs font-semibold text-[var(--color-atelier-grafite)] flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-[var(--tess-accent-text)]" />
+                  <Activity className="w-4 h-4 text-[var(--tess-accent-text)]" />
                   <span>Orçamento de Capacidade de Hoje ({board.date})</span>
                 </span>
                 <p className="text-[11px] text-[var(--color-atelier-grafite)]/70">

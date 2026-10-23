@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, FileSearch, Instagram, User, Mail, 
   Phone, Target, Loader2, CheckCircle2, Download, 
-  Save, Edit3, Layers, FileText, ChevronRight, ChevronLeft, Sparkles
+  Save, Edit3, Layers, FileText, ChevronRight, ChevronLeft
 } from "lucide-react";
 
 import { pdf } from '@react-pdf/renderer';

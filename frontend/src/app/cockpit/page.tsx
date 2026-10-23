@@ -9,7 +9,7 @@ import { NotificationEngine } from "../../lib/NotificationEngine";
 import { normalizeImageUrl, getSafeAvatarUrl, handleAvatarError } from "../../lib/imageUtils";
 import { 
   Activity, AlertCircle, ArrowRight, CheckCircle2, 
-  Clock, Compass, Sparkles, Loader2, Target, Camera, 
+  Clock, Compass, Palette, Loader2, Target, Camera, 
   ChevronRight, ChevronLeft, CalendarDays, MessageSquare, 
   XCircle, Star, Zap, FileText, Download, X, AlignLeft, 
   RotateCcw, Send, PlayCircle, ImageIcon, LayoutDashboard, TrendingUp,
@@ -3568,7 +3568,7 @@ export default function CockpitPage() {
             </div>
           </div>
           <div className="text-[11px] font-roboto font-bold text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest flex items-center gap-2 shrink-0 bg-white px-5 py-2.5 rounded-xl shadow-sm border border-white">
-            <Sparkles size={14} className="text-[var(--color-atelier-terracota)]" /> Atualizado pela Direção de Arte
+            <Palette size={14} className="text-[var(--color-atelier-terracota)]" /> Atualizado pela Direção de Arte
           </div>
         </motion.div>
       </div>

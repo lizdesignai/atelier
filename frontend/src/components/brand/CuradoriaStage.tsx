@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Target, CheckCircle2, Loader2, UploadCloud, Send, ImageIcon, Image as LucideImage, Sparkles, Map, MousePointerClick } from "lucide-react";
+import { Target, CheckCircle2, Loader2, UploadCloud, Send, ImageIcon, Image as LucideImage, Palette, Map, MousePointerClick } from "lucide-react";
 import { dbUpsertBy, uploadFile } from "../../lib/dbClient";
 
 const ADJETIVOS_LIST = [
@@ -112,7 +112,7 @@ export function CuradoriaStage({ projectId, clientId, projectData, briefingData,
     return (
       <div className="glass-panel p-10 md:p-14 rounded-[2.5rem] flex flex-col gap-8 border border-white shadow-sm bg-white/60 relative overflow-hidden">
         <div className="absolute top-0 right-0 p-8 opacity-10">
-          <Sparkles size={120} />
+          <Palette size={120} />
         </div>
         
         <div className="relative z-10 flex flex-col gap-2">
@@ -223,7 +223,7 @@ export function CuradoriaStage({ projectId, clientId, projectData, briefingData,
           <>
             <div className="flex flex-col gap-2">
               <div className="bg-[var(--color-atelier-terracota)]/10 px-4 py-2 rounded-full inline-flex items-center gap-2 w-max mb-2">
-                <Sparkles size={16} className="text-[var(--color-atelier-terracota)]" />
+                <Palette size={16} className="text-[var(--color-atelier-terracota)]" />
                 <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">Ação Necessária</span>
               </div>
               <h2 className="font-elegant text-3xl md:text-4xl text-[var(--color-atelier-grafite)]">Sua Curadoria Visual</h2>

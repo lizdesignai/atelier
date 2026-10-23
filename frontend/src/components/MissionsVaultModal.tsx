@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, Camera, UploadCloud, CheckCircle2, 
-  Loader2, FileText, Sparkles, FolderUp, Target 
+  Loader2, FileText, FolderOpen, FolderUp, Target 
 } from "lucide-react";
 import { supabase } from "../lib/supabase";
 import { NotificationEngine } from "../lib/NotificationEngine";
@@ -277,7 +277,7 @@ export default function MissionsVaultModal({ isOpen, onClose, projectId, clientI
                     <motion.div key="general" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 20 }} className="p-6 md:p-12 flex flex-col items-center justify-center h-full text-center">
                       
                       <div className="w-24 h-24 rounded-full bg-[var(--color-atelier-terracota)]/10 flex items-center justify-center mb-6 border border-white shadow-inner">
-                        <Sparkles size={36} className="text-[var(--color-atelier-terracota)]" />
+                        <FolderOpen size={36} className="text-[var(--color-atelier-terracota)]" />
                       </div>
                       
                       <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-3">Envio de Material Livre</h3>

@@ -6,7 +6,7 @@ const IDV_PIPELINE = [
   { stage: "onboarding", type: "setup", title: "Onboarding do Cliente", daysOffset: 1, estTime: 15 },
   { stage: "discover", type: "reuniao", title: "Reunião de Briefing", daysOffset: 2, estTime: 60 },
   { stage: "discover", type: "copy", title: "Análise do Briefing + Brand Snapshot", daysOffset: 3, estTime: 45 },
-  { stage: "define", type: "copy", title: "Acompanhar Brand Lab do Cliente", daysOffset: 4, estTime: 30 },
+  { stage: "define", type: "copy", title: "Acompanhar Curadoria Visual do Cliente", daysOffset: 4, estTime: 30 },
   { stage: "define", type: "design", title: "Criar e Enviar Curadoria Visual", daysOffset: 5, estTime: 60 },
   { stage: "define", type: "design", title: "Desenvolver Território A", daysOffset: 6, estTime: 180 },
   { stage: "define", type: "design", title: "Desenvolver Território B", daysOffset: 7, estTime: 180 },

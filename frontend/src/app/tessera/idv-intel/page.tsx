@@ -3,7 +3,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { dbSelect } from '@/lib/dbClient';
-import { Target, Clock, Loader2, Sparkles, PieChart, Activity, FolderKanban, CheckCircle2 } from 'lucide-react';
+import { Target, Clock, Loader2, PieChart, Activity, FolderKanban, CheckCircle2 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart as RechartsPie, Pie } from 'recharts';
 
 export default function TesseraIDVIntelPage() {
@@ -46,7 +46,7 @@ export default function TesseraIDVIntelPage() {
 
   const funnelData = [
     { name: '1. Descobrir', count: phaseCounts.descobrir, color: '#C5A059' },
-    { name: '2. Brand Lab', count: phaseCounts.brand_lab, color: '#D4AF37' },
+    { name: '2. Curadoria Visual', count: phaseCounts.brand_lab, color: '#D4AF37' },
     { name: '3. Direcionar', count: phaseCounts.direcionar, color: '#C86D51' },
     { name: '4. Construir', count: phaseCounts.construir, color: '#8B263E' },
     { name: '5. Revelar', count: phaseCounts.revelar, color: '#4A1220' },

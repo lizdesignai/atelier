@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Loader2, Sparkles, Hammer, Presentation, 
+  Loader2, Gem, Hammer, Presentation, 
   Package, Search, Compass, FileText, FolderOpen, ArrowRight,
   Calendar, Download, TrendingUp, Lock,
   ChevronDown, X, ExternalLink, Check,
@@ -24,111 +24,93 @@ const showToast = (message: string) => {
 
 const IDV_PHASE_ORDER = ['onboarding', 'discover', 'define', 'develop', 'qa', 'present', 'client_review', 'refine', 'deliver', 'activate'];
 
-const CRAFT_STAGE_DETAILS: Record<string, {
+const STAGE_DESCRIPTIONS: Record<string, {
+  title: string;
+  subtitle: string;
   focus: string;
-  rigorBadge: string;
-  checklist: { label: string; status: 'done' | 'doing' | 'todo' }[];
-  nextMilestone: string;
+  badge: string;
+  description: string;
+  highlights: string[];
 }> = {
   onboarding: {
+    title: "Descobrir",
+    subtitle: "Briefing & Fundação",
     focus: "Imersão no DNA & Mapeamento de Universo",
-    rigorBadge: "Fundação Estratégica",
-    checklist: [
-      { label: "Análise do Briefing & Visão da Marca", status: "done" },
-      { label: "Diagnóstico Semiótico & Benchmark", status: "done" },
-      { label: "Definição dos Atributos Centrais", status: "doing" }
-    ],
-    nextMilestone: "Abertura do Brand Lab"
+    badge: "Fundação Estratégica",
+    description: "Imersão estratégica no DNA do negócio, análise aprofundada do briefing e diagnóstico semiótico para alinhamento dos atributos centrais da marca.",
+    highlights: ["Briefing Estratégico", "Diagnóstico Semiótico", "Atributos Centrais"]
   },
   discover: {
+    title: "Descobrir",
+    subtitle: "Briefing & Fundação",
     focus: "Imersão no DNA & Mapeamento de Universo",
-    rigorBadge: "Fundação Estratégica",
-    checklist: [
-      { label: "Análise do Briefing & Visão da Marca", status: "done" },
-      { label: "Diagnóstico Semiótico & Benchmark", status: "done" },
-      { label: "Definição dos Atributos Centrais", status: "doing" }
-    ],
-    nextMilestone: "Abertura do Brand Lab"
+    badge: "Fundação Estratégica",
+    description: "Imersão estratégica no DNA do negócio, análise aprofundada do briefing e diagnóstico semiótico para alinhamento dos atributos centrais da marca.",
+    highlights: ["Briefing Estratégico", "Diagnóstico Semiótico", "Atributos Centrais"]
   },
   define: {
-    focus: "Curadoria de Territórios & Brand Lab",
-    rigorBadge: "Direção Conceitual",
-    checklist: [
-      { label: "Mapeamento Estético & Moodboards", status: "done" },
-      { label: "Construção dos 3 Territórios Visuais", status: "doing" },
-      { label: "Validação & Parecer no Brand Lab", status: "todo" }
-    ],
-    nextMilestone: "Decisão do Território Visual"
+    title: "Direcionar",
+    subtitle: "Curadoria Visual & Territórios",
+    focus: "Curadoria Visual & Territórios Conceituais",
+    badge: "Direção Conceitual",
+    description: "Construção de universos estéticos, moodboards de referências e curadoria de 3 territórios conceituais com paletas cromáticas e caminhos visuais para validação.",
+    highlights: ["3 Territórios Visuais", "Curadoria Estética", "Moodboards & Cores"]
   },
   develop: {
+    title: "Construir",
+    subtitle: "Símbolo & Sistema Visual",
     focus: "Construção Geométrica do Símbolo & Sistema",
-    rigorBadge: "Precisão Vetorial",
-    checklist: [
-      { label: "Desenho Vetorial & Proporção Áurea", status: "doing" },
-      { label: "Harmonia Tipográfica & Grid de Kerning", status: "todo" },
-      { label: "Testes de Contraste, Escala & Redutibilidade", status: "todo" }
-    ],
-    nextMilestone: "Cerimônia de Revelação"
+    badge: "Precisão Vetorial",
+    description: "Desenho vetorial milimétrico de alta precisão, estudo de proporção áurea, anatomia tipográfica, contrastes e simulações de aplicação em suportes do mundo real.",
+    highlights: ["Grid de Proporção", "Tipografia & Escala", "Matriz Vetorial"]
   },
   qa: {
+    title: "Construir",
+    subtitle: "Controle de Qualidade & Aplicação",
     focus: "Validação Técnica & Rigor de Aplicação",
-    rigorBadge: "Controle de Qualidade",
-    checklist: [
-      { label: "Estudo de Versatilidade & Mockups", status: "doing" },
-      { label: "Geração de Matrizes Monocromáticas", status: "todo" },
-      { label: "Aprovação Técnica da Diretoria", status: "todo" }
-    ],
-    nextMilestone: "Cerimônia de Revelação"
+    badge: "Controle de Qualidade",
+    description: "Validação técnica de versatilidade, contrastes, redutibilidade e homologação executiva da direção criativa.",
+    highlights: ["Homologação Técnica", "Testes de Contraste", "Mockups em Contexto"]
   },
   present: {
+    title: "Revelar",
+    subtitle: "Apresentação & Decisão",
     focus: "Cerimônia de Revelação da Marca",
-    rigorBadge: "Apresentação Executiva",
-    checklist: [
-      { label: "Montagem do Keynote & Vídeo Conceito", status: "done" },
-      { label: "Simulações em Contexto Real de Negócio", status: "doing" },
-      { label: "Parecer Oficial & Decisão do Cliente", status: "todo" }
-    ],
-    nextMilestone: "Aprovação & Lapidação"
+    badge: "Apresentação Executiva",
+    description: "Cerimônia executiva de revelação da marca em contexto estratégico, apresentação dos conceitos desenvolvidos e decisão oficial do cliente.",
+    highlights: ["Cerimônia de Revelação", "Keynote Executivo", "Decisão Oficial"]
   },
   client_review: {
+    title: "Revelar",
+    subtitle: "Avaliação Executiva da Marca",
     focus: "Avaliação Executiva da Marca",
-    rigorBadge: "Apresentação Executiva",
-    checklist: [
-      { label: "Análise da Cerimônia de Revelação", status: "done" },
-      { label: "Coleta do Parecer Estratégico", status: "doing" },
-      { label: "Confirmação do Caminho Aprovado", status: "todo" }
-    ],
-    nextMilestone: "Aprovação & Lapidação"
+    badge: "Apresentação Executiva",
+    description: "Avaliação detalhada da apresentação conceitual para alinhamento de parecer e confirmação do caminho aprovado.",
+    highlights: ["Parecer Estratégico", "Confirmação do Caminho", "Validação Oficial"]
   },
   refine: {
+    title: "Refinar",
+    subtitle: "Lapidação Óptica & Ajustes Finos",
     focus: "Lapidação Óptica & Ajustes Finos",
-    rigorBadge: "Alta Fidelidade",
-    checklist: [
-      { label: "Calibração Óptica dos Vetores", status: "doing" },
-      { label: "Matrizes Cromáticas (Pantone / CMYK / RGB)", status: "todo" },
-      { label: "Homologação dos Ativos Finais", status: "todo" }
-    ],
-    nextMilestone: "Empacotamento de Ativos"
+    badge: "Alta Fidelidade",
+    description: "Ajustes finos milimétricos, calibração óptica de vetores, padronização cromática (Pantone, CMYK e RGB) e homologação final.",
+    highlights: ["Calibração Óptica", "Matrizes Cromáticas", "Homologação Final"]
   },
   deliver: {
+    title: "Ativar",
+    subtitle: "Empacotamento de Ativos & Handover",
     focus: "Empacotamento de Ativos & Brandbook",
-    rigorBadge: "Handover Executivo",
-    checklist: [
-      { label: "Exportação de Vetores em Alta Resolução", status: "doing" },
-      { label: "Brandbook Executivo & Diretrizes de Uso", status: "todo" },
-      { label: "Brand Starter Kit Final", status: "todo" }
-    ],
-    nextMilestone: "Entrega Final Concluída"
+    badge: "Handover Executivo",
+    description: "Exportação completa dos arquivos vetoriais em alta fidelidade e empacotamento do Brand Kit final para o cliente.",
+    highlights: ["Arquivos Vetoriais", "Brand Kit Completo", "Handover de Ativos"]
   },
   activate: {
+    title: "Ativar",
+    subtitle: "Marca em Plena Operação",
     focus: "Ativação da Marca no Mercado",
-    rigorBadge: "Ativação Total",
-    checklist: [
-      { label: "Arquivos Prontos para Impressão & Digital", status: "done" },
-      { label: "Brandbook e Kit de Ativos Disponíveis", status: "done" },
-      { label: "Suporte e Acompanhamento de Ativação", status: "doing" }
-    ],
-    nextMilestone: "Marca em Plena Operação"
+    badge: "Ativação Total",
+    description: "Todos os ativos finais entregues e prontos para aplicação integral no ecossistema de mercado do cliente.",
+    highlights: ["Ativação no Mercado", "Suporte Contínuo", "Plena Operação"]
   }
 };
 
@@ -158,7 +140,9 @@ export default function Home() {
   const [clientProfile, setClientProfile] = useState<any>(null);
   const [activeProject, setActiveProject] = useState<any>(null);
   const [dbTasks, setDbTasks] = useState<any[]>([]);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [prodTab, setProdTab] = useState<'bancada' | 'timeline'>('bancada');
+  const [hasTerritoriesReady, setHasTerritoriesReady] = useState(false);
 
   // Estado do mosaico animado de fundo
   const [portfolioGrid, setPortfolioGrid] = useState<string[]>([]);
@@ -239,12 +223,24 @@ export default function Home() {
         const { data: prof } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
         if (prof) setClientProfile(prof);
 
+        const { data: teamProf } = await supabase.from('profiles').select('id, nome, avatar_url, role');
+        if (teamProf) setTeamMembers(teamProf);
+
         if (proj) {
           const { data: projectTasks } = await supabase
             .from('tasks')
-            .select('title, status, stage, task_type, is_adhoc, deadline')
+            .select('id, title, status, stage, task_type, is_adhoc, deadline, assigned_to')
             .eq('project_id', proj.id);
           if (projectTasks) setDbTasks(projectTasks);
+
+          try {
+            const { getTerritoryEvaluationAction } = await import('./actions/territory');
+            const evalData = await getTerritoryEvaluationAction(proj.id);
+            const isReady = !!(evalData && evalData.status === 'pending' && Array.isArray(evalData.territories) && evalData.territories.length > 0);
+            setHasTerritoriesReady(isReady);
+          } catch {
+            setHasTerritoriesReady(false);
+          }
         }
       } catch (error) {
         console.error(error);
@@ -284,7 +280,15 @@ export default function Home() {
   const completedTasks = dbTasks.filter(t => ['completed', 'done', 'approved', 'archived'].includes(t.status)).length;
   const progressPercent = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : (activeProject?.progress || 14);
 
-  const currentPhaseNormalized = activeProject?.idv_phase || 'discover';
+  // Verificação dinâmica: se a etapa Descobrir já foi concluída pelas tarefas, a fase efetiva é 'define' (Direcionar)
+  const discoverTasks = dbTasks.filter(t => ['onboarding', 'discover'].includes(t.stage));
+  const isDiscoverDone = discoverTasks.length > 0 
+    ? discoverTasks.every(t => ['completed', 'done', 'approved', 'archived'].includes(t.status))
+    : (activeProject?.idv_phase !== 'discover' && activeProject?.idv_phase !== 'onboarding');
+
+  const currentPhaseNormalized = (isDiscoverDone && (activeProject?.idv_phase === 'discover' || activeProject?.idv_phase === 'onboarding'))
+    ? 'define'
+    : (activeProject?.idv_phase || 'discover');
 
   // Cálculo da Data Prevista Verdadeira (21 dias de ciclo criativo)
   const createdDate = activeProject?.created_at ? new Date(activeProject.created_at) : new Date();
@@ -323,12 +327,12 @@ export default function Home() {
       id: "direcionar", 
       number: "02", 
       label: "Direcionar", 
-      sublabel: "Brand Lab & Territórios",
+      sublabel: "Curadoria Visual & Territórios",
       tags: ["3 Territórios", "Moodboards", "Cores"],
       phases: ["define"], 
       icon: Compass, 
       action: () => setIsDirecionarModalOpen(true),
-      actionLabel: "Abrir Brand Lab",
+      actionLabel: "Abrir Curadoria Visual",
       isFoundationDone: false
     },
     { 
@@ -362,7 +366,7 @@ export default function Home() {
       sublabel: "Lapidação & Ajustes",
       tags: ["Ajuste Óptico", "Pantone", "Fidelidade"],
       phases: ["refine"], 
-      icon: Sparkles, 
+      icon: Gem, 
       action: null,
       actionLabel: "Em Lapidação",
       isFoundationDone: false
@@ -372,7 +376,7 @@ export default function Home() {
       number: "06", 
       label: "Ativar", 
       sublabel: "Brand Kit & Handover",
-      tags: ["Brandbook", "Vetores SVG", "Kit Ativos"],
+      tags: ["Brand Kit", "Vetores SVG", "Ativos Finais"],
       phases: ["deliver", "activate"], 
       icon: Package, 
       action: () => {
@@ -401,14 +405,15 @@ export default function Home() {
 
   const currentStageInfo = IDV_STAGES.find(s => s.phases.includes(currentPhaseNormalized)) || IDV_STAGES[1];
 
-  // Ação necessária do cliente (Aparece SOMENTE se houver ação pendente)
-  const needsClientAction = (currentPhaseNormalized === 'define') || (['present', 'client_review'].includes(currentPhaseNormalized));
+  // Ação necessária do cliente (Aparece SOMENTE se houver ação pendente para o cliente)
+  const needsClientAction = (currentPhaseNormalized === 'define' && hasTerritoriesReady) 
+    || (['present', 'client_review'].includes(currentPhaseNormalized));
   
-  const clientActionInfo = currentPhaseNormalized === 'define' ? {
+  const clientActionInfo = (currentPhaseNormalized === 'define' && hasTerritoriesReady) ? {
     badge: "Fase 02 • Decisão de Território",
     title: "Avaliação do Território Visual",
-    description: "Os caminhos conceituais estão prontos no Brand Lab. Valide a direção estética para desenharmos os símbolos.",
-    buttonLabel: "Abrir Brand Lab",
+    description: "Os territórios conceituais foram enviados pela equipe. Escolha a direção estética oficial da sua marca.",
+    buttonLabel: "Abrir Curadoria Visual",
     action: () => setIsDirecionarModalOpen(true),
     icon: Compass
   } : (['present', 'client_review'].includes(currentPhaseNormalized)) ? {
@@ -423,7 +428,7 @@ export default function Home() {
   const pipeline = IDV_FLOW_PIPELINE[activeProject?.idv_product || 'IDV-CORE'] || [];
 
   return (
-    <div className="flex flex-col h-[calc(100dvh-105px)] max-w-[1440px] mx-auto w-full gap-3.5 relative z-10 px-2 md:px-5 overflow-hidden justify-between">
+    <div className="flex flex-col min-h-[calc(100dvh-105px)] lg:h-[calc(100dvh-105px)] max-w-[1440px] mx-auto w-full gap-3.5 relative z-10 px-2 md:px-5 overflow-y-auto lg:overflow-hidden justify-between pb-24 lg:pb-0">
       
       {/* 🟢 HEADER LIMPO, ELEGANTE E MINIMALISTA (Altura controlada) */}
       <header className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-1 shrink-0">
@@ -436,11 +441,6 @@ export default function Home() {
             <span className="px-3 py-1 bg-white/80 border border-white/80 rounded-full text-[10.5px] font-roboto font-bold uppercase tracking-wider text-[var(--color-atelier-grafite)]/70 shadow-2xs backdrop-blur-md flex items-center gap-1.5">
               <Calendar size={12} className="text-[var(--color-atelier-terracota)]" />
               Previsão de Entrega: <strong className="text-[var(--color-atelier-grafite)] font-bold">{formattedTrueDeliveryDate}</strong>
-            </span>
-
-            <span className="px-3 py-1 bg-white/80 border border-white/80 rounded-full text-[10.5px] font-roboto font-bold uppercase tracking-wider text-[var(--color-atelier-terracota)] shadow-2xs backdrop-blur-md flex items-center gap-1.5">
-              <Sparkles size={12} />
-              Fase: {currentStageInfo.label}
             </span>
 
             {needsClientAction && (
@@ -515,7 +515,7 @@ export default function Home() {
                   <div className="flex items-center gap-2">
                     <Compass size={14} className="text-[var(--color-atelier-terracota)]" />
                     <div className="flex flex-col">
-                      <span className="text-[11px] font-bold text-[var(--color-atelier-grafite)]">Brand Lab & Territórios</span>
+                      <span className="text-[11px] font-bold text-[var(--color-atelier-grafite)]">Territórios Visuais</span>
                       <span className="text-[9px] text-gray-400">Diretrizes estéticas</span>
                     </div>
                   </div>
@@ -523,15 +523,15 @@ export default function Home() {
                 </button>
 
                 <Link
-                  href="/brandbook"
+                  href="/referencias"
                   onClick={() => setIsFilesMenuOpen(false)}
                   className="p-2 rounded-xl hover:bg-[var(--color-atelier-creme)]/60 transition-colors flex items-center justify-between group text-left"
                 >
                   <div className="flex items-center gap-2">
-                    <Sparkles size={14} className="text-[var(--color-atelier-terracota)]" />
+                    <Compass size={14} className="text-[var(--color-atelier-terracota)]" />
                     <div className="flex flex-col">
-                      <span className="text-[11px] font-bold text-[var(--color-atelier-grafite)]">Brandbook & Guidelines</span>
-                      <span className="text-[9px] text-gray-400">Manual da marca</span>
+                      <span className="text-[11px] font-bold text-[var(--color-atelier-grafite)]">Curadoria Visual</span>
+                      <span className="text-[9px] text-gray-400">Referências do projeto</span>
                     </div>
                   </div>
                   <ArrowRight size={11} className="text-gray-300 group-hover:text-[var(--color-atelier-terracota)]" />
@@ -562,14 +562,14 @@ export default function Home() {
       </header>
 
       {/* 🟢 LAYOUT PRINCIPAL EM 2 COLUNAS (Jornada Criativa 70% | Produção ao Vivo 30% - NO SCROLL) */}
-      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-10 gap-4 items-stretch overflow-hidden">
+      <div className="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-10 gap-4 items-stretch lg:overflow-hidden">
         
         {/* ========================================================= */}
         {/* COLUNA ESQUERDA: JORNADA CRIATIVA COM LOGO STUDIO VERONNA & WATERMARK (70% - 7 colunas) */}
         {/* ========================================================= */}
         <div className="lg:col-span-7 flex flex-col h-full min-h-0">
           
-          <div className="glass-panel relative rounded-[2.2rem] bg-white/75 backdrop-blur-2xl border border-white/80 shadow-[0_16px_40px_rgba(40,30,25,0.05)] flex flex-col h-full min-h-0 overflow-hidden p-5 md:p-6 justify-between gap-3">
+          <div className="glass-panel relative rounded-[2.2rem] bg-white/75 backdrop-blur-2xl border border-white/80 shadow-[0_16px_40px_rgba(40,30,25,0.05)] flex flex-col h-full min-h-0 overflow-hidden p-4 sm:p-5 md:p-6 justify-between gap-3">
             
             {/* 🟢 WATERMARK ANIMADO: Mosaico de logos clássicos do estúdio Studio Veronna em background */}
             <div className="absolute inset-0 grid grid-cols-5 grid-rows-4 p-3 items-center justify-items-center opacity-[0.08] pointer-events-none overflow-hidden select-none z-0">
@@ -632,11 +632,7 @@ export default function Home() {
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-1.5 mt-0.5">
-                      <span className="inline-flex items-center gap-1 text-[10px] font-roboto font-bold uppercase tracking-wider text-[var(--color-atelier-terracota)]">
-                        <TrendingUp size={11} /> Metodologia Autoral • Ritmo Saudável
-                      </span>
-                    </div>
+
                   </div>
                 </div>
 
@@ -687,8 +683,8 @@ export default function Home() {
 
             </div>
 
-            {/* 🟢 ESTEIRA DAS 6 FASES COM TAGS DE ENTREGÁVEIS (Grid 2x3 compacto e perfeito para NO-SCROLL) */}
-            <div className="relative z-10 grid grid-cols-2 sm:grid-cols-3 gap-2.5 flex-1 min-h-0 items-stretch">
+            {/* 🟢 ESTEIRA DAS 6 FASES COM TAGS DE ENTREGÁVEIS (Grid 2x3 compacto no desktop e carrossel fluido no mobile) */}
+            <div className="relative z-10 flex overflow-x-auto snap-x snap-mandatory gap-3 pb-2 scrollbar-none sm:grid sm:grid-cols-3 sm:gap-2.5 flex-1 min-h-0 items-stretch">
               {IDV_STAGES.map((stage) => {
                 const status = getStageStatus(stage);
                 const isCompleted = status === 'completed';
@@ -699,7 +695,7 @@ export default function Home() {
                   <motion.div
                     key={stage.id}
                     whileHover={{ y: -2 }}
-                    className={`p-3 md:p-3.5 rounded-2xl border transition-all duration-300 flex flex-col justify-between relative overflow-hidden ${
+                    className={`p-3.5 rounded-2xl border transition-all duration-300 flex flex-col justify-between relative overflow-hidden min-w-[240px] max-w-[280px] shrink-0 snap-center sm:min-w-0 sm:max-w-none sm:shrink sm:w-auto ${
                       isCurrent 
                         ? 'bg-white shadow-[0_8px_20px_rgba(20, 44, 72,0.12)] border-[var(--color-atelier-terracota)]/50 ring-1 ring-[var(--color-atelier-terracota)]/20' 
                         : isCompleted 
@@ -719,7 +715,7 @@ export default function Home() {
                           </span>
                         ) : isCurrent ? (
                           <span className="px-1.5 py-0.5 bg-orange-50 text-[var(--color-atelier-terracota)] rounded-full text-[8.5px] font-roboto font-bold uppercase tracking-wider flex items-center gap-1 border border-orange-200 animate-pulse">
-                            <Sparkles size={9} /> Em Andamento
+                            <Palette size={9} /> {stage.id === 'direcionar' && !hasTerritoriesReady ? 'Em Curadoria' : 'Em Andamento'}
                           </span>
                         ) : (
                           <span className="px-1.5 py-0.5 bg-gray-100 text-gray-400 rounded-full text-[8.5px] font-roboto font-bold uppercase tracking-wider flex items-center gap-0.5">
@@ -783,18 +779,6 @@ export default function Home() {
             
             {/* Header do Widget de Produção com Tabs de Alternância */}
             <div className="flex flex-col gap-2 pb-2.5 border-b border-[var(--color-atelier-grafite)]/10 shrink-0">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-1.5">
-                  <span className="w-2 h-2 rounded-full bg-[var(--color-atelier-terracota)] animate-ping" />
-                  <span className="font-roboto text-[8.5px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)]">
-                    Ateliê Studio Veronna
-                  </span>
-                </div>
-                <span className="px-2 py-0.5 rounded-full bg-orange-50 text-[var(--color-atelier-terracota)] font-roboto text-[8px] font-bold uppercase tracking-wider border border-orange-100 flex items-center gap-1">
-                  <Activity size={10} /> Ao Vivo
-                </span>
-              </div>
-
               <div className="flex items-center justify-between gap-2">
                 <h3 className="font-elegant text-lg md:text-xl text-[var(--color-atelier-grafite)] font-bold">
                   Produção
@@ -856,7 +840,7 @@ export default function Home() {
                 || tasksToRender[3]
                 || { title: "Análise do Briefing & Brand Snapshot", stage: currentPhaseNormalized };
 
-              const currentCraft = CRAFT_STAGE_DETAILS[currentPhaseNormalized] || CRAFT_STAGE_DETAILS['define'];
+              const currentStageDesc = STAGE_DESCRIPTIONS[currentPhaseNormalized] || STAGE_DESCRIPTIONS['define'];
 
               if (prodTab === 'bancada') {
                 return (
@@ -869,7 +853,7 @@ export default function Home() {
                           Em Bancada Criativa
                         </span>
                         <span className="text-[9px] font-roboto font-bold text-[var(--color-atelier-terracota)]">
-                          {currentCraft.rigorBadge}
+                          {currentStageDesc.badge}
                         </span>
                       </div>
 
@@ -878,64 +862,62 @@ export default function Home() {
                           {activeTask.title}
                         </h4>
                         <p className="text-[9.5px] font-roboto text-[var(--color-atelier-grafite)]/60 font-medium mt-0.5">
-                          {currentCraft.focus}
+                          {currentStageDesc.focus}
                         </p>
                       </div>
 
-                      <div className="pt-2 border-t border-[var(--color-atelier-grafite)]/5 flex items-center justify-between text-[9px] text-gray-500 font-roboto">
-                        <span>Direção: <strong>Studio Veronna </strong></span>
-                        <span className="text-[var(--color-atelier-terracota)] font-semibold">100% Autoral</span>
-                      </div>
+                      {(() => {
+                        const assignedCollab = teamMembers.find(m => m.id === activeTask.assigned_to);
+                        const collabName = assignedCollab?.nome || "Equipe Studio Veronna";
+                        const collabAvatar = assignedCollab?.avatar_url;
+                        return (
+                          <div className="pt-2 border-t border-[var(--color-atelier-grafite)]/5 flex items-center justify-between text-[10px] text-gray-600 font-roboto">
+                            <div className="flex items-center gap-2">
+                              {collabAvatar ? (
+                                <img
+                                  src={collabAvatar}
+                                  alt={collabName}
+                                  referrerPolicy="no-referrer"
+                                  className="w-5 h-5 rounded-full object-cover border border-white shadow-2xs"
+                                  onError={(e) => { (e.target as HTMLElement).style.display = 'none'; }}
+                                />
+                              ) : (
+                                <div className="w-5 h-5 rounded-full bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)] border border-[var(--color-atelier-terracota)]/20 flex items-center justify-center font-bold text-[8.5px]">
+                                  {collabName.charAt(0)}
+                                </div>
+                              )}
+                              <div className="flex items-center gap-1.5">
+                                <span className="text-gray-400">Responsável:</span>
+                                <strong className="text-[var(--color-atelier-grafite)] font-bold">{collabName}</strong>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
                     </div>
 
-                    {/* Telemetria e Critérios de Rigor Técnico */}
-                    <div className="p-3 rounded-2xl bg-white/80 border border-white/90 shadow-2xs flex flex-col gap-2 shrink-0">
+                    {/* Descrição Editorial e Contexto da Etapa Atual */}
+                    <div className="p-3.5 rounded-2xl bg-white/90 border border-white shadow-2xs flex flex-col gap-2.5 shrink-0">
                       <div className="flex items-center justify-between">
-                        <span className="text-[8.5px] font-roboto uppercase font-bold tracking-widest text-gray-400 flex items-center gap-1">
-                          <ShieldCheck size={11} className="text-[var(--color-atelier-terracota)]" /> Rigor Técnico
+                        <span className="text-[8.5px] font-roboto uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)] flex items-center gap-1.5">
+                          <Compass size={12} className="text-[var(--color-atelier-terracota)]" /> Etapa • {currentStageDesc.title}
                         </span>
-                        <span className="text-[8.5px] font-roboto font-bold text-gray-400">
-                          {currentStageInfo.label}
+                        <span className="text-[8.5px] font-roboto font-bold px-2 py-0.5 rounded-full bg-black/[0.03] text-[var(--color-atelier-grafite)]/70 border border-black/[0.03]">
+                          {currentStageDesc.subtitle}
                         </span>
                       </div>
 
-                      <div className="flex flex-col gap-1.5">
-                        {currentCraft.checklist.map((item, cIdx) => (
-                          <div key={cIdx} className="flex items-center gap-2">
-                            {item.status === 'done' ? (
-                              <CheckCircle2 size={13} className="text-green-600 shrink-0" />
-                            ) : item.status === 'doing' ? (
-                              <span className="w-3.5 h-3.5 rounded-full border-2 border-[var(--color-atelier-terracota)] flex items-center justify-center shrink-0">
-                                <span className="w-1.5 h-1.5 rounded-full bg-[var(--color-atelier-terracota)] animate-pulse" />
-                              </span>
-                            ) : (
-                              <div className="w-3 h-3 rounded-full border border-gray-300 shrink-0" />
-                            )}
-                            <span className={`text-[10px] font-roboto leading-tight ${
-                              item.status === 'done' 
-                                ? 'text-[var(--color-atelier-grafite)]/60 line-through decoration-black/20' 
-                                : item.status === 'doing'
-                                  ? 'text-[var(--color-atelier-grafite)] font-bold'
-                                  : 'text-gray-400'
-                            }`}>
-                              {item.label}
-                            </span>
-                          </div>
+                      <p className="text-[10.5px] font-roboto text-[var(--color-atelier-grafite)]/75 leading-relaxed">
+                        {currentStageDesc.description}
+                      </p>
+
+                      <div className="flex flex-wrap gap-1.5 pt-2 border-t border-[var(--color-atelier-grafite)]/5">
+                        {currentStageDesc.highlights.map((h, hIdx) => (
+                          <span key={hIdx} className="px-2 py-0.5 rounded-md bg-[var(--color-atelier-terracota)]/[0.06] text-[8.5px] font-roboto font-medium text-[var(--color-atelier-terracota)] border border-[var(--color-atelier-terracota)]/10">
+                            {h}
+                          </span>
                         ))}
                       </div>
-                    </div>
-
-                    {/* Previsão do Próximo Marco */}
-                    <div className="px-3 py-2 rounded-xl bg-orange-50/60 border border-orange-100 flex items-center justify-between text-[9px] font-roboto shrink-0">
-                      <span className="text-[var(--color-atelier-grafite)]/70 font-medium">Próximo Marco:</span>
-                      <strong className="text-[var(--color-atelier-terracota)] font-bold">{currentCraft.nextMilestone}</strong>
-                    </div>
-
-                    {/* Selo de Garantia de Excelência */}
-                    <div className="p-2.5 rounded-xl bg-black/[0.02] border border-black/[0.04] text-center shrink-0">
-                      <p className="text-[8.5px] font-roboto text-gray-400 uppercase tracking-widest font-semibold">
-                        Design Exclusivo • 0% Templates • Alta Precisão
-                      </p>
                     </div>
                   </div>
                 );

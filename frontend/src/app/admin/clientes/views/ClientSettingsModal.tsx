@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, User, Mail, Phone, Instagram, Briefcase, 
-  Target, Sparkles, Save, Loader2, LineChart, 
+  Target, Compass, Activity, Save, Loader2, LineChart, 
   BrainCircuit, CheckCircle2, DollarSign, Activity,
   Clock, CheckSquare, UploadCloud, FileText, Camera, FolderOpen, Link, Trello, FileUp, Search
 } from "lucide-react";
@@ -583,7 +583,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
                             O perfil precisa de ter o @Instagram preenchido. O Assistente Estratégico irá estruturar as diretrizes e o plano de ação.
                           </p>
                           <button onClick={handleRunConsulting} className="px-8 bg-[var(--color-atelier-terracota)] text-white py-3.5 rounded-[1rem] font-roboto font-bold uppercase tracking-[0.1em] text-[11px] hover:bg-[#234E80] hover:-translate-y-0.5 transition-all shadow-md flex items-center justify-center gap-2">
-                            <Sparkles size={14} /> Iniciar Análise Estratégica
+                            <Compass size={14} /> Iniciar Análise Estratégica
                           </button>
                         </div>
                       ) : isGenerating ? (
@@ -598,7 +598,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
                         <div className="flex flex-col gap-6">
                           <div className="bg-[var(--color-atelier-grafite)] p-8 rounded-[2rem] shadow-lg text-white flex justify-between items-center relative overflow-hidden">
                             <div className="relative z-10">
-                              <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)] mb-1 block flex items-center gap-2"><Sparkles size={12}/> Análise Ativa</span>
+                              <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-terracota)] mb-1 block flex items-center gap-2"><Activity size={12}/> Análise Ativa</span>
                               <h3 className="font-elegant text-3xl leading-none">Dossiê de Posicionamento</h3>
                             </div>
                             <button onClick={handleRunConsulting} className="relative z-10 bg-white/10 hover:bg-white text-white hover:text-[var(--color-atelier-grafite)] px-5 py-2.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all border border-white/20 flex items-center gap-2 backdrop-blur-sm">

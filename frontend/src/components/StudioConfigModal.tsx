@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Calendar, Video, PlaySquare, Image as ImageIcon, Sparkles, Loader2, Compass } from 'lucide-react';
+import { X, Calendar, Video, PlaySquare, Image as ImageIcon, Check, Play, Loader2, Compass } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { AtelierPMEngine } from '../lib/AtelierPMEngine';
 
@@ -245,7 +245,7 @@ export default function StudioConfigModal({ isOpen, onClose, project, onCycleSta
                  disabled={isSubmitting}
                  className="flex items-center gap-2 px-6 py-3 bg-[var(--color-atelier-grafite)] text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg hover:shadow-xl hover:bg-black transition-all disabled:opacity-50"
                >
-                  {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                  {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                   Salvar Projeto
                </button>
              ) : (
@@ -254,7 +254,7 @@ export default function StudioConfigModal({ isOpen, onClose, project, onCycleSta
                  disabled={isSubmitting}
                  className="flex items-center gap-2 px-6 py-3 bg-[var(--color-atelier-terracota)] text-white font-bold text-xs uppercase tracking-widest rounded-xl shadow-lg hover:shadow-xl hover:bg-[#965f36] transition-all disabled:opacity-50"
                >
-                  {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                  {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
                   Iniciar Novo Mês
                </button>
              )}

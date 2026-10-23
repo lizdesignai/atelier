@@ -303,7 +303,7 @@ export default function BrandbookPDF({ clientName, aiInsight, tilt, semiotics = 
         <Image src="/images/simbolo-rosa.png" style={styles.coverLogo} />
         <Text style={styles.coverTitle}>Manual de Operações da Marca</Text>
         <Text style={styles.coverSubtitle}>{clientName} • Brandbook Código-Fonte</Text>
-        <Text style={styles.coverDate}>{currentDate} • Atelier Studio Veronna</Text>
+        <Text style={styles.coverDate}>{currentDate} • Studio Veronna</Text>
       </Page>
 
       {/* PÁGINA 1: O CÓDIGO FONTE (IA) */}
@@ -325,7 +325,7 @@ export default function BrandbookPDF({ clientName, aiInsight, tilt, semiotics = 
 
         {/* RODAPÉ GLOBAL */}
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>Atelier Studio Veronna</Text>
+          <Text style={styles.footerText}>Studio Veronna</Text>
           <Text style={styles.footerText}>O Código-Fonte</Text>
         </View>
       </Page>
@@ -430,7 +430,7 @@ export default function BrandbookPDF({ clientName, aiInsight, tilt, semiotics = 
         </View>
 
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>Atelier Studio Veronna</Text>
+          <Text style={styles.footerText}>Studio Veronna</Text>
           <Text style={styles.footerText}>Laboratório de Expressão</Text>
         </View>
       </Page>
@@ -458,7 +458,7 @@ export default function BrandbookPDF({ clientName, aiInsight, tilt, semiotics = 
           ))}
 
           <View style={styles.footer} fixed>
-            <Text style={styles.footerText}>Atelier Studio Veronna</Text>
+            <Text style={styles.footerText}>Studio Veronna</Text>
             <Text style={styles.footerText}>Repositório de Ativos</Text>
           </View>
         </Page>

@@ -8,7 +8,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Home, Lock, MessageSquare, ChevronLeft, ChevronRight, 
   Compass, LayoutDashboard, FolderKanban, Users, MessageCircle, 
-  Globe2, CheckCircle2, DollarSign, Sparkles, Briefcase, 
+  Globe2, CheckCircle2, DollarSign, Palette, Briefcase, 
   Crosshair, LogOut, Activity, Crown, Grid, Menu, X, FileText,
   Eye, Target, TrendingUp, Archive,
   Search, Hammer, Presentation, Package, Calendar
@@ -43,7 +43,7 @@ const ROUTE_NAMES: Record<string, string> = {
   '/curadoria': 'Curadoria',
   '/': 'Inicial',
   '/cofre': 'O Cofre',
-  '/referencias': 'Referências',
+  '/referencias': 'Curadoria Visual',
   '/canais': 'Canais',
   '/comunidade': 'Vêneto',
   '/admin/jtbd': 'Focus',
@@ -321,7 +321,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
     ...(isStageUnlocked('define') ? [{ href: '/projeto/direcionar', icon: <Compass size={20} strokeWidth={1.5} />, label: 'Direcionar' }] : []),
     ...(isStageUnlocked('present') ? [{ href: '/projeto/revelar', icon: <Presentation size={20} strokeWidth={1.5} />, label: 'Revelar' }] : []),
     ...(isStageUnlocked('deliver') ? [{ href: '/projeto/ativar', icon: <Package size={20} strokeWidth={1.5} />, label: 'Ativar' }] : []),
-    { href: '/brandbook', icon: <Sparkles size={20} strokeWidth={1.5} />, label: 'Brand Lab' },
+    { href: '/brandbook', icon: <Palette size={20} strokeWidth={1.5} />, label: 'Curadoria Visual' },
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ];
@@ -415,7 +415,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               ) : (
                 <>
                   <NavItem href="/" icon={<Home size={18} strokeWidth={1.5} />} label="Meu Projeto" collapsed={isCollapsed} active={pathname === '/'} />
-                  <NavItem href="/brandbook" icon={<Sparkles size={18} strokeWidth={1.5} />} label="Brand Lab" collapsed={isCollapsed} active={pathname === '/brandbook'} />
+                  <NavItem href="/brandbook" icon={<Palette size={18} strokeWidth={1.5} />} label="Curadoria Visual" collapsed={isCollapsed} active={pathname === '/brandbook'} />
                   <NavItem href="/canais" icon={<MessageSquare size={18} strokeWidth={1.5} />} label="Canais" collapsed={isCollapsed} active={pathname === '/canais'} badge={globalUnreadCount} />
                   
                   

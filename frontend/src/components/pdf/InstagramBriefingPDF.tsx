@@ -228,7 +228,7 @@ export default function InstagramBriefingPDF({ data, clientName, aiInsight }: In
         <Image src="/images/simbolo-rosa.png" style={styles.coverLogo} />
         <Text style={styles.coverTitle}>{safeClientName || "Briefing"}</Text>
         <Text style={styles.coverSubtitle}>Briefing de Instagram</Text>
-        <Text style={styles.coverDate}>{currentDate} • Atelier Studio Veronna</Text>
+        <Text style={styles.coverDate}>{currentDate} • Studio Veronna</Text>
       </Page>
 
       {/* PÁGINA 2 EM DIANTE: CONTEÚDO E ESTRATÉGIA */}
@@ -308,7 +308,7 @@ export default function InstagramBriefingPDF({ data, clientName, aiInsight }: In
 
         {/* RODAPÉ */}
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>Atelier Studio Veronna</Text>
+          <Text style={styles.footerText}>Studio Veronna</Text>
           <Text style={styles.footerText}>Instagram • Estudo de Mercado</Text>
         </View>
       </Page>

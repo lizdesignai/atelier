@@ -5,7 +5,7 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, Instagram, TrendingUp, Users, Heart, MessageCircle, 
-  Sparkles, Activity, Layers, Target, Compass, 
+  Activity, Layers, Target, Compass, 
   ArrowUpRight, BarChart3, RefreshCw, CheckCircle2,
   Video, Eye, Bookmark, Share2, Award, Zap, HelpCircle, History, Calendar, ArrowRight
 } from "lucide-react";

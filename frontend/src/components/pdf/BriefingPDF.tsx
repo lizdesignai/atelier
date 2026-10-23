@@ -223,7 +223,7 @@ export default function BriefingPDF({ clientBriefing, projectName, aiInsight }: 
         <Image src="/images/simbolo-rosa.png" style={styles.coverLogo} />
         <Text style={styles.coverTitle}>{safeProjectName || 'Briefing'}</Text>
         <Text style={styles.coverSubtitle}>Briefing de Identidade Visual</Text>
-        <Text style={styles.coverDate}>{currentDate} • Atelier Studio Veronna</Text>
+        <Text style={styles.coverDate}>{currentDate} • Studio Veronna</Text>
       </Page>
 
       {/* PÁGINA 2 em diante: CONTEÚDO */}
@@ -265,8 +265,8 @@ export default function BriefingPDF({ clientBriefing, projectName, aiInsight }: 
 
         {/* RODAPÉ (Repetido em todas as páginas automaticamente) */}
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>Atelier Studio Veronna</Text>
-          <Text style={styles.footerText}>{safeProjectName || 'Atelier Studio Veronna'}</Text>
+          <Text style={styles.footerText}>Studio Veronna</Text>
+          <Text style={styles.footerText}>{safeProjectName || 'Studio Veronna'}</Text>
         </View>
       </Page>
     </Document>

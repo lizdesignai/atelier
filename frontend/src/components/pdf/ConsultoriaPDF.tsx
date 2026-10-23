@@ -224,7 +224,7 @@ export default function ConsultoriaPDF({ clientName, instagram, nicho, result }:
         <Text style={styles.coverTitle}>Auditoria Estratégica</Text>
         <Text style={styles.coverSubtitle}>{safeClientName}</Text>
         <Text style={styles.coverDetails}>{safeInstagram} • {safeNicho}</Text>
-        <Text style={styles.coverDate}>{currentDate} • Atelier Studio Veronna</Text>
+        <Text style={styles.coverDate}>{currentDate} • Studio Veronna</Text>
       </Page>
 
       {/* CONTEÚDO PRINCIPAL (Paginação Inteligente e Contínua) */}
@@ -296,7 +296,7 @@ export default function ConsultoriaPDF({ clientName, instagram, nicho, result }:
 
         {/* RODAPÉ (Repetido em todas as páginas via fixed) */}
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>Atelier Studio Veronna</Text>
+          <Text style={styles.footerText}>Studio Veronna</Text>
           <Text style={styles.footerText}>{safeClientName || 'Atelier Studio Veronna'}</Text>
         </View>
       </Page>

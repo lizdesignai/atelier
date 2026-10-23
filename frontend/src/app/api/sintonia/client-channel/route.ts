@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
     }
 
-    const userId = payload.userId;
+    const userId = payload.sub || (payload as any).userId;
     const userRole = payload.role || 'client';
     const sql = getDb();
 
@@ -48,33 +48,39 @@ export async function GET(req: NextRequest) {
       project = projects[0] || null;
     }
 
-    if (!project) {
-      // Se for cliente, buscar o seu projeto ativo
+    if (!project && userId) {
+      // Se for cliente (ou tiver projeto associado), buscar o seu projeto ativo
       const projects = await (sql as any).query(
         `SELECT p.*, pr.nome as client_name, pr.avatar_url as client_avatar, pr.empresa as client_empresa
          FROM projects p
          LEFT JOIN profiles pr ON p.client_id = pr.id
-         WHERE p.client_id = $1 AND p.status = 'active'
-         ORDER BY p.created_at DESC LIMIT 1`,
+         WHERE p.client_id = $1
+         ORDER BY CASE WHEN p.status = 'active' THEN 0 ELSE 1 END, p.created_at DESC LIMIT 1`,
         [userId]
       );
       project = projects[0] || null;
     }
 
-    // Se ainda não encontrou e for admin/gestor testando, pega o primeiro projeto ativo
-    if (!project && (userRole === 'admin' || userRole === 'gestor')) {
+    // Se ainda não encontrou e for membro da equipe (admin/gestor/colaborador), busca o primeiro projeto ativo
+    if (!project && (userRole === 'admin' || userRole === 'gestor' || userRole === 'colaborador')) {
       const projects = await (sql as any).query(
         `SELECT p.*, pr.nome as client_name, pr.avatar_url as client_avatar, pr.empresa as client_empresa
          FROM projects p
          LEFT JOIN profiles pr ON p.client_id = pr.id
-         WHERE p.status = 'active'
-         ORDER BY p.created_at DESC LIMIT 1`
+         ORDER BY CASE WHEN p.status = 'active' THEN 0 ELSE 1 END, p.created_at DESC LIMIT 1`
       );
       project = projects[0] || null;
     }
 
     if (!project) {
-      return NextResponse.json({ error: 'Nenhum projeto ativo encontrado' }, { status: 404 });
+      return NextResponse.json({ 
+        success: false, 
+        message: 'Nenhum projeto ativo associado no momento',
+        channel: null,
+        project: null,
+        messages: [],
+        unreadCount: 0 
+      }, { status: 200 });
     }
 
     // 2. Garantir que o canal exclusivo 'fio_cliente' existe para este projeto
@@ -165,7 +171,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Token inválido' }, { status: 401 });
     }
 
-    const userId = payload.userId;
+    const userId = payload.sub || (payload as any).userId;
     const sql = getDb();
 
     const body = await req.json();
@@ -261,7 +267,7 @@ export async function PATCH(req: NextRequest) {
     if (!token) return NextResponse.json({ error: 'Não autenticado' }, { status: 401 });
 
     const payload = await verifyToken(token);
-    const userId = payload.userId;
+    const userId = payload.sub || (payload as any).userId;
     const sql = getDb();
 
     const body = await req.json();

@@ -5,7 +5,7 @@ import { useState, useEffect, use } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Loader2, MapPin, Calendar, Edit3, Camera, Heart, MessageCircle,
-  Share2, Send, AlertCircle, Sparkles, X, Trash2, CheckCircle2,
+  Share2, Send, AlertCircle, Crown, X, Trash2, CheckCircle2,
   Briefcase, Handshake, HelpCircle, FlaskConical, Award, ShieldCheck,
   ExternalLink, Globe, UserPlus, UserCheck, Lock, Flag, Ban, Plus,
   Bookmark, Info, Compass, Layers
@@ -1245,7 +1245,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                 <span className="font-elegant text-4xl md:text-6xl text-white italic">
                   Vêneto · Pessoas que constroem.
                 </span>
-                <Sparkles size={36} className="text-white/50" />
+                <Crown size={36} className="text-white/50" />
               </div>
             )}
 
@@ -1359,7 +1359,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
                 </h1>
                 {(profile.cargo || profile.role === "admin" || profile.role === "gestor") && (
                   <span className="px-3 py-1 rounded-full bg-[#142C48] text-white text-[10px] font-bold uppercase tracking-widest flex items-center gap-1">
-                    <Sparkles size={11} />{" "}
+                    <Crown size={11} />{" "}
                     {profile.cargo ||
                       (profile.role === "admin"
                         ? "Fundadora"
@@ -1784,7 +1784,7 @@ export default function ProfilePage({ params }: { params: Promise<{ username: st
             <div className="flex flex-col gap-6 max-w-[820px] mx-auto">
               {filteredPosts.length === 0 ? (
                 <div className="text-center p-14 glass-panel bg-white/60 border border-white rounded-3xl">
-                  <Sparkles size={36} className="mx-auto mb-3 text-[var(--color-atelier-terracota)]" />
+                  <Crown size={36} className="mx-auto mb-3 text-[var(--color-atelier-terracota)]" />
                   <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)]">
                     Nenhum registro nesta seção ainda.
                   </h3>

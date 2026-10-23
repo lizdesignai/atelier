@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Camera, Plus, CheckCircle2, Clock, Download, 
   Trash2, FolderUp, FileText, Loader2, Send, Target, 
-  Link as LinkIcon, PenTool, Sparkles, ExternalLink, X
+  Link as LinkIcon, PenTool, Palette, ExternalLink, X
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import { NotificationEngine } from "@/lib/NotificationEngine";
@@ -147,7 +147,7 @@ export default function MissionsView({ activeProjectId, activeSubclientId, curre
       case 'drive_fotos': return { icon: <Camera size={16} />, colorClass: 'bg-purple-100 text-purple-600 border-purple-200' };
       case 'design': return { icon: <PenTool size={16} />, colorClass: 'bg-pink-100 text-pink-600 border-pink-200' };
       case 'direcionamento': return { icon: <Target size={16} />, colorClass: 'bg-green-100 text-green-600 border-green-200' };
-      case 'referencia': return { icon: <Sparkles size={16} />, colorClass: 'bg-orange-100 text-orange-600 border-orange-200' };
+      case 'referencia': return { icon: <Palette size={16} />, colorClass: 'bg-orange-100 text-orange-600 border-orange-200' };
       default: return { icon: <LinkIcon size={16} />, colorClass: 'bg-gray-100 text-gray-600 border-gray-200' };
     }
   };

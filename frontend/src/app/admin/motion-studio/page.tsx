@@ -24,7 +24,7 @@ import {
   Copy,
   Trash2,
   Archive,
-  Sparkles,
+  Film,
   Sliders,
   ShieldCheck,
   FileCode2,
@@ -3094,7 +3094,7 @@ export default function VeronnaMotionStudioPage() {
               }
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[var(--color-atelier-terracota)] hover:bg-[#234E80] text-white text-[11px] font-bold shadow-2xs transition-colors cursor-pointer"
             >
-              <Sparkles size={12} />
+              <Film size={12} />
               <span className="hidden md:inline">
                 {activeTab === "motion" ? "Renderizar MP4" : "Animar 5s"}
               </span>
@@ -3972,7 +3972,7 @@ export default function VeronnaMotionStudioPage() {
             {/* Biblioteca Rápida de Identidades Vitrine da Agência */}
             <div className="glass-panel bg-white/85 border border-white rounded-[2rem] p-6 shadow-xs">
               <h2 className="text-[10px] font-roboto font-bold uppercase tracking-widest text-[var(--color-atelier-madeira)] mb-3.5 flex items-center gap-2">
-                <Sparkles size={14} className="text-[var(--color-atelier-terracota)]" />
+                <Film size={14} className="text-[var(--color-atelier-terracota)]" />
                 Identidades Vitrine do Studio Veronna (Carregar em 1 Clique)
               </h2>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

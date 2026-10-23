@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, User, Building, Mail, Lock, Instagram, Briefcase, Loader2, Sparkles } from "lucide-react";
+import { X, User, Building, Mail, Lock, Instagram, Briefcase, Loader2, UserPlus } from "lucide-react";
 import { supabase } from "../../../../lib/supabase";
 
 interface NovoClienteModalProps {
@@ -106,7 +106,7 @@ export default function NovoClienteModal({ isOpen, onClose, onSuccess }: NovoCli
             <div className="shrink-0 flex items-center justify-between p-6 border-b border-gray-100 bg-white/50">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center text-[var(--color-atelier-terracota)]">
-                  <Sparkles size={20} />
+                  <UserPlus size={20} />
                 </div>
                 <div>
                   <h3 className="font-elegant text-xl font-bold text-[var(--color-atelier-grafite)]">Novo Cliente</h3>

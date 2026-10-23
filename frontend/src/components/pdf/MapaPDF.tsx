@@ -195,7 +195,7 @@ export default function MapaPDF({ clientName, stageNumber, mapaData }: MapaPDFPr
         
         {/* FOOTER P1 */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Atelier Studio Veronna</Text>
+          <Text style={styles.footerText}>Studio Veronna</Text>
           <Text style={styles.footerText}>Semana 0{stageNumber} — {stripEmojis(content.dimensao)}</Text>
         </View>
       </Page>
@@ -243,7 +243,7 @@ export default function MapaPDF({ clientName, stageNumber, mapaData }: MapaPDFPr
 
         {/* FOOTER P2 */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Atelier Studio Veronna</Text>
+          <Text style={styles.footerText}>Studio Veronna</Text>
           <Text style={styles.footerText}>Semana 0{stageNumber} — {stripEmojis(content.dimensao)}</Text>
         </View>
       </Page>

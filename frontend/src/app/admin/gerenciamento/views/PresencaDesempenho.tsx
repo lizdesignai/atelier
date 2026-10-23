@@ -6,7 +6,7 @@ import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
 import {
   BarChart3, TrendingUp, CheckCircle2, Clock, AlertTriangle,
-  Lightbulb, ArrowRight, Save, Loader2, Sparkles, Calendar,
+  Lightbulb, ArrowRight, Save, Loader2, Calendar,
   ChevronDown, HelpCircle
 } from "lucide-react";
 import {
@@ -252,7 +252,7 @@ export default function PresencaDesempenho({ activeProjectId, currentProject }: 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
           <div className="flex flex-col gap-2">
             <label className={`${label} text-[var(--color-atelier-grafite)]/70 flex items-center gap-1`}>
-              <Sparkles size={12} className="text-[var(--color-atelier-terracota)]" />
+              <Lightbulb size={12} className="text-[var(--color-atelier-terracota)]" />
               Nossa Leitura (O que os sinais do mês nos ensinam)
             </label>
             <textarea

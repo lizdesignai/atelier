@@ -5,7 +5,7 @@ import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
-  Search, Sparkles, ArrowRight, X, Loader2, 
+  Search, Film, ArrowRight, X, Loader2, 
   LayoutDashboard, Wallet, Users, FolderKanban, 
   Settings, Bot, FileText, CheckCircle2, AlertCircle
 } from "lucide-react";
@@ -61,7 +61,7 @@ export default function CommandPalette() {
   // ==========================================
   const quickActions = [
     { icon: LayoutDashboard, label: "Visão Geral do Oráculo", path: "/admin/analytics" },
-    { icon: Sparkles, label: "Veronna Motion Studio (SVG & Motion 5s)", path: "/admin/motion-studio" },
+    { icon: Film, label: "Veronna Motion Studio (SVG & Motion 5s)", path: "/admin/motion-studio" },
     { icon: Wallet, label: "Analisar CFO Engine", path: "/admin/financeiro" },
     { icon: Users, label: "Gerir Base de Clientes", path: "/admin/clientes" },
     { icon: FolderKanban, label: "Mesa de Trabalho (JTBD)", path: "/admin/projetos" },
@@ -151,7 +151,7 @@ export default function CommandPalette() {
                   {isProcessing ? (
                     <Loader2 size={24} className="text-[var(--color-atelier-terracota)] animate-spin shrink-0" />
                   ) : (
-                    <Sparkles size={24} className="text-[var(--color-atelier-terracota)] shrink-0" />
+                    <Search size={24} className="text-[var(--color-atelier-terracota)] shrink-0" />
                   )}
                   <input 
                     ref={inputRef}

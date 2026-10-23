@@ -5,7 +5,7 @@ import { AdminTerritoriesManager } from "../../../components/admin/AdminTerritor
 
 import { useState, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UploadCloud, Lock, Unlock, Image as ImageIcon, Send, FileText, CheckCircle2, Settings2, Plus, ChevronDown, Calendar, Compass, X, Sparkles, Download, Loader2, Trash2, Archive, Eye, RotateCcw, BrainCircuit, LayoutDashboard, Target, CalendarDays, MapPin, Camera, AlertCircle, ArrowRight, FolderKanban } from "lucide-react";
+import { UploadCloud, Lock, Unlock, Image as ImageIcon, Send, FileText, CheckCircle2, Settings2, Plus, ChevronDown, Calendar, Compass, X, Palette, Download, Loader2, Trash2, Archive, Eye, RotateCcw, BrainCircuit, LayoutDashboard, Target, CalendarDays, MapPin, Camera, AlertCircle, ArrowRight, FolderKanban } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { updateProjectAction } from "../../actions/projects";
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // Ã°Å¸Â§Â  INJEÃƒâ€¡ÃƒÆ’O DA MEMÃƒâ€œRIA GLOBAL
@@ -811,7 +811,7 @@ function PainelIdentidade() {
                       <div className="mb-10 bg-white/80 p-8 rounded-[2rem] border border-[var(--color-atelier-terracota)]/20 shadow-sm relative overflow-hidden">
                         <div className="absolute left-0 top-0 h-full w-1.5 bg-[var(--color-atelier-terracota)]"></div>
                         <h3 className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] mb-4 flex items-center gap-2">
-                          <Sparkles size={14}/> Diagnóstico de Marca (Assistente IA)
+                          <Compass size={14}/> Diagnóstico de Marca (Assistente IA)
                         </h3>
                         <div className="font-roboto text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed whitespace-pre-wrap font-medium">
                            {briefingAiInsight}
@@ -1206,7 +1206,7 @@ function PainelIdentidade() {
                           : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
                       }`}
                     >
-                      <Sparkles size={13} /> Territórios
+                      <Palette size={13} /> Territórios
                     </button>
                   </div>
 
@@ -1252,7 +1252,7 @@ function PainelIdentidade() {
                     <div className="bg-white/80 p-8 rounded-[2rem] border border-[var(--color-atelier-terracota)]/20 shadow-sm relative overflow-hidden">
                       <div className="absolute left-0 top-0 h-full w-1.5 bg-[var(--color-atelier-terracota)]"></div>
                       <h3 className="font-roboto text-[11px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] mb-4 flex items-center gap-2">
-                        <Sparkles size={14}/> Análise Semiótica (Direção de Arte)
+                        <Compass size={14}/> Análise Semiótica (Direção de Arte)
                       </h3>
                       <div className="font-roboto text-[13px] text-[var(--color-atelier-grafite)] leading-relaxed whitespace-pre-wrap font-medium">
                           {curadoriaAiInsight}
@@ -1282,7 +1282,7 @@ function PainelIdentidade() {
                   {/* Direções Enviadas e Avaliações */}
                   <section>
                     <div className="flex items-center gap-2 mb-6 pb-2 border-b border-[var(--color-atelier-grafite)]/5">
-                      <Sparkles size={16} className="text-[var(--color-atelier-terracota)]" />
+                      <Palette size={16} className="text-[var(--color-atelier-terracota)]" />
                       <h3 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Direções Enviadas e Avaliações</h3>
                     </div>
                     

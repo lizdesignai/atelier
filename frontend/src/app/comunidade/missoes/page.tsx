@@ -4,7 +4,7 @@
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
-  Award, CheckCircle2, ArrowRight, Loader2, Sparkles,
+  Award, CheckCircle2, ArrowRight, Loader2,
   MessageSquare, HelpCircle, Users, Handshake, RefreshCw, Info, ShieldCheck
 } from "lucide-react";
 import Link from "next/link";

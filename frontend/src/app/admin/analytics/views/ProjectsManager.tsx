@@ -4,11 +4,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { dbUpdate, dbInsert } from "../../../../lib/dbClient";
 import { 
   FolderKanban, Briefcase, UserCircle2, MapPin, 
-  Sparkles, Loader2, PlusCircle, Trash2, Save, 
+  Loader2, PlusCircle, Trash2, Save, 
   Layers, CheckSquare, Square, Flame, Edit3, Check, CheckCircle2, X, Search, Grid,
   ArrowRight, Trello, ExternalLink, PanelRightClose, PanelRightOpen, ListTodo,
   AlertCircle, AlignLeft, MessageSquare, ChevronLeft, ChevronRight, FolderUp,
-  ChevronDown, Paperclip, UploadCloud, FileText, Image as ImageIcon, Eye, Calendar, Download
+  ChevronDown, Paperclip, UploadCloud, FileText, Image as ImageIcon, Eye, Calendar, Download, RefreshCw
 } from "lucide-react";
 import { ALL_SKILLS } from "../constants";
 import ClientAssetsModal from "../../../../components/ClientAssetsModal";
@@ -814,6 +814,32 @@ export default function ProjectsManager({
                       {selectedEntityType === 'agency' ? 'Operação Studio Veronna (Agência)' : isSubclientView ? 'Subcliente Delegado (Studio Veronna)' : displayData?.service_type}
                     </p>
                     </div>
+                    {!isIdvService(displayData) && (displayData?.service_type === 'Gestão de Instagram' || displayData?.type?.includes('IG')) && (
+                      <div className="flex items-center gap-3 mt-2">
+                        <button
+                          onClick={async () => {
+                            if (!confirm(`Deseja renovar o ciclo de ${displayData.profiles?.nome || 'Gestão de Instagram'}? O ciclo atual será arquivado e um novo ciclo com 30 dias de demandas será gerado.`)) return;
+                            try {
+                              const res = await fetch('/api/presenca/cycle', {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ projectId: displayData.id, action: 'advance' })
+                              });
+                              const json = await res.json();
+                              if (!res.ok || json.error) throw new Error(json.error || 'Erro ao renovar ciclo');
+                              if (typeof showToast === 'function') showToast(`✨ Ciclo ${json.cycle?.cycle_number || ''} iniciado com sucesso! Demandas geradas.`);
+                              if (typeof refreshGlobalData === 'function') await refreshGlobalData();
+                              if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('refreshGlobalData'));
+                            } catch (err: any) {
+                              alert(err.message || 'Erro ao renovar ciclo.');
+                            }
+                          }}
+                          className="flex items-center gap-2 bg-gradient-to-r from-[var(--color-atelier-terracota)] to-[#83421d] text-white px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-sm hover:brightness-110 transition-all cursor-pointer"
+                        >
+                          <RefreshCw size={12}/> Renovar Ciclo Mensal
+                        </button>
+                      </div>
+                    )}
                     {isIdvService(displayData) && (
                       <div className="flex items-center gap-3 mt-2">
                          <button onClick={() => setIsBriefingModalOpen(true)} className="flex items-center gap-2 bg-[var(--color-atelier-grafite)] text-[var(--color-atelier-creme)] px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-sm hover:bg-[var(--color-atelier-terracota)] transition-colors">

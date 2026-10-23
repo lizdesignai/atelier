@@ -9,7 +9,7 @@ import {
   Bell, CheckCircle2, 
   Circle, Info, AlertTriangle, ShieldCheck, Music, Settings, LogOut,
   LayoutDashboard, BrainCircuit, Activity, Users, DollarSign, Target, Crown, Calendar, LayoutGrid, List, Compass,
-  PanelLeft, PanelBottom, Film, Sun, Moon, Sparkles
+  PanelLeft, PanelBottom, Film, Sun, Moon
 } from "lucide-react";
 import { useProfile } from "../../hooks/useProfile";
 import { useGlobalStore } from "../../contexts/GlobalStore";
@@ -249,7 +249,7 @@ export default function AppHeader({ handleLogout, userRole }: AppHeaderProps) {
                     }`}
                     title="Modo Especial Veronna"
                   >
-                    <Sparkles size={12} className={theme === 'veronna' ? 'text-amber-200' : ''} /> Veronna
+                    <Crown size={12} className={theme === 'veronna' ? 'text-amber-200' : ''} /> Veronna
                   </button>
                 </div>
               </div>
@@ -319,8 +319,10 @@ export default function AppHeader({ handleLogout, userRole }: AppHeaderProps) {
             transition={{ duration: 0.4, ease: "easeOut" }}
             className="flex items-center gap-3 bg-white/60 backdrop-blur-xl border border-white/60 shadow-[0_4px_20px_rgba(0,0,0,0.04)] p-1.5 px-3 rounded-full pointer-events-auto hover:bg-white/80 transition-colors"
           >
-            {/* MENU DE TELAS (APPS) */}
-            <div className="relative">
+            {/* MENU DE TELAS (APPS) — EXCLUSIVO PARA EQUIPE INTERNA (OCULTO PARA CLIENTES) */}
+            {isTeamMember && (
+              <>
+                <div className="relative">
               <button 
                 onClick={() => { setIsNavMenuOpen(!isNavMenuOpen); setIsDropdownOpen(false); setIsProfileDropdownOpen(false); setIsJamOpen(false); }}
                 className="relative w-8 h-8 rounded-full bg-white border border-[var(--color-atelier-grafite)]/5 flex items-center justify-center text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-terracota)] hover:shadow-sm transition-all"
@@ -604,9 +606,11 @@ export default function AppHeader({ handleLogout, userRole }: AppHeaderProps) {
                   </motion.div>
                 )}
               </AnimatePresence>
-            </div>
-            
-            <div className="w-px h-4 bg-[var(--color-atelier-grafite)]/10"></div>
+                </div>
+                
+                <div className="w-px h-4 bg-[var(--color-atelier-grafite)]/10"></div>
+              </>
+            )}
             
             {/* SINO DE NOTIFICAÇÕES */}
             <button 
@@ -725,7 +729,7 @@ export default function AppHeader({ handleLogout, userRole }: AppHeaderProps) {
                           }`}
                           title="Modo Especial Veronna"
                         >
-                          <Sparkles size={12} className={theme === 'veronna' ? 'text-amber-200' : ''} /> Veronna
+                          <Crown size={12} className={theme === 'veronna' ? 'text-amber-200' : ''} /> Veronna
                         </button>
                       </div>
                     </div>

@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import {
-  Sparkles,
+  Globe2,
   HelpCircle,
   MessageSquare,
   FlaskConical,
@@ -1884,7 +1884,7 @@ export default function VenetoComunidadePage() {
             </div>
           ) : filteredPosts.length === 0 ? (
             <div className="glass-panel p-12 rounded-[2.5rem] bg-white/60 border border-white text-center flex flex-col items-center gap-3">
-              <Sparkles size={36} className="text-[var(--color-atelier-terracota)]" />
+              <Globe2 size={36} className="text-[var(--color-atelier-terracota)]" />
               <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)]">
                 Nenhuma publicação no Feed ainda
               </h3>

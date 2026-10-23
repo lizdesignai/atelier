@@ -9,7 +9,34 @@ const supabaseUrl = (process.env.NEXT_PUBLIC_SUPABASE_URL && !process.env.NEXT_P
   : 'https://tmmptilchainrsptwsxc.supabase.co';
 const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY || '';
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Clean up any stale Supabase auth tokens from localStorage in the browser
+if (typeof window !== 'undefined') {
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('sb-') || key.includes('supabase.auth.token'))) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  } catch {}
+}
+
+const globalForSupabase = globalThis as unknown as { _atelierSupabaseClient?: ReturnType<typeof createClient> };
+
+export const supabase = globalForSupabase._atelierSupabaseClient || createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
+    detectSessionInUrl: false,
+    storageKey: 'atelier_disabled_supabase_auth',
+  }
+});
+
+if (process.env.NODE_ENV !== 'production') {
+  globalForSupabase._atelierSupabaseClient = supabase;
+}
 
 // ============================================================================
 // NEON PROXY BUILDER
@@ -257,6 +284,15 @@ supabase.auth.signOut = async () => {
 supabase.auth.onAuthStateChange = (_callback: any) => {
   return { data: { subscription: { unsubscribe: () => {} } } };
 };
+
+// @ts-ignore - Disable token refresh attempts
+supabase.auth.refreshSession = async () => ({ data: { session: null, user: null }, error: null });
+// @ts-ignore
+supabase.auth.startAutoRefresh = async () => {};
+// @ts-ignore
+supabase.auth.stopAutoRefresh = async () => {};
+// @ts-ignore
+supabase.auth.initialize = async () => ({ data: { session: null }, error: null });
 
 // ============================================================================
 // MONKEY PATCH: supabase.storage.from() -> Routed to /api/storage/upload

@@ -17,7 +17,31 @@ export async function getClientActiveProjectAction() {
       ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, created_at DESC
       LIMIT 1
     `;
-    return data[0] || null;
+    const project = data[0] || null;
+    if (project) {
+      if (project.idv_phase === 'discover' || project.idv_phase === 'onboarding' || !project.idv_phase) {
+        const tasks = await sql`
+          SELECT stage, status FROM tasks 
+          WHERE project_id = ${project.id}
+        `;
+        if (tasks.length > 0) {
+          const discoverTasks = tasks.filter((t: any) => ['onboarding', 'discover'].includes(t.stage));
+          const allDiscoverDone = discoverTasks.length > 0 && discoverTasks.every((t: any) => 
+            ['completed', 'done', 'approved', 'archived'].includes(t.status)
+          );
+          if (allDiscoverDone) {
+            await sql`
+              UPDATE projects 
+              SET idv_phase = 'define', fase = 'direcionamento' 
+              WHERE id = ${project.id}
+            `;
+            project.idv_phase = 'define';
+            project.fase = 'direcionamento';
+          }
+        }
+      }
+    }
+    return project;
   } catch (error) {
     console.error('[actions/clientProject] Erro:', error);
     throw new Error('Falha ao buscar projeto ativo');

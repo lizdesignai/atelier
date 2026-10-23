@@ -1,7 +1,7 @@
 "use client";
 import React, { useState, useEffect } from "react";
 import { 
-  Sparkles, UploadCloud, Plus, X, Loader2, Eye, Trash2, 
+  Palette, UploadCloud, Plus, X, Loader2, Eye, Trash2, 
   CheckCircle2, Send, Star, Image as ImageIcon, ShieldCheck, ChevronDown, ChevronUp
 } from "lucide-react";
 import { supabase } from "../../lib/supabase";
@@ -210,7 +210,7 @@ export function AdminCuradoriaManager({ projectId, taskId, currentUser, onTaskUp
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 pb-4 border-b border-gray-100">
         <div>
           <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2">
-            <Sparkles size={20} className="text-[var(--color-atelier-terracota)]" /> Curadoria Visual da Marca
+            <Palette size={20} className="text-[var(--color-atelier-terracota)]" /> Curadoria Visual da Marca
           </h3>
           <p className="font-roboto text-[11px] text-gray-500 uppercase tracking-widest mt-0.5">
             Etapa de Alinhamento Estético e Referências Criativas
@@ -284,7 +284,7 @@ export function AdminCuradoriaManager({ projectId, taskId, currentUser, onTaskUp
         <div className="p-5 sm:p-6 rounded-2xl bg-white border border-[var(--color-atelier-terracota)]/30 shadow-md flex flex-col gap-4 animate-[fadeInUp_0.2s_ease-out]">
           <div className="flex justify-between items-center">
             <h4 className="font-roboto text-xs font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] flex items-center gap-2">
-              <Sparkles size={14} /> Adicionar Nova Direção Criativa
+              <Palette size={14} /> Adicionar Nova Direção Criativa
             </h4>
             <button onClick={() => setIsCreating(false)} className="text-gray-400 hover:text-gray-700">
               <X size={18} />

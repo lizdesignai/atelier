@@ -8,7 +8,7 @@ import {
   MessageCircle, Loader2, X, Search, Heart,
   CornerDownRight, Link as LinkIcon, Smile,
   FileText, ChevronDown, AtSign, Users, Headphones, Music,
-  Plus, Radio, Volume2, Sparkles, MessageSquare, ExternalLink,
+  Plus, Radio, Volume2, MessageSquare, ExternalLink,
   CheckCircle2, Clock, ShieldCheck, ChevronRight, Bookmark
 } from "lucide-react";
 import UserAvatar from "../../../components/global/UserAvatar";

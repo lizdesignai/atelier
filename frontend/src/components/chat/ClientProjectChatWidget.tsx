@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   MessageCircle, X, Send, Paperclip, Loader2, CheckCheck, 
-  Sparkles, ShieldCheck, ChevronDown, Image as ImageIcon, FileText, ExternalLink
+  ShieldCheck, ChevronDown, Image as ImageIcon, FileText, ExternalLink
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
 import UserAvatar from "@/components/global/UserAvatar";
@@ -270,7 +270,7 @@ export default function ClientProjectChatWidget() {
       {/* ======================================================== */}
       {/* BOTÃO FLUTUANTE NO CANTO DIREITO INFERIOR                */}
       {/* ======================================================== */}
-      <div className="fixed bottom-6 right-6 z-50 pointer-events-auto">
+      <div className="fixed bottom-20 right-4 sm:bottom-6 sm:right-6 z-50 pointer-events-auto">
         <motion.button
           type="button"
           whileHover={{ scale: 1.04 }}
@@ -281,18 +281,18 @@ export default function ClientProjectChatWidget() {
               markChannelAsRead(channelData.id);
             }
           }}
-          className={`flex items-center gap-2.5 px-4 py-3 rounded-full shadow-[0_12px_30px_rgba(20, 44, 72,0.3)] transition-all cursor-pointer backdrop-blur-xl border ${
+          className={`flex items-center gap-2 p-3 sm:px-4 sm:py-3 rounded-full shadow-[0_12px_30px_rgba(20,44,72,0.3)] transition-all cursor-pointer backdrop-blur-xl border ${
             isOpen
               ? "bg-[var(--color-atelier-grafite)] text-white border-white/20"
-              : "bg-gradient-to-r from-[var(--color-atelier-terracota)] to-[#83421d] text-white border-white/30 hover:shadow-[0_16px_36px_rgba(20, 44, 72,0.4)]"
+              : "bg-gradient-to-r from-[var(--color-atelier-terracota)] to-[#83421d] text-white border-white/30 hover:shadow-[0_16px_36px_rgba(20,44,72,0.4)]"
           }`}
           title="Falar com a equipe do Studio Veronna"
         >
           <div className="relative flex items-center justify-center">
             {isOpen ? (
-              <X size={17} className="text-white" />
+              <X size={18} className="text-white" />
             ) : (
-              <MessageCircle size={18} className="text-white animate-[pulse_3s_ease-in-out_infinite]" />
+              <MessageCircle size={19} className="text-white animate-[pulse_3s_ease-in-out_infinite]" />
             )}
 
             {!isOpen && unreadCount > 0 && (
@@ -302,7 +302,7 @@ export default function ClientProjectChatWidget() {
             )}
           </div>
 
-          <span className="font-roboto text-[11.5px] font-bold tracking-wide">
+          <span className="hidden sm:inline font-roboto text-[11.5px] font-bold tracking-wide">
             {isOpen ? "Fechar Conversa" : "Falar com a equipe"}
           </span>
         </motion.button>
@@ -354,7 +354,7 @@ export default function ClientProjectChatWidget() {
 
             {/* MENSAGEM INFORMATIVA DE SEGURANÇA E ACESSO EXCLUSIVO */}
             <div className="px-4 py-2 bg-[var(--color-atelier-terracota)]/5 border-b border-[var(--color-atelier-terracota)]/10 flex items-center gap-2 shrink-0">
-              <Sparkles size={12} className="text-[var(--color-atelier-terracota)] shrink-0" />
+              <ShieldCheck size={12} className="text-[var(--color-atelier-terracota)] shrink-0" />
               <p className="text-[10px] text-[var(--color-atelier-grafite)]/70 font-medium leading-tight">
                 Canal exclusivo direto com a gestão e direção criativa do seu projeto.
               </p>

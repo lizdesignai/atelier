@@ -5,7 +5,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion"; 
 import { 
   Lock, Unlock, Clock, Download, ArrowRight, 
-  Sparkles, Fingerprint, Layers, Eye, HeartHandshake, Loader2, Star, Zap,
+  Gem, Fingerprint, Layers, Eye, HeartHandshake, Loader2, Star, Zap,
   Briefcase
 } from "lucide-react";
 import { supabase } from "../../lib/supabase"; 
@@ -357,7 +357,7 @@ export default function CofrePage() {
               >
                 <div className="glass-panel p-8 rounded-[2.5rem] flex flex-col gap-5 border border-white shadow-sm shrink-0">
                   <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-2 mb-2">
-                    Seus Arquivos Finais <Sparkles size={16} className="text-[var(--color-atelier-terracota)]" />
+                    Seus Arquivos Finais <Gem size={16} className="text-[var(--color-atelier-terracota)]" />
                   </h3>
                   
                   <div className="flex flex-col gap-3">

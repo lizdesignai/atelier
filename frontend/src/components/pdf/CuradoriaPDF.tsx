@@ -262,7 +262,7 @@ export default function CuradoriaPDF({ adminRefs, projectName, aiInsight }: Cura
         <Image src="/images/simbolo-rosa.png" style={styles.coverLogo} />
         <Text style={styles.coverTitle}>Relatório de Curadoria</Text>
         <Text style={styles.coverSubtitle}>{projectName}</Text>
-        <Text style={styles.coverDate}>{currentDate} • Atelier Studio Veronna</Text>
+        <Text style={styles.coverDate}>{currentDate} • Studio Veronna</Text>
       </Page>
 
       {/* CONTEÚDO PRINCIPAL (Paginação Inteligente e Dinâmica) */}
@@ -334,7 +334,7 @@ export default function CuradoriaPDF({ adminRefs, projectName, aiInsight }: Cura
 
         {/* RODAPÉ (Repetido em todas as páginas via fixed) */}
         <View style={styles.footer} fixed>
-          <Text style={styles.footerText}>Atelier Studio Veronna</Text>
+          <Text style={styles.footerText}>Studio Veronna</Text>
           <Text style={styles.footerText}>Relatório de Curadoria</Text>
         </View>
       </Page>

@@ -6,7 +6,7 @@ import {
   CheckSquare, Square, Flame, UserCircle2, 
   Edit3, Check, Activity, AlertTriangle,
   Bell, X, Cpu, Play, PanelRightClose, PanelRightOpen,
-  ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings, Sparkles, Calendar, Layers, Zap, ArrowRight, CheckCircle2, MoreHorizontal, Trello, PlusCircle, PenTool, LayoutTemplate, Briefcase, Video, Filter, MessageSquare, Plus
+  ChevronUp, ChevronDown, ChevronLeft, ChevronRight, Settings, Calendar, Layers, Zap, ArrowRight, CheckCircle2, MoreHorizontal, Trello, PlusCircle, PenTool, LayoutTemplate, Briefcase, Video, Filter, MessageSquare, Plus
 } from "lucide-react";
 import StudioConfigModal from "../../../../components/StudioConfigModal";
 import AgencyConfigModal from "../../../../components/AgencyConfigModal";

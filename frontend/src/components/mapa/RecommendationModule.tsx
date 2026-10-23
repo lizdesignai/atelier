@@ -1,7 +1,7 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { mockMapaData } from '@/app/mapa/mockData';
-import { ArrowRight, Sparkles } from 'lucide-react';
+import { ArrowRight, Compass } from 'lucide-react';
 
 export default function RecommendationModule() {
   const { recommendation } = mockMapaData;
@@ -25,7 +25,7 @@ export default function RecommendationModule() {
         
         <div className="relative z-10 space-y-6">
           <div className="inline-flex items-center gap-2 bg-white/10 px-3 py-1 rounded-full text-sm font-medium">
-            <Sparkles size={16} className="text-[var(--color-atelier-terracota)]" />
+            <Compass size={16} className="text-[var(--color-atelier-terracota)]" />
             <span>O que seu diagnóstico indica</span>
           </div>
           

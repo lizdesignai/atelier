@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { 
   Grid, CheckCircle2, AlertCircle, CalendarClock, MessageSquare, Loader2, X, 
-  ChevronRight, ChevronLeft, Heart, Bookmark, Share2, MoreHorizontal, RefreshCw, Edit3, Sparkles, Pencil
+  ChevronRight, ChevronLeft, Heart, Bookmark, Share2, MoreHorizontal, RefreshCw, Edit3, Pencil
 } from "lucide-react";
 import { dbSelect, dbSelectOne } from "../../lib/dbClient";
 import { useProfile } from "../../hooks/useProfile";

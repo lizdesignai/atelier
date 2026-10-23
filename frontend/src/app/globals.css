@@ -89,6 +89,7 @@
     font-weight: normal;
     font-style: normal;
     font-display: swap;
+    size-adjust: 122%;
   }
 
   /* Fallback local Roboto da pasta /fonts */
@@ -112,6 +113,96 @@
   
   html::-webkit-scrollbar, body::-webkit-scrollbar {
     display: none; 
+  }
+
+  /* Barra de Scroll Editorial Studio Veronna (Substitui o padrão do Chrome em todos os elementos) */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(20, 44, 72, 0.22) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: rgba(20, 44, 72, 0.22);
+    border-radius: 9999px;
+    border: 1px solid transparent;
+    background-clip: padding-box;
+    transition: background-color 0.2s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: rgba(20, 44, 72, 0.45);
+  }
+
+  /* Tema Escuro: scrollbar suave em azul/gelo */
+  :root[data-theme="dark"] *,
+  :root.dark *,
+  [data-theme="dark"] *,
+  .dark * {
+    scrollbar-color: rgba(185, 209, 227, 0.28) transparent;
+  }
+
+  :root[data-theme="dark"] ::-webkit-scrollbar-thumb,
+  :root.dark ::-webkit-scrollbar-thumb,
+  [data-theme="dark"] ::-webkit-scrollbar-thumb,
+  .dark ::-webkit-scrollbar-thumb {
+    background: rgba(185, 209, 227, 0.28);
+  }
+
+  :root[data-theme="dark"] ::-webkit-scrollbar-thumb:hover,
+  :root.dark ::-webkit-scrollbar-thumb:hover,
+  [data-theme="dark"] ::-webkit-scrollbar-thumb:hover,
+  .dark ::-webkit-scrollbar-thumb:hover {
+    background: rgba(112, 191, 255, 0.55);
+  }
+
+  /* Tema Veronna: scrollbar em bordô editorial */
+  :root[data-theme="veronna"] *,
+  :root.theme-veronna *,
+  [data-theme="veronna"] *,
+  .theme-veronna * {
+    scrollbar-color: rgba(174, 10, 10, 0.32) transparent;
+  }
+
+  :root[data-theme="veronna"] ::-webkit-scrollbar-thumb,
+  :root.theme-veronna ::-webkit-scrollbar-thumb,
+  [data-theme="veronna"] ::-webkit-scrollbar-thumb,
+  .theme-veronna ::-webkit-scrollbar-thumb {
+    background: rgba(174, 10, 10, 0.32);
+  }
+
+  :root[data-theme="veronna"] ::-webkit-scrollbar-thumb:hover,
+  :root.theme-veronna ::-webkit-scrollbar-thumb:hover,
+  [data-theme="veronna"] ::-webkit-scrollbar-thumb:hover,
+  .theme-veronna ::-webkit-scrollbar-thumb:hover {
+    background: rgba(174, 10, 10, 0.6);
+  }
+
+  .custom-scrollbar {
+    scrollbar-width: thin;
+    scrollbar-color: rgba(20, 44, 72, 0.22) transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(20, 44, 72, 0.22);
+    border-radius: 9999px;
+  }
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: rgba(20, 44, 72, 0.45);
   }
 
   /* Estados de Interação do Cursor: Gradiente Navy (#142C48) / Bordô Veronna (#640606) com Glow Reativo */
@@ -264,6 +355,7 @@
     text-transform: none !important;
     letter-spacing: 0.015em;
     font-weight: normal;
+    font-size: 1.08em;
     font-variant-ligatures: common-ligatures discretionary-ligatures;
   }
 
@@ -275,6 +367,10 @@
     text-transform: none !important;
     letter-spacing: 0.01em;
     font-weight: normal;
+    font-size: 1.18em;
+    line-height: 1;
+    display: inline-block;
+    vertical-align: baseline;
     color: var(--color-veronna-bordo);
     font-variant-ligatures: common-ligatures discretionary-ligatures;
   }

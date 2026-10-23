@@ -9,7 +9,7 @@ import { NotificationEngine } from "../../lib/NotificationEngine"; // 🔔 INJE�
 import { normalizeImageUrl } from "../../lib/imageUtils";
 import { 
   ChevronLeft, ChevronRight, Plus, Image as ImageIcon, 
-  Sparkles, Fingerprint, Type, Palette, Target, CheckCircle2,
+  Layers, Fingerprint, Type, Palette, Target, CheckCircle2,
   UploadCloud, Loader2, Compass, Save
 } from "lucide-react";
 
@@ -252,7 +252,7 @@ export default function ReferenciasPage() {
             <div className="p-8 border-b border-white/60 bg-white/40 backdrop-blur-xl shrink-0 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-0">
               <div>
                 <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2 mb-1">
-                  Suas Inspirações <Sparkles size={18} className="text-[var(--color-atelier-terracota)]" />
+                  Suas Inspirações <Palette size={18} className="text-[var(--color-atelier-terracota)]" />
                 </h3>
                 <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/60 uppercase tracking-widest font-bold">
                   Anexe as texturas, cores e marcas que guiam a sua visão.
@@ -413,7 +413,7 @@ export default function ReferenciasPage() {
                       {/* Pergunta 4 */}
                       <div className="flex flex-col gap-3 group">
                         <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2 group-focus-within:text-[var(--color-atelier-terracota)] transition-colors pl-1">
-                          <Sparkles size={14} /> 4. Elementos Gráficos
+                          <Layers size={14} /> 4. Elementos Gráficos
                         </label>
                         <textarea 
                           value={currentRef?.feedback?.q4 || ""} onChange={(e) => handleFeedbackChange("q4", e.target.value)}

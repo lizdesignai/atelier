@@ -176,7 +176,7 @@ export async function PATCH(
 
            await (sql as any).query(`
              UPDATE projects 
-             SET idv_phase = $1, fase = $2, updated_at = NOW() 
+             SET idv_phase = $1, fase = $2 
              WHERE id = $3
            `, [nextPhaseIdv, nextFaseAdmin, task.project_id]);
 
@@ -199,7 +199,7 @@ export async function PATCH(
          // Não há mais tarefas pendentes! Projeto pode estar na fase final.
          await (sql as any).query(`
            UPDATE projects 
-           SET idv_phase = 'deliver', fase = 'entrega', updated_at = NOW() 
+           SET idv_phase = 'deliver', fase = 'entrega' 
            WHERE id = $1 AND idv_phase != 'deliver'
          `, [task.project_id]);
        }
