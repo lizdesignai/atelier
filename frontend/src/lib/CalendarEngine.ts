@@ -176,7 +176,7 @@ export class CalendarEngine {
             // 🔥 CORREÇÃO: Função Assíncrona Imediata que devolve uma Promise<void> nativa garantida
             updatesQueue.push(
               (async () => {
-                await supabase.from('tasks').update({ deadline: newIsoDeadline }).eq('id', taskToMove.id);
+                await (supabase.from('tasks') as any).update({ deadline: newIsoDeadline }).eq('id', taskToMove.id);
               })()
             );
             
@@ -200,7 +200,7 @@ export class CalendarEngine {
    * Reagendamento Rápido Manual (Fallback UI)
    */
   static async rescheduleTask(taskId: string, newDateIso: string): Promise<boolean> {
-    const { error } = await supabase.from('tasks').update({ deadline: newDateIso }).eq('id', taskId);
+    const { error } = await (supabase.from('tasks') as any).update({ deadline: newDateIso }).eq('id', taskId);
     if (error) throw error;
     return true;
   }

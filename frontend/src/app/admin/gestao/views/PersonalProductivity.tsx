@@ -24,8 +24,8 @@ export default function PersonalProductivity({ currentUser }: PersonalProductivi
       const todayStart = startOfDay(now).toISOString();
       const todayEnd = endOfDay(now).toISOString();
 
-      const { data: mySessions } = await supabase
-        .from('work_sessions')
+      const { data: mySessions } = await (supabase
+        .from('work_sessions') as any)
         .select('*, tasks(title, projects(profiles(nome)))')
         .eq('user_id', currentUser.id)
         .gte('start_time', todayStart)
@@ -34,7 +34,7 @@ export default function PersonalProductivity({ currentUser }: PersonalProductivi
 
       if (mySessions) {
         setSessions(mySessions);
-        const total = mySessions.reduce((acc, s) => acc + (s.duration_minutes || 0), 0);
+        const total = (mySessions as any[]).reduce((acc, s) => acc + (s.duration_minutes || 0), 0);
         setDailyMinutes(total);
       }
     } catch (e) {

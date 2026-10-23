@@ -300,7 +300,7 @@ export default function AnalyticsPage() {
               projectVisualData = {
                 type: 'Agência / Studio Veronna',
                 service_type: 'Produção Contínua',
-                profiles: { nome: `${agency?.name || 'Agência'} • ${subclient?.name || 'Cliente'}`, avatar_url: null }
+                profiles: { nome: `${(agency as any)?.name || 'Agência'} • ${(subclient as any)?.name || 'Cliente'}`, avatar_url: null }
               };
             }
             return {
@@ -401,7 +401,7 @@ export default function AnalyticsPage() {
   const handleCompleteTask = async (taskId: string) => {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: 'completed' } : t));
     try {
-      const { error } = await supabase.from('tasks').update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', taskId);
+      const { error } = await (supabase.from('tasks') as any).update({ status: 'completed', completed_at: new Date().toISOString() }).eq('id', taskId);
       if (error) throw error;
       showToast("Tarefa concluída com sucesso!");
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
@@ -524,7 +524,7 @@ export default function AnalyticsPage() {
       if (bulkDeadline) updates.deadline = new Date(bulkDeadline).toISOString();
 
       if (Object.keys(updates).length > 0) {
-         await supabase.from('tasks').update(updates).in('id', selectedTaskIds);
+         await (supabase.from('tasks') as any).update(updates).in('id', selectedTaskIds);
          
          if (updates.assigned_to) {
            await NotificationEngine.notifyUser(
@@ -555,7 +555,7 @@ export default function AnalyticsPage() {
     setIsProcessing(true);
     setTasks(prev => prev.map(t => selectedTaskIds.includes(t.id) ? { ...t, status: 'completed' } : t));
     try {
-      await supabase.from('tasks').update({ status: 'completed', completed_at: new Date().toISOString() }).in('id', selectedTaskIds);
+      await (supabase.from('tasks') as any).update({ status: 'completed', completed_at: new Date().toISOString() }).in('id', selectedTaskIds);
       showToast(`Lote de ${selectedTaskIds.length} tarefas concluído!`);
       setSelectedTaskIds([]);
       const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
@@ -620,7 +620,7 @@ export default function AnalyticsPage() {
     try {
       const mainAttachmentUrl = demand.attachment_url || (demand.media_assets && demand.media_assets.length > 0 ? demand.media_assets[0].url : null);
       
-      const { error } = await supabase.from('tasks').insert({
+      const { error } = await (supabase.from('tasks') as any).insert({
         project_id: targetProject || null,
         agency_id: targetAgency || null,
         subclient_id: demand.subclientId || null,
@@ -652,7 +652,7 @@ export default function AnalyticsPage() {
       (async () => {
         try {
           const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
-          const { data: collab } = await supabase.from('profiles').select('email').eq('id', demand.assigneeId).single();
+          const { data: collab }: any = await supabase.from('profiles').select('email').eq('id', demand.assigneeId).single();
           if (collab?.email) {
             await fetch(`${backendUrl}/api/v1/notifications/email`, {
               method: 'POST',
@@ -700,7 +700,7 @@ export default function AnalyticsPage() {
     if (!captacaoForm.title || !captacaoForm.assigneeId || !captacaoForm.date) return;
     setIsProcessing(true);
     try {
-      const { error } = await supabase.from('tasks').insert({
+      const { error } = await (supabase.from('tasks') as any).insert({
         project_id: selectedEntityType === 'project' ? selectedEntityId : null,
         agency_id: selectedEntityType === 'agency' ? selectedEntityId : null,
         assigned_to: captacaoForm.assigneeId,
@@ -736,7 +736,7 @@ export default function AnalyticsPage() {
       (async () => {
         try {
           const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
-          const { data: collab } = await supabase.from('profiles').select('email').eq('id', captacaoForm.assigneeId).single();
+          const { data: collab }: any = await supabase.from('profiles').select('email').eq('id', captacaoForm.assigneeId).single();
           if (collab?.email) {
             await fetch(`${backendUrl}/api/v1/notifications/email`, {
               method: 'POST',
@@ -766,7 +766,7 @@ export default function AnalyticsPage() {
     if (!reuniaoForm.title || !reuniaoForm.assigneeId || !reuniaoForm.date) return;
     setIsProcessing(true);
     try {
-      const { error } = await supabase.from('tasks').insert({
+      const { error } = await (supabase.from('tasks') as any).insert({
         project_id: selectedEntityType === 'project' ? selectedEntityId : null,
         agency_id: selectedEntityType === 'agency' ? selectedEntityId : null,
         assigned_to: reuniaoForm.assigneeId,
@@ -802,7 +802,7 @@ export default function AnalyticsPage() {
       (async () => {
         try {
           const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
-          const { data: collab } = await supabase.from('profiles').select('email').eq('id', reuniaoForm.assigneeId).single();
+          const { data: collab }: any = await supabase.from('profiles').select('email').eq('id', reuniaoForm.assigneeId).single();
           if (collab?.email) {
             await fetch(`${backendUrl}/api/v1/notifications/email`, {
               method: 'POST',
@@ -830,7 +830,7 @@ export default function AnalyticsPage() {
 
   const handleUpdateSubclientDemand = async (subId: string, demand: number) => {
     try {
-      await supabase.from('agency_subclients').update({ deliverables_count: demand }).eq('id', subId);
+      await (supabase.from('agency_subclients') as any).update({ deliverables_count: demand }).eq('id', subId);
       showToast("Demanda de posts atualizada.");
       window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
       await fetchOperationalData();
@@ -839,8 +839,8 @@ export default function AnalyticsPage() {
 
   const handleEditSubclient = async (subId: string, updates: { name: string; deliverables_count: number; trello_url?: string; trello_sync_list_ids?: string[] }) => {
     try {
-      const { error } = await supabase
-        .from('agency_subclients')
+      const { error } = await (supabase
+        .from('agency_subclients') as any)
         .update({
           name: updates.name,
           deliverables_count: updates.deliverables_count,
@@ -891,7 +891,7 @@ export default function AnalyticsPage() {
     try {
       const parsedDay = parseInt(dayStr, 10);
       const validDay = (isNaN(parsedDay) || parsedDay < 1 || parsedDay > 31) ? null : parsedDay;
-      const { error } = await supabase.from('projects').update({ content_release_day: validDay }).eq('id', projectId);
+      const { error } = await (supabase.from('projects') as any).update({ content_release_day: validDay }).eq('id', projectId);
       if (error) throw error;
       showToast("Dia de liberação atualizado!");
       refreshGlobalData();
@@ -992,7 +992,7 @@ export default function AnalyticsPage() {
       setTasks(prev => [...optimisticTasks, ...prev]); 
 
       if (scheduledData.length > 0) {
-        const { error } = await supabase.from('tasks').insert(scheduledData);
+        const { error } = await (supabase.from('tasks') as any).insert(scheduledData);
         if (error) throw error;
       }
       
@@ -1004,7 +1004,7 @@ export default function AnalyticsPage() {
       }
 
       if (Object.keys(projUpdates).length > 0) {
-        await supabase.from('projects').update(projUpdates).eq('id', project.id);
+        await (supabase.from('projects') as any).update(projUpdates).eq('id', project.id);
         refreshGlobalData();
       }
 
@@ -1032,7 +1032,7 @@ export default function AnalyticsPage() {
     }
     setIsProcessing(true);
     try {
-      const { error } = await supabase.from('routing_rules').upsert({
+      const { error } = await (supabase.from('routing_rules') as any).upsert({
         project_id: routeConfig.projectId,
         task_type: routeConfig.taskType,
         assignee_id: routeConfig.assigneeId
@@ -1073,7 +1073,7 @@ export default function AnalyticsPage() {
     }
 
     try {
-      const { error } = await supabase.from('profiles').update({ skills: newSkills }).eq('id', collabId);
+      const { error } = await (supabase.from('profiles') as any).update({ skills: newSkills }).eq('id', collabId);
       if (error) throw error;
       
       await NotificationEngine.notifyUser(

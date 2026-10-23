@@ -11,7 +11,7 @@ export function getDb(): NeonQueryFunction<false, false> {
   }
 
   if (!sqlInstance) {
-    sqlInstance = neon(connStr);
+    sqlInstance = neon(connStr, { disableWarningInBrowsers: true });
   }
   return sqlInstance;
 }

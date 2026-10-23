@@ -122,7 +122,7 @@ export default function BrandDNALaboratory() {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) return;
 
-      const { data: projData } = await supabase.from('projects')
+      const { data: projData } = await (supabase.from('projects') as any)
         .select('*')
         .eq('client_id', session.user.id)
         .order('created_at', { ascending: false })
@@ -131,7 +131,7 @@ export default function BrandDNALaboratory() {
       
       if (projData) {
         setProject(projData);
-        const { data: labData } = await supabase.from('brandbook_laboratory').select('*').eq('project_id', projData.id).maybeSingle();
+        const { data: labData } = await (supabase.from('brandbook_laboratory') as any).select('*').eq('project_id', projData.id).maybeSingle();
         
         if (labData) {
           setLabDataId(labData.id);
@@ -155,7 +155,7 @@ export default function BrandDNALaboratory() {
             }
           }
         } else {
-          const { data: newLab } = await supabase.from('brandbook_laboratory').insert({ project_id: projData.id, client_id: session.user.id }).select().single();
+          const { data: newLab } = await (supabase.from('brandbook_laboratory') as any).insert({ project_id: projData.id, client_id: session.user.id }).select().single();
           if (newLab) setLabDataId(newLab.id);
         }
       }
@@ -169,7 +169,7 @@ export default function BrandDNALaboratory() {
   const saveProgress = async () => {
     if (!labDataId) return;
     try {
-      await supabase.from('brandbook_laboratory').update({
+      await (supabase.from('brandbook_laboratory') as any).update({
         tilt_technical: tilt.technical,
         tilt_culture: tilt.culture,
         tilt_status: tilt.status,
@@ -282,7 +282,7 @@ export default function BrandDNALaboratory() {
     setPendingSynapseIndex(null);
     setTempReason("");
     
-    await supabase.from('brandbook_laboratory').update({ synapses_vault: newSynapses }).eq('id', labDataId);
+    await (supabase.from('brandbook_laboratory') as any).update({ synapses_vault: newSynapses }).eq('id', labDataId);
     showToast("Referência registrada com sucesso!");
   };
 

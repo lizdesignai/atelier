@@ -58,7 +58,7 @@ export class AtelierPMEngine {
   static async getBufferDays(userId: string | null): Promise<number> {
     if (!userId) return 0;
     try {
-      const { data } = await supabase.from('profiles').select('deadline_buffer_days').eq('id', userId).single();
+      const { data } = await (supabase.from('profiles') as any).select('deadline_buffer_days').eq('id', userId).single();
       return data?.deadline_buffer_days || 0;
     } catch (e) {
       return 0;
@@ -74,22 +74,22 @@ export class AtelierPMEngine {
     try {
       console.log(`[PM Engine] Iniciando Deploy do Planejamento Aprovado: ${planningId}`);
 
-      const { data: planning, error: planningError } = await supabase
-        .from('content_planning')
+      const { data: planning, error: planningError } = await (supabase
+        .from('content_planning') as any)
         .select('*')
         .eq('id', planningId)
         .single();
 
       if (planningError || !planning) throw new Error("Planejamento não encontrado.");
 
-      const { data: routingRules } = await supabase
-        .from('routing_rules')
+      const { data: routingRules } = await (supabase
+        .from('routing_rules') as any)
         .select('task_type, assignee_id')
         .eq('project_id', projectId);
 
       const rulesMap: Record<string, string> = {};
       if (routingRules) {
-        routingRules.forEach(r => {
+        routingRules.forEach((r: any) => {
           if (r.assignee_id) rulesMap[r.task_type] = r.assignee_id;
         });
       }
@@ -128,8 +128,8 @@ export class AtelierPMEngine {
         });
 
       } else {
-        const { data: project } = await supabase
-          .from('projects')
+        const { data: project } = await (supabase
+          .from('projects') as any)
           .select('posts_quantity, videos_quantity')
           .eq('id', projectId)
           .single();
@@ -183,11 +183,11 @@ export class AtelierPMEngine {
       }
 
       if (newTasks.length > 0) {
-        const { error: insertError } = await supabase.from('tasks').insert(newTasks);
+        const { error: insertError } = await (supabase.from('tasks') as any).insert(newTasks);
         if (insertError) throw insertError;
       }
 
-      await supabase.from('content_planning').update({ status: 'in_progress' }).eq('id', planningId);
+      await (supabase.from('content_planning') as any).update({ status: 'in_progress' }).eq('id', planningId);
 
       if (adminId) {
         await NotificationEngine.notifyUser(
@@ -226,7 +226,7 @@ export class AtelierPMEngine {
   static async startNewMonth(projectId: string, postsQty: number, videosQty: number, cofreDate?: string) {
     try {
       console.log(`[PM Engine] Avançando ciclo para o projeto: ${projectId}`);
-      await supabase.from('projects').update({
+      await (supabase.from('projects') as any).update({
         posts_quantity: postsQty,
         videos_quantity: videosQty,
       }).eq('id', projectId);
@@ -246,10 +246,10 @@ export class AtelierPMEngine {
    */
   static async getOptimalAssignee(taskType: string, projectId: string, defaultAssigneeId: string | null, estimatedMinutes: number = 60): Promise<string | null> {
     try {
-      const { data: team } = await supabase.from('profiles').select('id, skills').in('role', ['admin', 'gestor', 'colaborador']);
+      const { data: team } = await (supabase.from('profiles') as any).select('id, skills').in('role', ['admin', 'gestor', 'colaborador']);
       if (!team || team.length === 0) return defaultAssigneeId;
 
-      const skilledMembers = team.filter(m => m.skills && m.skills.includes(taskType));
+      const skilledMembers = team.filter((m: any) => m.skills && m.skills.includes(taskType));
       const candidates = skilledMembers.length > 0 ? skilledMembers : team;
 
       let bestCandidateId = defaultAssigneeId;
@@ -257,8 +257,8 @@ export class AtelierPMEngine {
       const next7Days = addDays(new Date(), 7).toISOString();
 
       for (const candidate of candidates) {
-        const { data: pendingTasks } = await supabase
-          .from('tasks')
+        const { data: pendingTasks } = await (supabase
+          .from('tasks') as any)
           .select('project_id, estimated_time')
           .eq('assigned_to', candidate.id)
           .in('status', ['pending', 'in_progress'])
@@ -267,7 +267,7 @@ export class AtelierPMEngine {
         let rawLoad = 0;
         let hasContext = false;
 
-        pendingTasks?.forEach(t => {
+        pendingTasks?.forEach((t: any) => {
           rawLoad += (t.estimated_time || 60);
           if (t.project_id === projectId) hasContext = true;
         });
@@ -295,28 +295,28 @@ export class AtelierPMEngine {
     try {
       const endOfToday = endOfDay(new Date()).toISOString();
 
-      const { data: futureTasks } = await supabase
-        .from('tasks')
+      const { data: futureTasks } = await (supabase
+        .from('tasks') as any)
         .select('id')
         .eq('status', 'pending')
         .gt('deadline', endOfToday);
 
       if (futureTasks && futureTasks.length > 0) {
-        await supabase.from('tasks')
+        await (supabase.from('tasks') as any)
           .update({ status: 'draft' })
-          .in('id', futureTasks.map(t => t.id));
+          .in('id', futureTasks.map((t: any) => t.id));
       }
 
-      const { data: todayTasks } = await supabase
-        .from('tasks')
+      const { data: todayTasks } = await (supabase
+        .from('tasks') as any)
         .select('id')
         .eq('status', 'draft')
         .lte('deadline', endOfToday);
 
       if (todayTasks && todayTasks.length > 0) {
-        await supabase.from('tasks')
+        await (supabase.from('tasks') as any)
           .update({ status: 'pending' })
-          .in('id', todayTasks.map(t => t.id));
+          .in('id', todayTasks.map((t: any) => t.id));
       }
 
     } catch (error) {
@@ -331,8 +331,8 @@ export class AtelierPMEngine {
    */
   static async distributeUnassignedTasks() {
     try {
-      const { data: unassignedTasks, error: taskError } = await supabase
-        .from('tasks')
+      const { data: unassignedTasks, error: taskError } = await (supabase
+        .from('tasks') as any)
         .select('*')
         .is('assigned_to', null)
         .in('status', ['pending', 'in_progress', 'needs_revision']);
@@ -340,8 +340,8 @@ export class AtelierPMEngine {
       if (taskError) throw taskError;
       if (!unassignedTasks || unassignedTasks.length === 0) return true;
 
-      const { data: teamMembers, error: teamError } = await supabase
-        .from('profiles')
+      const { data: teamMembers, error: teamError } = await (supabase
+        .from('profiles') as any)
         .select('id, role')
         .in('role', ['admin', 'gestor', 'colaborador']);
 
@@ -365,7 +365,7 @@ export class AtelierPMEngine {
         memberIndex = (memberIndex + 1) % teamMembers.length;
       }
 
-      const { error: updateError } = await supabase.from('tasks').upsert(updates);
+      const { error: updateError } = await (supabase.from('tasks') as any).upsert(updates);
       if (updateError) throw updateError;
       
       return true;
@@ -385,13 +385,13 @@ export class AtelierPMEngine {
       return {
         ...task,
         temp_dependency_index: index > 0 ? index - 1 : null,
-        is_blocked: index > 0 
+        is_blocked: false // Atividades automáticas e de rotina diária não devem nascer bloqueadas 
       };
     });
   }
 
   static async unlockDependencies(completedTaskId: string) {
-    const { error } = await supabase.from('tasks').update({ is_blocked: false }).eq('depends_on', completedTaskId);
+    const { error } = await (supabase.from('tasks') as any).update({ is_blocked: false }).eq('depends_on', completedTaskId);
     if (error) throw error;
   }
 
@@ -411,8 +411,8 @@ export class AtelierPMEngine {
    */
   static async prioritizeDailyTriage(collaboratorId: string) {
     try {
-      const { data: myTasks } = await supabase
-        .from('tasks')
+      const { data: myTasks } = await (supabase
+        .from('tasks') as any)
         .select('id, urgency, deadline, estimated_time, is_blocked, projects(financial_value)')
         .eq('assigned_to', collaboratorId)
         .in('status', ['pending', 'in_progress']);
@@ -422,7 +422,7 @@ export class AtelierPMEngine {
 
       for (const task of myTasks as any[]) {
         if (task.is_blocked) {
-          await supabase.from('tasks').update({ priority_score: -9999 }).eq('id', task.id);
+          await (supabase.from('tasks') as any).update({ priority_score: -9999 }).eq('id', task.id);
           continue;
         }
 
@@ -442,7 +442,7 @@ export class AtelierPMEngine {
         const jobSizeMinutes = task.estimated_time || 60;
         const wsjfScore = Math.round((costOfDelay / jobSizeMinutes) * 100);
 
-        await supabase.from('tasks').update({ priority_score: wsjfScore }).eq('id', task.id);
+        await (supabase.from('tasks') as any).update({ priority_score: wsjfScore }).eq('id', task.id);
       }
     } catch (error) {
       console.error("[PM Engine] Erro na indexação WSJF:", error);
@@ -458,8 +458,8 @@ export class AtelierPMEngine {
     try {
       if (!hookTitle) return;
 
-      const { data: tasks, error: searchError } = await supabase
-        .from('tasks')
+      const { data: tasks, error: searchError } = await (supabase
+        .from('tasks') as any)
         .select('id, status, project_id, deadline')
         .eq('assigned_to', userId)
         .ilike('title', `%${hookTitle}%`) 
@@ -473,7 +473,7 @@ export class AtelierPMEngine {
         const now = new Date().toISOString();
         const originalStatus = task.status; 
 
-        const { error: completeErr } = await supabase.from('tasks').update({ status: 'completed', completed_at: now }).eq('id', task.id);
+        const { error: completeErr } = await (supabase.from('tasks') as any).update({ status: 'completed', completed_at: now }).eq('id', task.id);
         if (completeErr) throw completeErr;
 
         const results = await Promise.allSettled([
@@ -482,7 +482,7 @@ export class AtelierPMEngine {
         ]);
 
         if (results.some(r => r.status === 'rejected')) {
-          await supabase.from('tasks').update({ status: originalStatus, completed_at: null }).eq('id', task.id);
+          await (supabase.from('tasks') as any).update({ status: originalStatus, completed_at: null }).eq('id', task.id);
           throw new Error("Transação falhou. Rollback executado.");
         }
       }
@@ -499,8 +499,8 @@ export class AtelierPMEngine {
   static async startTask(taskId: string, userId: string) {
     try {
       const now = new Date().toISOString();
-      const { error } = await supabase
-        .from('tasks')
+      const { error } = await (supabase
+        .from('tasks') as any)
         .update({ status: 'in_progress', started_at: now })
         .eq('id', taskId)
         .eq('assigned_to', userId); 
@@ -508,7 +508,7 @@ export class AtelierPMEngine {
       if (error) throw error;
 
       // 🟢 Inicia a Sessão de Trabalho no Novo Módulo RH
-      await supabase.from('work_sessions').insert({
+      await (supabase.from('work_sessions') as any).insert({
         user_id: userId,
         task_id: taskId,
         start_time: now
@@ -528,8 +528,8 @@ export class AtelierPMEngine {
       const now = new Date();
       
       // Encontra a sessão aberta
-      const { data: openSession } = await supabase
-        .from('work_sessions')
+      const { data: openSession } = await (supabase
+        .from('work_sessions') as any)
         .select('*')
         .eq('task_id', taskId)
         .eq('user_id', userId)
@@ -542,7 +542,7 @@ export class AtelierPMEngine {
         const start = new Date(openSession.start_time);
         const diffMinutes = Math.floor((now.getTime() - start.getTime()) / 60000);
 
-        await supabase.from('work_sessions').update({
+        await (supabase.from('work_sessions') as any).update({
           end_time: now.toISOString(),
           duration_minutes: diffMinutes > 0 ? diffMinutes : 0
         }).eq('id', openSession.id);
@@ -563,7 +563,7 @@ export class AtelierPMEngine {
     try {
       if (!projectId || !userId) return;
 
-      let query = supabase.from('tasks').select('id, status, deadline').eq('project_id', projectId).eq('assigned_to', userId).in('status', ['pending', 'in_progress', 'review']);
+      let query = (supabase.from('tasks') as any).select('id, status, deadline').eq('project_id', projectId).eq('assigned_to', userId).in('status', ['pending', 'in_progress', 'review']);
 
       if (actionType === 'planning') {
         query = query.or('title.ilike.%planejamento%,title.ilike.%planeamento%,title.ilike.%estratégia%').limit(1);
@@ -579,7 +579,7 @@ export class AtelierPMEngine {
         const now = new Date().toISOString();
         const originalStatus = task.status;
 
-        const { error: completeErr } = await supabase.from('tasks').update({ status: 'completed', completed_at: now }).eq('id', task.id);
+        const { error: completeErr } = await (supabase.from('tasks') as any).update({ status: 'completed', completed_at: now }).eq('id', task.id);
         if (completeErr) throw completeErr;
 
         const expBonus = actionType === 'planning' ? this.CONFIG.GAMIFICATION.MACRO_TASK : this.CONFIG.GAMIFICATION.DAILY_ROUTINE;
@@ -590,7 +590,7 @@ export class AtelierPMEngine {
         ]);
 
         if (results.some(r => r.status === 'rejected')) {
-          await supabase.from('tasks').update({ status: originalStatus, completed_at: null }).eq('id', task.id);
+          await (supabase.from('tasks') as any).update({ status: originalStatus, completed_at: null }).eq('id', task.id);
           throw new Error("Falha na transação. Rollback executado.");
         }
       }
@@ -608,8 +608,8 @@ export class AtelierPMEngine {
     try {
       if (!projectId || !originalTaskName || !newTitle) return;
 
-      const { data: tasks, error: searchError } = await supabase
-        .from('tasks')
+      const { data: tasks, error: searchError } = await (supabase
+        .from('tasks') as any)
         .select('id')
         .eq('project_id', projectId)
         .ilike('title', `%${originalTaskName}%`) 
@@ -619,7 +619,7 @@ export class AtelierPMEngine {
       if (searchError) throw searchError;
 
       if (tasks && tasks.length > 0) {
-        await supabase.from('tasks').update({ title: newTitle, description: descriptionText }).eq('id', tasks[0].id);
+        await (supabase.from('tasks') as any).update({ title: newTitle, description: descriptionText }).eq('id', tasks[0].id);
       }
     } catch (error) {
       console.error(`[Motor] Erro ao sincronizar conteúdo:`, error);
@@ -632,9 +632,9 @@ export class AtelierPMEngine {
    * ============================================================================
    */
   private static async applyGamification(userId: string, expAmount: number) {
-    const { data: perf } = await supabase.from('team_performance').select('*').eq('user_id', userId).single();
+    const { data: perf } = await (supabase.from('team_performance') as any).select('*').eq('user_id', userId).single();
     if (perf) {
-      await supabase.from('team_performance').update({
+      await (supabase.from('team_performance') as any).update({
         exp_points: (perf.exp_points || 0) + expAmount,
         total_tasks_completed: (perf.total_tasks_completed || 0) + 1
       }).eq('user_id', userId);
@@ -657,8 +657,8 @@ export class AtelierPMEngine {
    */
   static async triggerSupervisorAnalysis(projectId: string, adminId: string) {
     try {
-      const { data: project } = await supabase.from('projects').select('*, profiles(nome)').eq('id', projectId).single();
-      const { data: tasks } = await supabase.from('tasks').select('status, deadline, estimated_time').eq('project_id', projectId);
+      const { data: project } = await (supabase.from('projects') as any).select('*, profiles(nome)').eq('id', projectId).single();
+      const { data: tasks } = await (supabase.from('tasks') as any).select('status, deadline, estimated_time').eq('project_id', projectId);
       
       if (!project || !tasks) return;
 

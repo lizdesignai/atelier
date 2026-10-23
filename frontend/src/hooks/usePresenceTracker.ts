@@ -40,14 +40,14 @@ export function usePresenceTracker(userId: string | null | undefined) {
       }
 
       // B. Atualiza o perfil no PostgreSQL
-      await supabase.from('profiles').update({ 
+      await (supabase.from('profiles') as any).update({ 
         current_status: newStatus, 
         last_seen: nowIso 
       }).eq('id', userId);
 
       // C. Registo HistÃ³rico de MudanÃ§a de Estado
       if (newStatus !== lastLoggedStatusRef.current) {
-        await supabase.from('attendance_logs').insert({
+        await (supabase.from('attendance_logs') as any).insert({
           user_id: userId,
           status: newStatus,
           date_log: nowIso.split('T')[0]

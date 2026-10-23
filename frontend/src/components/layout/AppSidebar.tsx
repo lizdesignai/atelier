@@ -145,7 +145,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
             const diffDays = Math.ceil(Math.abs(new Date().getTime() - deliveredDate.getTime()) / (1000 * 60 * 60 * 24));
             if (diffDays >= 15) {
               shouldArchive = true;
-              await supabase.from('projects').update({ status: 'archived' }).eq('id', project.id);
+              await (supabase.from('projects') as any).update({ status: 'archived' }).eq('id', project.id);
             }
           }
         } else {

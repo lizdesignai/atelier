@@ -268,7 +268,7 @@ export async function POST(request: Request) {
         const serviceType = body.service_type || body.servico || 'Identidade Visual';
         const projectType = body.project_package || body.type || serviceType;
         const initialIdvPhase = serviceType === 'Identidade Visual' ? 'discover' : null;
-        const initialProgress = serviceType === 'Identidade Visual' ? 19 : 0;
+        const initialProgress = 0;
         const baseDate = new Date();
         const targetDeliveryDate = new Date(baseDate.getTime() + (21 * 24 * 60 * 60 * 1000));
 
@@ -304,7 +304,7 @@ export async function POST(request: Request) {
             NOW()
           )
         `;
-        needTasks = true;
+        needTasks = serviceType !== 'Identidade Visual';
       } else {
         const taskCountRes = await sql`SELECT count(*)::int as count FROM tasks WHERE project_id = ${targetProjectId} AND title != 'Teste Tarefa'`;
         if ((taskCountRes[0]?.count || 0) === 0) {
@@ -320,8 +320,9 @@ export async function POST(request: Request) {
         }
       }
 
-      if (needTasks) {
-        const serviceType = body.service_type || body.servico || 'Identidade Visual';
+      const serviceType = body.service_type || body.servico || 'Identidade Visual';
+
+      if (needTasks && serviceType !== 'Identidade Visual') {
         const baseDate = new Date();
 
         // Gerar pipeline de tarefas

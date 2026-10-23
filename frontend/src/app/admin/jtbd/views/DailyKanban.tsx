@@ -100,7 +100,7 @@ export default function DailyKanban({
   // ==========================================================================
   const promotePostToClient = async (taskId: string) => {
     try {
-      await supabase.from('social_posts')
+      await (supabase.from('social_posts') as any)
         .update({ status: 'pending_approval' })
         .eq('task_id', taskId)
         .eq('status', 'internal_review');
@@ -144,7 +144,7 @@ export default function DailyKanban({
 
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Fazendo upload das mídias..." }));
 
-      const { data: projData } = await supabase.from('projects').select('client_id').eq('id', task.project_id).single();
+      const { data: projData } = await (supabase.from('projects') as any).select('client_id').eq('id', task.project_id).single();
       const clientId = projData?.client_id || 'unassigned';
 
       let newMediaAssets = task.media_assets || [];
@@ -181,10 +181,10 @@ export default function DailyKanban({
          status: 'review'
       };
 
-      await supabase.from('tasks').update(updatePayload).eq('id', task.id);
+      await (supabase.from('tasks') as any).update(updatePayload).eq('id', task.id);
 
       if (isFirstUpload) {
-        await supabase.from('social_posts').insert({
+        await (supabase.from('social_posts') as any).insert({
           project_id: task.project_id,
           client_id: clientId,
           task_id: task.id,
@@ -195,9 +195,9 @@ export default function DailyKanban({
           status: 'internal_review'
         });
       } else {
-        const { data: existingPost } = await supabase.from('social_posts').select('id').eq('task_id', task.id).single();
+        const { data: existingPost } = await (supabase.from('social_posts') as any).select('id').eq('task_id', task.id).single();
         if (existingPost) {
-          await supabase.from('social_posts')
+          await (supabase.from('social_posts') as any)
              .update({ media_assets: newMediaAssets, image_url: mainAttachmentUrl })
              .eq('task_id', task.id);
         }

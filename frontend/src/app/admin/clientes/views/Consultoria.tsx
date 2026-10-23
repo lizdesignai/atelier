@@ -139,8 +139,8 @@ export default function ConsultoriaModal({ isOpen, onClose }: ConsultoriaModalPr
         updated_at: new Date().toISOString()
       };
 
-      const { error: dbError } = await supabase
-        .from('leads')
+      const { error: dbError } = await (supabase
+        .from('leads') as any)
         .upsert(leadPayload, { onConflict: 'email' });
 
       if (dbError) throw dbError;

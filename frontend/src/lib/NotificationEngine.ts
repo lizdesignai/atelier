@@ -41,7 +41,7 @@ export class NotificationEngine {
     actionUrl?: string
   ) {
     try {
-      const { error } = await supabase.from('notifications').insert({
+      const { error } = await (supabase.from('notifications') as any).insert({
         user_id: userId,
         title,
         message,
@@ -67,8 +67,8 @@ export class NotificationEngine {
   ) {
     try {
       // 1. Encontra quem são os líderes do Atelier
-      const { data: managers, error: fetchError } = await supabase
-        .from('profiles')
+      const { data: managers, error: fetchError } = await (supabase
+        .from('profiles') as any)
         .select('id, email, nome')
         .in('role', ['admin', 'gestor']);
 
@@ -76,7 +76,7 @@ export class NotificationEngine {
       if (!managers || managers.length === 0) return;
 
       // 2. Prepara o array (batch insert) de notificações no banco (In-App)
-      const notificationsToInsert = managers.map(manager => ({
+      const notificationsToInsert = managers.map((manager: any) => ({
         user_id: manager.id,
         title,
         message,
@@ -86,15 +86,15 @@ export class NotificationEngine {
       }));
 
       // 3. Dispara no banco (In-App)
-      const { error: insertError } = await supabase
-        .from('notifications')
+      const { error: insertError } = await (supabase
+        .from('notifications') as any)
         .insert(notificationsToInsert);
 
       if (insertError) throw insertError;
 
       // 4. DISPARO DE E-MAIL (Blindado contra e-mails fictícios)
       const validManagerEmails = managers
-        .map(m => m.email)
+        .map((m: any) => m.email)
         .filter(this.isValidRealEmail); 
       
       if (validManagerEmails.length > 0) {
@@ -139,7 +139,7 @@ export class NotificationEngine {
   ) {
     try {
       // 1. Envia notificação in-app
-      const { error } = await supabase.from('notifications').insert({
+      const { error } = await (supabase.from('notifications') as any).insert({
         user_id: userId,
         title,
         message,
@@ -151,8 +151,8 @@ export class NotificationEngine {
       if (error) throw error;
 
       // 2. Busca e-mail do destinatário
-      const { data: targetUser } = await supabase
-        .from('profiles')
+      const { data: targetUser } = await (supabase
+        .from('profiles') as any)
         .select('email, role, nome')
         .eq('id', userId)
         .single();
@@ -241,8 +241,8 @@ export class NotificationEngine {
    */
   static async markAsRead(notificationId: string) {
     try {
-      const { error } = await supabase
-        .from('notifications')
+      const { error } = await (supabase
+        .from('notifications') as any)
         .update({ is_read: true })
         .eq('id', notificationId);
 
@@ -257,8 +257,8 @@ export class NotificationEngine {
    */
   static async markAllAsRead(userId: string) {
     try {
-      const { error } = await supabase
-        .from('notifications')
+      const { error } = await (supabase
+        .from('notifications') as any)
         .update({ is_read: true })
         .eq('user_id', userId)
         .eq('is_read', false);

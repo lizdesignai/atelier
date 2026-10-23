@@ -66,9 +66,9 @@ export default function MissionsView({ activeProjectId, activeSubclientId, curre
   const fetchData = async () => {
     setIsLoading(true);
     try {
-      let missionsQuery = supabase.from('asset_missions').select('*').order('created_at', { ascending: false });
-      let assetsQuery = supabase.from('project_assets').select('*').order('created_at', { ascending: false });
-      let linksQuery = supabase.from('project_quick_links').select('*').order('created_at', { ascending: false });
+      let missionsQuery = (supabase.from('asset_missions') as any).select('*').order('created_at', { ascending: false });
+      let assetsQuery = (supabase.from('project_assets') as any).select('*').order('created_at', { ascending: false });
+      let linksQuery = (supabase.from('project_quick_links') as any).select('*').order('created_at', { ascending: false });
 
       if (activeSubclientId) {
         missionsQuery = missionsQuery.eq('subclient_id', activeSubclientId);
@@ -109,7 +109,7 @@ export default function MissionsView({ activeProjectId, activeSubclientId, curre
 
     setIsSubmittingLink(true);
     try {
-      const { data, error } = await supabase.from('project_quick_links').insert({
+      const { data, error } = await (supabase.from('project_quick_links') as any).insert({
         project_id: activeProjectId,
         subclient_id: activeSubclientId || null,
         title: linkForm.title,
@@ -133,7 +133,7 @@ export default function MissionsView({ activeProjectId, activeSubclientId, curre
   const handleDeleteQuickLink = async (linkId: string) => {
     if (!window.confirm("Deseja apagar este atalho da equipe?")) return;
     try {
-      await supabase.from('project_quick_links').delete().eq('id', linkId);
+      await (supabase.from('project_quick_links') as any).delete().eq('id', linkId);
       setQuickLinks(quickLinks.filter(l => l.id !== linkId));
       showToast("Atalho removido com sucesso.");
     } catch (error) {
@@ -172,7 +172,7 @@ export default function MissionsView({ activeProjectId, activeSubclientId, curre
         status: 'pending',
         client_id: currentProject?.client_id
       };
-      const { data, error } = await supabase.from('asset_missions').insert(payload).select();
+      const { data, error } = await (supabase.from('asset_missions') as any).insert(payload).select();
 
       if (error) throw error;
 
@@ -214,7 +214,7 @@ export default function MissionsView({ activeProjectId, activeSubclientId, curre
 
   const handleApproveMission = async (missionId: string) => {
     try {
-      const { error } = await supabase.from('asset_missions').update({ status: 'approved' }).eq('id', missionId);
+      const { error } = await (supabase.from('asset_missions') as any).update({ status: 'approved' }).eq('id', missionId);
       if (error) throw error;
 
       setMissions(missions.map(m => m.id === missionId ? { ...m, status: 'approved' } : m));
@@ -237,7 +237,7 @@ export default function MissionsView({ activeProjectId, activeSubclientId, curre
   const handleDeleteMission = async (missionId: string) => {
     if (!window.confirm("Deseja cancelar e apagar esta solicitação definitivamente?")) return;
     try {
-      const { error } = await supabase.from('asset_missions').delete().eq('id', missionId);
+      const { error } = await (supabase.from('asset_missions') as any).delete().eq('id', missionId);
       if (error) throw error;
       setMissions(missions.filter(m => m.id !== missionId));
       showToast("Solicitação apagada com sucesso.");
@@ -249,7 +249,7 @@ export default function MissionsView({ activeProjectId, activeSubclientId, curre
   const handleDeleteAsset = async (assetId: string) => {
     if (!window.confirm("Tem certeza que deseja apagar este arquivo do sistema?")) return;
     try {
-      const { error } = await supabase.from('project_assets').delete().eq('id', assetId);
+      const { error } = await (supabase.from('project_assets') as any).delete().eq('id', assetId);
       if (error) throw error;
       setAssets(assets.filter(a => a.id !== assetId));
       showToast("Arquivo removido do sistema.");

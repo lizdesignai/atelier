@@ -61,12 +61,12 @@ export default function HubB2BPage() {
         const { data: { session } } = await supabase.auth.getSession();
         if (!session?.user) return;
 
-        const { data: profileData } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+        const { data: profileData } = await (supabase.from('profiles') as any).select('*').eq('id', session.user.id).single();
         if (profileData) setUserProfile(profileData);
 
         // Tabela esperada: 'b2b_pitches'
-        const { data: pitchesData, error } = await supabase
-          .from('b2b_pitches')
+        const { data: pitchesData, error } = await (supabase
+          .from('b2b_pitches') as any)
           .select('*, profiles(nome, avatar_url, username)')
           .order('created_at', { ascending: false });
 
@@ -95,8 +95,8 @@ export default function HubB2BPage() {
     try {
       const tagsArray = formData.tags.split(',').map(t => t.trim()).filter(t => t !== '');
       
-      const { data: insertedPitch, error } = await supabase
-        .from('b2b_pitches')
+      const { data: insertedPitch, error } = await (supabase
+        .from('b2b_pitches') as any)
         .insert({
           author_id: userProfile.id,
           type: formData.type,

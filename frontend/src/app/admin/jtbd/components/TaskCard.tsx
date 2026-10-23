@@ -91,8 +91,8 @@ export default function TaskCard({
   const handleSaveCaption = async () => {
     setIsSavingCaption(true);
     try {
-      await supabase.from('tasks').update({ caption: localCaption }).eq('id', task.id);
-      await supabase.from('social_posts').update({ caption: localCaption }).eq('task_id', task.id);
+      await (supabase.from('tasks') as any).update({ caption: localCaption }).eq('id', task.id);
+      await (supabase.from('social_posts') as any).update({ caption: localCaption }).eq('task_id', task.id);
       task.caption = localCaption; // atualiza ref
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Legenda atualizada com sucesso!" }));
     } catch (e) {
@@ -105,8 +105,8 @@ export default function TaskCard({
   const handleSaveLinks = async () => {
     setIsSavingLink(true);
     try {
-      await supabase.from('tasks').update({ external_links: localExternalLinks }).eq('id', task.id);
-      await supabase.from('social_posts').update({ external_links: localExternalLinks }).eq('task_id', task.id);
+      await (supabase.from('tasks') as any).update({ external_links: localExternalLinks }).eq('id', task.id);
+      await (supabase.from('social_posts') as any).update({ external_links: localExternalLinks }).eq('task_id', task.id);
       task.external_links = localExternalLinks;
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Links salvos com sucesso!" }));
     } catch (e) {
@@ -123,12 +123,12 @@ export default function TaskCard({
       
       const newMainUrl = updatedAssets.length > 0 ? updatedAssets[0].url : null;
 
-      await supabase.from('tasks').update({
+      await (supabase.from('tasks') as any).update({
         media_assets: updatedAssets,
         attachment_url: newMainUrl
       }).eq('id', task.id);
 
-      await supabase.from('social_posts').update({
+      await (supabase.from('social_posts') as any).update({
         media_assets: updatedAssets,
         image_url: newMainUrl
       }).eq('task_id', task.id);
@@ -295,7 +295,7 @@ export default function TaskCard({
     if (!isAdmin) return;
     setIsSavingDeadline(true);
     try {
-      const { error } = await supabase.from('tasks').update({ deadline: localDeadline, internal_deadline: localDeadline }).eq('id', task.id);
+      const { error } = await (supabase.from('tasks') as any).update({ deadline: localDeadline, internal_deadline: localDeadline }).eq('id', task.id);
       if (error) throw error;
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Prazo atualizado com sucesso!" }));
       handleCloseModal(); 
@@ -312,7 +312,7 @@ export default function TaskCard({
     try {
       if (task.urgency) {
         // Toggle OFF urgency
-        const { error } = await supabase.from('tasks').update({ 
+        const { error } = await (supabase.from('tasks') as any).update({ 
           urgency: false 
         }).eq('id', task.id);
         if (error) throw error;
@@ -325,7 +325,7 @@ export default function TaskCard({
         today.setHours(0, 0, 0, 0); // Start of today
         const formattedToday = today.toISOString();
 
-        const { error } = await supabase.from('tasks').update({ 
+        const { error } = await (supabase.from('tasks') as any).update({ 
           deadline: formattedToday, 
           internal_deadline: formattedToday,
           urgency: true 
@@ -373,8 +373,8 @@ export default function TaskCard({
       return;
     }
     try {
-      await supabase.from('social_posts').update({ status: 'internal_review' }).eq('task_id', task.id);
-      await supabase.from('tasks').update({ status: 'review' }).eq('id', task.id);
+      await (supabase.from('social_posts') as any).update({ status: 'internal_review' }).eq('task_id', task.id);
+      await (supabase.from('tasks') as any).update({ status: 'review' }).eq('id', task.id);
       if (relatedPost) setRelatedPost({ ...relatedPost, status: 'internal_review' });
       
       onRevert(task.id);
@@ -407,7 +407,7 @@ export default function TaskCard({
       
       const statusUpdate = (isAdmin && isReview) ? 'in_progress' : task.status;
 
-      await supabase.from('tasks').update({ 
+      await (supabase.from('tasks') as any).update({ 
         admin_feedback: stringifiedFeedback,
         status: statusUpdate 
       }).eq('id', task.id);
@@ -415,7 +415,7 @@ export default function TaskCard({
       task.admin_feedback = stringifiedFeedback;
 
       if (displayImageUrl && isAdmin && isReview) {
-        await supabase.from('social_posts').update({ status: 'internal_review' }).eq('task_id', task.id);
+        await (supabase.from('social_posts') as any).update({ status: 'internal_review' }).eq('task_id', task.id);
         if (relatedPost) setRelatedPost({ ...relatedPost, status: 'internal_review' });
       }
 

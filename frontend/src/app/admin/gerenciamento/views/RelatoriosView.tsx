@@ -116,7 +116,7 @@ export default function RelatoriosView({ activeProjectId, currentProject }: Rela
     if (!currentReport) return;
     setIsSaving(true);
     try {
-      await supabase.from('monthly_reports').update({
+      await (supabase.from('monthly_reports') as any).update({
         executive_summary: currentReport.executive_summary,
         detailed_analysis: currentReport.detailed_analysis,
         action_plan: currentReport.action_plan,
@@ -163,7 +163,7 @@ export default function RelatoriosView({ activeProjectId, currentProject }: Rela
 
       const { data: { publicUrl } } = supabase.storage.from('reports').getPublicUrl(fileName);
 
-      const { error: dbError } = await supabase.from('monthly_reports').update({ 
+      const { error: dbError } = await (supabase.from('monthly_reports') as any).update({ 
         status: 'approved',
         pdf_url: publicUrl 
       }).eq('id', currentReport.id);

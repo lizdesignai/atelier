@@ -22,8 +22,8 @@ export async function POST(request: Request) {
       if (!card || !list || !board) return NextResponse.json({ success: true });
 
       // Check in agency_subclients
-      const { data: subclients, error } = await supabase
-        .from('agency_subclients')
+      const { data: subclients, error } = await (supabase
+        .from('agency_subclients') as any)
         .select('id, name, agency_id, trello_sync_list_ids')
         .contains('trello_sync_list_ids', [list.id]);
 
@@ -36,11 +36,11 @@ export async function POST(request: Request) {
         // Group by agency_id to prevent duplicate tasks if multiple subclients share the same list
         const processedAgencies = new Set<string>();
         
-        for (const sub of subclients) {
+        for (const sub of (subclients as any[])) {
           if (processedAgencies.has(sub.agency_id)) continue;
           processedAgencies.add(sub.agency_id);
           
-          await supabase.from('tasks').insert({
+          await (supabase.from('tasks') as any).insert({
             title: card.name,
             description: card.desc || '',
             project_id: sub.agency_id, // Setting project_id as agency_id

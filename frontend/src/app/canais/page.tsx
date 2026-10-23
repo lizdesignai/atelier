@@ -47,12 +47,12 @@ export default function CanaisClientePage() {
       setUserId(session.user.id);
       
       // Busca o nome do cliente logado (para as notificações)
-      const { data: profile } = await supabase.from('profiles').select('nome').eq('id', session.user.id).single();
+      const { data: profile } = await (supabase.from('profiles') as any).select('nome').eq('id', session.user.id).single();
       if (profile) setClientName(profile.nome || "Cliente");
 
       // Busca o projeto ativo DESTE cliente
-      const { data: projectData, error: projectError } = await supabase
-        .from('projects')
+      const { data: projectData, error: projectError } = await (supabase
+        .from('projects') as any)
         .select('id')
         .eq('client_id', session.user.id)
         .eq('status', 'active')
@@ -66,8 +66,8 @@ export default function CanaisClientePage() {
       setProjectId(projectData.id);
 
       // Busca os canais públicos deste projeto
-      const { data: channelsData, error: channelsError } = await supabase
-        .from('channels')
+      const { data: channelsData, error: channelsError } = await (supabase
+        .from('channels') as any)
         .select('*')
         .eq('project_id', projectData.id)
         .eq('is_private', false)
@@ -87,11 +87,11 @@ export default function CanaisClientePage() {
 
   // 🟢 NOVO: Função para buscar não lidas
   const fetchUnreadCounts = async () => {
-    const { data, error } = await supabase.rpc('get_unread_counts_per_channel');
-    if (!error && data) {
+    const { data, error } = await (supabase.rpc('get_unread_counts_per_channel') as any);
+    if (!error && data && Array.isArray(data)) {
       const countsMap: Record<string, number> = {};
       const previewsMap: Record<string, string> = {};
-      data.forEach((item: any) => {
+      (data as any[]).forEach((item: any) => {
         countsMap[item.channel_id] = item.unread_count;
         if (item.last_message_text) {
           previewsMap[item.channel_id] = item.last_message_text;
@@ -133,7 +133,7 @@ export default function CanaisClientePage() {
         
         // 🟢 NOVO: Marcar como lido ao abrir o canal
         if (userId) {
-          supabase.from('channel_reads').upsert(
+          (supabase.from('channel_reads') as any).upsert(
             { channel_id: activeChannelId, user_id: userId, last_read_at: new Date().toISOString() },
             { onConflict: 'channel_id, user_id' }
           ).then(() => {
@@ -185,7 +185,7 @@ export default function CanaisClientePage() {
     const textToSend = messageText;
     setMessageText("");
     
-    const { error } = await supabase.from('messages').insert({
+    const { error } = await (supabase.from('messages') as any).insert({
       channel_id: activeChannelId,
       sender_id: userId,
       text_content: textToSend
@@ -223,7 +223,7 @@ export default function CanaisClientePage() {
 
       const { data: publicUrlData } = supabase.storage.from('chat_attachments').getPublicUrl(filePath);
 
-      const { error: dbError } = await supabase.from('messages').insert({
+      const { error: dbError } = await (supabase.from('messages') as any).insert({
         channel_id: activeChannelId,
         sender_id: userId,
         text_content: messageText.trim() !== "" ? messageText : null, // Envia o texto junto se houver

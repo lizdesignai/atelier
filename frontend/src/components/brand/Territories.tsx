@@ -75,10 +75,14 @@ export function Territories({ evaluationId, territories, status, chosenTerritory
                   )}
                 </div>
                 
-                <p className="font-roboto text-xs uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] mb-3">Conceito</p>
-                <p className="font-roboto text-sm text-[var(--color-atelier-grafite)] mb-6">{territory.concept}</p>
+                {territory.concept && (
+                  <>
+                    <p className="font-roboto text-xs uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] mb-3">Conceito</p>
+                    <p className="font-roboto text-sm text-[var(--color-atelier-grafite)] mb-6">{territory.concept}</p>
+                  </>
+                )}
                 
-                <p className="font-roboto text-xs uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50 mb-3">Atmosfera</p>
+                <p className="font-roboto text-xs uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50 mb-3">Atmosfera & Descrição</p>
                 <p className="font-roboto text-sm text-[var(--color-atelier-grafite)]/70 leading-relaxed flex-1">{territory.description}</p>
               </div>
 

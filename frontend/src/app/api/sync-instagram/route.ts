@@ -1,6 +1,47 @@
 // src/app/api/sync-instagram/route.ts
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
+import fs from 'fs';
+import pathModule from 'path';
+
+async function persistAvatar(url: string, ownerId: string): Promise<string | null> {
+  if (!url) return null;
+  if (url.startsWith('/api/storage/file/')) return url;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'Accept': 'image/avif,image/webp,image/apng,image/svg+xml,image/*,*/*;q=0.8'
+      }
+    });
+    if (!res.ok) return null;
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const mimeType = res.headers.get('content-type') || 'image/jpeg';
+    const fileName = `${ownerId}_avatar_${Date.now()}.jpg`;
+
+    const sql = getDb();
+    await sql`
+      DELETE FROM storage_objects 
+      WHERE bucket_name = 'avatars' AND file_name LIKE ${`${ownerId}_avatar_%`}
+    `;
+    await sql`
+      INSERT INTO storage_objects (bucket_name, file_name, file_data, mime_type, size)
+      VALUES ('avatars', ${fileName}, ${buffer}, ${mimeType}, ${buffer.length})
+    `;
+
+    try {
+      const uploadDir = pathModule.join(process.cwd(), 'public', 'uploads', 'avatars');
+      await fs.promises.mkdir(uploadDir, { recursive: true });
+      await fs.promises.writeFile(pathModule.join(uploadDir, fileName), buffer);
+    } catch (_) {}
+
+    return `/api/storage/file/avatars/${fileName}`;
+  } catch (err) {
+    console.warn('[Sync Instagram] Falha ao persistir avatar no storage:', err);
+    return null;
+  }
+}
 
 export async function POST(request: Request) {
   try {
@@ -50,12 +91,18 @@ export async function POST(request: Request) {
           const items = await apifyRes.json();
           if (Array.isArray(items) && items.length > 0) {
             const rawProfile = items[0];
+            const rawAvatarUrl = rawProfile.profilePicUrlHD || rawProfile.profilePicUrl || null;
+            let permanentAvatarUrl = null;
+            if (rawAvatarUrl) {
+              const targetOwnerId = clientId || projectId || cleanUsername;
+              permanentAvatarUrl = await persistAvatar(rawAvatarUrl, targetOwnerId);
+            }
 
             profileData = {
               username: rawProfile.username || cleanUsername,
               full_name: rawProfile.fullName || rawProfile.name || cleanUsername,
               biography: rawProfile.biography || rawProfile.bio || profileData.biography,
-              avatar_url: rawProfile.profilePicUrlHD || rawProfile.profilePicUrl || null,
+              avatar_url: permanentAvatarUrl || rawAvatarUrl,
               followers_count: rawProfile.followersCount || profileData.followers_count,
               following_count: rawProfile.followsCount || rawProfile.followingCount || profileData.following_count,
               posts_count: rawProfile.postsCount || profileData.posts_count,

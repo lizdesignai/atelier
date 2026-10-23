@@ -73,7 +73,9 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
         fase = 'pesquisa',
         production_start_date = NOW(),
         presentation_target_date = ${presentationTarget},
-        delivery_target_date = ${deliveryTarget}
+        delivery_target_date = ${deliveryTarget},
+        data_limite = ${deliveryTarget},
+        deadline = ${deliveryTarget}
       WHERE id = ${projectId}
     `;
 

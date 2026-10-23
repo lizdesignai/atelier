@@ -24,7 +24,6 @@ import {
   Copy,
   Trash2,
   Archive,
-  Film,
   Sliders,
   ShieldCheck,
   FileCode2,

@@ -31,8 +31,8 @@ export default function DiaryModule({ activeProjectId, currentProject, onActivit
     const fetchDiary = async () => {
       setIsLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('diary_posts')
+        const { data, error } = await (supabase
+          .from('diary_posts') as any)
           .select('*, profiles:author_id(nome, avatar_url, role)') 
           .eq('project_id', activeProjectId)
           .order('created_at', { ascending: false });
@@ -85,7 +85,7 @@ export default function DiaryModule({ activeProjectId, currentProject, onActivit
 
       const { data: { session } } = await supabase.auth.getSession();
       
-      const { data: newPost, error } = await supabase.from('diary_posts').insert({
+      const { data: newPost, error } = await (supabase.from('diary_posts') as any).insert({
         project_id: activeProjectId,
         author_id: session?.user?.id, 
         title: postTitle,
@@ -121,7 +121,7 @@ export default function DiaryModule({ activeProjectId, currentProject, onActivit
   const handleDeletePost = async (id: string) => {
     if (!window.confirm("Deseja mesmo apagar este registo do diário?")) return;
     try {
-      await supabase.from('diary_posts').delete().eq('id', id);
+      await (supabase.from('diary_posts') as any).delete().eq('id', id);
       setDiaryPosts(diaryPosts.filter(p => p.id !== id));
       showToast("Registo apagado da timeline.");
     } catch (error) {

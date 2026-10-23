@@ -43,8 +43,8 @@ export default function MissionsVaultModal({ isOpen, onClose, projectId, clientI
     const fetchMissions = async () => {
       setIsLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('asset_missions')
+        const { data, error } = await (supabase
+          .from('asset_missions') as any)
           .select('*')
           .eq('project_id', projectId)
           .order('status', { ascending: false }) // 'pending' aparece primeiro no alfabeto que 'completed'
@@ -87,17 +87,17 @@ export default function MissionsVaultModal({ isOpen, onClose, projectId, clientI
         const resolveProjectId = async (projId: string): Promise<string | null> => {
           if (!projId) return null;
           try {
-            const { data: directProject } = await supabase.from('projects').select('id').eq('id', projId).maybeSingle();
-            if (directProject?.id) return directProject.id;
-            const { data: clientProject } = await supabase.from('projects').select('id').eq('client_id', projId).order('created_at', { ascending: false }).limit(1).maybeSingle();
-            if (clientProject?.id) return clientProject.id;
+            const { data: directProject } = await (supabase.from('projects') as any).select('id').eq('id', projId).maybeSingle();
+            if ((directProject as any)?.id) return (directProject as any).id;
+            const { data: clientProject } = await (supabase.from('projects') as any).select('id').eq('client_id', projId).order('created_at', { ascending: false }).limit(1).maybeSingle();
+            if ((clientProject as any)?.id) return (clientProject as any).id;
           } catch (e) {}
           return null;
         };
 
         const targetProjId = await resolveProjectId(projectId);
         const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
-        const { error: dbError } = await supabase.from('project_assets').insert({
+        const { error: dbError } = await (supabase.from('project_assets') as any).insert({
           project_id: targetProjId,
           file_name: file.name,
           file_url: publicUrl,
@@ -115,7 +115,7 @@ export default function MissionsVaultModal({ isOpen, onClose, projectId, clientI
 
       } else {
         // Envio Direcionado (Cumpre uma Missão Específica)
-        const { error: dbError } = await supabase.from('asset_missions').update({
+        const { error: dbError } = await (supabase.from('asset_missions') as any).update({
           status: 'completed',
           file_url: publicUrl
         }).eq('id', missionId);

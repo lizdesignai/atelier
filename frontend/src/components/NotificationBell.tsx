@@ -37,8 +37,8 @@ export default function NotificationBell() {
 
       // 1. Busca Inicial
       const fetchInitial = async () => {
-        const { data } = await supabase
-          .from('notifications')
+        const { data } = await (supabase
+          .from('notifications') as any)
           .select('*')
           .eq('user_id', uid)
           .order('created_at', { ascending: false })
@@ -46,7 +46,7 @@ export default function NotificationBell() {
 
         if (data) {
           setNotifications(data);
-          setUnreadCount(data.filter(n => !n.is_read).length);
+          setUnreadCount(data.filter((n: any) => !n.is_read).length);
         }
       };
 

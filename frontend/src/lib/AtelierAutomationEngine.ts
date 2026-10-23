@@ -52,7 +52,7 @@ export class AtelierAutomationEngine {
       });
 
       if (tasksToInsert.length > 0) {
-        const { error } = await supabase.from('tasks').insert(tasksToInsert);
+        const { error } = await (supabase.from('tasks') as any).insert(tasksToInsert);
         if (error) throw error;
         console.log(`[AutoEngine] ${tasksToInsert.length} missões injetadas no JTBD com sucesso.`);
       }
@@ -72,8 +72,8 @@ export class AtelierAutomationEngine {
   static async triggerPostApproval(projectId: string, hook: string, userId: string) {
     try {
       // 1. Localiza a tarefa pendente ou em progresso cujo título contenha o Hook
-      const { data: tasks, error: fetchError } = await supabase
-        .from('tasks')
+      const { data: tasks, error: fetchError } = await (supabase
+        .from('tasks') as any)
         .select('id, status')
         .eq('project_id', projectId)
         .ilike('title', `%${hook}%`) // ilike é case-insensitive no Supabase
@@ -85,8 +85,8 @@ export class AtelierAutomationEngine {
         // Encontrou a tarefa correspondente. Vamos finalizá-la.
         const taskToComplete = tasks[0];
         
-        const { error: updateError } = await supabase
-          .from('tasks')
+        const { error: updateError } = await (supabase
+          .from('tasks') as any)
           .update({ 
             status: 'completed', 
             completed_at: new Date().toISOString(),
@@ -121,8 +121,8 @@ export class AtelierAutomationEngine {
   ) {
     try {
       // Procura a tarefa pendente mais antiga deste tipo neste projeto
-      const { data: tasks, error: fetchError } = await supabase
-        .from('tasks')
+      const { data: tasks, error: fetchError } = await (supabase
+        .from('tasks') as any)
         .select('id, status')
         .eq('project_id', projectId)
         .eq('task_type', taskType)
@@ -133,8 +133,8 @@ export class AtelierAutomationEngine {
       if (fetchError) throw fetchError;
 
       if (tasks && tasks.length > 0) {
-        const { error: updateError } = await supabase
-          .from('tasks')
+        const { error: updateError } = await (supabase
+          .from('tasks') as any)
           .update({ 
             status: 'completed', 
             completed_at: new Date().toISOString(),

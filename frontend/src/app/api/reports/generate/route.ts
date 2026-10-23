@@ -13,8 +13,8 @@ export async function POST(request: Request) {
     }
 
     // Verifica se o utilizador é Admin ou Gestor para evitar disparos maliciosos
-    const { data: profile } = await supabase
-      .from('profiles')
+    const { data: profile } = await (supabase
+      .from('profiles') as any)
       .select('role')
       .eq('id', session.user.id)
       .single();

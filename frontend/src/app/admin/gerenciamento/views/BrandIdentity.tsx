@@ -129,8 +129,8 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
     if (!briefing || !window.confirm("Tem certeza que deseja devolver este briefing ao cliente para ser refeito?")) return;
     setIsProcessing(true);
     try {
-      const { error } = await supabase
-        .from('instagram_briefings')
+      const { error } = await (supabase
+        .from('instagram_briefings') as any)
         .update({ status: 'returned' })
         .eq('id', briefing.id);
         
@@ -191,8 +191,8 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
       const data = await res.json();
       if (data.error) throw new Error(data.error);
       
-      await supabase.from('brandbook_laboratory').update({ ai_source_code: data.insight }).eq('id', labData.id);
-      await supabase.from('projects').update({ instagram_ai_insight: data.insight }).eq('id', activeProjectId);
+      await (supabase.from('brandbook_laboratory') as any).update({ ai_source_code: data.insight }).eq('id', labData.id);
+      await (supabase.from('projects') as any).update({ instagram_ai_insight: data.insight }).eq('id', activeProjectId);
       
       setLabData({ ...labData, ai_source_code: data.insight });
 

@@ -34,13 +34,13 @@ export default function AgencyConfigModal({ isOpen, onClose, agency, onSave }: A
     setIsSubmitting(true);
     try {
       // 1. Save the Trello URL to the agency
-      const { error: agencyError } = await supabase.from('agencies').update({
+      const { error: agencyError } = await (supabase.from('agencies') as any).update({
         trello_url: trelloUrl || null
       }).eq('id', agency.id);
       if (agencyError) throw agencyError;
 
       // 2. Update the subclients for this agency to listen to the selected lists.
-      const { error: subError } = await supabase.from('agency_subclients').update({
+      const { error: subError } = await (supabase.from('agency_subclients') as any).update({
         trello_sync_list_ids: syncListIds
       }).eq('agency_id', agency.id);
 

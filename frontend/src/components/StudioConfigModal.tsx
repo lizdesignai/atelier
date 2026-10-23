@@ -40,7 +40,7 @@ export default function StudioConfigModal({ isOpen, onClose, project, onCycleSta
     if (!project) return;
     setIsSubmitting(true);
     try {
-      await supabase.from('projects').update({
+      await (supabase.from('projects') as any).update({
         posts_quantity: postsQty,
         videos_quantity: reelsQty,
       }).eq('id', project.id);
@@ -62,7 +62,7 @@ export default function StudioConfigModal({ isOpen, onClose, project, onCycleSta
     if (!project) return;
     setIsSubmitting(true);
     try {
-      await supabase.from('projects').update({
+      await (supabase.from('projects') as any).update({
         fase: idvFase,
         idv_product: idvProduct,
         idv_complexity: idvComplexity

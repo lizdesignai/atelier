@@ -31,8 +31,8 @@ export default function GestaoPage() {
           return;
         }
 
-        const { data: profile } = await supabase
-          .from('profiles')
+        const { data: profile } = await (supabase
+          .from('profiles') as any)
           .select('*')
           .eq('id', session.user.id)
           .single();

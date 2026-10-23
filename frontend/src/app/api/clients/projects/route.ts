@@ -96,7 +96,7 @@ export async function POST(req: NextRequest) {
     const cleanPaymentRecurrence = payment_recurrence || 'Único';
     const cleanPaymentSplit = payment_split || null;
     const initialIdvPhase = service_type === 'Identidade Visual' ? 'discover' : null;
-    const initialProgress = service_type === 'Identidade Visual' ? 19 : 0;
+    const initialProgress = 0;
     const baseDate = cleanBillingDate ? new Date(cleanBillingDate) : new Date();
     const defaultDeliveryDate = new Date(baseDate.getTime() + (21 * 24 * 60 * 60 * 1000));
     const targetDeliveryDate = cleanContractEnd ? new Date(cleanContractEnd) : defaultDeliveryDate;
@@ -203,13 +203,9 @@ export async function POST(req: NextRequest) {
     // Remover tarefas dummy residuais caso existam
     await sql`DELETE FROM tasks WHERE project_id = ${currentProject.id} AND title = 'Teste Tarefa'`.catch(() => {});
 
-    if (!hasPipelineTasks) {
-      // Gerar pipeline de tarefas
-      let pipeline: any[] = [];
-      if (service_type === 'Identidade Visual') {
-        pipeline = IDV_PIPELINE;
-      } else {
-        pipeline = [...IG_SETUP];
+    if (!hasPipelineTasks && service_type !== 'Identidade Visual') {
+      // O início de projetos de Identidade Visual e geração de sua Trilha da Marca é estritamente manual
+      let pipeline: any[] = [...IG_SETUP];
 
         if (pQty > 0 || vQty > 0) {
           pipeline.push({ stage: "Estratégia", type: "copy", title: "Calendário Editorial de Conteúdos", daysOffset: 5, estTime: 90 });
@@ -234,7 +230,6 @@ export async function POST(req: NextRequest) {
 
         pipeline.push({ stage: "Aprovação", type: "setup", title: "Agendamento Sistêmico & Aprovação do Cliente", daysOffset: 15, estTime: 60 });
         pipeline.push({ stage: "Relatório", type: "setup", title: "Geração de Relatório Mensal", daysOffset: 25, estTime: 60 });
-      }
 
       // Regras de roteamento para atribuição inteligente
       const routingRules = await sql`
@@ -314,11 +309,7 @@ export async function POST(req: NextRequest) {
         `;
       }
 
-      // Se IDV, garantir o progresso calculado (3 concluídas de 16 = 19%)
-      if (service_type === 'Identidade Visual') {
-        await sql`UPDATE projects SET progress = 19 WHERE id = ${currentProject.id}`;
-        currentProject.progress = 19;
-      }
+
 
       // Invalidação do cache Redis do Analytics
       try {

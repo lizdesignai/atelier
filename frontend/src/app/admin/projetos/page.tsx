@@ -130,9 +130,9 @@ function PainelIdentidade() {
 
   useEffect(() => {
     const fetchAgencies = async () => {
-      const { data } = await supabase.from('agencies').select('*').eq('status', 'active');
+      const { data } = await (supabase.from('agencies') as any).select('*').eq('status', 'active');
       if (data) {
-        setAgencies(data.map(a => ({
+        setAgencies((data as any[]).map((a: any) => ({
           ...a,
           isAgency: true,
           profiles: { nome: a.name, empresa: a.name, avatar_url: null },
@@ -244,16 +244,16 @@ function PainelIdentidade() {
         // Ignore single() error for no rows
         setClientBriefing(briefingData || null);
         if (isAgency || activeProjectId.startsWith('agency-')) {
-           const { data: subclientsData, error: subError } = await supabase
-             .from('agency_subclients')
+           const { data: subclientsData, error: subError } = await (supabase
+             .from('agency_subclients') as any)
              .select('*')
              .eq('agency_id', activeProjectId)
              .order('name');
              
            if (!subError && subclientsData) {
              setAgencySubclients(subclientsData);
-             if (subclientsData.length > 0 && !activeSubclientId) {
-                setActiveSubclientId(subclientsData[0].id);
+             if ((subclientsData as any[]).length > 0 && !activeSubclientId) {
+                setActiveSubclientId((subclientsData as any[])[0].id);
              }
            }
         }
@@ -279,7 +279,7 @@ function PainelIdentidade() {
     setIsBriefingModalOpen(false);
     
     try {
-      await supabase.from('client_briefings').update({ is_completed: false }).eq('project_id', activeProjectId);
+      await (supabase.from('client_briefings') as any).update({ is_completed: false }).eq('project_id', activeProjectId);
       if (currentProject?.client_id) {
         await NotificationEngine.notifyUser(
           currentProject.client_id,
@@ -474,8 +474,8 @@ function PainelIdentidade() {
       const { data: publicUrlData } = supabase.storage.from('vault_assets').getPublicUrl(filePath);
       const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
       
-      const { data: insertedData, error: dbError } = await supabase
-        .from('project_assets')
+      const { data: insertedData, error: dbError } = await (supabase
+        .from('project_assets') as any)
         .insert({
           project_id: activeProjectId,
           file_name: file.name,
@@ -509,7 +509,7 @@ function PainelIdentidade() {
     const confirm = window.confirm("Tem certeza de que deseja excluir este arquivo?");
     if (!confirm) return;
     try {
-      await supabase.from('project_assets').delete().eq('id', assetId);
+      await (supabase.from('project_assets') as any).delete().eq('id', assetId);
       setProjectAssets(projectAssets.filter(a => a.id !== assetId));
       showToast("Arquivo removido com sucesso.");
     } catch (error) {
@@ -656,8 +656,8 @@ function PainelIdentidade() {
     if (!showTerritoriesPanel || !activeProjectId) return;
     const fetchCuradoria = async () => {
       const [ { data: strategicData }, { data: directionsData } ] = await Promise.all([
-        supabase.from('strategic_answers').select('moodboard_urls').eq('project_id', activeProjectId).maybeSingle(),
-        supabase.from('design_directions').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: true })
+        (supabase.from('strategic_answers') as any).select('moodboard_urls').eq('project_id', activeProjectId).maybeSingle(),
+        (supabase.from('design_directions') as any).select('*').eq('project_id', activeProjectId).order('created_at', { ascending: true })
       ]);
       
       if (strategicData && strategicData.moodboard_urls) setClientMoodboard(strategicData.moodboard_urls);
@@ -708,7 +708,7 @@ function PainelIdentidade() {
 
       const uploadedUrls = await Promise.all(uploadPromises);
 
-      const { data: newRefData, error: dbError } = await supabase.from('design_directions').insert({
+      const { data: newRefData, error: dbError } = await (supabase.from('design_directions') as any).insert({
         project_id: activeProjectId,
         title: newRefTitle,
         image_url: uploadedUrls[0], 
@@ -717,8 +717,8 @@ function PainelIdentidade() {
 
       if (dbError) throw dbError;
 
-      if (newRefData) {
-        setAdminRefs([...adminRefs, newRefData[0]]);
+      if (newRefData && newRefData.length > 0 && newRefData[0]) {
+        setAdminRefs(prev => [...(prev || []).filter(Boolean), newRefData[0]]);
         setActiveEvalIndex(adminRefs.length);
       }
       
@@ -743,7 +743,7 @@ function PainelIdentidade() {
     setAdminRefs(adminRefs.filter(ref => ref.id !== id));
     setActiveEvalIndex(0); 
     showToast("Direção visual removida.");
-    try { await supabase.from('design_directions').delete().eq('id', id); } catch (error) { showToast("Erro ao excluir direção no banco."); }
+    try { await (supabase.from('design_directions') as any).delete().eq('id', id); } catch (error) { showToast("Erro ao excluir direção no banco."); }
   };
 
   if (isGlobalLoading || isLocalLoading) {
@@ -1286,17 +1286,17 @@ function PainelIdentidade() {
                       <h3 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">Direções Enviadas e Avaliações</h3>
                     </div>
                     
-                    {adminRefs.length === 0 ? (
+                    {adminRefs.filter(Boolean).length === 0 ? (
                       <p className="font-roboto text-[12px] text-[var(--color-atelier-grafite)]/40 italic mb-6 font-medium">Nenhuma direção visual enviada ainda.</p>
                     ) : (
                       <>
                         <div className="flex overflow-x-auto custom-scrollbar gap-3 pb-4 shrink-0 -mx-2 px-2">
-                          {adminRefs.map((ref, index) => {
-                            const coverImage = ref.image_urls && ref.image_urls.length > 0 ? ref.image_urls[0] : ref.image_url;
+                          {adminRefs.filter(Boolean).map((ref, index) => {
+                            const coverImage = (ref?.image_urls && ref.image_urls.length > 0) ? ref.image_urls[0] : (ref?.image_url || '');
                             return (
-                              <button key={ref.id} onClick={() => setActiveEvalIndex(index)} className={`shrink-0 w-36 flex flex-col gap-3 p-3 rounded-[1.2rem] border transition-all cursor-pointer text-left ${activeEvalIndex === index ? 'bg-white border-[var(--color-atelier-terracota)]/40 shadow-md scale-[1.02]' : 'bg-white/50 border-transparent hover:bg-white/80'}`}>
-                                <div className="w-full h-20 rounded-xl overflow-hidden border border-white shadow-inner"><img src={coverImage} className="w-full h-full object-cover" alt={ref.title} /></div>
-                                <span className={`font-roboto text-[10px] uppercase tracking-widest font-bold truncate w-full pl-1 ${activeEvalIndex === index ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/60'}`}>{ref.title}</span>
+                              <button key={ref?.id || index} onClick={() => setActiveEvalIndex(index)} className={`shrink-0 w-36 flex flex-col gap-3 p-3 rounded-[1.2rem] border transition-all cursor-pointer text-left ${activeEvalIndex === index ? 'bg-white border-[var(--color-atelier-terracota)]/40 shadow-md scale-[1.02]' : 'bg-white/50 border-transparent hover:bg-white/80'}`}>
+                                <div className="w-full h-20 rounded-xl overflow-hidden border border-white shadow-inner"><img src={coverImage} className="w-full h-full object-cover" alt={ref?.title || ''} /></div>
+                                <span className={`font-roboto text-[10px] uppercase tracking-widest font-bold truncate w-full pl-1 ${activeEvalIndex === index ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/60'}`}>{ref?.title}</span>
                               </button>
                             )
                           })}
@@ -1307,18 +1307,18 @@ function PainelIdentidade() {
                             <div className="flex gap-6 items-start glass-panel bg-white/60 p-8 rounded-[2rem] border border-white shadow-sm flex-col">
                               
                               <div className="flex justify-between w-full items-start">
-                                <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-1">{adminRefs[activeEvalIndex].title}</h3>
+                                <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] mb-1">{adminRefs[activeEvalIndex]?.title}</h3>
                                 <div className="flex items-center gap-2">
-                                  <span className={`border px-5 py-2 rounded-[1rem] text-[11px] uppercase tracking-widest font-bold font-roboto shadow-sm ${adminRefs[activeEvalIndex].score > 0 ? 'bg-[var(--color-atelier-terracota)] text-white border-transparent' : 'bg-white text-[var(--color-atelier-grafite)]/40 border-white'}`}>
-                                    {adminRefs[activeEvalIndex].score > 0 ? `Nota: ${adminRefs[activeEvalIndex].score}/10` : 'Avaliação Pendente'}
+                                  <span className={`border px-5 py-2 rounded-[1rem] text-[11px] uppercase tracking-widest font-bold font-roboto shadow-sm ${adminRefs[activeEvalIndex]?.score > 0 ? 'bg-[var(--color-atelier-terracota)] text-white border-transparent' : 'bg-white text-[var(--color-atelier-grafite)]/40 border-white'}`}>
+                                    {adminRefs[activeEvalIndex]?.score > 0 ? `Nota: ${adminRefs[activeEvalIndex].score}/10` : 'Avaliação Pendente'}
                                   </span>
                                 </div>
                               </div>
 
                               <div className="grid grid-cols-2 md:grid-cols-3 gap-4 w-full">
-                                {(adminRefs[activeEvalIndex].image_urls && adminRefs[activeEvalIndex].image_urls.length > 0 
+                                {((adminRefs[activeEvalIndex]?.image_urls && adminRefs[activeEvalIndex].image_urls.length > 0)
                                     ? adminRefs[activeEvalIndex].image_urls 
-                                    : [adminRefs[activeEvalIndex].image_url]
+                                    : (adminRefs[activeEvalIndex]?.image_url ? [adminRefs[activeEvalIndex].image_url] : [])
                                  ).map((imgUrl: string, idx: number) => (
                                   <div key={idx} className="w-full aspect-square rounded-[1.2rem] overflow-hidden border-4 border-white shadow-sm cursor-pointer" onClick={() => window.open(imgUrl, "_blank")}>
                                     <img src={imgUrl} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" alt="" />
@@ -1329,13 +1329,13 @@ function PainelIdentidade() {
                               <div className="flex flex-col pt-4 flex-1 w-full">
                                 <div className="flex flex-col gap-4 w-full bg-white/80 p-6 rounded-3xl mb-4 border border-white shadow-sm">
                                   <span className="font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] border-b border-[var(--color-atelier-grafite)]/5 pb-2">Feedback do Cliente (Matriz)</span>
-                                  <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Atmosfera:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q1 || "Não respondido."}</span></p>
-                                  <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Tipografia:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q2 || "Não respondido."}</span></p>
-                                  <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Cores:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q3 || "Não respondido."}</span></p>
-                                  <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Elementos:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex].feedback?.q4 || "Não respondido."}</span></p>
+                                  <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Geral:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex]?.feedback?.q1 || "Não respondido."}</span></p>
+                                  <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Fonte:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex]?.feedback?.q2 || "Não respondido."}</span></p>
+                                  <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Paleta de Cor:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex]?.feedback?.q3 || "Não respondido."}</span></p>
+                                  <p className="font-roboto text-[13px] font-medium text-[var(--color-atelier-grafite)]"><strong>Elementos Gráficos:</strong> <span className="text-[var(--color-atelier-grafite)]/70">{adminRefs[activeEvalIndex]?.feedback?.q4 || "Não respondido."}</span></p>
                                 </div>
 
-                                <button onClick={() => removeAdminRef(adminRefs[activeEvalIndex].id)} className="self-end px-4 py-2 bg-white border border-transparent hover:border-red-100 hover:bg-red-50 rounded-xl text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-600 transition-colors flex items-center gap-1 shadow-sm"><X size={12} /> Excluir Direção</button>
+                                <button onClick={() => removeAdminRef(adminRefs[activeEvalIndex]?.id)} className="self-end px-4 py-2 bg-white border border-transparent hover:border-red-100 hover:bg-red-50 rounded-xl text-[10px] font-bold uppercase tracking-widest text-red-400 hover:text-red-600 transition-colors flex items-center gap-1 shadow-sm"><X size={12} /> Excluir Direção</button>
                               </div>
                             </div>
                           </motion.div>

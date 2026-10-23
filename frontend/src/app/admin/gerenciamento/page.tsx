@@ -272,20 +272,19 @@ export function GerenciamentoInstagram() {
       {/* CABEÇALHO SUPERIOR (SELEÇÃO DE CLIENTE) */}
       <header className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-0 shrink-0 animate-[fadeInUp_0.5s_ease-out] relative z-20">
         <div className="flex items-center gap-6">
-          <div className="w-16 h-16 rounded-[1.5rem] bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-terracota)]/20 shadow-md flex items-center justify-center text-[var(--color-atelier-terracota)] font-elegant text-3xl overflow-hidden shrink-0 transition-transform hover:scale-105">
-             {safeClientAvatar ? (
-               <img 
-                 src={safeClientAvatar} 
-                 alt={clientDisplayName} 
-                 referrerPolicy="no-referrer"
-                 className="w-full h-full object-cover" 
-                 onError={(e) => {
-                   (e.target as HTMLElement).style.display = 'none';
-                 }}
-               />
-             ) : (
-               <span className="font-bold">{clientInitial}</span>
-             )}
+          <div className="w-16 h-16 rounded-[1.5rem] bg-[var(--color-atelier-creme)] border border-[var(--color-atelier-terracota)]/20 shadow-md flex items-center justify-center text-[var(--color-atelier-terracota)] font-elegant text-3xl overflow-hidden shrink-0 transition-transform hover:scale-105 relative">
+            <span className="absolute inset-0 flex items-center justify-center font-bold select-none">{clientInitial}</span>
+            {safeClientAvatar && (
+              <img 
+                src={safeClientAvatar} 
+                alt={clientDisplayName} 
+                referrerPolicy="no-referrer"
+                className="w-full h-full object-cover relative z-10" 
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                }}
+              />
+            )}
           </div>
           <div className="relative">
             <div className="flex flex-wrap items-center gap-2 mb-1.5">
@@ -413,19 +412,18 @@ export function GerenciamentoInstagram() {
                             }`}
                           >
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-10 h-10 rounded-xl border border-[var(--color-atelier-terracota)]/20 bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)] flex items-center justify-center overflow-hidden text-sm font-bold shrink-0 shadow-inner">
-                                {safePAvatar ? (
+                              <div className="w-10 h-10 rounded-xl border border-[var(--color-atelier-terracota)]/20 bg-[var(--color-atelier-creme)] text-[var(--color-atelier-terracota)] flex items-center justify-center overflow-hidden text-sm font-bold shrink-0 shadow-inner relative">
+                                <span className="absolute inset-0 flex items-center justify-center font-bold select-none">{pInitial}</span>
+                                {safePAvatar && (
                                   <img 
                                     src={safePAvatar} 
                                     alt={pName} 
                                     referrerPolicy="no-referrer"
-                                    className="w-full h-full object-cover" 
+                                    className="w-full h-full object-cover relative z-10" 
                                     onError={(e) => {
                                       (e.target as HTMLElement).style.display = 'none';
                                     }}
                                   />
-                                ) : (
-                                  <span>{pInitial}</span>
                                 )}
                               </div>
                               <div className="flex flex-col truncate">

@@ -12,8 +12,8 @@ export function AdminTerritoriesManager({ projectId, taskId, currentUser }: { pr
   const [userRole, setUserRole] = useState(currentUser?.role || 'admin');
 
   // Form state
-  const [territoryA, setTerritoryA] = useState({ name: "", concept: "", description: "", files: [] as File[], previews: [] as string[] });
-  const [territoryB, setTerritoryB] = useState({ name: "", concept: "", description: "", files: [] as File[], previews: [] as string[] });
+  const [territoryA, setTerritoryA] = useState({ name: "", description: "", files: [] as File[], previews: [] as string[] });
+  const [territoryB, setTerritoryB] = useState({ name: "", description: "", files: [] as File[], previews: [] as string[] });
 
   useEffect(() => {
     if (!currentUser) {
@@ -106,15 +106,15 @@ export function AdminTerritoriesManager({ projectId, taskId, currentUser }: { pr
       }
 
       const territoriesPayload = [
-        { id: "t1", name: territoryA.name, concept: territoryA.concept, description: territoryA.description, images: imagesA },
-        { id: "t2", name: territoryB.name, concept: territoryB.concept, description: territoryB.description, images: imagesB }
+        { id: "t1", name: territoryA.name, concept: "", description: territoryA.description, images: imagesA },
+        { id: "t2", name: territoryB.name, concept: "", description: territoryB.description, images: imagesB }
       ];
 
       await createTerritoryEvaluationAction(projectId, territoriesPayload, taskId);
       window.dispatchEvent(new CustomEvent('showToast', { detail: 'Territórios enviados com sucesso!' }));
       setIsCreating(false);
-      setTerritoryA({ name: "", concept: "", description: "", files: [], previews: [] });
-      setTerritoryB({ name: "", concept: "", description: "", files: [], previews: [] });
+      setTerritoryA({ name: "", description: "", files: [], previews: [] });
+      setTerritoryB({ name: "", description: "", files: [], previews: [] });
       fetchEvaluations();
     } catch (e) {
       console.error(e);
@@ -137,8 +137,7 @@ export function AdminTerritoriesManager({ projectId, taskId, currentUser }: { pr
     <div className="flex flex-col gap-4 p-6 bg-white rounded-2xl border border-[var(--color-atelier-grafite)]/10 shadow-sm">
       <h4 className="font-elegant text-xl text-[var(--color-atelier-terracota)]">Caminho {letter}</h4>
       <input type="text" placeholder={`Ex: Caminho ${letter}: Elegância Atemporal`} value={t.name} onChange={e => setT({...t, name: e.target.value})} className="p-3 text-sm rounded-xl border outline-none focus:border-[var(--color-atelier-terracota)]/50" />
-      <input type="text" placeholder="Conceito breve" value={t.concept} onChange={e => setT({...t, concept: e.target.value})} className="p-3 text-sm rounded-xl border outline-none focus:border-[var(--color-atelier-terracota)]/50" />
-      <textarea placeholder="Atmosfera e descrição" value={t.description} onChange={e => setT({...t, description: e.target.value})} className="p-3 text-sm rounded-xl border outline-none focus:border-[var(--color-atelier-terracota)]/50 h-24 resize-none" />
+      <textarea placeholder="Atmosfera e descrição do território" value={t.description} onChange={e => setT({...t, description: e.target.value})} className="p-3 text-sm rounded-xl border outline-none focus:border-[var(--color-atelier-terracota)]/50 h-28 resize-none" />
       
       <div className="flex flex-wrap gap-2">
         {t.previews.map((preview: string, i: number) => (
@@ -217,11 +216,29 @@ export function AdminTerritoriesManager({ projectId, taskId, currentUser }: { pr
                 </div>
 
                 {isEvaluated && chosen && (
-                  <div className="mt-4 p-4 bg-[#E2ECF3]/50 rounded-xl border border-[#E2ECF3]">
-                    <h5 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mb-2">Caminho Escolhido:</h5>
-                    <p className="font-elegant text-xl text-[var(--color-atelier-grafite)] mb-4">{chosen.name}</p>
-                    <h5 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)] mb-1">Feedback do Cliente:</h5>
-                    <p className="text-sm italic text-[var(--color-atelier-grafite)]/80">"{ev.feedback}"</p>
+                  <div className="mt-4 p-5 bg-[#E2ECF3]/50 rounded-2xl border border-[#E2ECF3] flex flex-col sm:flex-row gap-5 items-start">
+                    {chosen.images && chosen.images.length > 0 && (
+                      <div className="w-full sm:w-40 h-28 rounded-xl overflow-hidden border-2 border-white shadow-sm shrink-0 bg-white">
+                        <img 
+                          src={chosen.images[0]} 
+                          alt={chosen.name} 
+                          className="w-full h-full object-cover cursor-pointer hover:scale-105 transition-transform"
+                          onClick={() => window.open(chosen.images[0], '_blank')} 
+                        />
+                      </div>
+                    )}
+                    <div className="flex-1 flex flex-col">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                        <h5 className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-terracota)]">Caminho Escolhido</h5>
+                      </div>
+                      <p className="font-elegant text-xl font-bold text-[var(--color-atelier-grafite)] mb-2">{chosen.name}</p>
+                      {chosen.description && (
+                        <p className="text-xs text-[var(--color-atelier-grafite)]/70 mb-3 line-clamp-2">{chosen.description}</p>
+                      )}
+                      <h5 className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/60 mb-1">Feedback do Cliente:</h5>
+                      <p className="text-xs italic text-[var(--color-atelier-grafite)]/90 bg-white/70 p-3 rounded-xl border border-white">"{ev.feedback || 'Sem observações adicionais.'}"</p>
+                    </div>
                   </div>
                 )}
               </div>

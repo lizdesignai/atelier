@@ -70,10 +70,10 @@ export default function AdminDashboard() {
         fetch('/api/consultorias/list').then(res => res.json()).catch(() => ({ success: false, data: [] })),
         fetch('/api/briefings/list').then(res => res.json()).catch(() => ({ success: false, data: [] })),
         fetch('/api/forms/list').then(res => res.json()).catch(() => ({ success: false, forms: [] })),
-        supabase.from('prospect_meetings').select('*, leads(nome, instagram, telefone)').order('meeting_date', { ascending: true }),
+        (supabase.from('prospect_meetings') as any).select('*, leads(nome, instagram, telefone)').order('meeting_date', { ascending: true }),
         fetch('/api/pesquisas/list').then(res => res.json()).catch(() => ({ success: false, data: [] })),
         fetch('/api/mapa/list').then(res => res.json()).catch(() => ({ success: false, data: [] })),
-        supabase.from('profiles').select('email').eq('role', 'cliente')
+        (supabase.from('profiles') as any).select('email').eq('role', 'cliente')
       ]);
 
       if (resConsultorias?.success && resConsultorias.data) {
@@ -93,7 +93,7 @@ export default function AdminDashboard() {
       }
       if (resMeetings?.data) setMeetings(resMeetings.data);
       if (resClients?.data) {
-        const emails = new Set(resClients.data.map((c: any) => c.email?.toLowerCase().trim()).filter(Boolean));
+        const emails = new Set<string>(resClients.data.map((c: any) => c.email?.toLowerCase().trim()).filter(Boolean));
         setClientEmails(emails);
       }
     } catch (e) {
@@ -111,7 +111,7 @@ export default function AdminDashboard() {
     setIsProcessing(true);
 
     try {
-      const { error } = await supabase.from('prospect_meetings').insert({
+      const { error } = await (supabase.from('prospect_meetings') as any).insert({
         lead_id: meetingForm.leadId,
         title: meetingForm.title,
         meeting_date: new Date(meetingForm.date).toISOString(),

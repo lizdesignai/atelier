@@ -142,7 +142,7 @@ export class ClientsController {
       const sql = neon(process.env.POSTGRES_URL || '');
       const resolvedServiceType = service_type || 'Identidade Visual';
       const projectType = resolvedServiceType === 'Gestão de Instagram' ? project_package : resolvedServiceType;
-      const initialProgress = resolvedServiceType === 'Identidade Visual' ? 19 : 0;
+      const initialProgress = 0;
       const initialIdvPhase = resolvedServiceType === 'Identidade Visual' ? 'discover' : null;
 
       // Verificar se já existe projeto ativo
@@ -199,35 +199,31 @@ export class ClientsController {
       const taskCheck = await sql`SELECT count(*)::int as count FROM tasks WHERE project_id = ${targetProject.id} AND title != 'Teste Tarefa'`;
       await sql`DELETE FROM tasks WHERE project_id = ${targetProject.id} AND title = 'Teste Tarefa'`.catch(() => {});
 
-      if ((taskCheck[0]?.count || 0) === 0) {
-        let pipeline: any[] = [];
-        if (resolvedServiceType === 'Identidade Visual') {
-          pipeline = IDV_PIPELINE;
-        } else {
-          pipeline = [...IG_SETUP];
-          const v_qty = targetProject.videos_quantity || 0;
-          const p_qty = targetProject.posts_quantity || 0;
+      if ((taskCheck[0]?.count || 0) === 0 && resolvedServiceType !== 'Identidade Visual') {
+        // O início de projetos de Identidade Visual e geração de sua Trilha da Marca é estritamente manual
+        let pipeline: any[] = [...IG_SETUP];
+        const v_qty = targetProject.videos_quantity || 0;
+        const p_qty = targetProject.posts_quantity || 0;
 
-          if (p_qty > 0 || v_qty > 0) {
-            pipeline.push({ stage: "Estratégia", type: "copy", title: "Calendário Editorial de Conteúdos", daysOffset: 5, estTime: 90 });
-          }
-
-          if (v_qty > 0) {
-            pipeline.push({ stage: "Copywriting", type: "copy", title: `Roteirização de ${v_qty} Vídeos`, daysOffset: 7, estTime: 60 });
-            for (let i = 0; i < v_qty; i++) {
-              pipeline.push({ stage: "Produção de Vídeo", type: "video", title: `Edição de Vídeo ${i+1} + Capa`, daysOffset: 10 + (i * 0.5), estTime: 60 });
-            }
-          }
-
-          if (p_qty > 0) {
-            for (let i = 0; i < p_qty; i++) {
-              pipeline.push({ stage: "Produção de Arte", type: "design", title: `Design & Copy: Post ${i+1}`, daysOffset: 11 + (i * 0.5), estTime: 60 });
-            }
-          }
-
-          pipeline.push({ stage: "Aprovação", type: "setup", title: "Agendamento Sistêmico & Aprovação do Cliente", daysOffset: 15, estTime: 60 });
-          pipeline.push({ stage: "Relatório", type: "setup", title: "Geração de Relatório Mensal", daysOffset: 25, estTime: 60 });
+        if (p_qty > 0 || v_qty > 0) {
+          pipeline.push({ stage: "Estratégia", type: "copy", title: "Calendário Editorial de Conteúdos", daysOffset: 5, estTime: 90 });
         }
+
+        if (v_qty > 0) {
+          pipeline.push({ stage: "Copywriting", type: "copy", title: `Roteirização de ${v_qty} Vídeos`, daysOffset: 7, estTime: 60 });
+          for (let i = 0; i < v_qty; i++) {
+            pipeline.push({ stage: "Produção de Vídeo", type: "video", title: `Edição de Vídeo ${i+1} + Capa`, daysOffset: 10 + (i * 0.5), estTime: 60 });
+          }
+        }
+
+        if (p_qty > 0) {
+          for (let i = 0; i < p_qty; i++) {
+            pipeline.push({ stage: "Produção de Arte", type: "design", title: `Design & Copy: Post ${i+1}`, daysOffset: 11 + (i * 0.5), estTime: 60 });
+          }
+        }
+
+        pipeline.push({ stage: "Aprovação", type: "setup", title: "Agendamento Sistêmico & Aprovação do Cliente", daysOffset: 15, estTime: 60 });
+        pipeline.push({ stage: "Relatório", type: "setup", title: "Geração de Relatório Mensal", daysOffset: 25, estTime: 60 });
 
         const baseDate = billing_date ? new Date(billing_date) : new Date();
         const DEFAULT_ASSIGNEES: Record<string, string> = {
@@ -238,16 +234,9 @@ export class ClientsController {
           video: 'dbeedf1a-e3cb-4951-bba4-35b7d28d19b4'   // Emmanuel
         };
 
-        const COMPLETED_IDV = [
-          "Formulário de cadastro & Contrato",
-          "Onboarding do Cliente",
-          "Reunião de Briefing"
-        ];
-
         for (let index = 0; index < pipeline.length; index++) {
           const t = pipeline[index];
-          const isCompleted = resolvedServiceType === 'Identidade Visual' && COMPLETED_IDV.includes(t.title);
-          const isNext = resolvedServiceType === 'Identidade Visual' ? t.title === "Análise do Briefing + Brand Snapshot" : index === 0;
+          const isNext = index === 0;
           const taskDeadline = new Date(baseDate);
           taskDeadline.setDate(taskDeadline.getDate() + t.daysOffset);
           const assignee = DEFAULT_ASSIGNEES[t.type] || '55a1f766-bd50-45bd-b0bc-9af8309faa58';
@@ -258,22 +247,17 @@ export class ClientsController {
               deadline, estimated_time, estimated_minutes, is_blocked, completed_at, created_at
             ) VALUES (
               ${targetProject.id}, ${client_id}, ${t.title}, ${t.stage}, ${t.type}, ${t.type}, 
-              ${isCompleted ? 'completed' : (isNext ? 'in_progress' : 'pending')}, 
+              ${isNext ? 'in_progress' : 'pending'}, 
               ${isNext ? 1000 : (100 - index)}, 
               ${assignee}, 
               ${taskDeadline.toISOString()}, 
               ${t.estTime}, 
               ${t.estTime}, 
-              ${!isCompleted && !isNext},
-              ${isCompleted ? new Date().toISOString() : null},
+              ${!isNext},
+              null,
               NOW()
             )
           `;
-        }
-
-        if (resolvedServiceType === 'Identidade Visual') {
-          await sql`UPDATE projects SET progress = 19 WHERE id = ${targetProject.id}`;
-          targetProject.progress = 19;
         }
 
         try {

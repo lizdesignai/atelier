@@ -250,7 +250,7 @@ export default function JTBDPage() {
 
       if (isPlanning) {
         // Rota de Planejamento Mensal (PDF)
-        await supabase.from('content_planning').insert({
+        await (supabase.from('content_planning') as any).insert({
           project_id: task.project_id,
           client_id: clientId,
           hook: task.title,
@@ -260,16 +260,16 @@ export default function JTBDPage() {
           created_at: new Date().toISOString()
         });
       } else {
-        // Rota de Post / PeÃ§a GrÃ¡fica ou Tarefa GenÃ©rica
-        const { data: existingPost } = await supabase
-          .from('social_posts')
+        // Rota de Post / Peça Gráfica ou Tarefa Genérica
+        const { data: existingPost } = await (supabase
+          .from('social_posts') as any)
           .select('id')
           .eq('task_id', task.id)
           .limit(1)
           .maybeSingle();
           
         if (existingPost) {
-          await supabase.from('social_posts')
+          await (supabase.from('social_posts') as any)
             .update({ status: 'pending_approval' })
             .eq('task_id', task.id);
         }
@@ -450,7 +450,7 @@ export default function JTBDPage() {
     if (!adHocForm.title || !adHocForm.projectId || !adHocForm.assigneeId || !adHocForm.deadline) return;
     setAdHocProcessing(true);
     try {
-      const { error } = await supabase.from('tasks').insert({
+      const { error } = await (supabase.from('tasks') as any).insert({
         project_id: adHocForm.projectId,
         assigned_to: adHocForm.assigneeId,
         creator_id: currentUser.id,

@@ -37,29 +37,29 @@ export function AdminCuradoriaManager({ projectId, taskId, currentUser, onTaskUp
     try {
       // 1. Fetch directions, client moodboard and project client_id
       const [directionsRes, strategicRes, projectRes] = await Promise.all([
-        supabase
-          .from("design_directions")
+        (supabase
+          .from("design_directions") as any)
           .select("*")
           .eq("project_id", projectId)
           .order("created_at", { ascending: true }),
-        supabase
-          .from("strategic_answers")
+        (supabase
+          .from("strategic_answers") as any)
           .select("moodboard_urls")
           .eq("project_id", projectId)
           .maybeSingle(),
-        supabase
-          .from("projects")
+        (supabase
+          .from("projects") as any)
           .select("client_id")
           .eq("id", projectId)
           .maybeSingle()
       ]);
 
       if (directionsRes.data) setDirections(directionsRes.data);
-      if (strategicRes.data?.moodboard_urls) {
-        setClientMoodboard(strategicRes.data.moodboard_urls);
+      if ((strategicRes.data as any)?.moodboard_urls) {
+        setClientMoodboard((strategicRes.data as any).moodboard_urls);
       }
-      if (projectRes.data?.client_id) {
-        setProjectClientId(projectRes.data.client_id);
+      if ((projectRes.data as any)?.client_id) {
+        setProjectClientId((projectRes.data as any).client_id);
       }
     } catch (e) {
       console.error("[AdminCuradoriaManager] Erro ao carregar curadoria:", e);
@@ -125,7 +125,7 @@ export function AdminCuradoriaManager({ projectId, taskId, currentUser, onTaskUp
         feedback: ''
       };
 
-      const { data, error } = await supabase.from('design_directions').insert(payload).select().single();
+      const { data, error } = await (supabase.from('design_directions') as any).insert(payload).select().single();
       if (error) throw error;
 
       window.dispatchEvent(new CustomEvent('showToast', { detail: 'Direção visual adicionada com sucesso!' }));
@@ -146,7 +146,7 @@ export function AdminCuradoriaManager({ projectId, taskId, currentUser, onTaskUp
   const handleDeleteDirection = async (id: string) => {
     if (!window.confirm("Deseja remover esta direção de curadoria?")) return;
     try {
-      await supabase.from('design_directions').delete().eq('id', id);
+      await (supabase.from('design_directions') as any).delete().eq('id', id);
       setDirections(prev => prev.filter(d => d.id !== id));
       window.dispatchEvent(new CustomEvent('showToast', { detail: 'Direção removida.' }));
     } catch (e) {
@@ -163,15 +163,15 @@ export function AdminCuradoriaManager({ projectId, taskId, currentUser, onTaskUp
     setIsSendingToClient(true);
     try {
       // 1. Atualizar status de todas as direções para pending_client
-      await supabase
-        .from('design_directions')
+      await (supabase
+        .from('design_directions') as any)
         .update({ status: 'pending_client' })
         .eq('project_id', projectId);
 
       // 2. Se houver taskId, avança a tarefa para pending_client_approval
       if (taskId) {
-        await supabase
-          .from('tasks')
+        await (supabase
+          .from('tasks') as any)
           .update({ 
             status: 'pending_client_approval',
             updated_at: new Date().toISOString()
@@ -365,10 +365,14 @@ export function AdminCuradoriaManager({ projectId, taskId, currentUser, onTaskUp
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          {directions.map((dir, idx) => {
+          {directions.filter(Boolean).map((dir, idx) => {
             const hasScore = dir.score && dir.score > 0;
-            const hasFeedback = dir.feedback && dir.feedback.trim();
-            const imageUrls = dir.image_urls || [dir.image_url];
+            const hasFeedback = dir.feedback && (
+              typeof dir.feedback === 'string' 
+                ? dir.feedback.trim().length > 0 
+                : (typeof dir.feedback === 'object' && Object.values(dir.feedback).some((v: any) => Boolean(v && String(v).trim())))
+            );
+            const imageUrls = (dir.image_urls && dir.image_urls.length > 0) ? dir.image_urls : (dir.image_url ? [dir.image_url] : []);
 
             return (
               <div key={dir.id} className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden flex flex-col group">
@@ -408,19 +412,24 @@ export function AdminCuradoriaManager({ projectId, taskId, currentUser, onTaskUp
                       <div className="flex items-center justify-between">
                         <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-800">Avaliação do Cliente:</span>
                         {hasScore && (
-                          <div className="flex items-center gap-1 text-amber-500">
-                            {Array.from({ length: 5 }).map((_, s) => (
-                              <Star
-                                key={s}
-                                size={12}
-                                className={s < dir.score ? "fill-amber-400 text-amber-400" : "text-gray-300"}
-                              />
-                            ))}
-                          </div>
+                          <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200">
+                            Nota: {dir.score}/10
+                          </span>
                         )}
                       </div>
                       {hasFeedback && (
-                        <p className="text-xs italic text-emerald-950 mt-1">"{dir.feedback}"</p>
+                        <div className="text-xs text-emerald-950 mt-1">
+                          {typeof dir.feedback === 'string' ? (
+                            <p className="italic">"{dir.feedback}"</p>
+                          ) : (
+                            <div className="flex flex-col gap-1 text-[11px] bg-white/60 p-2.5 rounded-lg border border-emerald-200/50 mt-1">
+                              {dir.feedback.q1 && <p><strong>Geral:</strong> {dir.feedback.q1}</p>}
+                              {dir.feedback.q2 && <p><strong>Fonte:</strong> {dir.feedback.q2}</p>}
+                              {dir.feedback.q3 && <p><strong>Cores:</strong> {dir.feedback.q3}</p>}
+                              {dir.feedback.q4 && <p><strong>Elementos:</strong> {dir.feedback.q4}</p>}
+                            </div>
+                          )}
+                        </div>
                       )}
                     </div>
                   ) : (

@@ -126,7 +126,7 @@ export default function BriefingModal({ isOpen, onClose, projectId, clientId, on
 
       const finalData = { ...formData, logo_atual_url: finalLogoUrl };
 
-      const { error } = await supabase.from('client_briefings').upsert({
+      const { error } = await (supabase.from('client_briefings') as any).upsert({
         project_id: projectId,
         client_id: clientId,
         answers: finalData,

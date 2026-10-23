@@ -64,12 +64,12 @@ export function useInboxEngine() {
 
   const bootEngine = async (currentSession: any) => {
     try {
-      const { data: profile } = await supabase.from('profiles').select('*').eq('id', currentSession.user.id).single();
+      const { data: profile } = await (supabase.from('profiles') as any).select('*').eq('id', currentSession.user.id).single();
       setCurrentUser(profile);
-      setUserRole(profile?.role || 'colaborador');
+      setUserRole((profile as any)?.role || 'colaborador');
 
-      const { data: projectsData } = await supabase
-        .from('projects')
+      const { data: projectsData } = await (supabase
+        .from('projects') as any)
         .select('id, type, client_id, profiles(nome, avatar_url)')
         .eq('status', 'active')
         .order('created_at', { ascending: false });
@@ -79,8 +79,8 @@ export function useInboxEngine() {
         if (projectsData.length > 0) setActiveProjectId(projectsData[0].id);
       }
 
-      const { data: corpUsers } = await supabase
-        .from('profiles')
+      const { data: corpUsers } = await (supabase
+        .from('profiles') as any)
         .select('id, nome, avatar_url, role, current_status, last_seen')
         .in('role', ['admin', 'gestor', 'colaborador'])
         .neq('id', currentSession.user.id) 
@@ -88,8 +88,8 @@ export function useInboxEngine() {
 
       if (corpUsers) {
         // 🔒 RBAC: Filtro Psicológico/Hierárquico
-        if (profile?.role === 'colaborador') {
-          setCorporateUsers(corpUsers.filter(u => u.role === 'admin' || u.role === 'gestor'));
+        if ((profile as any)?.role === 'colaborador') {
+          setCorporateUsers(corpUsers.filter((u: any) => u.role === 'admin' || u.role === 'gestor'));
         } else {
           setCorporateUsers(corpUsers); 
         }
@@ -102,15 +102,15 @@ export function useInboxEngine() {
   };
 
   const fetchProjectChannels = useCallback(async (projectId: string) => {
-    const { data } = await supabase
-      .from('channels')
+    const { data } = await (supabase
+      .from('channels') as any)
       .select('*')
       .eq('project_id', projectId)
       .order('created_at', { ascending: true });
 
     if (data) {
       setChannels(data);
-      const activeChs = data.filter(c => !c.is_archived);
+      const activeChs = data.filter((c: any) => !c.is_archived);
       if (activeChs.length > 0) setActiveChannelId(activeChs[0].id);
       else setActiveChannelId(null);
     }
@@ -118,10 +118,10 @@ export function useInboxEngine() {
 
   const setupGlobalCorporateChannel = useCallback(async () => {
     const globalName = 'QG Central';
-    let { data } = await supabase.from('channels').select('*').eq('type', 'corporate_global').single();
+    let { data } = await (supabase.from('channels') as any).select('*').eq('type', 'corporate_global').single();
     
     if (!data) {
-      const { data: newCh } = await supabase.from('channels').insert({
+      const { data: newCh } = await (supabase.from('channels') as any).insert({
         name: globalName,
         type: 'corporate_global',
         is_private: true
@@ -139,10 +139,10 @@ export function useInboxEngine() {
     const participants = [currentUser.id, targetUserId].sort();
     const dmHash = `dm_${participants[0]}_${participants[1]}`;
 
-    let { data } = await supabase.from('channels').select('*').eq('name', dmHash).single();
+    let { data } = await (supabase.from('channels') as any).select('*').eq('name', dmHash).single();
 
     if (!data) {
-      const { data: newCh } = await supabase.from('channels').insert({
+      const { data: newCh } = await (supabase.from('channels') as any).insert({
         name: dmHash,
         type: 'dm',
         is_private: true
@@ -179,15 +179,15 @@ export function useInboxEngine() {
     }
 
     try {
-      let { data, error } = await supabase
-        .from('messages')
+      let { data, error } = await (supabase
+        .from('messages') as any)
         .select('*, profiles(id, nome, avatar_url, role), parent:messages!parent_id(id, text_content, sender_id)')
         .eq('channel_id', activeChannelId)
         .order('created_at', { ascending: true });
 
       if (error) {
-        const fallbackRes = await supabase
-          .from('messages')
+        const fallbackRes = await (supabase
+          .from('messages') as any)
           .select('*')
           .eq('channel_id', activeChannelId)
           .order('created_at', { ascending: true });
@@ -266,7 +266,7 @@ export function useInboxEngine() {
     setMessages(prev => [...prev, optimisticMessage]);
     scrollToBottom();
 
-    const { error } = await supabase.from('messages').insert({
+    const { error } = await (supabase.from('messages') as any).insert({
       channel_id: activeChannelId,
       sender_id: currentUser.id,
       text_content: text.trim() ? text : null,

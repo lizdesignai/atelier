@@ -92,7 +92,7 @@ export default function InstagramBriefingModal({ isOpen, onClose, projectId, cli
       // 🟢 CORREÇÃO CRÍTICA: Adicionámos o "status: 'submitted'" ao payload.
       // Isto garante que, se o briefing estava como 'returned', ele sai desse estado
       // e volta a ser reconhecido pelo Cockpit e pelo Gestor.
-      const { error } = await supabase.from('instagram_briefings').upsert({
+      const { error } = await (supabase.from('instagram_briefings') as any).upsert({
         project_id: projectId,
         client_id: clientId,
         answers: formData,

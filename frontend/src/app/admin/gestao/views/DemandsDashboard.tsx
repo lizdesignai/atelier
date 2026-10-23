@@ -81,33 +81,33 @@ export default function DemandsDashboard({ currentUser, activeTab = 'demands', s
       const monthStart = startOfMonth(now).toISOString();
       const monthEnd = endOfMonth(now).toISOString();
 
-      const { data: teamData } = await supabase.from('profiles').select('id, nome, avatar_url').in('role', ['colaborador', 'gestor', 'admin']);
+      const { data: teamData } = await (supabase.from('profiles') as any).select('id, nome, avatar_url').in('role', ['colaborador', 'gestor', 'admin']);
       if (teamData) setTeam(teamData);
 
       const [resProjects, resAgencies, resSubs] = await Promise.all([
-        supabase.from('projects').select('id, profiles(nome)').eq('status', 'active'),
-        supabase.from('agencies').select('id, name').eq('status', 'active'),
-        supabase.from('agency_subclients').select('id, name, agency_id')
+        (supabase.from('projects') as any).select('id, profiles(nome)').eq('status', 'active'),
+        (supabase.from('agencies') as any).select('id, name').eq('status', 'active'),
+        (supabase.from('agency_subclients') as any).select('id, name, agency_id')
       ]);
 
       const unifiedSources: any[] = [];
       if (resProjects.data) {
-        resProjects.data.forEach(p => {
+        (resProjects.data as any[]).forEach((p: any) => {
           const profile = extractNode(p.profiles);
           unifiedSources.push({ id: p.id, type: 'project', name: profile?.nome || 'Projeto Desconhecido', label: 'Studio Veronna' });
         });
       }
       if (resAgencies.data) {
-        resAgencies.data.forEach(a => unifiedSources.push({ id: a.id, type: 'agency', name: a.name, label: 'Agência WL' }));
+        (resAgencies.data as any[]).forEach((a: any) => unifiedSources.push({ id: a.id, type: 'agency', name: a.name, label: 'Agência WL' }));
       }
       if (resSubs.data) {
-        resSubs.data.forEach(s => unifiedSources.push({ id: s.id, type: 'subclient', name: s.name, label: 'Subcliente WL' }));
+        (resSubs.data as any[]).forEach((s: any) => unifiedSources.push({ id: s.id, type: 'subclient', name: s.name, label: 'Subcliente WL' }));
       }
       
       setSources(unifiedSources.sort((a, b) => a.name.localeCompare(b.name)));
 
-      const { data: tasksData } = await supabase
-        .from('tasks')
+      const { data: tasksData } = await (supabase
+        .from('tasks') as any)
         .select('*')
         .or(`created_at.gte.${monthStart},deadline.gte.${monthStart},completed_at.gte.${monthStart},status.in.(pending,review,needs_revision)`)
         .order('created_at', { ascending: false });

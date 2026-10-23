@@ -83,9 +83,9 @@ export default function DailyJamDropdown({ userProfile, onClose }: { userProfile
   }, []);
 
   const fetchJamMembers = async () => {
-    const { data } = await supabase.from('profiles').select('*').order('nome');
+    const { data } = await (supabase.from('profiles') as any).select('*').order('nome');
     if (data) {
-      const activeMembers = data.filter(p => p.current_mood || p.current_song_id);
+      const activeMembers = data.filter((p: any) => p.current_mood || p.current_song_id);
       setJamMembers(activeMembers);
     }
     setIsLoading(false);
@@ -96,7 +96,7 @@ export default function DailyJamDropdown({ userProfile, onClose }: { userProfile
     const spotifyId = extractSpotifyId(songUrl);
     
     try {
-      const { error } = await supabase.from('profiles').update({
+      const { error } = await (supabase.from('profiles') as any).update({
         current_mood: selectedMood || null,
         current_song_id: spotifyId || extractSpotifyId(songUrl) || null // fallback para URL caso o spotifyId state seja null
       }).eq('id', userProfile.id);
@@ -118,7 +118,7 @@ export default function DailyJamDropdown({ userProfile, onClose }: { userProfile
   const handleClear = async () => {
     setIsSaving(true);
     try {
-      const { error } = await supabase.from('profiles').update({
+      const { error } = await (supabase.from('profiles') as any).update({
         current_mood: null,
         current_song_id: null
       }).eq('id', userProfile.id);

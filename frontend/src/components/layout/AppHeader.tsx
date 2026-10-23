@@ -87,8 +87,8 @@ export default function AppHeader({ handleLogout, userRole }: AppHeaderProps) {
   }, [profile?.id]);
 
   const fetchNotifications = async (userId: string) => {
-    const { data } = await supabase
-      .from('notifications')
+    const { data } = await (supabase
+      .from('notifications') as any)
       .select('*')
       .eq('user_id', userId)
       .order('created_at', { ascending: false })
@@ -96,7 +96,7 @@ export default function AppHeader({ handleLogout, userRole }: AppHeaderProps) {
 
     if (data) {
       setNotifications(data);
-      setUnreadCount(data.filter(n => !n.is_read).length);
+      setUnreadCount(data.filter((n: any) => !n.is_read).length);
     }
   };
 
@@ -120,14 +120,14 @@ export default function AppHeader({ handleLogout, userRole }: AppHeaderProps) {
     setNotifications(prev => prev.map(n => n.id === notificationId ? { ...n, is_read: true } : n));
     setUnreadCount(prev => Math.max(0, prev - 1));
 
-    await supabase.from('notifications').update({ is_read: true }).eq('id', notificationId);
+    await (supabase.from('notifications') as any).update({ is_read: true }).eq('id', notificationId);
   };
 
   const markAllAsRead = async () => {
     if (!userProfile) return;
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })));
     setUnreadCount(0);
-    await supabase.from('notifications').update({ is_read: true }).eq('user_id', userProfile.id).eq('is_read', false);
+    await (supabase.from('notifications') as any).update({ is_read: true }).eq('user_id', userProfile.id).eq('is_read', false);
   };
 
   const handleNotificationClick = (notification: any) => {

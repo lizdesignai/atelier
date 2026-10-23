@@ -72,7 +72,7 @@ export default function VisualFlow({ activeProjectId, activeSubclientId, current
     try {
       if (!activeProjectId) return;
 
-      let postQuery = supabase.from('social_posts').select('*').order('created_at', { ascending: false });
+      let postQuery = (supabase.from('social_posts') as any).select('*').order('created_at', { ascending: false });
       if (activeSubclientId) postQuery = postQuery.eq('subclient_id', activeSubclientId);
       else postQuery = postQuery.eq('project_id', activeProjectId).is('subclient_id', null);
       
@@ -81,23 +81,23 @@ export default function VisualFlow({ activeProjectId, activeSubclientId, current
       if (postsError) throw postsError;
       if (postsData) setPosts(postsData);
 
-      const postIds = postsData?.map(p => p.id) || [];
+      const postIds = (postsData as any[])?.map((p: any) => p.id) || [];
       if (postIds.length > 0) {
-        const { data: pinsData } = await supabase
-          .from('content_feedback_pins')
+        const { data: pinsData } = await (supabase
+          .from('content_feedback_pins') as any)
           .select('*')
           .in('post_id', postIds);
         if (pinsData) setPins(pinsData);
       }
 
-      let taskQuery = supabase.from('tasks').select('*').in('status', ['pending', 'in_progress']).order('deadline', { ascending: true });
+      let taskQuery = (supabase.from('tasks') as any).select('*').in('status', ['pending', 'in_progress']).order('deadline', { ascending: true });
       if (activeSubclientId) taskQuery = taskQuery.eq('subclient_id', activeSubclientId);
       else taskQuery = taskQuery.eq('project_id', activeProjectId).is('subclient_id', null);
       
       const { data: tasksData } = await taskQuery;
       
       if (tasksData) {
-         const designTasks = tasksData.filter(t => 
+         const designTasks = (tasksData as any[]).filter((t: any) => 
            t.task_type === 'design' || 
            t.title.toLowerCase().includes('post') || 
            t.title.toLowerCase().includes('arte') || 
@@ -123,8 +123,8 @@ export default function VisualFlow({ activeProjectId, activeSubclientId, current
       return false;
     }
     try {
-      const { error } = await supabase
-        .from('projects')
+      const { error } = await (supabase
+        .from('projects') as any)
         .update({ figma_url: tempFigmaUrl })
         .eq('id', activeProjectId);
 
@@ -181,7 +181,7 @@ export default function VisualFlow({ activeProjectId, activeSubclientId, current
       const { data: publicUrlData } = supabase.storage.from('community_images').getPublicUrl(filePath);
 
       // 2. Cria o registro em social_posts com status de Revisão Interna
-      const { data: insertedPost, error: dbError } = await supabase.from('social_posts').insert({
+      const { data: insertedPost, error: dbError } = await (supabase.from('social_posts') as any).insert({
         project_id: activeProjectId,
         subclient_id: activeSubclientId || null,
         client_id: currentProject.client_id,
@@ -195,7 +195,7 @@ export default function VisualFlow({ activeProjectId, activeSubclientId, current
       if (dbError) throw dbError;
 
       // 3. Mágica do Kanban: Atualiza a Tarefa para "Em Revisão" e injeta a imagem nela
-      await supabase.from('tasks').update({ 
+      await (supabase.from('tasks') as any).update({ 
         status: 'review',
         attachment_url: publicUrlData.publicUrl // 🟢 O Kanban recebe a imagem aqui
       }).eq('id', selectedTaskId);
@@ -231,7 +231,7 @@ export default function VisualFlow({ activeProjectId, activeSubclientId, current
   const handleDeletePost = async (id: string) => {
     if (!window.confirm("Tem certeza que deseja excluir esta arte do fluxo?")) return;
     try {
-      await supabase.from('social_posts').delete().eq('id', id);
+      await (supabase.from('social_posts') as any).delete().eq('id', id);
       setPosts(posts.filter(p => p.id !== id));
       showToast("Arte excluída com sucesso.");
     } catch (error) {

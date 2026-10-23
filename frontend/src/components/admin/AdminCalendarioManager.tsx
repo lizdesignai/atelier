@@ -33,23 +33,23 @@ export function AdminCalendarioManager({ projectId, taskId, currentUser, onTaskU
     setIsLoading(true);
     try {
       const [plansRes, projectRes, taskRes] = await Promise.all([
-        supabase
-          .from("content_planning")
+        (supabase
+          .from("content_planning") as any)
           .select("*")
           .eq("project_id", projectId)
           .order("created_at", { ascending: false }),
-        supabase
-          .from("projects")
+        (supabase
+          .from("projects") as any)
           .select("client_id")
           .eq("id", projectId)
           .maybeSingle(),
         taskId
-          ? supabase.from("tasks").select("*").eq("id", taskId).maybeSingle()
+          ? (supabase.from("tasks") as any).select("*").eq("id", taskId).maybeSingle()
           : Promise.resolve({ data: null })
       ]);
 
       if (plansRes.data) setPlans(plansRes.data);
-      if (projectRes.data?.client_id) setProjectClientId(projectRes.data.client_id);
+      if ((projectRes.data as any)?.client_id) setProjectClientId((projectRes.data as any).client_id);
       if (taskRes.data) setTaskData(taskRes.data);
     } catch (e) {
       console.error("[AdminCalendarioManager] Erro ao carregar calendário:", e);
@@ -88,12 +88,12 @@ export function AdminCalendarioManager({ projectId, taskId, currentUser, onTaskU
         media_assets: [{ url: publicUrl, type: ext === 'pdf' ? 'pdf' : 'image', name: selectedFile.name }]
       };
 
-      await supabase.from('content_planning').insert(payload);
+      await (supabase.from('content_planning') as any).insert(payload);
 
       // Also attach to task if taskId exists
       if (taskId && taskData) {
         const existingAssets = taskData.media_assets || [];
-        await supabase.from('tasks').update({
+        await (supabase.from('tasks') as any).update({
           media_assets: [...existingAssets, { url: publicUrl, type: ext === 'pdf' ? 'pdf' : 'image', name: selectedFile.name }]
         }).eq('id', taskId);
       }
@@ -116,15 +116,15 @@ export function AdminCalendarioManager({ projectId, taskId, currentUser, onTaskU
     setIsSendingToClient(true);
     try {
       // 1. Atualizar content_planning para awaiting_approval
-      await supabase
-        .from('content_planning')
+      await (supabase
+        .from('content_planning') as any)
         .update({ status: 'awaiting_approval' })
         .eq('project_id', projectId);
 
       // 2. Atualizar status da tarefa para pending_client_approval
       if (taskId) {
-        await supabase
-          .from('tasks')
+        await (supabase
+          .from('tasks') as any)
           .update({ 
             status: 'pending_client_approval',
             updated_at: new Date().toISOString()

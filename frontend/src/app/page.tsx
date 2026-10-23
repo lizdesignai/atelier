@@ -236,8 +236,15 @@ export default function Home() {
           try {
             const { getTerritoryEvaluationAction } = await import('./actions/territory');
             const evalData = await getTerritoryEvaluationAction(proj.id);
-            const isReady = !!(evalData && evalData.status === 'pending' && Array.isArray(evalData.territories) && evalData.territories.length > 0);
-            setHasTerritoriesReady(isReady);
+            const isTerritoryReady = !!(evalData && evalData.status === 'pending' && Array.isArray(evalData.territories) && evalData.territories.length > 0);
+
+            const { data: dirs } = await (supabase
+              .from('design_directions') as any)
+              .select('id, score, status')
+              .eq('project_id', proj.id);
+            const hasPendingDirs = Array.isArray(dirs) && dirs.length > 0 && dirs.some((d: any) => (!d.score || d.score === 0));
+
+            setHasTerritoriesReady(isTerritoryReady || hasPendingDirs);
           } catch {
             setHasTerritoriesReady(false);
           }
@@ -410,9 +417,9 @@ export default function Home() {
     || (['present', 'client_review'].includes(currentPhaseNormalized));
   
   const clientActionInfo = (currentPhaseNormalized === 'define' && hasTerritoriesReady) ? {
-    badge: "Fase 02 • Decisão de Território",
-    title: "Avaliação do Território Visual",
-    description: "Os territórios conceituais foram enviados pela equipe. Escolha a direção estética oficial da sua marca.",
+    badge: "Fase 02 • Direcionar",
+    title: "Curadoria Visual & Territórios",
+    description: "A equipe do Studio Veronna enviou os materiais da Fase 02. Analise a curadoria e compartilhe suas avaliações.",
     buttonLabel: "Abrir Curadoria Visual",
     action: () => setIsDirecionarModalOpen(true),
     icon: Compass

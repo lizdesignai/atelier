@@ -97,7 +97,7 @@ export default function FinanceiroPage() {
         { data: outflowsData },
         { data: agenciesData },
         { data: closingsData }
-      ] = await Promise.all([
+      ]: any = await Promise.all([
         supabase.from('tasks').select('project_id, estimated_time, actual_time'),
         supabase.from('profiles').select('id, nome, avatar_url, role, team_performance(exp_points, level_name, total_tasks_completed, avg_tnps, on_time_rate)').in('role', ['admin', 'gestor', 'colaborador']),
         supabase.from('t_nps_scores').select(`id, score, feedback, profiles!t_nps_scores_client_id_fkey(nome), assignee:profiles!t_nps_scores_assignee_id_fkey(nome)`).order('created_at', { ascending: false }).limit(10),
@@ -132,7 +132,7 @@ export default function FinanceiroPage() {
 
       // 1. BLINDAGEM: PROCESSAR AGÊNCIAS B2B PRIMEIRO
       if (agenciesData) {
-        agenciesData.forEach(agency => {
+        agenciesData.forEach((agency: any) => {
           const val = agency.financial_value || 0;
           if (val > 0) {
             mrrCalc += val; totalCalc += val; paidCalc += val;
@@ -338,7 +338,7 @@ export default function FinanceiroPage() {
     setIsProcessing(true);
     try {
       // Vai buscar o client_id através do id do projeto
-      const { data: proj } = await supabase.from('projects').select('client_id').eq('id', projectId).single();
+      const { data: proj }: any = await supabase.from('projects').select('client_id').eq('id', projectId).single();
       
       if (proj && proj.client_id) {
         // 🔔 NOTIFICAÇÃO: Aviso de Cobrança ao Cliente
@@ -369,11 +369,11 @@ export default function FinanceiroPage() {
          nextMonth.setMonth(nextMonth.getMonth() + 1);
          const targetTable = targetItem.entityType === 'agency' ? 'agencies' : 'projects';
          
-         await supabase.from(targetTable).update({ billing_date: nextMonth.toISOString() }).eq('id', projectId);
+         await (supabase.from(targetTable as any) as any).update({ billing_date: nextMonth.toISOString() }).eq('id', projectId);
          
          // 🔔 NOTIFICAÇÕES: Recibo ao Cliente e Aviso de Caixa à Liderança
          if (targetItem.entityType === 'project') {
-           const { data: proj } = await supabase.from('projects').select('client_id').eq('id', projectId).single();
+           const { data: proj }: any = await supabase.from('projects').select('client_id').eq('id', projectId).single();
            if (proj && proj.client_id) {
              await NotificationEngine.notifyUser(
                proj.client_id,
@@ -404,7 +404,7 @@ export default function FinanceiroPage() {
     e.preventDefault();
     setIsProcessing(true);
     try {
-      await supabase.from('financial_outflows').insert({
+      await (supabase.from('financial_outflows') as any).insert({
         title: outflowForm.title, category: outflowForm.category, amount: parseFloat(outflowForm.amount), due_date: outflowForm.due_date, status: 'pending'
       });
       showToast("Despesa adicionada ao fluxo de caixa.");
@@ -417,7 +417,7 @@ export default function FinanceiroPage() {
 
   const handlePayOutflow = async (id: string) => {
     try {
-      await supabase.from('financial_outflows').update({ status: 'paid' }).eq('id', id);
+      await (supabase.from('financial_outflows') as any).update({ status: 'paid' }).eq('id', id);
       showToast("Despesa marcada como paga.");
       fetchFinancialData();
     } catch (e) { showToast("Erro ao pagar despesa."); }
@@ -428,7 +428,7 @@ export default function FinanceiroPage() {
     setIsProcessing(true);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const { error } = await supabase.from('financial_closings').insert({
+      const { error } = await (supabase.from('financial_closings') as any).insert({
         closing_month: closingMonth, total_revenue: metrics.paid, total_expenses: cfoMetrics.totalOutflows,
         ebitda: cfoMetrics.ebitda.ebitdaReal, net_profit_margin: cfoMetrics.ebitda.ebitdaMargin, closed_by: session?.user?.id || null
       });
@@ -706,11 +706,11 @@ export default function FinanceiroPage() {
                        updates.instagram_package = editPackage;
                     }
                     
-                    await supabase.from(targetTable).update(updates).eq('id', projectToEdit.id);
+                    await (supabase.from(targetTable as any) as any).update(updates).eq('id', projectToEdit.id);
                     
-                    // 🔔 NOTIFICAÇÃO: Cliente
+                    // 🔔 NOTIFICAÇÕES: Cliente
                     if (targetTable === 'projects') {
-                      const { data: proj } = await supabase.from('projects').select('client_id').eq('id', projectToEdit.id).single();
+                      const { data: proj }: any = await supabase.from('projects').select('client_id').eq('id', projectToEdit.id).single();
                       if (proj && proj.client_id) {
                         await NotificationEngine.notifyUser(
                           proj.client_id,

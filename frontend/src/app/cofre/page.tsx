@@ -44,8 +44,8 @@ export default function CofrePage() {
       setClientId(session.user.id);
 
       // 1. Busca TODOS os projetos ativos do cliente
-      const { data: projects } = await supabase
-        .from('projects')
+      const { data: projects } = await (supabase
+        .from('projects') as any)
         .select('id, name, type, data_limite, profiles(nome)')
         .eq('client_id', session.user.id)
         .in('status', ['active', 'delivered'])
@@ -58,7 +58,7 @@ export default function CofrePage() {
         setActiveProject(projects[0]);
 
         // 3. Define o nome do Cliente (apenas 1 vez)
-        const perfil: any = Array.isArray(projects[0].profiles) ? projects[0].profiles[0] : projects[0].profiles;
+        const perfil: any = Array.isArray((projects[0] as any).profiles) ? (projects[0] as any).profiles[0] : (projects[0] as any).profiles;
         if (perfil?.nome) {
           setClientName(perfil.nome.split(' ')[0]);
         }
@@ -76,8 +76,8 @@ export default function CofrePage() {
     if (!activeProject) return;
 
     const fetchAssets = async () => {
-      const { data } = await supabase
-        .from('project_assets')
+      const { data } = await (supabase
+        .from('project_assets') as any)
         .select('*')
         .eq('project_id', activeProject.id)
         .order('created_at', { ascending: false });
@@ -119,7 +119,7 @@ export default function CofrePage() {
     if (npsScore === null || !activeProject || !clientId) return;
     setIsProcessingNps(true);
     try {
-      await supabase.from('t_nps_scores').insert({
+      await (supabase.from('t_nps_scores') as any).insert({
         project_id: activeProject.id,
         client_id: clientId,
         score: npsScore,

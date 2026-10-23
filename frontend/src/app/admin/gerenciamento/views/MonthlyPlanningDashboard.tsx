@@ -53,8 +53,8 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
     
     try {
       // 🟢 OTIMIZAÇÃO: Busca tanto o rascunho quanto o que já foi enviado ao cliente
-      const { data: planData, error } = await supabase
-        .from('content_planning')
+      const { data: planData, error } = await (supabase
+        .from('content_planning') as any)
         .select('*')
         .eq('project_id', activeProjectId)
         .in('status', ['pending', 'awaiting_approval']) 
@@ -133,9 +133,9 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
       };
 
       if (planId) {
-        await supabase.from('content_planning').update(payload).eq('id', planId);
+        await (supabase.from('content_planning') as any).update(payload).eq('id', planId);
       } else {
-        const { data, error } = await supabase.from('content_planning').insert(payload).select().single();
+        const { data, error } = await (supabase.from('content_planning') as any).insert(payload).select().single();
         if (error) throw error;
         if (data) setPlanId(data.id);
       }
@@ -213,10 +213,10 @@ export default function MonthlyPlanningDashboard({ activeProjectId, currentProje
 
       // 1. Garante que o documento existe no banco e captura o ID final
       if (planId) {
-        const { error } = await supabase.from('content_planning').update(payload).eq('id', planId);
+        const { error } = await (supabase.from('content_planning') as any).update(payload).eq('id', planId);
         if (error) throw error;
       } else {
-        const { data, error } = await supabase.from('content_planning').insert(payload).select().single();
+        const { data, error } = await (supabase.from('content_planning') as any).insert(payload).select().single();
         if (error) throw error;
         finalPlanId = data.id;
         setPlanId(data.id);

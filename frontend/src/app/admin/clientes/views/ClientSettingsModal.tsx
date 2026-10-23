@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   X, User, Mail, Phone, Instagram, Briefcase, 
   Target, Compass, Activity, Save, Loader2, LineChart, 
-  BrainCircuit, CheckCircle2, DollarSign, Activity,
+  BrainCircuit, CheckCircle2, DollarSign,
   Clock, CheckSquare, UploadCloud, FileText, Camera, FolderOpen, Link, Trello, FileUp, Search
 } from "lucide-react";
 import { supabase } from "@/lib/supabase";
@@ -62,7 +62,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
       setIsLoading(true);
       try {
         // 🟢 LEITURA PROFUNDA DIRETA NO BANCO (Corrige o problema de dados não carregarem)
-        const [ { data: dbProfile }, { data: projects } ] = await Promise.all([
+        const [ { data: dbProfile }, { data: projects } ]: any = await Promise.all([
           supabase.from('profiles').select('*').eq('id', clientId).single(),
           supabase.from('projects').select('*').eq('client_id', clientId)
         ]);
@@ -112,7 +112,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
         // Extração de Métricas e Dados Operacionais do Projeto
         let ltv = 0; let mrr = 0; let activeProj = 0; let latestProjectId = null;
         
-        projects?.forEach(p => {
+        projects?.forEach((p: any) => {
           if (p.status === 'active' || p.status === 'delivered') { activeProj++; latestProjectId = p.id; }
           if (p.payment_recurrence === 'Mensal' && p.status === 'active') mrr += Number(p.financial_value || 0);
           else ltv += Number(p.financial_value || 0); 
@@ -120,7 +120,7 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
 
         if (latestProjectId) setActiveProjectId(latestProjectId);
         
-        const activeProjData = projects?.find(p => p.id === latestProjectId);
+        const activeProjData = (projects as any[])?.find((p: any) => p.id === latestProjectId);
         if (activeProjData) {
           // 🟢 Carrega a URL do Trello e do Contrato diretamente do projeto
           setFormData(prev => ({ 
@@ -132,14 +132,14 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
         }
 
         // Busca Tarefas e Cofre
-        const [ { data: tasks }, { data: briefings }, { data: assets } ] = await Promise.all([
+        const [ { data: tasks }, { data: briefings }, { data: assets } ]: any = await Promise.all([
           supabase.from('tasks').select('status, estimated_time').eq('client_id', clientId),
           supabase.from('instagram_briefings').select('status').eq('client_id', clientId).order('created_at', { ascending: false }).limit(1),
           supabase.from('project_assets').select('id').eq('project_id', latestProjectId || clientId) 
         ]);
 
         let tTasks = 0; let cTasks = 0; let hWorked = 0;
-        tasks?.forEach(t => {
+        (tasks as any[])?.forEach((t: any) => {
           tTasks++;
           if (t.status === 'completed' || t.status === 'approved') { cTasks++; hWorked += Number(t.estimated_time || 0); }
         });
@@ -180,11 +180,11 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
       
       if (isAvatar) {
         setFormData(prev => ({ ...prev, avatar_url: publicUrl }));
-        await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', clientId);
+        await (supabase.from('profiles') as any).update({ avatar_url: publicUrl }).eq('id', clientId);
       } else {
         setFormData(prev => ({ ...prev, contract_url: publicUrl }));
         if (activeProjectId) {
-          await supabase.from('projects').update({ contract_url: publicUrl }).eq('id', activeProjectId);
+          await (supabase.from('projects') as any).update({ contract_url: publicUrl }).eq('id', activeProjectId);
         }
       }
       showToast(`${isAvatar ? 'Fotografia' : 'Contrato'} atualizado(a)!`);
@@ -211,8 +211,8 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
       const formattedInstagram = cleanUsername ? `@${cleanUsername}` : '';
 
       // Grava Perfil Básico
-      const { data: updatedProfile, error: profileError } = await supabase
-        .from('profiles')
+      const { data: updatedProfile, error: profileError } = await (supabase
+        .from('profiles') as any)
         .update({
           nome: formData.nome, 
           email: formData.email ? formData.email.trim().toLowerCase() : undefined,
@@ -246,8 +246,8 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
 
       // Gravação do Trello no Projeto Ativo
       if (activeProjectId) {
-        const { error: projError } = await supabase
-          .from('projects')
+        const { error: projError } = await (supabase
+          .from('projects') as any)
           .update({ 
             trello_url: formData.trello_url,
             trello_sync_list_ids: formData.trello_sync_list_ids
@@ -278,8 +278,8 @@ export default function ClientSettingsModal({ isOpen, onClose, clientProfile }: 
             market_positioning: consultingData.market_positioning
           };
 
-          const { data, error: leadErr } = await supabase
-            .from('leads')
+          const { data, error: leadErr } = await (supabase
+            .from('leads') as any)
             .upsert(leadPayload, { onConflict: 'email' }) 
             .select()
             .single();

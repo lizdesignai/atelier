@@ -46,32 +46,32 @@ export default function EconomicsDashboard({ currentUser, activeTab = 'economics
       const allProjects = overviewRes?.data?.enrichedProjects || [];
 
       // 2. Buscar Tempo Logado (Total histórico do ciclo atual)
-      const { data: sessions } = await supabase
-        .from('work_sessions')
+      const { data: sessions } = await (supabase
+        .from('work_sessions') as any)
         .select('duration_minutes, task_id, tasks(project_id, agency_id, subclient_id)')
         .gte('start_time', monthStart);
 
       // 2.5 Buscar Subclientes para mapear para as Agências
-      const { data: subclients } = await supabase
-        .from('agency_subclients')
+      const { data: subclients } = await (supabase
+        .from('agency_subclients') as any)
         .select('id, agency_id');
       
       const subclientAgencyMap: Record<string, string> = {};
       if (subclients) {
-        subclients.forEach(sub => {
+        (subclients as any[]).forEach((sub: any) => {
           if (sub.agency_id) subclientAgencyMap[sub.id] = sub.agency_id;
         });
       }
 
       // 3. Buscar T-NPS (Última nota de cada cliente)
-      const { data: npsScores } = await supabase
-        .from('t_nps_scores')
+      const { data: npsScores } = await (supabase
+        .from('t_nps_scores') as any)
         .select('project_id, score')
         .order('created_at', { ascending: false });
 
       // 4. Buscar Última Entrega (Para detecção de Churn)
-      const { data: lastTasks } = await supabase
-        .from('tasks')
+      const { data: lastTasks } = await (supabase
+        .from('tasks') as any)
         .select('project_id, agency_id, subclient_id, completed_at')
         .eq('status', 'completed')
         .order('completed_at', { ascending: false });

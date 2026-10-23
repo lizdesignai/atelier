@@ -90,8 +90,8 @@ export default function PulseDashboard({ currentUser, activeTab = 'pulse', setAc
       
       const [overviewRes, resSubs, resMonthSessions] = await Promise.all([
         fetch('/api/clients/overview').then(res => res.json()),
-        supabase.from('agency_subclients').select('id, name, agency_id'),
-        supabase.from('work_sessions').select('duration_minutes, task_id, tasks(project_id, agency_id, subclient_id)').gte('start_time', monthStart)
+        (supabase.from('agency_subclients') as any).select('id, name, agency_id'),
+        (supabase.from('work_sessions') as any).select('duration_minutes, task_id, tasks(project_id, agency_id, subclient_id)').gte('start_time', monthStart)
       ]);
 
       const unifiedSources: any[] = [];
@@ -107,14 +107,14 @@ export default function PulseDashboard({ currentUser, activeTab = 'pulse', setAc
       }
 
       if (resSubs.data) {
-        resSubs.data.forEach(s => unifiedSources.push({ id: s.id, type: 'subclient', name: s.name, label: 'Subcliente WL', fee: 0, agency_id: s.agency_id }));
+        (resSubs.data as any[]).forEach((s: any) => unifiedSources.push({ id: s.id, type: 'subclient', name: s.name, label: 'Subcliente WL', fee: 0, agency_id: s.agency_id }));
       }
       setSources(unifiedSources.sort((a, b) => a.name.localeCompare(b.name)));
 
       if (resMonthSessions.data) setMonthSessions(resMonthSessions.data);
 
-      const { data: tasksData } = await supabase
-        .from('tasks')
+      const { data: tasksData } = await (supabase
+        .from('tasks') as any)
         .select('*')
         .or(`created_at.gte.${monthStart},deadline.gte.${monthStart},completed_at.gte.${monthStart},status.in.(pending,review,needs_revision)`)
         .order('deadline', { ascending: true }); // Ordenado por prazo apertado

@@ -476,56 +476,56 @@ export function BrandDNACuradoria({ projectId, clientProfile }: { projectId: str
 
                       {/* Pergunta 1 */}
                       <div className="flex flex-col gap-3 group">
-                        <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2 group-focus-within:text-[var(--color-atelier-terracota)] transition-colors pl-1">
-                          <Target size={14} /> 1. Atmosfera e Percepção Geral
+                        <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/80 flex items-center gap-2 group-focus-within:text-[var(--color-atelier-terracota)] transition-colors pl-1">
+                          <Target size={14} /> 1. No geral, o que achou desse projeto?
                         </label>
                         <textarea 
                           value={currentRef?.feedback?.q1 || ""} onChange={(e) => handleFeedbackChange("q1", e.target.value)}
-                          placeholder="Qual é a sua percepção geral sobre a atmosfera desta direção?"
+                          placeholder="Compartilhe o que achou do projeto no geral..."
                           className="w-full bg-white border border-transparent hover:border-[var(--color-atelier-terracota)]/20 focus:border-[var(--color-atelier-terracota)]/50 rounded-[1.2rem] p-5 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none resize-none h-24 transition-all shadow-sm focus:shadow-md custom-scrollbar"
                         ></textarea>
                       </div>
 
                       {/* Pergunta 2 */}
                       <div className="flex flex-col gap-3 group">
-                        <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2 group-focus-within:text-[var(--color-atelier-terracota)] transition-colors pl-1">
-                          <Type size={14} /> 2. Escolha Tipográfica
+                        <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/80 flex items-center gap-2 group-focus-within:text-[var(--color-atelier-terracota)] transition-colors pl-1">
+                          <Type size={14} /> 2. O que acha da fonte usada?
                         </label>
                         <textarea 
                           value={currentRef?.feedback?.q2 || ""} onChange={(e) => handleFeedbackChange("q2", e.target.value)}
-                          placeholder="Como avalia as fontes em termos de sofisticação e clareza?"
+                          placeholder="Compartilhe o que achou da fonte usada..."
                           className="w-full bg-white border border-transparent hover:border-[var(--color-atelier-terracota)]/20 focus:border-[var(--color-atelier-terracota)]/50 rounded-[1.2rem] p-5 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none resize-none h-24 transition-all shadow-sm focus:shadow-md custom-scrollbar"
                         ></textarea>
                       </div>
 
                       {/* Pergunta 3 */}
                       <div className="flex flex-col gap-3 group">
-                        <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2 group-focus-within:text-[var(--color-atelier-terracota)] transition-colors pl-1">
-                          <Palette size={14} /> 3. Paleta Cromática
+                        <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/80 flex items-center gap-2 group-focus-within:text-[var(--color-atelier-terracota)] transition-colors pl-1">
+                          <Palette size={14} /> 3. O que acha da paleta de cor?
                         </label>
                         <textarea 
                           value={currentRef?.feedback?.q3 || ""} onChange={(e) => handleFeedbackChange("q3", e.target.value)}
-                          placeholder="A paleta de cores desperta a sensação correta para o seu mercado?"
+                          placeholder="Compartilhe o que achou da paleta de cores..."
                           className="w-full bg-white border border-transparent hover:border-[var(--color-atelier-terracota)]/20 focus:border-[var(--color-atelier-terracota)]/50 rounded-[1.2rem] p-5 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none resize-none h-24 transition-all shadow-sm focus:shadow-md custom-scrollbar"
                         ></textarea>
                       </div>
 
                       {/* Pergunta 4 */}
                       <div className="flex flex-col gap-3 group">
-                        <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/70 flex items-center gap-2 group-focus-within:text-[var(--color-atelier-terracota)] transition-colors pl-1">
-                          <Layers size={14} /> 4. Elementos Gráficos
+                        <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/80 flex items-center gap-2 group-focus-within:text-[var(--color-atelier-terracota)] transition-colors pl-1">
+                          <Layers size={14} /> 4. E dos elementos gráficos? (Podem ser padrões, ícones, elementos que “enfeitam” o projeto)
                         </label>
                         <textarea 
                           value={currentRef?.feedback?.q4 || ""} onChange={(e) => handleFeedbackChange("q4", e.target.value)}
-                          placeholder="Os elementos (símbolos, texturas) agregam valor ou parecem excessivos?"
+                          placeholder="Compartilhe suas impressões sobre padrões, ícones e elementos visuais..."
                           className="w-full bg-white border border-transparent hover:border-[var(--color-atelier-terracota)]/20 focus:border-[var(--color-atelier-terracota)]/50 rounded-[1.2rem] p-5 text-[13px] font-medium text-[var(--color-atelier-grafite)] outline-none resize-none h-24 transition-all shadow-sm focus:shadow-md custom-scrollbar"
                         ></textarea>
                       </div>
 
-                      {/* Pergunta 5: Escala de Alinhamento */}
+                      {/* Pergunta 5: De 0 a 10, qual sua nota? */}
                       <div className="flex flex-col gap-5 group bg-white/70 p-8 rounded-[2rem] border border-white shadow-sm mt-2">
                         <label className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)] flex items-center justify-between w-full">
-                          <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[var(--color-atelier-terracota)]"/> 5. Nível de Alinhamento Global</span>
+                          <span className="flex items-center gap-2"><CheckCircle2 size={16} className="text-[var(--color-atelier-terracota)]"/> 5. De 0 a 10, qual sua nota?</span>
                           <span className="text-white bg-[var(--color-atelier-terracota)] px-4 py-1.5 rounded-full text-[14px] font-black shadow-inner">{currentRef?.score || 0}/10</span>
                         </label>
                         
@@ -538,8 +538,8 @@ export function BrandDNACuradoria({ projectId, clientProfile }: { projectId: str
                         </div>
                         
                         <div className="flex justify-between w-full font-roboto text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/40 mt-1">
-                          <span>Totalmente Distante</span>
-                          <span>Exatamente Isso</span>
+                          <span>0 - Não alinhado</span>
+                          <span>10 - Totalmente encantado</span>
                         </div>
                       </div>
 

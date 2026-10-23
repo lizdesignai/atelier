@@ -15,7 +15,7 @@ import {
   RotateCcw, Send, PlayCircle, ImageIcon, LayoutDashboard, TrendingUp,
   ChevronDown, ChevronUp, Calendar, Video, Layers, BarChart3,
   RefreshCw, Heart, MessageCircle, ExternalLink, Instagram, Users,
-  Edit3, Check, Columns2, Rows3, Palette, LayoutGrid, BookOpen, ShieldCheck, CheckSquare
+  Edit3, Check, Columns2, Rows3, LayoutGrid, BookOpen, ShieldCheck, CheckSquare
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useProfile } from "../../hooks/useProfile";
@@ -140,7 +140,7 @@ export default function CockpitPage() {
 
         if (sessionUser) {
           setClientId(sessionUser.id);
-          const { data: profile } = await supabase.from('profiles').select('id, nome, username, instagram, avatar_url').eq('id', sessionUser.id).maybeSingle();
+          const { data: profile } = await (supabase.from('profiles') as any).select('id, nome, username, instagram, avatar_url').eq('id', sessionUser.id).maybeSingle();
           if (profile) {
             setClientProfile(profile);
             if (profile.nome) setClientName(profile.nome.split(' ')[0]);
@@ -151,11 +151,11 @@ export default function CockpitPage() {
 
         let proj: any = null;
         if (sessionUser?.role === 'client') {
-          const { data } = await supabase.from('projects').select('*').eq('client_id', sessionUser.id).in('status', ['active', 'delivered']).order('created_at', { ascending: false }).limit(1).maybeSingle();
+          const { data } = await (supabase.from('projects') as any).select('*').eq('client_id', sessionUser.id).in('status', ['active', 'delivered']).order('created_at', { ascending: false }).limit(1).maybeSingle();
           proj = data;
         } else {
           // Se for admin/gestor visitando o cockpit ou projeto de teste
-          const { data } = await supabase.from('projects').select('*').or('service_type.eq.Gestão de Instagram,type.ilike.%Instagram%,type.ilike.%Pacote%').in('status', ['active', 'delivered']).order('created_at', { ascending: false }).limit(1).maybeSingle();
+          const { data } = await (supabase.from('projects') as any).select('*').or('service_type.eq.Gestão de Instagram,type.ilike.%Instagram%,type.ilike.%Pacote%').in('status', ['active', 'delivered']).order('created_at', { ascending: false }).limit(1).maybeSingle();
           proj = data;
         }
 
@@ -202,8 +202,8 @@ export default function CockpitPage() {
           }
 
           // 2. Buscamos e filtramos os POSTS sociais
-          const { data: postsData } = await supabase
-            .from('social_posts')
+          const { data: postsData } = await (supabase
+            .from('social_posts') as any)
             .select('*')
             .eq('project_id', proj.id)
             .in('status', ['pending_approval', 'approved', 'needs_revision'])
@@ -300,13 +300,13 @@ export default function CockpitPage() {
           setAllPosts(normalizedPosts);
           setPendingCount(sortedPosts.filter((p: any) => p.status === 'pending_approval').length);
 
-          const { data: brief } = await supabase.from('instagram_briefings').select('*').eq('project_id', proj.id).or('status.neq.returned,status.is.null').order('created_at', { ascending: false }).limit(1).maybeSingle(); 
+          const { data: brief } = await (supabase.from('instagram_briefings') as any).select('*').eq('project_id', proj.id).or('status.neq.returned,status.is.null').order('created_at', { ascending: false }).limit(1).maybeSingle(); 
           setBriefing(brief);
 
-          const { count: missionsCount } = await supabase.from('asset_missions').select('*', { count: 'exact', head: true }).eq('project_id', proj.id).eq('status', 'pending');
+          const { count: missionsCount } = await (supabase.from('asset_missions') as any).select('*', { count: 'exact', head: true }).eq('project_id', proj.id).eq('status', 'pending');
           setPendingMissions(missionsCount || 0);
 
-          const { data: plans } = await supabase.from('content_planning').select('*').eq('project_id', proj.id).eq('status', 'awaiting_approval').order('created_at', { ascending: true });
+          const { data: plans } = await (supabase.from('content_planning') as any).select('*').eq('project_id', proj.id).eq('status', 'awaiting_approval').order('created_at', { ascending: true });
           if (plans) setMonthlyPlan(plans);
         }
       } catch (error) {
@@ -332,11 +332,11 @@ export default function CockpitPage() {
       const post = allPosts[activeCarouselIndex];
       
       // 1. Atualiza Post para Aprovado
-      await supabase.from('social_posts').update({ status: 'approved' }).eq('id', post.id);
+      await (supabase.from('social_posts') as any).update({ status: 'approved' }).eq('id', post.id);
       
       // 2. 🟢 SINC. KANBAN: Dá baixa na tarefa de produção da agência
       if (post.task_id) {
-         await supabase.from('tasks').update({ 
+         await (supabase.from('tasks') as any).update({ 
              status: 'completed', 
              completed_at: new Date().toISOString() 
          }).eq('id', post.task_id);
@@ -373,17 +373,17 @@ export default function CockpitPage() {
       const post = allPosts[activeCarouselIndex];
       
       // 1. Insere o comentário na tabela de pins
-      await supabase.from('content_feedback_pins').insert({
+      await (supabase.from('content_feedback_pins') as any).insert({
          post_id: post.id,
          comment: postFeedbackText
       });
       
       // 2. Regride o status do Post
-      await supabase.from('social_posts').update({ status: 'needs_revision' }).eq('id', post.id);
+      await (supabase.from('social_posts') as any).update({ status: 'needs_revision' }).eq('id', post.id);
 
       // 3. Devolve a tarefa do Post diretamente para a coluna 'review' do Kanban da equipa
       if (post.task_id) {
-        await supabase.from('tasks').update({ status: 'review' }).eq('id', post.task_id);
+        await (supabase.from('tasks') as any).update({ status: 'review' }).eq('id', post.task_id);
       }
       
       const newPosts = allPosts.filter((_, idx) => idx !== activeCarouselIndex);
@@ -419,14 +419,14 @@ export default function CockpitPage() {
       });
 
       // 2. Atualiza compatibilidade legado
-      await supabase.from('tasks').update({ 
+      await (supabase.from('tasks') as any).update({ 
         status: 'completed', 
         completed_at: new Date().toISOString() 
       }).eq('id', task.id);
       
-      const { data: hasPost } = await supabase.from('social_posts').select('id').eq('task_id', task.id).maybeSingle();
+      const { data: hasPost } = await (supabase.from('social_posts') as any).select('id').eq('task_id', task.id).maybeSingle();
       if (hasPost) {
-        await supabase.from('social_posts').update({ status: 'approved' }).eq('task_id', task.id);
+        await (supabase.from('social_posts') as any).update({ status: 'approved' }).eq('task_id', task.id);
       }
       
       const now = new Date().toISOString();
@@ -486,12 +486,12 @@ export default function CockpitPage() {
       });
 
       // 2. Atualiza compatibilidade legado
-      await supabase.from('tasks').update({ status: 'review' }).eq('id', task.id);
+      await (supabase.from('tasks') as any).update({ status: 'review' }).eq('id', task.id);
       
-      const { data: hasPost } = await supabase.from('social_posts').select('id').eq('task_id', task.id).maybeSingle();
+      const { data: hasPost } = await (supabase.from('social_posts') as any).select('id').eq('task_id', task.id).maybeSingle();
       if (hasPost) {
-        await supabase.from('social_posts').update({ status: 'needs_revision' }).eq('task_id', task.id);
-        await supabase.from('content_feedback_pins').insert({
+        await (supabase.from('social_posts') as any).update({ status: 'needs_revision' }).eq('task_id', task.id);
+        await (supabase.from('content_feedback_pins') as any).insert({
           post_id: hasPost.id,
           comment: feedback
         });
@@ -913,21 +913,21 @@ export default function CockpitPage() {
     setIsProcessing(true);
     try {
       // 1. Atualiza Planejamento para Aprovado
-      await supabase.from('content_planning').update({ status: 'approved' }).eq('id', planId);
+      await (supabase.from('content_planning') as any).update({ status: 'approved' }).eq('id', planId);
       
       // 2. 🟢 SINC. KANBAN: Dá baixa na tarefa de produção da agência (Se associada)
       // Nota: Como o plano pode não ter link direto com a task (task_id não é nativo do planning), 
       // nós fazemos uma query reversa baseada no attachment_url para encontrar a tarefa matriz.
       const plan = monthlyPlan.find(p => p.id === planId);
       if (plan && plan.planning_file_url) {
-         const { data: matchedTasks } = await supabase
-            .from('tasks')
+         const { data: matchedTasks } = await (supabase
+            .from('tasks') as any)
             .select('id')
             .eq('attachment_url', plan.planning_file_url)
             .limit(1);
          
          if (matchedTasks && matchedTasks.length > 0) {
-             await supabase.from('tasks').update({ 
+             await (supabase.from('tasks') as any).update({ 
                  status: 'completed', 
                  completed_at: new Date().toISOString() 
              }).eq('id', matchedTasks[0].id);
@@ -947,7 +947,7 @@ export default function CockpitPage() {
     if (npsScore === null || !project) return;
     setIsProcessing(true);
     try {
-      await supabase.from('t_nps_scores').insert({ project_id: project.id, client_id: clientId, score: npsScore, feedback: npsFeedback });
+      await (supabase.from('t_nps_scores') as any).insert({ project_id: project.id, client_id: clientId, score: npsScore, feedback: npsFeedback });
       setShowNpsModal(false);
       if (npsScore >= 9) {
         setTimeout(() => setShowUpsellModal(true), 500); 
@@ -996,7 +996,7 @@ export default function CockpitPage() {
     }
     setIsProcessing(true);
     try {
-      await supabase.from('content_planning').update({ status: 'needs_revision', feedback: feedback }).eq('id', planId);
+      await (supabase.from('content_planning') as any).update({ status: 'needs_revision', feedback: feedback }).eq('id', planId);
       setMonthlyPlan(monthlyPlan.filter(p => p.id !== planId));
       setActiveFeedbackId(null);
       showToast("Feedback enviado. A estratégia voltou para a análise da equipe.");

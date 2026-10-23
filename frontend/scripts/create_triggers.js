@@ -85,8 +85,14 @@ async function createTriggers() {
         internal_due_at = EXCLUDED.internal_due_at,
         estimate_minutes = EXCLUDED.estimate_minutes,
         actual_minutes = EXCLUDED.actual_minutes,
-        blocked_at = EXCLUDED.blocked_at,
-        blocked_reason = EXCLUDED.blocked_reason,
+        blocked_at = CASE 
+          WHEN NEW.is_blocked = true THEN COALESCE(public.tessera_work_items.blocked_at, EXCLUDED.blocked_at, NOW()) 
+          ELSE NULL 
+        END,
+        blocked_reason = CASE 
+          WHEN NEW.is_blocked = true THEN COALESCE(public.tessera_work_items.blocked_reason, EXCLUDED.blocked_reason, 'Bloqueio operacional') 
+          ELSE NULL 
+        END,
         stage_id = EXCLUDED.stage_id,
         updated_at = EXCLUDED.updated_at,
         completed_at = EXCLUDED.completed_at;

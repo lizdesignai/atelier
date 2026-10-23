@@ -36,11 +36,11 @@ export default function ExecutiveDashboard({ currentUser }: ExecutiveDashboardPr
       const weekEnd = endOfWeek(now, { weekStartsOn: 1 }).toISOString();
 
       // 1. DADOS DE SLA E EQUIPA (work_sessions)
-      const { data: team } = await supabase.from('profiles').select('id, nome, role, avatar_url').in('role', ['colaborador', 'gestor', 'admin']);
-      const { data: sessions } = await supabase.from('work_sessions').select('*').gte('start_time', weekStart).lte('start_time', weekEnd);
+      const { data: team } = await (supabase.from('profiles') as any).select('id, nome, role, avatar_url').in('role', ['colaborador', 'gestor', 'admin']);
+      const { data: sessions } = await (supabase.from('work_sessions') as any).select('*').gte('start_time', weekStart).lte('start_time', weekEnd);
       
-      const teamSla = team?.map(member => {
-        const memberSessions = sessions?.filter(s => s.user_id === member.id) || [];
+      const teamSla = (team as any[])?.map((member: any) => {
+        const memberSessions = (sessions as any[])?.filter((s: any) => s.user_id === member.id) || [];
         const totalMinutes = memberSessions.reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
         const totalHours = totalMinutes / 60;
         
@@ -62,15 +62,15 @@ export default function ExecutiveDashboard({ currentUser }: ExecutiveDashboardPr
       setSlaData(teamSla);
 
       // 2. DADOS DE RENTABILIDADE (Projects + Tasks)
-      const { data: activeProjects } = await supabase.from('projects').select('id, profiles(nome), financial_value, type, status').eq('status', 'active');
-      const { data: tasks } = await supabase.from('tasks').select('project_id, actual_time, estimated_time').in('status', ['completed', 'in_progress', 'review']);
+      const { data: activeProjects } = await (supabase.from('projects') as any).select('id, profiles(nome), financial_value, type, status').eq('status', 'active');
+      const { data: tasks } = await (supabase.from('tasks') as any).select('project_id, actual_time, estimated_time').in('status', ['completed', 'in_progress', 'review']);
 
-      const profitMatrix = activeProjects?.map(proj => {
+      const profitMatrix = (activeProjects as any[])?.map((proj: any) => {
         // 🟢 Correção do Type Error: Usamos a extração segura
         const safeProfile = extractProfile(proj.profiles);
         const clientName = safeProfile?.nome || 'Desconhecido';
 
-        const projTasks = tasks?.filter(t => t.project_id === proj.id) || [];
+        const projTasks = (tasks as any[])?.filter((t: any) => t.project_id === proj.id) || [];
         const totalMinutesSpent = projTasks.reduce((acc, t) => acc + (t.actual_time || t.estimated_time || 0), 0);
         const totalHoursSpent = totalMinutesSpent / 60;
         const fee = Number(proj.financial_value || 0);
@@ -106,16 +106,16 @@ export default function ExecutiveDashboard({ currentUser }: ExecutiveDashboardPr
       setProfitabilityData(profitMatrix);
 
       // 3. RADAR DE QUALIDADE (Tarefas Rejeitadas & Churn Imínente)
-      const { data: allTasks } = await supabase.from('tasks').select('id, title, status, project_id, completed_at');
+      const { data: allTasks } = await (supabase.from('tasks') as any).select('id, title, status, project_id, completed_at');
       const alerts: any[] = [];
 
-      activeProjects?.forEach(proj => {
+      (activeProjects as any[])?.forEach((proj: any) => {
         // 🟢 Correção do Type Error: Usamos a extração segura
         const safeProfile = extractProfile(proj.profiles);
         const clientName = safeProfile?.nome || 'Cliente';
 
-        const pTasks = allTasks?.filter(t => t.project_id === proj.id) || [];
-        const completed = pTasks.filter(t => t.status === 'completed' && t.completed_at);
+        const pTasks = (allTasks as any[])?.filter((t: any) => t.project_id === proj.id) || [];
+        const completed = pTasks.filter((t: any) => t.status === 'completed' && t.completed_at);
         
         // Verifica Churn (Sem entregas há 7+ dias)
         if (completed.length > 0) {
@@ -130,8 +130,8 @@ export default function ExecutiveDashboard({ currentUser }: ExecutiveDashboardPr
       });
 
       // Busca rejeições do cliente na social_posts
-      const { data: rejectedPosts } = await supabase.from('social_posts').select('title, client_id, status').eq('status', 'needs_revision');
-      rejectedPosts?.forEach(post => {
+      const { data: rejectedPosts } = await (supabase.from('social_posts') as any).select('title, client_id, status').eq('status', 'needs_revision');
+      (rejectedPosts as any[])?.forEach((post: any) => {
         alerts.push({ type: 'quality', client: 'Avaliação Cliente', msg: `Ajuste solicitado na arte: ${post.title}` });
       });
 

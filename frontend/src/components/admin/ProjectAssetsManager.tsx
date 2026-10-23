@@ -20,7 +20,7 @@ export function ProjectAssetsManager({ projectId }: { projectId: string }) {
 
   const fetchAssets = async () => {
     setIsLoading(true);
-    const { data } = await supabase.from('project_assets').select('*').eq('project_id', projectId).order('created_at', { ascending: false });
+    const { data } = await (supabase.from('project_assets') as any).select('*').eq('project_id', projectId).order('created_at', { ascending: false });
     setAssets(data || []);
     setIsLoading(false);
   };
@@ -35,7 +35,7 @@ export function ProjectAssetsManager({ projectId }: { projectId: string }) {
       finalUrl = 'https://' + finalUrl;
     }
 
-    const { data, error } = await supabase.from('project_assets').insert({
+    const { data, error } = await (supabase.from('project_assets') as any).insert({
       project_id: projectId,
       file_name: newName.trim(),
       file_url: finalUrl,
@@ -54,7 +54,7 @@ export function ProjectAssetsManager({ projectId }: { projectId: string }) {
   const handleRemove = async (id: string) => {
     const confirm = window.confirm("Remover este link?");
     if (!confirm) return;
-    await supabase.from('project_assets').delete().eq('id', id);
+    await (supabase.from('project_assets') as any).delete().eq('id', id);
     setAssets(assets.filter(a => a.id !== id));
     window.dispatchEvent(new CustomEvent('showToast', { detail: 'Link removido.' }));
   };

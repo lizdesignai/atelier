@@ -54,26 +54,26 @@ export default function InstagramWorkspace({ activeProjectId, currentProject }: 
     setIsLoading(true);
     try {
       // 1. Buscar Posts
-      const { data: postsData } = await supabase.from('social_posts').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false });
+      const { data: postsData } = await (supabase.from('social_posts') as any).select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false });
       if (postsData) setPosts(postsData);
 
       // 2. Buscar Missões
-      const { data: missionsData } = await supabase.from('asset_missions').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false });
+      const { data: missionsData } = await (supabase.from('asset_missions') as any).select('*').eq('project_id', activeProjectId).order('created_at', { ascending: false });
       if (missionsData) setMissions(missionsData);
 
       // 3. Buscar Pinos (Feedback)
-      const postIds = postsData?.map(p => p.id) || [];
+      const postIds = postsData?.map((p: any) => p.id) || [];
       if (postIds.length > 0) {
-        const { data: pinsData } = await supabase.from('content_feedback_pins').select('*').in('post_id', postIds);
+        const { data: pinsData } = await (supabase.from('content_feedback_pins') as any).select('*').in('post_id', postIds);
         if (pinsData) setPins(pinsData);
       }
 
       // 4. Buscar Briefing (Dossiê)
-      const { data: briefData } = await supabase.from('instagram_briefings').select('*').eq('project_id', activeProjectId).maybeSingle();
+      const { data: briefData } = await (supabase.from('instagram_briefings') as any).select('*').eq('project_id', activeProjectId).maybeSingle();
       if (briefData) setBriefing(briefData);
 
       // 5. Buscar Curadoria Visual (Brandbook Vivo)
-      const { data: directionsData } = await supabase.from('design_directions').select('*').eq('project_id', activeProjectId).order('created_at', { ascending: true });
+      const { data: directionsData } = await (supabase.from('design_directions') as any).select('*').eq('project_id', activeProjectId).order('created_at', { ascending: true });
       if (directionsData) {
         setAdminRefs(directionsData);
         if (directionsData.length > 0) setActiveEvalIndex(directionsData.length - 1); 
@@ -101,7 +101,7 @@ export default function InstagramWorkspace({ activeProjectId, currentProject }: 
       const { error: uploadError } = await supabase.storage.from('moodboard').upload(filePath, newPostImage);
       if (uploadError) throw uploadError;
       const { data: publicUrlData } = supabase.storage.from('moodboard').getPublicUrl(filePath);
-      const { error: dbError } = await supabase.from('social_posts').insert({
+      const { error: dbError } = await (supabase.from('social_posts') as any).insert({
         project_id: activeProjectId,
         client_id: currentProject.client_id,
         image_url: publicUrlData.publicUrl,
@@ -123,7 +123,7 @@ export default function InstagramWorkspace({ activeProjectId, currentProject }: 
   const handleDeletePost = async (id: string) => {
     if (!window.confirm("Apagar esta publicação do sistema?")) return;
     try {
-      await supabase.from('social_posts').delete().eq('id', id);
+      await (supabase.from('social_posts') as any).delete().eq('id', id);
       setPosts(posts.filter(p => p.id !== id));
       showToast("Publicação removida.");
     } catch (error) {
@@ -135,7 +135,7 @@ export default function InstagramWorkspace({ activeProjectId, currentProject }: 
     if (!newMissionTitle || !activeProjectId || !currentProject?.client_id) return;
     setIsProcessing(true);
     try {
-      const { error } = await supabase.from('asset_missions').insert({
+      const { error } = await (supabase.from('asset_missions') as any).insert({
         project_id: activeProjectId,
         client_id: currentProject.client_id,
         title: newMissionTitle,
@@ -165,7 +165,7 @@ export default function InstagramWorkspace({ activeProjectId, currentProject }: 
       const { error: uploadError } = await supabase.storage.from('vault_assets').upload(filePath, file);
       if (uploadError) throw uploadError;
       const { data: publicUrlData } = supabase.storage.from('vault_assets').getPublicUrl(filePath);
-      const { error: dbError } = await supabase.from('asset_missions').update({
+      const { error: dbError } = await (supabase.from('asset_missions') as any).update({
         status: 'processed',
         processed_image_url: publicUrlData.publicUrl
       }).eq('id', missionId);
@@ -182,7 +182,7 @@ export default function InstagramWorkspace({ activeProjectId, currentProject }: 
 
   const handleUpdateMetrics = async (postId: string, engagement: number, clicks: number, saves: number) => {
     try {
-      const { error } = await supabase.from('social_posts').update({
+      const { error } = await (supabase.from('social_posts') as any).update({
         engagement_rate: engagement || 0,
         link_clicks: clicks || 0,
         saves: saves || 0
@@ -233,7 +233,7 @@ export default function InstagramWorkspace({ activeProjectId, currentProject }: 
 
       const uploadedUrls = await Promise.all(uploadPromises);
 
-      const { data: newRefData, error: dbError } = await supabase.from('design_directions').insert({
+      const { data: newRefData, error: dbError } = await (supabase.from('design_directions') as any).insert({
         project_id: activeProjectId,
         title: newRefTitle,
         image_url: uploadedUrls[0], 
@@ -242,8 +242,8 @@ export default function InstagramWorkspace({ activeProjectId, currentProject }: 
 
       if (dbError) throw dbError;
 
-      if (newRefData) {
-        setAdminRefs([...adminRefs, newRefData[0]]);
+      if (newRefData && newRefData.length > 0 && newRefData[0]) {
+        setAdminRefs(prev => [...(prev || []).filter(Boolean), newRefData[0]]);
         setActiveEvalIndex(adminRefs.length);
       }
       
@@ -263,7 +263,7 @@ export default function InstagramWorkspace({ activeProjectId, currentProject }: 
     const confirm = window.confirm("Remover esta direção visual permanentemente?");
     if (!confirm) return;
     try {
-      await supabase.from('design_directions').delete().eq('id', id);
+      await (supabase.from('design_directions') as any).delete().eq('id', id);
       setAdminRefs(adminRefs.filter(ref => ref.id !== id));
       setActiveEvalIndex(0); 
       showToast("Direção visual removida.");
@@ -531,7 +531,7 @@ export default function InstagramWorkspace({ activeProjectId, currentProject }: 
                           body: JSON.stringify({ briefingData: briefing.answers, clientName: currentProject.profiles.nome })
                         });
                         const data = await res.json();
-                        await supabase.from('projects').update({ instagram_ai_insight: data.insight }).eq('id', activeProjectId);
+                        await (supabase.from('projects') as any).update({ instagram_ai_insight: data.insight }).eq('id', activeProjectId);
                         fetchInstagramData();
                         showToast("Estratégia CMO Gerada! ✨");
                       } catch (e) { showToast("Erro ao gerar IA."); }
@@ -596,12 +596,12 @@ export default function InstagramWorkspace({ activeProjectId, currentProject }: 
                     <div className="flex flex-col gap-6">
                       {/* Carrossel de Direções */}
                       <div className="flex overflow-x-auto custom-scrollbar gap-3 pb-4 shrink-0">
-                        {adminRefs.map((ref, index) => {
-                          const coverImage = ref.image_urls && ref.image_urls.length > 0 ? ref.image_urls[0] : ref.image_url;
+                        {adminRefs.filter(Boolean).map((ref, index) => {
+                          const coverImage = (ref?.image_urls && ref.image_urls.length > 0) ? ref.image_urls[0] : (ref?.image_url || '');
                           return (
-                            <button key={ref.id} onClick={() => setActiveEvalIndex(index)} className={`shrink-0 w-32 flex flex-col gap-2 p-2 rounded-xl border transition-all cursor-pointer text-left ${activeEvalIndex === index ? 'bg-white border-[var(--color-atelier-terracota)]/40 shadow-sm ring-1 ring-[var(--color-atelier-terracota)]/20' : 'bg-transparent border-transparent hover:bg-white/50'}`}>
-                              <div className="w-full h-16 rounded-lg overflow-hidden border border-white shadow-inner"><img src={coverImage} className="w-full h-full object-cover" alt={ref.title} /></div>
-                              <span className={`font-roboto text-[9px] uppercase tracking-widest font-bold truncate w-full ${activeEvalIndex === index ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/50'}`}>{ref.title}</span>
+                            <button key={ref?.id || index} onClick={() => setActiveEvalIndex(index)} className={`shrink-0 w-32 flex flex-col gap-2 p-2 rounded-xl border transition-all cursor-pointer text-left ${activeEvalIndex === index ? 'bg-white border-[var(--color-atelier-terracota)]/40 shadow-sm ring-1 ring-[var(--color-atelier-terracota)]/20' : 'bg-transparent border-transparent hover:bg-white/50'}`}>
+                              <div className="w-full h-16 rounded-lg overflow-hidden border border-white shadow-inner"><img src={coverImage} className="w-full h-full object-cover" alt={ref?.title || ''} /></div>
+                              <span className={`font-roboto text-[9px] uppercase tracking-widest font-bold truncate w-full ${activeEvalIndex === index ? 'text-[var(--color-atelier-terracota)]' : 'text-[var(--color-atelier-grafite)]/50'}`}>{ref?.title}</span>
                             </button>
                           )
                         })}
@@ -611,17 +611,17 @@ export default function InstagramWorkspace({ activeProjectId, currentProject }: 
                       {adminRefs[activeEvalIndex] && (
                         <motion.div key={activeEvalIndex} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col gap-6 bg-white/50 p-6 rounded-[2rem] border border-white shadow-inner">
                           <div className="flex justify-between w-full items-start">
-                            <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] mb-1">{adminRefs[activeEvalIndex].title}</h3>
-                            <span className={`border px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest font-roboto ${adminRefs[activeEvalIndex].score > 0 ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] border-[var(--color-atelier-terracota)]/20' : 'bg-[var(--color-atelier-grafite)]/5 text-[var(--color-atelier-grafite)]/40 border-transparent'}`}>
-                              {adminRefs[activeEvalIndex].score > 0 ? `Nota do Cliente: ${adminRefs[activeEvalIndex].score}/10` : 'Avaliação Pendente'}
+                            <h3 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] mb-1">{adminRefs[activeEvalIndex]?.title}</h3>
+                            <span className={`border px-4 py-1.5 rounded-full text-[11px] font-bold uppercase tracking-widest font-roboto ${adminRefs[activeEvalIndex]?.score > 0 ? 'bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] border-[var(--color-atelier-terracota)]/20' : 'bg-[var(--color-atelier-grafite)]/5 text-[var(--color-atelier-grafite)]/40 border-transparent'}`}>
+                              {adminRefs[activeEvalIndex]?.score > 0 ? `Nota do Cliente: ${adminRefs[activeEvalIndex].score}/10` : 'Avaliação Pendente'}
                             </span>
                           </div>
 
                           {/* Grid de Imagens */}
                           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
-                            {(adminRefs[activeEvalIndex].image_urls && adminRefs[activeEvalIndex].image_urls.length > 0 
+                            {((adminRefs[activeEvalIndex]?.image_urls && adminRefs[activeEvalIndex].image_urls.length > 0)
                                 ? adminRefs[activeEvalIndex].image_urls 
-                                : [adminRefs[activeEvalIndex].image_url]
+                                : (adminRefs[activeEvalIndex]?.image_url ? [adminRefs[activeEvalIndex].image_url] : [])
                              ).map((imgUrl: string, idx: number) => (
                               <div key={idx} className="w-full aspect-square rounded-2xl overflow-hidden border-2 border-white shadow-sm cursor-pointer" onClick={() => window.open(imgUrl, "_blank")}>
                                 <img src={imgUrl} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" alt="" />

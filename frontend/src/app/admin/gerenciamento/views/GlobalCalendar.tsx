@@ -112,7 +112,7 @@ export default function GlobalCalendar({ activeProjectId, activeSubclientId, cur
         created_at: new Date().toISOString()
       };
 
-      const { error: dbError } = await supabase.from('content_planning').insert(payload);
+      const { error: dbError } = await (supabase.from('content_planning') as any).insert(payload);
       if (dbError) throw dbError;
 
       await NotificationEngine.notifyUser(

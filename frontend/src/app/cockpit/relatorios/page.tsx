@@ -27,17 +27,17 @@ export default function ClientReportsPage() {
         }
 
         // 1. Busca Perfil para o Nome
-        const { data: profile } = await supabase
-          .from('profiles')
+        const { data: profile } = await (supabase
+          .from('profiles') as any)
           .select('nome')
           .eq('id', session.user.id)
           .single();
           
-        if (profile?.nome) setClientName(profile.nome.split(' ')[0]);
+        if (profile && (profile as any).nome) setClientName((profile as any).nome.split(' ')[0]);
 
         // 2. Busca Projeto Ativo
-        const { data: project } = await supabase
-          .from('projects')
+        const { data: project } = await (supabase
+          .from('projects') as any)
           .select('id')
           .eq('client_id', session.user.id)
           .in('status', ['active', 'delivered'])
@@ -51,10 +51,10 @@ export default function ClientReportsPage() {
         }
 
         // 3. Busca Relatórios APROVADOS deste projeto
-        const { data: approvedReports } = await supabase
-          .from('monthly_reports')
+        const { data: approvedReports } = await (supabase
+          .from('monthly_reports') as any)
           .select('*')
-          .eq('project_id', project.id)
+          .eq('project_id', (project as any).id)
           .eq('status', 'approved')
           .order('report_month_year', { ascending: false });
 

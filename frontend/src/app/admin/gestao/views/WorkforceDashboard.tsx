@@ -56,14 +56,14 @@ export default function WorkforceDashboard({ currentUser, activeTab = 'workforce
     try {
       // 1. Busca perfis da equipa (Com fallback caso a coluna contract_status não exista no banco)
       let teamData: any[] = [];
-      const { data: mainData, error: profileErr } = await supabase
-        .from('profiles')
+      const { data: mainData, error: profileErr } = await (supabase
+        .from('profiles') as any)
         .select('id, nome, role, avatar_url, current_status, last_seen, base_salary, contract_status, deadline_buffer_days')
         .in('role', ['colaborador', 'gestor', 'admin']);
 
       if (profileErr) {
-        const fallbackRes = await supabase
-          .from('profiles')
+        const fallbackRes = await (supabase
+          .from('profiles') as any)
           .select('id, nome, role, avatar_url, current_status, last_seen, base_salary, deadline_buffer_days')
           .in('role', ['colaborador', 'gestor', 'admin']);
         teamData = (fallbackRes.data || []).map((m: any) => ({ ...m, contract_status: 'active' }));
@@ -72,23 +72,23 @@ export default function WorkforceDashboard({ currentUser, activeTab = 'workforce
       }
 
       // 2. Busca sessões de trabalho do mês atual
-      const { data: sessions } = await supabase
-        .from('work_sessions')
+      const { data: sessions } = await (supabase
+        .from('work_sessions') as any)
         .select('*, tasks(id, title, task_type)')
         .gte('start_time', currentMonthStart.toISOString())
         .lte('start_time', currentMonthEnd.toISOString());
 
       // 3. Busca tarefas finalizadas ou revisadas no mês
-      const { data: tasks } = await supabase
-        .from('tasks')
+      const { data: tasks } = await (supabase
+        .from('tasks') as any)
         .select('id, assigned_to, status, admin_feedback, created_at, completed_at, started_at')
         .gte('created_at', currentMonthStart.toISOString());
 
       if (!teamData) return;
 
       const stats = teamData.map(member => {
-        const memberSessions = sessions?.filter(s => s.user_id === member.id) || [];
-        const memberTasks = tasks?.filter(t => t.assigned_to === member.id) || [];
+        const memberSessions = (sessions as any[])?.filter((s: any) => s.user_id === member.id) || [];
+        const memberTasks = (tasks as any[])?.filter((t: any) => t.assigned_to === member.id) || [];
 
         // A. Cálculos de Tempo (Hoje, Semana, Mês)
         const todayStart = startOfDay(now).toISOString();
@@ -182,8 +182,8 @@ export default function WorkforceDashboard({ currentUser, activeTab = 'workforce
     const numericValue = parseFloat(salaryInput.replace(/\D/g, "")) / 100; // Tratamento de máscara se necessário
 
     try {
-      const { error } = await supabase
-        .from('profiles')
+      const { error } = await (supabase
+        .from('profiles') as any)
         .update({ base_salary: numericValue || 0 })
         .eq('id', memberId);
 
@@ -209,25 +209,25 @@ export default function WorkforceDashboard({ currentUser, activeTab = 'workforce
     setIsUpdatingBuffer(true);
     const numericValue = parseInt(bufferInput, 10) || 0;
     try {
-      const { error } = await supabase
-        .from('profiles')
+      const { error } = await (supabase
+        .from('profiles') as any)
         .update({ deadline_buffer_days: numericValue })
         .eq('id', memberId);
       if (error) throw error;
       
       // Atualizar retroativamente o prazo interno das tarefas ativas deste colaborador
-      const { data: tasksToUpdate } = await supabase
-        .from('tasks')
+      const { data: tasksToUpdate } = await (supabase
+        .from('tasks') as any)
         .select('id, deadline')
         .eq('assigned_to', memberId)
         .in('status', ['pending', 'draft', 'in_progress', 'review']);
 
       if (tasksToUpdate && tasksToUpdate.length > 0) {
-        const updatePromises = tasksToUpdate.map(task => {
+        const updatePromises = (tasksToUpdate as any[]).map((task: any) => {
           if (task.deadline) {
              const dateObj = new Date(task.deadline);
              dateObj.setDate(dateObj.getDate() - numericValue);
-             return supabase.from('tasks').update({ internal_deadline: dateObj.toISOString() }).eq('id', task.id);
+             return (supabase.from('tasks') as any).update({ internal_deadline: dateObj.toISOString() }).eq('id', task.id);
           }
           return Promise.resolve();
         });

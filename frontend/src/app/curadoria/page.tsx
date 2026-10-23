@@ -63,12 +63,12 @@ export default function CuradoriaPage() {
       if (!session) return;
 
       // 1. Buscar perfil para o Mockup
-      const { data: profile } = await supabase.from('profiles').select('nome, avatar_url').eq('id', session.user.id).single();
+      const { data: profile } = await (supabase.from('profiles') as any).select('nome, avatar_url').eq('id', session.user.id).single();
       if (profile) setClientProfile(profile);
 
       // 2. Buscar Projeto Ativo do Cliente
-      const { data: project } = await supabase
-        .from('projects')
+      const { data: project } = await (supabase
+        .from('projects') as any)
         .select('id')
         .eq('client_id', session.user.id)
         .in('status', ['active', 'delivered'])
@@ -83,10 +83,10 @@ export default function CuradoriaPage() {
       }
 
       // 3. Buscar Posts Pendentes
-      const { data, error } = await supabase
-        .from('social_posts')
+      const { data, error } = await (supabase
+        .from('social_posts') as any)
         .select('*')
-        .eq('project_id', project.id)
+        .eq('project_id', (project as any).id)
         .in('status', ['pending_approval', 'needs_revision'])
         .order('created_at', { ascending: true });
 
@@ -104,7 +104,7 @@ export default function CuradoriaPage() {
   };
 
   const fetchPins = async (postId: string) => {
-    const { data } = await supabase.from('content_feedback_pins').select('*').eq('post_id', postId);
+    const { data } = await (supabase.from('content_feedback_pins') as any).select('*').eq('post_id', postId);
     setPins(data || []);
   };
 
@@ -137,8 +137,8 @@ export default function CuradoriaPage() {
     try {
       const currentPostId = posts[currentIndex].id;
 
-      const { data, error } = await supabase
-        .from('content_feedback_pins')
+      const { data, error } = await (supabase
+        .from('content_feedback_pins') as any)
         .insert({
           post_id: currentPostId,
           pos_x: newPinCoords.x,
@@ -150,7 +150,7 @@ export default function CuradoriaPage() {
 
       if (error) throw error;
 
-      await supabase.from('social_posts').update({ status: 'needs_revision' }).eq('id', currentPostId);
+      await (supabase.from('social_posts') as any).update({ status: 'needs_revision' }).eq('id', currentPostId);
 
       // 🔔 NOTIFICAÇÃO: Avisa a gestão de que o cliente marcou um ajuste na imagem
       await NotificationEngine.notifyManagement(
@@ -180,7 +180,7 @@ export default function CuradoriaPage() {
     setIsProcessing(true);
 
     try {
-      await supabase.from('social_posts').update({ status }).eq('id', posts[currentIndex].id);
+      await (supabase.from('social_posts') as any).update({ status }).eq('id', posts[currentIndex].id);
 
       // 🔔 NOTIFICAÇÃO: Avisa a gestão da aprovação ou rejeição
       if (status === 'approved') {
