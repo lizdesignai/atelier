@@ -7,7 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { 
   Home, Compass, Lock, MessageSquare, Globe2, LogOut, Menu, X, Target, 
   Crosshair, Eye, Crown, TrendingUp, Archive, DollarSign, MessageCircle,
-  Activity, Users, FolderKanban, FileText, LayoutDashboard, Briefcase, Grid, Calendar
+  Activity, Users, FolderKanban, FileText, LayoutDashboard, Briefcase, Grid, Calendar, Palette
 } from 'lucide-react';
 import { useSession } from '../../hooks/useSession';
 import { useProjects } from '../../hooks/useProjects';
@@ -144,8 +144,7 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : [
     { href: '/', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
-    { href: '/cofre', icon: <Lock size={20} strokeWidth={1.5} />, label: 'Cofre' },
-    { href: '/referencias', icon: <Compass size={20} strokeWidth={1.5} />, label: 'Curadoria' },
+    { href: '/brandbook', icon: <Palette size={20} strokeWidth={1.5} />, label: 'Curadoria Visual' },
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ];
@@ -179,8 +178,7 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : [
     { href: '/', icon: <Home size={20} strokeWidth={1.5} />, label: 'Inicial' },
-    { href: '/cofre', icon: <Lock size={20} strokeWidth={1.5} />, label: 'O Cofre' },
-    { href: '/referencias', icon: <Compass size={20} strokeWidth={1.5} />, label: 'Curadoria' },
+    { href: '/brandbook', icon: <Palette size={20} strokeWidth={1.5} />, label: 'Curadoria Visual' },
     { href: '/canais', icon: <MessageSquare size={20} strokeWidth={1.5} />, label: 'Canais', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ];

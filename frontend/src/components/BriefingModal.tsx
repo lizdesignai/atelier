@@ -35,7 +35,7 @@ export default function BriefingModal({ isOpen, onClose, projectId, clientId, on
     nome_logo: '', significado_nome: '', tagline: '', slogan: '', produtos_servicos: '',
     motivo_abertura: '', proposito: '', tempo_mercado: '', emoji: '', musica: '', sentimento: '', visao_5_anos: '', 
     genero: '', genero_outro: '', classe: '', classe_outro: '', idade: '', idade_outro: '', resumo_publico: '',
-    concorrentes_links: '', nao_fazer: '', diferencial: '', referencias: '',
+    concorrentes: '', concorrentes_links: '', concorrentes_bom: '', fazer_diferente: '', evitar_mercado: '', diferenca_percebida: '', nao_fazer: '', diferencial: '', referencias: '',
     sentimento_marca: '', sentimento_consumidor: '', missao: '', 
     adjetivos_positivos: [] as string[], adjetivos_positivos_outro: '', top_3_adjetivos: '', 
     adjetivos_negativos: [] as string[], adjetivos_negativos_outro: '',
@@ -73,7 +73,7 @@ export default function BriefingModal({ isOpen, onClose, projectId, clientId, on
       ['nome', 'whatsapp', 'email'],
       ['nome_logo', 'significado_nome', 'tagline', 'produtos_servicos'],
       ['motivo_abertura', 'proposito', 'tempo_mercado', 'emoji', 'musica', 'sentimento', 'visao_5_anos', 'genero', 'classe', 'idade', 'resumo_publico'],
-      ['concorrentes_links', 'referencias'],
+      ['referencias'],
       ['sentimento_marca', 'sentimento_consumidor', 'missao', 'top_3_adjetivos'],
       ['simbolo', 'cor_desejada', 'cor_nao_desejada', 'onde_verao'],
       [] 
@@ -256,7 +256,12 @@ export default function BriefingModal({ isOpen, onClose, projectId, clientId, on
                   <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="flex flex-col gap-6">
                     <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] border-b border-[var(--color-atelier-grafite)]/10 pb-2">Seção 3 de 6: Concorrentes e Referências</h2>
                     
-                    <TextareaGroup label="Me envie o link dos perfis ou sites dos seus principais concorrentes *" name="concorrentes_links" value={formData.concorrentes_links} onChange={handleInput} helper="Empresas que vendem serviços semelhantes para um público semelhante" />
+                    <TextareaGroup label="Principais Concorrentes (Nomes ou @ perfis no Instagram) *" name="concorrentes" value={formData.concorrentes} onChange={handleInput} helper="Ex: @clinica_exemplo, Studio Alfa, @empresa_beta" />
+                    <TextareaGroup label="Links dos perfis ou sites dos concorrentes" name="concorrentes_links" value={formData.concorrentes_links} onChange={handleInput} helper="Cole aqui os links diretos para auditoria visual e de mercado" />
+                    <TextareaGroup label="O que você vê nos seus concorrentes que acha que eles fazem de BOM?" name="concorrentes_bom" value={formData.concorrentes_bom} onChange={handleInput} helper="Ex: Boas fotos, clareza na comunicação, consistência visual" />
+                    <TextareaGroup label="O que você pretende fazer de DIFERENTE da concorrência?" name="fazer_diferente" value={formData.fazer_diferente} onChange={handleInput} />
+                    <TextareaGroup label="O que você deseja EVITAR do mercado atual?" name="evitar_mercado" value={formData.evitar_mercado} onChange={handleInput} helper="Ex: Padrões visuais genéricos, promessas exageradas, atendimento impessoal" />
+                    <TextareaGroup label="Como você deseja que sua marca seja percebida perante a concorrência?" name="diferenca_percebida" value={formData.diferenca_percebida} onChange={handleInput} />
                     <TextareaGroup label="Tem algo que você vê nos seus concorrentes e que NÃO quer fazer?" name="nao_fazer" value={formData.nao_fazer} onChange={handleInput} />
                     <TextareaGroup label="A sua empresa tem um diferencial?" name="diferencial" value={formData.diferencial} onChange={handleInput} helper="Respostas como 'qualidade' não são diferenciais. Se não conseguir pensar num, pode pular!" />
                     <TextareaGroup label="Me envie o link de perfis ou projetos que você tem como referência *" name="referencias" value={formData.referencias} onChange={handleInput} helper="Caso prefira, me envia as imagens no WhatsApp" />

@@ -336,9 +336,9 @@ export default function BrandDNALaboratory() {
         <div>
           <div className="flex items-center gap-2 mb-1">
             <div className="w-8 h-8 rounded-xl bg-white/40 flex items-center justify-center border border-white shadow-sm"><Palette size={14} className="text-[var(--color-atelier-terracota)]" /></div>
-            <span className="font-roboto text-[10px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Laboratório</span>
+            <span className="font-roboto text-[10px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50">Curadoria Visual</span>
           </div>
-          <h1 className="font-elegant text-2xl md:text-3xl text-[var(--color-atelier-grafite)] leading-none mt-1">Brand DNA</h1>
+          <h1 className="font-elegant text-2xl md:text-3xl text-[var(--color-atelier-grafite)] leading-none mt-1">Curadoria Visual & DNA</h1>
         </div>
         <button onClick={() => router.push('/')} className="w-10 h-10 rounded-[1rem] bg-white border border-[var(--color-atelier-grafite)]/10 flex items-center justify-center text-[var(--color-atelier-grafite)]/50 hover:bg-[var(--color-atelier-grafite)] hover:text-white transition-all shadow-sm">
           <X size={18} />

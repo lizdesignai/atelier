@@ -5,7 +5,7 @@ import { AdminTerritoriesManager } from "../../../components/admin/AdminTerritor
 
 import { useState, useEffect, Suspense } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { UploadCloud, Lock, Unlock, Image as ImageIcon, Send, FileText, CheckCircle2, Settings2, Plus, ChevronDown, Calendar, Compass, X, Palette, Download, Loader2, Trash2, Archive, Eye, RotateCcw, BrainCircuit, LayoutDashboard, Target, CalendarDays, MapPin, Camera, AlertCircle, ArrowRight, FolderKanban } from "lucide-react";
+import { UploadCloud, Lock, Unlock, Image as ImageIcon, Send, FileText, CheckCircle2, Settings2, Plus, ChevronDown, Calendar, Compass, X, Palette, Download, Loader2, Trash2, Archive, Eye, RotateCcw, BrainCircuit, LayoutDashboard, Target, CalendarDays, MapPin, Camera, AlertCircle, ArrowRight, FolderKanban, Sparkles } from "lucide-react";
 import { supabase } from "../../../lib/supabase";
 import { updateProjectAction } from "../../actions/projects";
 import { useGlobalStore } from "../../../contexts/GlobalStore"; // Ã°Å¸Â§Â  INJEÃƒâ€¡ÃƒÆ’O DA MEMÃƒâ€œRIA GLOBAL
@@ -209,6 +209,8 @@ function PainelIdentidade() {
   const [contractUrl, setContractUrl] = useState("");
   const [isUploadingContract, setIsUploadingContract] = useState(false);
   const [clientBriefing, setClientBriefing] = useState<any>(null);
+  const [competitorsData, setCompetitorsData] = useState<any[] | null>(null);
+  const [isSyncingCompetitors, setIsSyncingCompetitors] = useState(false);
   
   // ESTADOS DE IA & PDF
   const [briefingAiInsight, setBriefingAiInsight] = useState<string | null>(null);
@@ -223,26 +225,43 @@ function PainelIdentidade() {
     if (!activeProjectId) return;
     const fetchStudioData = async () => {
       try {
-        // Busca direta no Supabase em vez de endpoint de backend inexistente
-        const { data: assetsData, error: assetsError } = await supabase
-          .from('project_assets')
+        // Busca de assets no banco
+        const { data: assetsData, error: assetsError } = await (supabase
+          .from('project_assets') as any)
           .select('*')
           .eq('project_id', activeProjectId)
           .order('created_at', { ascending: false });
 
-        const { data: briefingData, error: briefingError } = await supabase
-          .from('client_briefings')
-          .select('*')
-          .eq('project_id', activeProjectId)
-          .single();
-
         if (assetsError) {
           console.error("Erro ao buscar assets:", assetsError);
         }
-        
         setProjectAssets(assetsData || []);
-        // Ignore single() error for no rows
-        setClientBriefing(briefingData || null);
+
+        // Busca unificada do briefing (suporta client_briefings com unwrap e briefings_identidade_visual completo)
+        try {
+          const briefingRes = await fetch(`/api/projects/${activeProjectId}/briefing`);
+          if (briefingRes.ok) {
+            const briefingJson = await briefingRes.json();
+            if (briefingJson.success && briefingJson.data) {
+              setClientBriefing(briefingJson.data);
+              if (briefingJson.competitorsData) {
+                setCompetitorsData(briefingJson.competitorsData);
+              } else {
+                setCompetitorsData(null);
+              }
+            } else {
+              setClientBriefing(null);
+              setCompetitorsData(null);
+            }
+          } else {
+            setClientBriefing(null);
+            setCompetitorsData(null);
+          }
+        } catch (bErr) {
+          console.error("Erro no fetching unificado do briefing:", bErr);
+          setClientBriefing(null);
+          setCompetitorsData(null);
+        }
         if (isAgency || activeProjectId.startsWith('agency-')) {
            const { data: subclientsData, error: subError } = await (supabase
              .from('agency_subclients') as any)
@@ -381,6 +400,30 @@ function PainelIdentidade() {
     }
   };
 
+  const handleSyncCompetitors = async () => {
+    if (!activeProjectId) return;
+    setIsSyncingCompetitors(true);
+    showToast("Apify Engine: Coletando métricas dos concorrentes no Instagram...");
+    try {
+      const res = await fetch(`/api/projects/${activeProjectId}/briefing/competitors`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ forceRefresh: true })
+      });
+      const json = await res.json();
+      if (res.ok && json.success) {
+        setCompetitorsData(json.competitors);
+        showToast(`Sucesso! ${json.competitors.length} concorrentes mapeados via Apify.`);
+      } else {
+        showToast(json.error || "Nenhum concorrente identificado para sincronizar.");
+      }
+    } catch (err) {
+      showToast("Erro ao sincronizar concorrentes.");
+    } finally {
+      setIsSyncingCompetitors(false);
+    }
+  };
+
   const handleDownloadBriefingPDF = async () => {
     if (!clientBriefing) {
       showToast("Erro: O conteúdo do Briefing ainda não foi carregado.");
@@ -388,13 +431,20 @@ function PainelIdentidade() {
     }
     
     setIsGeneratingPDF(true);
-    showToast("Gerando PDF Estratégico...");
+    showToast("Gerando PDF Estratégico com Análise de Concorrentes...");
     
     try {
       const { pdf } = await import('@react-pdf/renderer');
       const BriefingPDF = (await import('../../../components/pdf/BriefingPDF')).default;
       
-      const doc = <BriefingPDF clientBriefing={clientBriefing} projectName={currentProject?.profiles?.nome || 'Cliente'} aiInsight={briefingAiInsight || undefined} />;
+      const doc = (
+        <BriefingPDF 
+          clientBriefing={clientBriefing} 
+          projectName={currentProject?.profiles?.nome || 'Cliente'} 
+          aiInsight={briefingAiInsight || undefined}
+          competitorsData={competitorsData || undefined}
+        />
+      );
       const blob = await pdf(doc).toBlob();
       
       const url = URL.createObjectURL(blob);
@@ -785,6 +835,10 @@ function PainelIdentidade() {
                     {isGeneratingBriefingInsight ? <Loader2 size={14} className="animate-spin" /> : <BrainCircuit size={14} />} Gerar Análise (IA)
                   </button>
 
+                  <button onClick={handleSyncCompetitors} disabled={isSyncingCompetitors || !clientBriefing} className="bg-white border border-[var(--color-veronna-navy)]/20 text-[var(--color-veronna-navy)] px-4 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-veronna-navy)] hover:text-white transition-all shadow-sm disabled:opacity-50">
+                    {isSyncingCompetitors ? <Loader2 size={14} className="animate-spin" /> : <Sparkles size={14} />} Concorrentes (Apify)
+                  </button>
+
                   <button onClick={handleDownloadBriefingPDF} disabled={isGeneratingPDF || !clientBriefing} className="bg-[var(--color-atelier-grafite)] text-white px-5 py-2.5 rounded-[1.2rem] flex items-center gap-2 font-roboto text-[10px] uppercase tracking-widest font-bold hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-md disabled:opacity-50 hover:-translate-y-0.5 disabled:hover:translate-y-0">
                     {isGeneratingPDF ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} Baixar PDF Oficial
                   </button>
@@ -868,12 +922,61 @@ function PainelIdentidade() {
                       </div>
 
                       <div>
-                        <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm mb-4 border-b border-[var(--color-atelier-grafite)]/5 pb-2">5. Posicionamento de Mercado</h3>
+                        <div className="flex items-center justify-between border-b border-[var(--color-atelier-grafite)]/5 pb-2 mb-4">
+                          <h3 className="font-roboto font-black uppercase tracking-widest text-[var(--color-atelier-terracota)] text-sm">5. Posicionamento de Mercado & Concorrência</h3>
+                          <button
+                            onClick={handleSyncCompetitors}
+                            disabled={isSyncingCompetitors || !clientBriefing}
+                            className="text-[10px] uppercase font-bold tracking-wider px-3 py-1.5 rounded-full bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] hover:bg-[var(--color-atelier-terracota)] hover:text-white transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+                          >
+                            {isSyncingCompetitors ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
+                            {competitorsData && competitorsData.length > 0 ? 'Atualizar Concorrentes (Apify)' : 'Buscar Concorrentes no Apify'}
+                          </button>
+                        </div>
                         <div className="flex flex-col gap-4">
-                          <InfoBlock label="Concorrentes Principais" value={clientBriefing.concorrentes_links} />
+                          <InfoBlock label="Principais Concorrentes" value={clientBriefing.concorrentes || clientBriefing.concorrentes_links} />
+                          {clientBriefing.concorrentes_bom && <InfoBlock label="O que os Concorrentes fazem de bom?" value={clientBriefing.concorrentes_bom} />}
+                          {clientBriefing.fazer_diferente && <InfoBlock label="O que pretende fazer de diferente da concorrência?" value={clientBriefing.fazer_diferente} />}
+                          {clientBriefing.evitar_mercado && <InfoBlock label="O que deseja EVITAR do mercado atual?" value={clientBriefing.evitar_mercado} />}
+                          {clientBriefing.diferenca_percebida && <InfoBlock label="Como deseja que a marca seja percebida perante a concorrência?" value={clientBriefing.diferenca_percebida} />}
                           <InfoBlock label="Diferencial Competitivo" value={clientBriefing.diferencial} />
-                          <InfoBlock label="O que definitivamente NÃƒÆ’O fazer (Vícios da concorrência)" value={clientBriefing.nao_fazer} />
+                          <InfoBlock label="O que definitivamente NÃO fazer (Vícios da concorrência)" value={clientBriefing.nao_fazer} />
                           <InfoBlock label="Referências Visuais do Cliente" value={clientBriefing.referencias} />
+
+                          {/* Cards dos perfis mapeados via Apify */}
+                          {competitorsData && competitorsData.length > 0 && (
+                            <div className="mt-4 p-5 rounded-2xl bg-white/80 border border-[var(--color-atelier-terracota)]/15 shadow-sm flex flex-col gap-4">
+                              <span className="text-[10px] uppercase tracking-widest font-bold text-[var(--color-atelier-terracota)] flex items-center gap-2">
+                                <Sparkles size={14} /> Telemetria de Concorrentes Capturada via Apify
+                              </span>
+                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                                {competitorsData.map((comp: any, cIdx: number) => (
+                                  <div key={cIdx} className="p-3.5 rounded-xl bg-white border border-gray-100 shadow-2xs flex flex-col gap-2">
+                                    <div className="flex items-center justify-between">
+                                      <span className="font-bold text-xs text-[var(--color-veronna-navy)]">@{comp.username}</span>
+                                      <span className="text-[9px] text-gray-500 font-medium truncate max-w-[120px]">{comp.fullName}</span>
+                                    </div>
+                                    {comp.biography && (
+                                      <p className="text-[10px] text-gray-600 line-clamp-2 leading-relaxed">{comp.biography}</p>
+                                    )}
+                                    <div className="flex items-center gap-2 pt-2 border-t border-gray-50 text-[9.5px]">
+                                      <span className="px-2 py-0.5 rounded bg-gray-50 font-bold text-gray-700">
+                                        {Number(comp.followersCount || 0).toLocaleString('pt-BR')} seg.
+                                      </span>
+                                      <span className="px-2 py-0.5 rounded bg-gray-50 font-bold text-gray-700">
+                                        {comp.postsCount || 0} posts
+                                      </span>
+                                      {comp.avgEngagementRate !== undefined && (
+                                        <span className="px-2 py-0.5 rounded bg-orange-50 font-bold text-[var(--color-atelier-terracota)]">
+                                          {comp.avgEngagementRate}% eng.
+                                        </span>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
 

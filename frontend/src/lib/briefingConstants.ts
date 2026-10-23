@@ -372,8 +372,10 @@ export const BRIEFING_CATEGORIES = [
     id: "mercado",
     title: "05. Mercado & Concorrência",
     keys: [
-      "Concorrentes", "Links_Concorrentes", "Concorrentes_Bom", "Fazer_Diferente", 
-      "Evitar_Mercado", "O_Que_Nao_Fazer"
+      "Concorrentes", "concorrentes", "Links_Concorrentes", "concorrentes_links", "links_concorrentes",
+      "Concorrentes_Bom", "concorrentes_bom", "Fazer_Diferente", "fazer_diferente", 
+      "Evitar_Mercado", "evitar_mercado", "Diferenca_Percebida", "diferenca_percebida",
+      "O_Que_Nao_Fazer", "nao_fazer", "Diferencial", "diferencial"
     ]
   },
   {

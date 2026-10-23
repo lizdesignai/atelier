@@ -99,7 +99,7 @@ const STAGE_DESCRIPTIONS: Record<string, {
   deliver: {
     title: "Ativar",
     subtitle: "Empacotamento de Ativos & Handover",
-    focus: "Empacotamento de Ativos & Brandbook",
+    focus: "Empacotamento de Ativos & Brand Kit",
     badge: "Handover Executivo",
     description: "Exportação completa dos arquivos vetoriais em alta fidelidade e empacotamento do Brand Kit final para o cliente.",
     highlights: ["Arquivos Vetoriais", "Brand Kit Completo", "Handover de Ativos"]

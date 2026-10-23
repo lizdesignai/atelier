@@ -1,5 +1,6 @@
+// frontend/src/app/api/admin/export-briefing/route.ts
 import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { getUnifiedProjectBriefing } from '@/lib/unifiedBriefing';
 
 export async function GET(req: Request) {
   try {
@@ -7,34 +8,19 @@ export async function GET(req: Request) {
     const projectId = searchParams.get('projectId');
     if (!projectId) return NextResponse.json({ error: 'Missing projectId' }, { status: 400 });
 
-    const sql = getDb();
-    
-    const projects = await sql`
-      SELECT p.id, pr.email, pr.nome 
-      FROM projects p 
-      LEFT JOIN profiles pr ON p.client_id = pr.id 
-      WHERE p.id = ${projectId}
-    `;
-    if (!projects.length) return NextResponse.json({ error: 'Project not found' }, { status: 404 });
-    
-    const clientEmail = projects[0].email;
-    const clientNome = projects[0].nome;
-    
-    let briefings = [];
-    if (clientEmail) {
-      briefings = await sql`SELECT * FROM briefings_identidade_visual WHERE "Email" ILIKE ${clientEmail} OR (dados_completos->>'Email') ILIKE ${clientEmail} ORDER BY created_at DESC LIMIT 1`;
-    }
-    if (!briefings.length && clientNome) {
-      briefings = await sql`SELECT * FROM briefings_identidade_visual WHERE "Nome_Cliente" ILIKE ${'%' + clientNome + '%'} OR (dados_completos->>'Nome_Cliente') ILIKE ${'%' + clientNome + '%'} OR (dados_completos->>'Nome_Marca') ILIKE ${'%' + clientNome + '%'} ORDER BY created_at DESC LIMIT 1`;
+    const result = await getUnifiedProjectBriefing(projectId);
+
+    if (!result.briefing) {
+      return NextResponse.json({ error: 'Nenhum briefing preenchido por este cliente ainda.' }, { status: 404 });
     }
 
-    if (!briefings.length) {
-        return NextResponse.json({ error: 'Nenhum briefing preenchido por este cliente ainda.' }, { status: 404 });
-    }
-    
-    const b = { ...briefings[0], ...(briefings[0].dados_completos || {}) };
-    
-    return NextResponse.json({ success: true, data: b });
+    return NextResponse.json({ 
+      success: true, 
+      data: result.briefing,
+      source: result.source,
+      competitorsData: result.competitorsData,
+      clientInfo: result.clientInfo
+    });
 
   } catch (error: any) {
     return NextResponse.json({ error: error.message }, { status: 500 });

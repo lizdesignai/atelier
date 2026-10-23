@@ -39,7 +39,7 @@ const ROUTE_NAMES: Record<string, string> = {
   '/projeto/ativar': 'Ativar',
   '/admin': 'QG da Liziane',
   '/cockpit': 'Inicial',
-  '/brandbook': 'Brandbook',
+  '/brandbook': 'Curadoria Visual',
   '/curadoria': 'Curadoria',
   '/': 'Inicial',
   '/cofre': 'O Cofre',
