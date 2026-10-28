@@ -17,6 +17,7 @@ interface NovoColaboradorModalProps {
 }
 
 const CARGO_SUGGESTIONS = [
+  "Contadora / Controller Financeiro",
   "Designer Gráfico",
   "Diretor(a) de Arte",
   "Motion Designer / Vídeo",
@@ -37,7 +38,7 @@ export default function NovoColaboradorModal({
   // Form States
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState<"colaborador" | "gestor" | "admin">("colaborador");
+  const [role, setRole] = useState<"colaborador" | "gestor" | "admin" | "contador">("colaborador");
   const [cargo, setCargo] = useState("");
   const [customCargo, setCustomCargo] = useState("");
   const [telefone, setTelefone] = useState("");
@@ -108,7 +109,7 @@ export default function NovoColaboradorModal({
     }
 
     setIsSubmitting(true);
-    const finalCargo = cargo === "Outro" ? customCargo.trim() : (cargo || customCargo.trim() || "Colaborador");
+    const finalCargo = cargo === "Outro" ? customCargo.trim() : (cargo || customCargo.trim() || (role === "contador" ? "Contadora" : "Colaborador"));
     const numericSalary = baseSalary ? parseFloat(baseSalary.replace(/\D/g, "")) / 100 : null;
 
     try {
@@ -125,7 +126,7 @@ export default function NovoColaboradorModal({
           deadlineBufferDays: Number(deadlineBufferDays) || 0,
           skills: selectedSkills,
           password: customPassword.trim() || undefined,
-          empresa: "Atelier Equipe"
+          empresa: role === "contador" ? "Atelier Contabilidade" : "Atelier Equipe"
         })
       });
 
@@ -307,7 +308,7 @@ export default function NovoColaboradorModal({
                       )}
                     </div>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                       {/* CARD: COLABORADOR */}
                       <button
                         type="button"
@@ -377,6 +378,32 @@ export default function NovoColaboradorModal({
                         </div>
                         <p className="text-[10px] text-gray-500 leading-tight">
                           Controle total: segurança, financeiro global, parametrizações e exclusão.
+                        </p>
+                      </button>
+
+                      {/* CARD: CONTADORA / B&P */}
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRole("contador");
+                          if (!cargo) setCargo("Contadora");
+                        }}
+                        className={`p-3.5 rounded-2xl border text-left transition-all flex flex-col justify-between ${
+                          role === "contador"
+                            ? "border-[var(--color-veronna-bordo)] bg-[var(--color-veronna-bordo)]/5 shadow-sm ring-1 ring-[var(--color-veronna-bordo)]"
+                            : "border-gray-200 hover:border-gray-300 bg-white"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span className="font-bold text-xs uppercase tracking-wider text-[var(--color-veronna-navy)]">Contadora</span>
+                          <span className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center ${
+                            role === "contador" ? "border-[var(--color-veronna-bordo)] bg-[var(--color-veronna-bordo)]" : "border-gray-300"
+                          }`}>
+                            {role === "contador" && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-gray-500 leading-tight">
+                          Acesso restrito: apenas <strong>Bills & Payments (B&P)</strong> e <strong>Comunidade (Vêneto)</strong>.
                         </p>
                       </button>
                     </div>

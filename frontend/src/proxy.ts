@@ -29,10 +29,12 @@ const PUBLIC_ROUTES = [
 ];
 
 function getJwtSecretBytes(): Uint8Array {
-  const secret = process.env.JWT_SECRET
-    || process.env.SUPABASE_SERVICE_ROLE_KEY
-    || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
-    || 'atelier-jwt-secret-production-fallback-2026';
+  const secret = (process.env.JWT_SECRET || process.env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  if (!secret || secret.length < 16) {
+    throw new Error(
+      'Configuração crítica ausente: defina JWT_SECRET (mínimo 16 caracteres) no ambiente.'
+    );
+  }
   return new TextEncoder().encode(secret);
 }
 
@@ -88,7 +90,19 @@ export async function proxy(request: NextRequest) {
     }
 
     try {
-      await jwtVerify(token, getJwtSecretBytes());
+      const { payload } = await jwtVerify(token, getJwtSecretBytes());
+      if (payload.type !== 'session') {
+        return NextResponse.json({ error: 'Sessão inválida.' }, { status: 401 });
+      }
+
+      // Proteger rotas financeiras de API server-side
+      if (pathname.startsWith('/api/finance')) {
+        const isFin = payload.role === 'admin' || payload.role === 'gestor' || payload.role === 'contador';
+        if (!isFin) {
+          return NextResponse.json({ error: 'Acesso negado ao financeiro.' }, { status: 403 });
+        }
+      }
+
       return NextResponse.next();
     } catch {
       return NextResponse.json({ error: 'Sessão expirada.' }, { status: 401 });
@@ -123,17 +137,42 @@ export async function proxy(request: NextRequest) {
       return NextResponse.redirect(url);
     }
 
-    // Admin/Gestor acessando / são redirecionados para /admin/jtbd
-    if ((role === 'admin' || role === 'gestor') && pathname === '/') {
-      const url = request.nextUrl.clone();
-      url.pathname = '/admin/jtbd';
-      return NextResponse.redirect(url);
+    // Apenas financeiro (admin, gestor, contador) pode acessar /admin/financeiro
+    if (pathname.startsWith('/admin/financeiro')) {
+      const isFin = role === 'admin' || role === 'gestor' || role === 'contador';
+      if (!isFin) {
+        const url = request.nextUrl.clone();
+        url.pathname = role === 'client' ? '/' : '/admin/jtbd';
+        return NextResponse.redirect(url);
+      }
     }
 
-    // Contador acessando / redireciona para financeiro
-    if (role === 'contador' && pathname === '/') {
+    // Contador: acesso estritamente delimitado a financeiro, sintonia (fio), comunidade e configuracoes
+    if (role === 'contador') {
+      if (pathname === '/') {
+        const url = request.nextUrl.clone();
+        url.pathname = '/admin/financeiro';
+        return NextResponse.redirect(url);
+      }
+
+      if (pathname.startsWith('/admin') || pathname.startsWith('/tessera')) {
+        const isAllowed =
+          pathname === '/admin/financeiro' ||
+          pathname.startsWith('/admin/financeiro/') ||
+          pathname === '/admin/fio' ||
+          pathname.startsWith('/admin/fio/');
+        if (!isAllowed) {
+          const url = request.nextUrl.clone();
+          url.pathname = '/admin/financeiro';
+          return NextResponse.redirect(url);
+        }
+      }
+    }
+
+    // Admin/Gestor/Colaborador acessando / são redirecionados para /admin/jtbd
+    if ((role === 'admin' || role === 'gestor' || role === 'colaborador') && pathname === '/') {
       const url = request.nextUrl.clone();
-      url.pathname = '/admin/financeiro';
+      url.pathname = '/admin/jtbd';
       return NextResponse.redirect(url);
     }
 

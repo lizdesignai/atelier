@@ -15,7 +15,8 @@ import {
   Loader2, BrainCircuit, FileText, Calendar, 
   Save, Plus, X, Phone, Mail, Instagram, Briefcase, 
   Clock, CheckCircle, AlertCircle, FileSearch, Trash2, ArrowRight, Download,
-  Star, ThumbsUp, TrendingUp, Award, MessageSquareHeart, Activity, LayoutDashboard, Users, FileSignature, FileEdit, Compass
+  Star, ThumbsUp, TrendingUp, Award, MessageSquareHeart, Activity, LayoutDashboard, Users, FileSignature, FileEdit, Compass,
+  ChevronDown, Copy, Check, ExternalLink
 } from "lucide-react";
 
 const showToast = (message: string) => {
@@ -37,6 +38,75 @@ const MAPA_QUESTIONS: Record<string, { q: string, A: string, B: string, C: strin
   Q12: { q: "Suas legendas...", A: "Criam desejo, educam e sempre chamam para uma ação clara", B: "São boas, mas esqueço de chamar para a venda", C: "São emojis ou reflexões soltas" }
 };
 
+const ATELIER_FORMS_CATEGORIES = [
+  {
+    category: "1. Orçamentos & Inscrições",
+    items: [
+      {
+        title: "Cadastro / Orçamento de Identidade Visual",
+        url: "https://lizdesign.com.br/form-cadastro",
+        tag: "IDV"
+      },
+      {
+        title: "Orçamento de Gerenciamento de Instagram",
+        url: "https://lizdesign.com.br/form-socialmedia",
+        tag: "Social Media"
+      },
+      {
+        title: "Inscrição para Consultoria de Posicionamento",
+        url: "https://lizdesign.com.br/form-consultoria",
+        tag: "Consultoria"
+      }
+    ]
+  },
+  {
+    category: "2. Briefings, Imersão & Diagnósticos",
+    items: [
+      {
+        title: "Formulário de Briefing | Identidade Visual",
+        url: "https://lizdesign.com.br/form-briefing",
+        tag: "Briefing",
+        detail: "Ajuste concorrentes 1 a 4"
+      },
+      {
+        title: "Brand Discovery (Imersão de Marca)",
+        url: "https://lizdesign.com.br/form-brand-discovery",
+        tag: "DNA & Imersão"
+      },
+      {
+        title: "Dossiê Estratégico (Onboarding Atelier)",
+        url: "https://lizdesign.com.br/onboarding",
+        tag: "Onboarding"
+      },
+      {
+        title: "Raio-X do Instagram (Quiz / Diagnóstico)",
+        url: "https://lizdesign.com.br/form-raiox",
+        tag: "Quiz / Diagnóstico"
+      }
+    ]
+  },
+  {
+    category: "3. Pesquisas de Satisfação & Reviews",
+    items: [
+      {
+        title: "Brand Experience Review",
+        url: "https://lizdesign.com.br/form-brand-experience",
+        tag: "Review"
+      },
+      {
+        title: "Pesquisa de Satisfação — Identidade Visual",
+        url: "https://lizdesign.com.br/form-pesquisa-idv",
+        tag: "Satisfação IDV"
+      },
+      {
+        title: "Pesquisa de Satisfação — Gerenciamento de Instagram",
+        url: "https://lizdesign.com.br/form-pesquisa-instagram",
+        tag: "Satisfação Gestão"
+      }
+    ]
+  }
+];
+
 export default function AdminDashboard() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'geral' | 'consultoria' | 'orcamentos' | 'briefings' | 'pesquisas' | 'mapa'>('geral');
@@ -53,6 +123,30 @@ export default function AdminDashboard() {
   const [mapas, setMapas] = useState<any[]>([]);
   const [selectedItem, setSelectedItem] = useState<any>(null);
   const [clientEmails, setClientEmails] = useState<Set<string>>(new Set());
+
+  // Lista Expansível de Formulários
+  const [isFormsExpanded, setIsFormsExpanded] = useState(false);
+  const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+
+  const handleCopyLink = async (url: string) => {
+    try {
+      if (navigator?.clipboard?.writeText) {
+        await navigator.clipboard.writeText(url);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = url;
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setCopiedUrl(url);
+      showToast("Link copiado com sucesso!");
+      setTimeout(() => setCopiedUrl(null), 2000);
+    } catch {
+      showToast("Erro ao copiar o link.");
+    }
+  };
 
   // Agendador de Reunião
   const [isMeetingModalOpen, setIsMeetingModalOpen] = useState(false);
@@ -535,9 +629,105 @@ export default function AdminDashboard() {
       <div className="flex flex-col w-full max-w-[1200px] mx-auto h-[calc(100dvh-60px)] md:h-[calc(100vh-60px)] mt-4 px-4 lg:px-8 overflow-hidden animate-[fadeInUp_0.6s_ease-out_both]">
       
       {/* HEADER DA PÁGINA */}
-      <div className="mb-6">
-        <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">QG da <span className="text-[var(--color-atelier-terracota)] italic">Liziane.</span></h1>
-        <p className="text-[12px] uppercase font-bold tracking-widest text-gray-400 mt-1">Central de Inteligência Operacional e Captação</p>
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 relative z-30">
+        <div>
+          <h1 className="font-elegant text-4xl text-[var(--color-atelier-grafite)]">QG da <span className="text-[var(--color-atelier-terracota)] italic">Liziane.</span></h1>
+          <p className="text-[12px] uppercase font-bold tracking-widest text-gray-400 mt-1">Central de Inteligência Operacional e Captação</p>
+        </div>
+
+        {/* BOTÃO COM LISTA EXPANSÍVEL QUE SOBREPÕE */}
+        <div className="relative">
+          <button
+            type="button"
+            onClick={() => setIsFormsExpanded(!isFormsExpanded)}
+            className={`flex items-center gap-2.5 px-4 py-2.5 rounded-2xl border transition-all duration-200 cursor-pointer shadow-2xs self-start sm:self-auto ${
+              isFormsExpanded
+                ? "bg-[var(--color-atelier-grafite)] text-white border-[var(--color-atelier-grafite)] shadow-md"
+                : "bg-white text-[var(--color-atelier-grafite)] border-gray-200 hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)]"
+            }`}
+            title="Formulários"
+          >
+            <span className="font-roboto text-[11px] font-bold uppercase tracking-wider">
+              Links de Formulários
+            </span>
+            <span className={`text-[10px] px-2 py-0.5 rounded-full font-black ${
+              isFormsExpanded ? "bg-[var(--color-atelier-terracota)] text-white" : "bg-gray-100 text-gray-700"
+            }`}>
+              10
+            </span>
+            <ChevronDown
+              size={16}
+              className={`transition-transform duration-200 ${
+                isFormsExpanded ? "rotate-180 text-white" : "text-gray-400"
+              }`}
+            />
+          </button>
+
+          {/* LISTA SIMPLES SOBREPONDO A TELA ATUAL */}
+          {isFormsExpanded && (
+            <>
+              {/* BACKDROP PARA FECHAR AO CLICAR FORA */}
+              <div 
+                className="fixed inset-0 z-40" 
+                onClick={() => setIsFormsExpanded(false)} 
+              />
+
+              {/* DROPDOWN SOBREPOSTO */}
+              <div className="absolute right-0 top-full mt-2 w-[340px] sm:w-[380px] max-w-[90vw] bg-white rounded-2xl border border-gray-100 shadow-[0_16px_40px_rgba(0,0,0,0.12)] z-50 p-2 overflow-hidden animate-[fadeIn_0.15s_ease-out]">
+                <div className="max-h-[70vh] overflow-y-auto custom-scrollbar flex flex-col divide-y divide-gray-100">
+                  {ATELIER_FORMS_CATEGORIES.map(category => (
+                    <div key={category.category} className="py-2 first:pt-1 last:pb-1">
+                      <div className="px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-gray-400">
+                        {category.category}
+                      </div>
+
+                      <div className="flex flex-col mt-0.5">
+                        {category.items.map(item => {
+                          const isCopied = copiedUrl === item.url;
+                          return (
+                            <div 
+                              key={item.url}
+                              className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl hover:bg-gray-50 transition-colors"
+                            >
+                              <span className="text-[12.5px] font-medium text-[var(--color-atelier-grafite)] truncate" title={item.title}>
+                                {item.title}
+                              </span>
+
+                              <div className="flex items-center gap-1 shrink-0">
+                                <button
+                                  type="button"
+                                  onClick={() => handleCopyLink(item.url)}
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-[var(--color-atelier-terracota)] hover:bg-gray-100 transition-colors cursor-pointer"
+                                  title="Copiar link"
+                                >
+                                  {isCopied ? (
+                                    <Check size={14} className="text-emerald-600 stroke-[2.5]" />
+                                  ) : (
+                                    <Copy size={14} />
+                                  )}
+                                </button>
+
+                                <a
+                                  href={item.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="w-7 h-7 flex items-center justify-center rounded-lg text-gray-400 hover:text-[var(--color-atelier-terracota)] hover:bg-gray-100 transition-colors"
+                                  title="Ir direto para o forms"
+                                >
+                                  <ExternalLink size={14} />
+                                </a>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* KPI DASHBOARD GLOBAL */}

@@ -1,25 +1,59 @@
-import { NextResponse } from 'next/server';
-import { getDb } from '@/lib/db';
+import { NextRequest, NextResponse } from 'next/server';
+import { getAuthUser } from '@/lib/auth-server';
+import { getMigrationStatus, runPendingMigrations } from '@/lib/migrations';
 
+/**
+ * GET /api/migrate
+ * Somente leitura (status das migrações) e restrito exclusivamente a administradores.
+ */
 export async function GET() {
   try {
-    const sql = getDb();
-    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS idv_product VARCHAR(20);`;
-    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS idv_complexity VARCHAR(5);`;
-    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS idv_capacity_weight NUMERIC DEFAULT 1.5;`;
-    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS production_start_date DATE;`;
-    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS presentation_target_date DATE;`;
-    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS delivery_target_date DATE;`;
-    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS client_wait_hours INTEGER DEFAULT 0;`;
-    await sql`ALTER TABLE projects ADD COLUMN IF NOT EXISTS ready_checklist JSONB DEFAULT '{}';`;
-    
-    await sql`
-      UPDATE projects 
-      SET idv_product = 'IDV-CORE', idv_complexity = 'C2', ready_checklist = '{"contract": true, "payment": true, "briefing": true, "assets": true, "meeting_scheduled": true}'::jsonb
-      WHERE service_type = 'Identidade Visual' AND idv_product IS NULL;
-    `;
+    const user = await getAuthUser();
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Não autenticado.' }, { status: 401 });
+    }
+    if (user.role !== 'admin') {
+      return NextResponse.json(
+        { success: false, error: 'Apenas administradores podem consultar migrações.' },
+        { status: 403 }
+      );
+    }
 
-    return NextResponse.json({ success: true, message: 'Fase 1 Migrate OK' });
+    const status = await getMigrationStatus();
+    return NextResponse.json({ success: true, status });
+  } catch (error: any) {
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
+/**
+ * POST /api/migrate
+ * Executa as migrações pendentes em db/migrations, restrito exclusivamente a administradores.
+ */
+export async function POST(request: NextRequest) {
+  try {
+    const user = await getAuthUser();
+    if (!user) {
+      return NextResponse.json({ success: false, error: 'Não autenticado.' }, { status: 401 });
+    }
+    if (user.role !== 'admin') {
+      return NextResponse.json(
+        { success: false, error: 'Apenas administradores podem executar migrações.' },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json().catch(() => ({}));
+    const result = await runPendingMigrations({
+      appliedBy: user.email || user.sub,
+      dryRun: Boolean(body?.dryRun),
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: result.dryRun ? 'Simulação (dry-run) concluída.' : 'Migrações executadas com sucesso.',
+      ...result,
+    });
   } catch (error: any) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

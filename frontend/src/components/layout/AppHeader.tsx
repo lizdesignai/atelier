@@ -254,43 +254,7 @@ export default function AppHeader({ handleLogout, userRole }: AppHeaderProps) {
                 </div>
               </div>
 
-              {isTeamMember && (
-                <div className="px-4 py-2.5 border-b border-[var(--color-atelier-grafite)]/5 flex flex-col gap-1.5 bg-gray-50/30">
-                  <span className="text-[9px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">
-                    Barra de Navegação
-                  </span>
-                  <div className="grid grid-cols-2 gap-1 bg-black/[0.04] p-1 rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNavMode('vertical');
-                        window.dispatchEvent(new CustomEvent("showToast", { detail: "Barra de navegação: Vertical (Sidebar)." }));
-                      }}
-                      className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer ${
-                        navMode === 'vertical'
-                          ? 'bg-white shadow-xs text-[var(--color-atelier-terracota)]'
-                          : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
-                      }`}
-                    >
-                      <PanelLeft size={13} /> Vertical
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setNavMode('horizontal');
-                        window.dispatchEvent(new CustomEvent("showToast", { detail: "Barra de navegação: Horizontal (Pílula)." }));
-                      }}
-                      className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer ${
-                        navMode === 'horizontal'
-                          ? 'bg-white shadow-xs text-[var(--color-atelier-terracota)]'
-                          : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
-                      }`}
-                    >
-                      <PanelBottom size={13} /> Horizontal
-                    </button>
-                  </div>
-                </div>
-              )}
+
 
               <button 
                 type="button"
@@ -467,17 +431,18 @@ export default function AppHeader({ handleLogout, userRole }: AppHeaderProps) {
                           </button>
                         )}
 
-                        {effectiveRole === 'admin' && (
+                        {(effectiveRole === 'admin' || effectiveRole === 'gestor' || effectiveRole === 'contador') && (
                           <button
                             type="button"
                             onClick={() => { setIsNavMenuOpen(false); router.push('/admin/financeiro'); }}
+                            title="Bills & Payments (B&P) — Gestão Financeira & Contábil"
                             className="flex flex-col items-center justify-center p-2.5 rounded-2xl hover:bg-black/[0.03] transition-all group cursor-pointer active:scale-95"
                           >
-                            <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-green-100 text-green-600 group-hover:bg-green-600 group-hover:text-white transition-all shadow-xs">
+                            <div className="w-11 h-11 rounded-2xl flex items-center justify-center bg-emerald-100 text-emerald-700 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-xs">
                               <DollarSign size={18} />
                             </div>
                             <span className="text-[10px] font-bold text-[var(--color-atelier-grafite)] text-center leading-tight mt-1.5 w-full truncate">
-                              Financeiro
+                              Bills & Payments
                             </span>
                           </button>
                         )}
@@ -586,18 +551,18 @@ export default function AppHeader({ handleLogout, userRole }: AppHeaderProps) {
                           </button>
                         )}
 
-                        {effectiveRole === 'admin' && (
+                        {(effectiveRole === 'admin' || effectiveRole === 'gestor' || effectiveRole === 'contador') && (
                           <button
                             type="button"
                             onClick={() => { setIsNavMenuOpen(false); router.push('/admin/financeiro'); }}
                             className="flex items-center gap-3 px-3 py-2 text-[11px] font-bold text-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)]/5 hover:text-[var(--color-atelier-terracota)] rounded-xl transition-colors text-left"
                           >
-                            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-green-100 text-green-600 shrink-0">
+                            <div className="w-7 h-7 rounded-lg flex items-center justify-center bg-emerald-100 text-emerald-700 shrink-0">
                               <DollarSign size={14} />
                             </div>
                             <div className="flex flex-col min-w-0">
-                              <span className="truncate">Financeiro</span>
-                              <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 font-normal truncate">Controle & Métricas</span>
+                              <span className="truncate">Bills & Payments (B&P)</span>
+                              <span className="text-[9px] text-[var(--color-atelier-grafite)]/40 font-normal truncate">Controle, Caixa & DRE</span>
                             </div>
                           </button>
                         )}
@@ -734,43 +699,7 @@ export default function AppHeader({ handleLogout, userRole }: AppHeaderProps) {
                       </div>
                     </div>
 
-                    {isTeamMember && (
-                      <div className="px-4 py-2.5 border-b border-[var(--color-atelier-grafite)]/5 flex flex-col gap-1.5 bg-gray-50/30">
-                        <span className="text-[8.5px] uppercase tracking-widest font-bold text-[var(--color-atelier-grafite)]/50">
-                          Barra de Navegação
-                        </span>
-                        <div className="grid grid-cols-2 gap-1 bg-black/[0.04] p-1 rounded-xl">
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setNavMode('vertical');
-                              window.dispatchEvent(new CustomEvent("showToast", { detail: "Barra de navegação: Vertical (Sidebar)." }));
-                            }}
-                            className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer ${
-                              navMode === 'vertical'
-                                ? 'bg-white shadow-xs text-[var(--color-atelier-terracota)]'
-                                : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
-                            }`}
-                          >
-                            <PanelLeft size={13} /> Vertical
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setNavMode('horizontal');
-                              window.dispatchEvent(new CustomEvent("showToast", { detail: "Barra de navegação: Horizontal (Pílula)." }));
-                            }}
-                            className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[10.5px] font-bold transition-all cursor-pointer ${
-                              navMode === 'horizontal'
-                                ? 'bg-white shadow-xs text-[var(--color-atelier-terracota)]'
-                                : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
-                            }`}
-                          >
-                            <PanelBottom size={13} /> Horizontal
-                          </button>
-                        </div>
-                      </div>
-                    )}
+
 
                     <button 
                       onClick={() => {

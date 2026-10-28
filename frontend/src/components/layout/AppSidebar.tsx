@@ -182,8 +182,16 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
         }
       } else if (isContador) {
         // 🟢 BLINDAGEM DE ROTAS PARA O CONTADOR
-        const allowedContadorRoutes = ['/admin/fio', '/comunidade', '/admin/financeiro'];
-        if (!allowedContadorRoutes.includes(pathname)) {
+        const isAllowed =
+          pathname === '/admin/financeiro' ||
+          pathname.startsWith('/admin/financeiro/') ||
+          pathname === '/admin/fio' ||
+          pathname.startsWith('/admin/fio/') ||
+          pathname === '/comunidade' ||
+          pathname.startsWith('/comunidade/') ||
+          pathname === '/configuracoes' ||
+          pathname.startsWith('/configuracoes/');
+        if (!isAllowed) {
           router.replace('/admin/financeiro');
         }
       } else {
@@ -236,10 +244,8 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
                            || projects?.[0];
   const isInstagramClient = isClient && (clientServiceType === "Gestão de Instagram" || getProductTypeFromProject(activeClientProject) === 'instagram');
 
-  if (isClient) return null;
-  if (isClient && isProjectArchived) return null;
-  if (isContador && !isReady) return null;
-  if (isTeamMember && navMode === 'horizontal') return null;
+  // Barra vertical de sidebar oculta conforme diretriz do estúdio: uso exclusivo da barra horizontal (pílula)
+  return null;
 
   // 🟢 Definição inteligente da rota Home (Logo) com base na patente
   const homeRoute = isContador 
@@ -261,7 +267,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   };
 
   const mobileMainItems: Array<{ href: string; icon: React.ReactNode; label: string; badge?: number }> = isContador ? [
-    { href: '/admin/financeiro', icon: <DollarSign size={20} strokeWidth={1.5} />, label: 'Finanças' },
+    { href: '/admin/financeiro', icon: <DollarSign size={20} strokeWidth={1.5} />, label: 'B&P' },
     { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : isTeamMember ? [
@@ -288,7 +294,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
   ];
 
   const mobileDrawerItems: Array<{ href: string; icon: React.ReactNode; label: string; badge?: number }> = isContador ? [
-    { href: '/admin/financeiro', icon: <DollarSign size={20} strokeWidth={1.5} />, label: 'Financeiro' },
+    { href: '/admin/financeiro', icon: <DollarSign size={20} strokeWidth={1.5} />, label: 'Bills & Payments (B&P)' },
     { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : isTeamMember ? [
@@ -356,8 +362,8 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               className="flex flex-col overflow-hidden whitespace-nowrap"
             >
               <span className="font-elegant text-3xl text-[var(--color-veronna-navy)] leading-none mb-0.5 tracking-tight">Atelier</span>
-              <span className="font-analog text-[0.65rem] text-[var(--color-veronna-bordo)] tracking-[0.22em] uppercase font-bold truncate max-w-[140px]">
-                {isContador ? 'Financeiro' : isTeamMember ? 'Studio Veronna' : (clientName || 'Portal do Cliente')}
+              <span className="text-[11px] text-[var(--color-veronna-bordo)] tracking-wider uppercase font-bold truncate max-w-[140px]">
+                {isContador ? 'Bills & Payments' : isTeamMember ? 'Studio Veronna' : (clientName || 'Portal do Cliente')}
               </span>
             </motion.div>
           )}
@@ -443,7 +449,7 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
           {/* MENU PARA CONTADOR */}
           {isContador && (
             <>
-              <NavItem href="/admin/financeiro" icon={<DollarSign size={18} strokeWidth={1.5} />} label="Financeiro" collapsed={isCollapsed} active={pathname === '/admin/financeiro'} />
+              <NavItem href="/admin/financeiro" icon={<DollarSign size={18} strokeWidth={1.5} />} label="Bills & Payments (B&P)" collapsed={isCollapsed} active={pathname === '/admin/financeiro' || pathname.startsWith('/admin/financeiro/')} />
               <NavItem href="/admin/fio" icon={<MessageCircle size={18} strokeWidth={1.5} />} label="Sintonia" collapsed={isCollapsed} active={pathname === '/admin/fio'} badge={globalUnreadCount} />
               
 
@@ -476,6 +482,9 @@ export default function AppSidebar({ userRole, handleLogout, onHideSidebar }: Ap
               </div>
 
               <NavItem href="/admin/analytics" icon={<Briefcase size={18} strokeWidth={1.5} />} label="Analytics" collapsed={isCollapsed} active={pathname === '/admin/analytics'} />
+              {isManagerOrAdmin && (
+                <NavItem href="/admin/financeiro" icon={<DollarSign size={18} strokeWidth={1.5} />} label="Bills & Payments (B&P)" collapsed={isCollapsed} active={pathname === '/admin/financeiro' || pathname.startsWith('/admin/financeiro/')} />
+              )}
             </>
           )}
 

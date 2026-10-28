@@ -15,6 +15,7 @@ import VeronnaFullLogo from "../components/brand/VeronnaFullLogo";
 import { GlobalStoreProvider } from "../contexts/GlobalStore";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "../lib/queryClient";
+import { isContadorRouteAllowed } from "@/lib/rbac";
 
 // Carregamento dinâmico do CommandPalette para diminuir o bundle inicial
 const CommandPalette = dynamic(() => import("../components/global/CommandPalette"), { ssr: false });
@@ -127,6 +128,12 @@ export default function ClientShell({ children }: { children: React.ReactNode })
         const role = user?.role || 'client';
         setUserRole(role);
 
+        // Bloqueio rigoroso de rota para contadora: apenas Bills & Payments e Comunidade
+        if (role === 'contador' && !isLoginPage && !isContadorRouteAllowed(pathname)) {
+          window.location.href = '/admin/financeiro';
+          return;
+        }
+
         // Sincronizar autoritativamente o cache de sessão do React Query
         queryClient.setQueryData(["session"], data);
 
@@ -175,19 +182,7 @@ export default function ClientShell({ children }: { children: React.ReactNode })
         <div className="flex flex-1 w-full h-full relative">
           <VeronnaAmbientBackground />
 
-          {!isLoginPage && userRole && (
-            <>
-              <AppSidebar 
-                userRole={userRole} 
-                handleLogout={handleLogout} 
-                onHideSidebar={(hidden) => setIsSidebarHidden(hidden)} 
-              />
-              <MobileSidebar 
-                userRole={userRole} 
-                handleLogout={handleLogout} 
-              />
-            </>
-          )}
+          {/* Barra vertical de sidebar oculta — o sistema opera exclusivamente via barra de navegação horizontal (pílula) */}
 
           <motion.div 
             initial={!isLoginPage ? { scale: 1.02, opacity: 0 } : false}

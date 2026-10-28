@@ -16,6 +16,8 @@ interface EconomicsDashboardProps {
   currentUser: any;
   activeTab?: string;
   setActiveTab?: (tab: 'pulse' | 'workforce' | 'economics' | 'demands') => void;
+  hideHeaderNav?: boolean;
+  hideTitle?: boolean;
 }
 
 // 🟢 UTILITÁRIO: Extração segura de nós do Supabase (Array vs Object)
@@ -24,7 +26,13 @@ function extractNode(node: any): any {
   return Array.isArray(node) ? node[0] : node;
 }
 
-export default function EconomicsDashboard({ currentUser, activeTab = 'economics', setActiveTab }: EconomicsDashboardProps) {
+export default function EconomicsDashboard({ 
+  currentUser, 
+  activeTab = 'economics', 
+  setActiveTab,
+  hideHeaderNav = false,
+  hideTitle = false
+}: EconomicsDashboardProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [projectsData, setProjectsData] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
@@ -241,47 +249,65 @@ export default function EconomicsDashboard({ currentUser, activeTab = 'economics
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-auto md:h-full gap-6 overflow-y-auto md:overflow-hidden">
       
-      {/* 🟢 HEADER ULTRA MODERNO (GLASSMORPHISM) */}
-      <div className="shrink-0 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative z-20">
-        <div></div>
-
-        <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
-          {/* Barra de Busca Glass */}
-          <div className="relative w-full md:w-64 group">
-            <div className="absolute inset-0 bg-white/40 backdrop-blur-xl rounded-2xl border border-white shadow-[0_4px_16px_rgba(0,0,0,0.04)] group-hover:shadow-[0_4px_24px_rgba(0,0,0,0.08)] transition-all -z-10"></div>
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[var(--color-atelier-terracota)] transition-colors" size={16} />
+      {/* 🟢 HEADER / SUB-TOOLBAR */}
+      {hideHeaderNav ? (
+        <div className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-2 border-b border-[var(--color-atelier-grafite)]/10">
+          <div className="flex items-center gap-2">
+            <span className="tess-eyebrow">Unit Economics · Rentabilidade por Conta</span>
+          </div>
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[var(--color-atelier-grafite)]/40" size={15} />
             <input 
-              type="text" placeholder="Buscar cliente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full bg-transparent py-3 pl-12 pr-4 text-[12px] font-bold outline-none text-[var(--color-atelier-grafite)] placeholder-gray-400"
+              type="text" 
+              placeholder="Buscar cliente ou agência..." 
+              value={searchTerm} 
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full bg-[var(--color-atelier-creme)]/70 border border-[var(--color-atelier-grafite)]/12 rounded-xl py-2 pl-10 pr-4 text-xs font-medium text-[var(--color-atelier-grafite)] placeholder-[var(--color-atelier-grafite)]/40 outline-none focus:ring-1 focus:ring-[var(--tess-accent)] transition-all"
             />
           </div>
+        </div>
+      ) : (
+        <div className="shrink-0 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 relative z-20">
+          <div></div>
 
-          {/* NAV HORIZONTAL COMPACTA E SOFISTICADA ALINHADA AO HEAD */}
-          <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0 gap-1">
-            <button 
-              onClick={() => setActiveTab?.('pulse')} 
-              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'pulse' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
-              title="Pulso Live"
-            >
-              <Activity size={16} /> {activeTab === 'pulse' && <span>Pulso Live</span>}
-            </button>
-            <button 
-              onClick={() => setActiveTab?.('workforce')} 
-              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'workforce' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
-              title="Equipe & RH"
-            >
-              <Users size={16} /> {activeTab === 'workforce' && <span>Equipe & RH</span>}
-            </button>
-            <button 
-              onClick={() => setActiveTab?.('economics')} 
-              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'economics' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
-              title="Unit Economics"
-            >
-              <DollarSign size={16} /> {activeTab === 'economics' && <span>Unit Economics</span>}
-            </button>
+          <div className="flex flex-wrap items-center gap-3 w-full md:w-auto">
+            {/* Barra de Busca Glass */}
+            <div className="relative w-full md:w-64 group">
+              <div className="absolute inset-0 bg-white/40 backdrop-blur-xl rounded-2xl border border-white shadow-[0_4px_16px_rgba(0,0,0,0.04)] group-hover:shadow-[0_4px_24px_rgba(0,0,0,0.08)] transition-all -z-10"></div>
+              <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 group-focus-within:text-[var(--color-atelier-terracota)] transition-colors" size={16} />
+              <input 
+                type="text" placeholder="Buscar cliente..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full bg-transparent py-3 pl-12 pr-4 text-[12px] font-bold outline-none text-[var(--color-atelier-grafite)] placeholder-gray-400"
+              />
+            </div>
+
+            {/* NAV HORIZONTAL COMPACTA E SOFISTICADA ALINHADA AO HEAD */}
+            <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0 gap-1">
+              <button 
+                onClick={() => setActiveTab?.('pulse')} 
+                className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'pulse' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
+                title="Pulso Live"
+              >
+                <Activity size={16} /> {activeTab === 'pulse' && <span>Pulso Live</span>}
+              </button>
+              <button 
+                onClick={() => setActiveTab?.('workforce')} 
+                className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'workforce' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
+                title="Equipe & RH"
+              >
+                <Users size={16} /> {activeTab === 'workforce' && <span>Equipe & RH</span>}
+              </button>
+              <button 
+                onClick={() => setActiveTab?.('economics')} 
+                className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'economics' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
+                title="Unit Economics"
+              >
+                <DollarSign size={16} /> {activeTab === 'economics' && <span>Unit Economics</span>}
+              </button>
+            </div>
           </div>
         </div>
-      </div>
+      )}
 
       {/* 🟢 TOP ROW: CARDS DE SAÚDE FINANCEIRA */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-5 shrink-0 z-10">

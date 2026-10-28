@@ -5,7 +5,7 @@ import React, { useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Home, Globe2, Crosshair, FolderKanban, MessageCircle, Briefcase, Compass } from "lucide-react";
+import { Home, Globe2, Crosshair, FolderKanban, MessageCircle, Briefcase, Compass, Landmark } from "lucide-react";
 import { supabase } from "../../lib/supabase";
 import { useSession } from "../../hooks/useSession";
 import { useProfile } from "../../hooks/useProfile";
@@ -23,6 +23,23 @@ export default function InstagramClientNavPill() {
 
   const [mounted, setMounted] = useState(false);
   const [globalUnreadCount, setGlobalUnreadCount] = useState<number>(0);
+
+  const [isEngaged, setIsEngaged] = useState(false);
+  const engageTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const wakeBar = () => {
+    setIsEngaged(true);
+    if (engageTimeoutRef.current) clearTimeout(engageTimeoutRef.current);
+    engageTimeoutRef.current = setTimeout(() => {
+      setIsEngaged(false);
+    }, 2800);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (engageTimeoutRef.current) clearTimeout(engageTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     setMounted(true);
@@ -65,10 +82,114 @@ export default function InstagramClientNavPill() {
   // Não renderizar na página de login, antes do mount no cliente ou sem papel definido
   if (pathname === "/login" || !mounted || typeof document === "undefined" || !userRole) return null;
 
-  // Caso seja membro da equipe (exibe no modo horizontal ou na Gestão de Instagram)
+  // ==========================================
+  // 1. CASO CONTADOR (EXCLUSIVAMENTE B&P + VÊNETO)
+  // ==========================================
+  if (isContador) {
+    const contadorNavItems = [
+      {
+        href: "/admin/financeiro",
+        label: "Bills & Payments",
+        icon: Landmark,
+        active: pathname === "/admin/financeiro" || pathname.startsWith("/admin/financeiro/"),
+      },
+      {
+        href: "/comunidade",
+        label: "Vêneto",
+        icon: Globe2,
+        active: pathname === "/comunidade" || pathname.startsWith("/comunidade/"),
+      },
+    ];
+
+    return createPortal(
+      <div
+        className="fixed bottom-2 inset-x-0 z-[100] flex justify-center pointer-events-none"
+        style={{
+          position: "fixed",
+          bottom: "8px",
+          left: 0,
+          right: 0,
+          width: "100%",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          pointerEvents: "none",
+          zIndex: 100,
+        }}
+      >
+        <motion.nav
+          initial={{ y: 25, opacity: 0, scale: 0.95 }}
+          animate={{
+            y: isEngaged ? 0 : 5,
+            opacity: isEngaged ? 1 : 0.40,
+            scale: isEngaged ? 1 : 0.88,
+          }}
+          whileHover={{ opacity: 1, scale: 1, y: 0 }}
+          whileTap={{ opacity: 1, scale: 0.98, y: 0 }}
+          transition={{ type: "spring", stiffness: 360, damping: 28 }}
+          onMouseEnter={() => setIsEngaged(true)}
+          onMouseLeave={() => setIsEngaged(false)}
+          onTouchStart={wakeBar}
+          className="pointer-events-auto relative flex items-center p-1.5 rounded-full bg-white/70 backdrop-blur-2xl border border-black/5 shadow-xs hover:shadow-[0_16px_36px_rgba(13,29,48,0.14)] ring-1 ring-black/5 overflow-hidden transition-shadow"
+        >
+          {/* Fundo decorativo suave com Ativo 14.svg em opacidade 10 */}
+          <div
+            className="absolute inset-0 pointer-events-none rounded-full opacity-10 bg-center bg-repeat"
+            style={{
+              backgroundImage: "url('/images/Ativo%2014.svg')",
+              backgroundSize: "160px auto",
+            }}
+          />
+
+          <div className="relative z-10 flex items-center gap-1.5">
+            {contadorNavItems.map((item) => {
+              const Icon = item.icon;
+              return (
+                <button
+                  key={item.href}
+                  type="button"
+                  onClick={() => router.push(item.href)}
+                  className={`relative flex items-center justify-center rounded-full transition-all duration-300 cursor-pointer ${
+                    item.active
+                      ? "px-4 py-2 bg-gradient-to-r from-[var(--color-veronna-navy)] to-[var(--color-veronna-royal)] text-white shadow-xs"
+                      : "p-2.5 text-gray-500 hover:text-[var(--color-atelier-grafite)] hover:bg-black/5"
+                  }`}
+                  title={`Ir para ${item.label}`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex items-center justify-center">
+                      <Icon size={17} strokeWidth={item.active ? 2.2 : 1.8} className={item.active ? "text-[#B9D1E3]" : ""} />
+                    </div>
+                    <AnimatePresence initial={false}>
+                      {item.active && (
+                        <motion.span
+                          initial={{ opacity: 0, width: 0 }}
+                          animate={{ opacity: 1, width: "auto" }}
+                          exit={{ opacity: 0, width: 0 }}
+                          transition={{ duration: 0.22, ease: "easeOut" }}
+                          className="font-roboto text-[12px] font-bold tracking-wide whitespace-nowrap overflow-hidden flex items-center gap-1.5"
+                        >
+                          <span>{item.label}</span>
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </motion.nav>
+      </div>,
+      document.body
+    );
+  }
+
+  // ==========================================
+  // 2. CASO MEMBRO DA EQUIPE (GESTOR, ADMIN, COLABORADOR)
+  // ==========================================
   if (isTeamMember) {
     const isGerenciamentoActive = pathname === "/admin/gerenciamento" || pathname.startsWith("/admin/gerenciamento") || pathname === "/cockpit";
-    if (navMode !== "horizontal" && !isGerenciamentoActive) return null;
+    const isManagerOrAdmin = ["admin", "gestor"].includes(userRole || "");
 
     const teamNavItems = [
       {
@@ -108,14 +229,20 @@ export default function InstagramClientNavPill() {
         icon: Briefcase,
         active: pathname === "/admin/analytics",
       },
+      ...(isManagerOrAdmin ? [{
+        href: "/admin/financeiro",
+        label: "B&P",
+        icon: Landmark,
+        active: pathname === "/admin/financeiro" || pathname.startsWith("/admin/financeiro/"),
+      }] : []),
     ];
 
     return createPortal(
       <div
-        className="fixed bottom-6 inset-x-0 z-[100] flex justify-center pointer-events-none"
+        className="fixed bottom-2 inset-x-0 z-[100] flex justify-center pointer-events-none"
         style={{
           position: "fixed",
-          bottom: "24px",
+          bottom: "8px",
           left: 0,
           right: 0,
           width: "100%",
@@ -128,9 +255,18 @@ export default function InstagramClientNavPill() {
       >
         <motion.nav
           initial={{ y: 25, opacity: 0, scale: 0.95 }}
-          animate={{ y: 0, opacity: 1, scale: 1 }}
-          transition={{ type: "spring", stiffness: 420, damping: 28 }}
-          className="pointer-events-auto relative flex items-center p-1.5 rounded-full bg-white border border-black/5 shadow-[0_16px_36px_rgba(13,29,48,0.14)] ring-1 ring-black/5 overflow-hidden"
+          animate={{
+            y: isEngaged ? 0 : 5,
+            opacity: isEngaged ? 1 : 0.40,
+            scale: isEngaged ? 1 : 0.88,
+          }}
+          whileHover={{ opacity: 1, scale: 1, y: 0 }}
+          whileTap={{ opacity: 1, scale: 0.98, y: 0 }}
+          transition={{ type: "spring", stiffness: 360, damping: 28 }}
+          onMouseEnter={() => setIsEngaged(true)}
+          onMouseLeave={() => setIsEngaged(false)}
+          onTouchStart={wakeBar}
+          className="pointer-events-auto relative flex items-center p-1.5 rounded-full bg-white/70 backdrop-blur-2xl border border-black/5 shadow-xs hover:shadow-[0_16px_36px_rgba(13,29,48,0.14)] ring-1 ring-black/5 overflow-hidden transition-shadow"
         >
           {/* Fundo decorativo suave com Ativo 14.svg em opacidade 10 */}
           <div
@@ -220,10 +356,10 @@ export default function InstagramClientNavPill() {
 
   return createPortal(
     <div
-      className="fixed bottom-6 inset-x-0 z-[100] flex justify-center pointer-events-none"
+      className="fixed bottom-2 inset-x-0 z-[100] flex justify-center pointer-events-none"
       style={{
         position: "fixed",
-        bottom: "24px",
+        bottom: "8px",
         left: 0,
         right: 0,
         width: "100%",
@@ -236,9 +372,18 @@ export default function InstagramClientNavPill() {
     >
       <motion.nav 
         initial={{ y: 25, opacity: 0, scale: 0.95 }}
-        animate={{ y: 0, opacity: 1, scale: 1 }}
-        transition={{ type: "spring", stiffness: 420, damping: 28 }}
-        className="pointer-events-auto relative flex items-center p-1.5 rounded-full bg-white border border-black/5 shadow-[0_16px_36px_rgba(13,29,48,0.14)] ring-1 ring-black/5 overflow-hidden"
+        animate={{
+          y: isEngaged ? 0 : 5,
+          opacity: isEngaged ? 1 : 0.40,
+          scale: isEngaged ? 1 : 0.88,
+        }}
+        whileHover={{ opacity: 1, scale: 1, y: 0 }}
+        whileTap={{ opacity: 1, scale: 0.98, y: 0 }}
+        transition={{ type: "spring", stiffness: 360, damping: 28 }}
+        onMouseEnter={() => setIsEngaged(true)}
+        onMouseLeave={() => setIsEngaged(false)}
+        onTouchStart={wakeBar}
+        className="pointer-events-auto relative flex items-center p-1.5 rounded-full bg-white/70 backdrop-blur-2xl border border-black/5 shadow-xs hover:shadow-[0_16px_36px_rgba(13,29,48,0.14)] ring-1 ring-black/5 overflow-hidden transition-shadow"
       >
         {/* Fundo decorativo suave com Ativo 14.svg em opacidade 10 */}
         <div

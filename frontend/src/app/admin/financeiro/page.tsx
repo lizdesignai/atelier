@@ -1,746 +1,609 @@
 // src/app/admin/financeiro/page.tsx
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { supabase } from "../../../lib/supabase";
-import { useRouter } from "next/navigation";
-import { useGlobalStore } from "../../../contexts/GlobalStore";
-import { AtelierCFOEngine } from "../../../lib/AtelierCFOEngine";
-import { NotificationEngine } from "../../../lib/NotificationEngine"; // 🔔 INJEÇÃO DO MOTOR DE NOTIFICAÇÕES
-import { 
-  DollarSign, Loader2, Wallet, HeartPulse,
-  LayoutDashboard, Download, Edit3, X, ArrowDownRight,
-  Calendar, CheckCircle2, AlertTriangle, ShieldAlert, Activity, Medal,
-  FileText
+import { useState, useEffect, useCallback } from "react";
+import Link from "next/link";
+import {
+  TrendingUp,
+  TrendingDown,
+  Clock,
+  CheckCircle2,
+  AlertTriangle,
+  Plus,
+  ArrowRight,
+  Landmark,
+  FileSpreadsheet,
+  Receipt,
+  Calendar,
+  Users,
+  RotateCw,
+  Loader2,
+  Check,
 } from "lucide-react";
+import type { FinEntry, FinBankAccount, FinAccount, FinSupplier, FinClientSummary } from "@/types/finance";
+import { NewEntryModal } from "./components/NewEntryModal";
+import { SettlementModal } from "./components/SettlementModal";
+import { EditEntryModal } from "./components/EditEntryModal";
 
-// IMPORTAÇÃO DOS MÓDULOS (VIEWS)
-import dynamic from "next/dynamic";
+export default function FinanceOverviewPage() {
+  const [entries, setEntries] = useState<FinEntry[]>([]);
+  const [bankAccounts, setBankAccounts] = useState<FinBankAccount[]>([]);
+  const [accounts, setAccounts] = useState<FinAccount[]>([]);
+  const [suppliers, setSuppliers] = useState<FinSupplier[]>([]);
+  const [clients, setClients] = useState<FinClientSummary[]>([]);
+  const [recurringContracts, setRecurringContracts] = useState<any[]>([]);
+  const [totalMRR, setTotalMRR] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSyncingRecurrence, setIsSyncingRecurrence] = useState(false);
+  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
 
-const FinancialOverview = dynamic(() => import("./views/FinancialOverview"), { ssr: false });
-const CfoDashboard = dynamic(() => import("./views/CfoDashboard"), { ssr: false });
-const HealthMetrics = dynamic(() => import("./views/HealthMetrics"), { ssr: false });
+  // Modais
+  const [isNewEntryOpen, setIsNewEntryOpen] = useState(false);
+  const [selectedEntryForSettlement, setSelectedEntryForSettlement] = useState<FinEntry | null>(null);
+  const [selectedEntryForEdit, setSelectedEntryForEdit] = useState<FinEntry | null>(null);
 
-const showToast = (message: string) => {
-  window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
-};
-
-const CUSTO_HORA_BRL = 45; 
-
-export default function FinanceiroPage() {
-  const router = useRouter();
-  const { activeProjects, isGlobalLoading, refreshGlobalData } = useGlobalStore();
-  
-  const [activeView, setActiveView] = useState<'overview' | 'finance' | 'health'>('overview');
-  const [isLocalLoading, setIsLocalLoading] = useState(true);
-  const [isProcessing, setIsProcessing] = useState(false);
-  
-  // ==========================================
-  // ESTADOS FINANCEIROS & PERFORMANCE
-  // ==========================================
-  const [metrics, setMetrics] = useState({
-    mrr: 0, totalContracted: 0, pendingReceivables: 0, paid: 0, lucroRealTotal: 0, churnRiskAmount: 0
-  });
-  
-  const [cfoMetrics, setCfoMetrics] = useState({
-    totalOutflows: 0,
-    ebitda: { ebitdaReal: 0, ebitdaMargin: 0 },
-    runway: "0.0",
-    allocation: { reserva: 0, growth: 0, dividendos: 0, mode: '' },
-    forecast: { days30: 0, days60: 0, days90: 0 }
-  });
-
-  const [upcomingBillings, setUpcomingBillings] = useState<any[]>([]);
-  const [unitEconomics, setUnitEconomics] = useState<any[]>([]);
-  const [teamHealth, setTeamHealth] = useState<any[]>([]);
-  const [recentNps, setRecentNps] = useState<any[]>([]);
-  const [outflows, setOutflows] = useState<any[]>([]);
-  const [closings, setClosings] = useState<any[]>([]);
-  const [closingMonth, setClosingMonth] = useState(() => {
-    const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  });
-
-  const [overviewData, setOverviewData] = useState({
-    currentMonthRevenue: 0,
-    revenueGrowth: 0,
-    activeProjects: 0,
-    avgDeliveryDays: 0,
-    deliveryDaysChange: 0,
-    avgNps: 0,
-    ytdRevenue: 0,
-    chartData: [] as { monthKey: string, monthLabel: string, value: number }[]
-  });
-
-  // ==========================================
-  // ESTADOS DE MODAIS (Isolados no Pai)
-  // ==========================================
-  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
-  const [projectToEdit, setProjectToEdit] = useState<any>(null);
-  const [editFinancialValue, setEditFinancialValue] = useState("");
-  const [editPackage, setEditPackage] = useState("");
-  const [isOutflowModalOpen, setIsOutflowModalOpen] = useState(false);
-  const [outflowForm, setOutflowForm] = useState({ title: '', category: 'Software', amount: '', due_date: '' });
-  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-  const [reportPeriod, setReportPeriod] = useState({ start: '', end: '' });
-
-  // ==========================================
-  // PARALLEL FETCHING & MATH ENGINE
-  // ==========================================
-  const fetchFinancialData = async () => {
-    setIsLocalLoading(true);
+  const fetchData = useCallback(async () => {
+    setIsLoading(true);
     try {
-      const [ 
-        { data: tasksData }, 
-        { data: teamData }, 
-        { data: npsData },
-        { data: outflowsData },
-        { data: agenciesData },
-        { data: closingsData }
-      ]: any = await Promise.all([
-        supabase.from('tasks').select('project_id, estimated_time, actual_time'),
-        supabase.from('profiles').select('id, nome, avatar_url, role, team_performance(exp_points, level_name, total_tasks_completed, avg_tnps, on_time_rate)').in('role', ['admin', 'gestor', 'colaborador']),
-        supabase.from('t_nps_scores').select(`id, score, feedback, profiles!t_nps_scores_client_id_fkey(nome), assignee:profiles!t_nps_scores_assignee_id_fkey(nome)`).order('created_at', { ascending: false }).limit(10),
-        supabase.from('financial_outflows').select('*').order('due_date', { ascending: true }),
-        supabase.from('agencies').select('*').eq('status', 'active'),
-        supabase.from('financial_closings').select('*').order('closing_month', { ascending: false })
+      const [entriesRes, accountsRes, recurrenceRes] = await Promise.all([
+        fetch("/api/finance/entries?limit=50"),
+        fetch("/api/finance/accounts"),
+        fetch("/api/finance/recurrence"),
       ]);
 
-      let mrrCalc = 0; let totalCalc = 0; let pendingCalc = 0; let paidCalc = 0;
-      let lucroRealGlobal = 0; let churnRiskCalc = 0;
-      let billings: any[] = []; let economics: any[] = [];
-
-      const now = new Date();
-      const currentMonth = now.getMonth();
-      const currentYear = now.getFullYear();
-      
-      let currentMonthRev = 0; let lastMonthRev = 0;
-      let activeProjCount = 0;
-      let npsSum = 0; let npsCount = 0;
-      let ytdRev = 0;
-      let currentMonthDays: number[] = []; let lastMonthDays: number[] = [];
-
-      const last6Months: { monthKey: string, monthLabel: string, value: number }[] = [];
-      for (let i = 5; i >= 0; i--) {
-        const d = new Date(currentYear, currentMonth - i, 1);
-        last6Months.push({
-          monthKey: `${d.getFullYear()}-${d.getMonth()}`,
-          monthLabel: d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '').toUpperCase(),
-          value: 0
-        });
+      if (entriesRes.ok) {
+        const data = await entriesRes.json();
+        setEntries(data.entries || []);
       }
-
-      // 1. BLINDAGEM: PROCESSAR AGÊNCIAS B2B PRIMEIRO
-      if (agenciesData) {
-        agenciesData.forEach((agency: any) => {
-          const val = agency.financial_value || 0;
-          if (val > 0) {
-            mrrCalc += val; totalCalc += val; paidCalc += val;
-            currentMonthRev += val;
-            lastMonthRev += val;
-            ytdRev += val * (currentMonth + 1); // Acumulado no ano
-            activeProjCount++;
-
-            // Projeta a receita recorrente da agência no gráfico
-            last6Months.forEach(m => { m.value += val; });
-
-            if (agency.billing_date) {
-              billings.push({
-                id: agency.id, entityType: 'agency', client: agency.name, email: 'Operação Interna', service: 'Agência Parceira', amount: val, date: agency.billing_date, type: 'Agência (MRR)', risk: false
-              });
-            }
-          }
-        });
+      if (accountsRes.ok) {
+        const accData = await accountsRes.json();
+        setBankAccounts(accData.bank_accounts || []);
+        setAccounts(accData.accounts || []);
+        setSuppliers(accData.suppliers || []);
+        setClients(accData.clients || []);
       }
-
-      // 2. PROCESSAR PROJETOS B2C
-      if (activeProjects) {
-        activeProjects.forEach((proj: any) => {
-          const value = proj.financial_value || 0;
-          totalCalc += value;
-          const createdDate = new Date(proj.created_at);
-          const projMonthKey = `${createdDate.getFullYear()}-${createdDate.getMonth()}`;
-          const isMRR = proj.payment_recurrence === 'Mensal' && proj.status === 'active';
-          const tNPS = proj.brand_health_score || 100;
-          const isInChurnRisk = isMRR && tNPS < 80;
-
-          if (proj.status === 'active') activeProjCount++;
-          npsSum += (tNPS / 10); npsCount++;
-
-          // CORREÇÃO MATEMÁTICA: Tratamento Diferente para MRR vs One-Off
-          if (isMRR) {
-            mrrCalc += value;
-            currentMonthRev += value;
-            lastMonthRev += value;
-            ytdRev += value * (currentMonth + 1); // Aproximação YTD
-            if (isInChurnRisk) churnRiskCalc += value;
-
-            last6Months.forEach(m => { m.value += value; }); // MRR preenche o gráfico inteiro
-
-          } else {
-            if (createdDate.getFullYear() === currentYear) ytdRev += value;
-
-            if (createdDate.getFullYear() === currentYear && createdDate.getMonth() === currentMonth) {
-              currentMonthRev += value;
-            } else if (
-              (currentMonth === 0 && createdDate.getFullYear() === currentYear - 1 && createdDate.getMonth() === 11) || 
-              (createdDate.getFullYear() === currentYear && createdDate.getMonth() === currentMonth - 1)
-            ) {
-              lastMonthRev += value;
-            }
-            
-            const chartItem = last6Months.find(m => m.monthKey === projMonthKey);
-            if (chartItem) chartItem.value += value;
-          }
-
-          if (proj.status === 'delivered' && proj.delivered_at) {
-            const deliveredDate = new Date(proj.delivered_at);
-            const days = Math.ceil(Math.abs(deliveredDate.getTime() - createdDate.getTime()) / (1000 * 60 * 60 * 24));
-            if (deliveredDate.getFullYear() === currentYear && deliveredDate.getMonth() === currentMonth) {
-              currentMonthDays.push(days);
-            } else if ((currentMonth === 0 && deliveredDate.getFullYear() === currentYear - 1 && deliveredDate.getMonth() === 11) || (deliveredDate.getFullYear() === currentYear && deliveredDate.getMonth() === currentMonth - 1)) {
-              lastMonthDays.push(days);
-            }
-          }
-
-          const projTasks = tasksData?.filter(t => t.project_id === proj.id) || [];
-          const totalEstimatedMinutes = projTasks.reduce((acc, t) => acc + (t.estimated_time || 0), 0);
-          const totalActualMinutes = projTasks.reduce((acc, t) => acc + (t.actual_time || 0), 0);
-          
-          const horasReaisGastas = totalActualMinutes / 60;
-          const custoRealDaOperacao = horasReaisGastas * CUSTO_HORA_BRL;
-          const lucroReal = value - custoRealDaOperacao;
-          const margemPercentual = value > 0 ? Math.round((lucroReal / value) * 100) : 0;
-          
-          // INTEGRAÇÃO COM SISTEMA FINANCEIRO 2.0
-          const quadrant = AtelierCFOEngine.getClientQuadrant(margemPercentual, tNPS);
-
-          if (proj.status === 'active') {
-            lucroRealGlobal += lucroReal;
-            economics.push({
-              id: proj.id, client: proj.profiles?.nome, service: proj.type || proj.service_type, value: value, 
-              estimatedHours: (totalEstimatedMinutes / 60).toFixed(1), actualHours: horasReaisGastas.toFixed(1),
-              cost: custoRealDaOperacao, profit: lucroReal, margin: margemPercentual, tNps: tNPS, quadrant: quadrant
-            });
-          }
-
-          let projPaid = 0; let projPending = 0;
-          if (isMRR) {
-            projPaid = value; 
-            if (proj.billing_date) {
-              billings.push({ id: proj.id, entityType: 'project', client: proj.profiles?.nome, email: proj.profiles?.email, service: proj.type || proj.service_type, amount: value, date: proj.billing_date, type: 'Mensalidade', risk: isInChurnRisk });
-            }
-          } else {
-            if (proj.payment_split === '100% Antecipado') projPaid = value;
-            else if (proj.payment_split === '50% Entrada / 50% Entrega') {
-              if (proj.status === 'delivered') projPaid = value; 
-              else {
-                projPaid = value * 0.5; projPending = value * 0.5; 
-                billings.push({ id: proj.id, entityType: 'project', client: proj.profiles?.nome, email: proj.profiles?.email, service: proj.type || proj.service_type, amount: projPending, date: proj.data_limite || 'Na Entrega', type: 'Parcela Final (Entrega)' });
-              }
-            } else if (proj.payment_split === '30% / 30% / 40%') {
-              if (proj.status === 'delivered') projPaid = value;
-              else if (proj.progress >= 50) {
-                projPaid = value * 0.6; projPending = value * 0.4;
-                billings.push({ id: proj.id, entityType: 'project', client: proj.profiles?.nome, email: proj.profiles?.email, service: proj.type || proj.service_type, amount: projPending, date: proj.data_limite || 'Na Entrega', type: 'Parcela Final (40%)' });
-              } else {
-                projPaid = value * 0.3; projPending = value * 0.7;
-                billings.push({ id: proj.id, entityType: 'project', client: proj.profiles?.nome, email: proj.profiles?.email, service: proj.type || proj.service_type, amount: value * 0.3, date: 'No Meio do Projeto', type: 'Segunda Parcela (30%)' });
-              }
-            } else projPending = value; 
-          }
-
-          paidCalc += projPaid;
-          pendingCalc += projPending;
-        });
+      if (recurrenceRes.ok) {
+        const recData = await recurrenceRes.json();
+        setRecurringContracts(recData.contracts || []);
+        setTotalMRR(recData.total_mrr || 0);
       }
-
-      const revGrowth = lastMonthRev === 0 ? 100 : Math.round(((currentMonthRev - lastMonthRev) / lastMonthRev) * 100);
-      const avgDaysCurrent = currentMonthDays.length > 0 ? Math.round(currentMonthDays.reduce((a,b)=>a+b,0) / currentMonthDays.length) : 0;
-      const avgDaysLast = lastMonthDays.length > 0 ? Math.round(lastMonthDays.reduce((a,b)=>a+b,0) / lastMonthDays.length) : 0;
-      const daysDiff = avgDaysLast === 0 ? 0 : avgDaysCurrent - avgDaysLast;
-      const avgGlobalNps = npsCount > 0 ? (npsSum / npsCount).toFixed(1) : "10.0";
-
-      // 3. FASE 3: PROCESSAR DESPESAS TOTAIS
-      let outflowsTotal = 0;
-      if (outflowsData) {
-        setOutflows(outflowsData);
-        outflowsTotal = outflowsData.filter(o => o.status !== 'archived').reduce((acc, curr) => acc + Number(curr.amount), 0);
-      }
-
-      if (closingsData) setClosings(closingsData);
-
-      // 🧠 ASSISTENTE FINANCEIRO (Integração)
-      const ebitdaData = AtelierCFOEngine.calculateEBITDA(mrrCalc, outflowsTotal);
-      const runwayData = AtelierCFOEngine.calculateRunway(paidCalc, mrrCalc, outflowsTotal);
-      const allocation = AtelierCFOEngine.calculateCapitalAllocation(paidCalc, runwayData.months);
-      const forecast = AtelierCFOEngine.calculateForecasting(mrrCalc, billings, outflowsTotal, churnRiskCalc);
-
-      setCfoMetrics({
-        totalOutflows: outflowsTotal,
-        ebitda: ebitdaData,
-        runway: runwayData.text, 
-        allocation: allocation,
-        forecast: forecast
-      });
-
-      setOverviewData({
-        currentMonthRevenue: currentMonthRev,
-        revenueGrowth: revGrowth,
-        activeProjects: activeProjCount,
-        avgDeliveryDays: avgDaysCurrent || 18,
-        deliveryDaysChange: daysDiff,
-        avgNps: parseFloat(avgGlobalNps),
-        ytdRevenue: ytdRev,
-        chartData: last6Months
-      });
-
-      setMetrics({ mrr: mrrCalc, totalContracted: totalCalc, pendingReceivables: pendingCalc, paid: paidCalc, lucroRealTotal: lucroRealGlobal, churnRiskAmount: churnRiskCalc });
-      
-      billings.sort((a, b) => {
-        if (a.date === 'Na Entrega') return 1; if (b.date === 'Na Entrega') return -1;
-        return new Date(a.date).getTime() - new Date(b.date).getTime();
-      });
-      setUpcomingBillings(billings);
-      
-      economics.sort((a, b) => a.margin - b.margin);
-      setUnitEconomics(economics);
-
-      if (teamData) {
-        const sortedTeam = teamData.map((t: any) => ({
-          ...t, perf: t.team_performance?.[0] || { exp_points: 0, level_name: 'Especialista', total_tasks_completed: 0, avg_tnps: 10.0, on_time_rate: 100 }
-        })).sort((a, b) => b.perf.exp_points - a.perf.exp_points);
-        setTeamHealth(sortedTeam);
-      }
-
-      if (npsData && npsData.length > 0) {
-        setRecentNps(npsData.map((n: any) => ({
-          id: n.id, client: n.profiles?.nome || "Cliente", score: n.score, feedback: n.feedback, member: n.assignee?.nome || "Equipe"
-        })));
-      } else setRecentNps([]);
-
-    } catch (error) {
-      console.error("Erro geral:", error);
-      showToast("Erro ao carregar dados do painel financeiro.");
+    } catch (err) {
+      console.error("[FinanceOverview] Falha ao carregar dados:", err);
     } finally {
-      setIsLocalLoading(false);
+      setIsLoading(false);
+    }
+  }, []);
+
+  const handleSyncMonthlyRecurrence = async () => {
+    setIsSyncingRecurrence(true);
+    setSyncFeedback(null);
+    try {
+      const res = await fetch("/api/finance/recurrence", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || "Erro ao sincronizar");
+      setSyncFeedback(
+        `Recorrência sincronizada! ${data.result.generatedCount} novo(s) faturamento(s) provisionado(s) e ${data.result.skippedCount} já atualizados.`
+      );
+      fetchData();
+      setTimeout(() => setSyncFeedback(null), 6000);
+    } catch (err: any) {
+      setSyncFeedback(`Falha ao sincronizar: ${err.message}`);
+    } finally {
+      setIsSyncingRecurrence(false);
     }
   };
 
   useEffect(() => {
-    if (!isGlobalLoading) fetchFinancialData();
-  }, [isGlobalLoading, activeProjects]);
+    fetchData();
+  }, [fetchData]);
 
-  // ==========================================
-  // HANDLERS FINANCEIROS (Ações Globais)
-  // ==========================================
-  const handleNotifyClient = async (projectId: string, clientName: string, email: string, amount: number) => {
-    setIsProcessing(true);
-    try {
-      // Vai buscar o client_id através do id do projeto
-      const { data: proj }: any = await supabase.from('projects').select('client_id').eq('id', projectId).single();
-      
-      if (proj && proj.client_id) {
-        // 🔔 NOTIFICAÇÃO: Aviso de Cobrança ao Cliente
-        await NotificationEngine.notifyUser(
-          proj.client_id,
-          "⚠️ Fatura Disponível para Pagamento",
-          `A sua fatura no valor de R$ ${amount.toFixed(2)} encontra-se disponível. Por favor, regularize o pagamento para a continuidade dos serviços.`,
-          "warning",
-          "/meu-espaco"
-        );
-        showToast(`✅ Notificação enviada com sucesso para ${clientName}.`);
-      } else {
-        showToast("Não foi possível localizar a conta do cliente.");
-      }
-    } catch(e) {
-      showToast("Erro ao notificar o cliente.");
-    } finally {
-      setIsProcessing(false);
-    }
-  };
+  // Cálculos consolidados do painel
+  const totalBalance = bankAccounts.reduce((acc, b) => acc + Number(b.current_balance || 0), 0);
 
-  const handleMarkAsPaid = async (projectId: string) => {
-    setIsProcessing(true);
-    try {
-      const targetItem = upcomingBillings.find(b => b.id === projectId);
-      if (targetItem && targetItem.date !== 'Na Entrega') {
-         const nextMonth = new Date(targetItem.date);
-         nextMonth.setMonth(nextMonth.getMonth() + 1);
-         const targetTable = targetItem.entityType === 'agency' ? 'agencies' : 'projects';
-         
-         await (supabase.from(targetTable as any) as any).update({ billing_date: nextMonth.toISOString() }).eq('id', projectId);
-         
-         // 🔔 NOTIFICAÇÕES: Recibo ao Cliente e Aviso de Caixa à Liderança
-         if (targetItem.entityType === 'project') {
-           const { data: proj }: any = await supabase.from('projects').select('client_id').eq('id', projectId).single();
-           if (proj && proj.client_id) {
-             await NotificationEngine.notifyUser(
-               proj.client_id,
-               "✅ Pagamento Confirmado",
-               `Confirmamos o recebimento de R$ ${targetItem.amount.toFixed(2)}. O seu ciclo mensal foi renovado!`,
-               "success"
-             );
-           }
-         }
+  const pendingReceivables = entries
+    .filter((e) => e.kind === "revenue" && e.status !== "paid" && e.status !== "cancelled")
+    .reduce((acc, e) => acc + (Number(e.amount) - Number(e.amount_paid || 0)), 0);
 
-         await NotificationEngine.notifyManagement(
-           "💰 Pagamento Recebido",
-           `O pagamento de ${targetItem.client} no valor de R$ ${targetItem.amount.toFixed(2)} foi confirmado em caixa.`,
-           "success"
-         );
+  const pendingPayables = entries
+    .filter((e) => e.kind === "expense" && e.status !== "paid" && e.status !== "cancelled")
+    .reduce((acc, e) => acc + (Number(e.amount) - Number(e.amount_paid || 0)), 0);
 
-         setUpcomingBillings(prev => prev.filter(b => b.id !== projectId));
-         showToast("💵 Pagamento confirmado! Ciclo renovado.");
-         refreshGlobalData();
-      } else {
-         showToast("Vá a 'Clientes' para marcar o projeto como entregue.");
-      }
-    } catch (e) { showToast("Erro ao atualizar pagamento."); } 
-    finally { setIsProcessing(false); }
-  };
+  const totalPaidRevenueThisMonth = entries
+    .filter((e) => e.kind === "revenue" && e.status === "paid")
+    .reduce((acc, e) => acc + Number(e.amount_paid || 0), 0);
 
-  const handleAddOutflow = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsProcessing(true);
-    try {
-      await (supabase.from('financial_outflows') as any).insert({
-        title: outflowForm.title, category: outflowForm.category, amount: parseFloat(outflowForm.amount), due_date: outflowForm.due_date, status: 'pending'
-      });
-      showToast("Despesa adicionada ao fluxo de caixa.");
-      setIsOutflowModalOpen(false);
-      setOutflowForm({ title: '', category: 'Software', amount: '', due_date: '' });
-      fetchFinancialData();
-    } catch (e) { showToast("Erro ao registrar despesa."); }
-    finally { setIsProcessing(false); }
-  };
+  const todayStr = new Date().toISOString().split("T")[0];
+  const overdueEntries = entries.filter(
+    (e) => e.status !== "paid" && e.status !== "cancelled" && e.due_date < todayStr
+  );
 
-  const handlePayOutflow = async (id: string) => {
-    try {
-      await (supabase.from('financial_outflows') as any).update({ status: 'paid' }).eq('id', id);
-      showToast("Despesa marcada como paga.");
-      fetchFinancialData();
-    } catch (e) { showToast("Erro ao pagar despesa."); }
-  };
+  const upcomingEntries = entries
+    .filter((e) => e.status !== "paid" && e.status !== "cancelled" && e.due_date >= todayStr)
+    .slice(0, 8);
 
-  const handleCloseMonth = async () => {
-    if (!window.confirm(`Deseja fechar o ciclo financeiro de ${closingMonth}?`)) return;
-    setIsProcessing(true);
-    try {
-      const { data: { session } } = await supabase.auth.getSession();
-      const { error } = await (supabase.from('financial_closings') as any).insert({
-        closing_month: closingMonth, total_revenue: metrics.paid, total_expenses: cfoMetrics.totalOutflows,
-        ebitda: cfoMetrics.ebitda.ebitdaReal, net_profit_margin: cfoMetrics.ebitda.ebitdaMargin, closed_by: session?.user?.id || null
-      });
-
-      if (error) {
-        if (error.code === '23505') showToast("Erro: Este mês já foi fechado.");
-        else throw error;
-      } else {
-        
-        // 🔔 NOTIFICAÇÃO: Gestão (Fecho de Mês)
-        await NotificationEngine.notifyManagement(
-          "📊 Ciclo Financeiro Fechado",
-          `O mês ${closingMonth} foi consolidado com um EBITDA de R$ ${cfoMetrics.ebitda.ebitdaReal.toFixed(2)}.`,
-          "info",
-          "/admin/financeiro"
-        );
-
-        showToast("🔒 Mês Fechado e Consolidado com Sucesso!");
-        fetchFinancialData();
-      }
-    } catch (e) { showToast("Erro ao processar fechamento do mês."); } 
-    finally { setIsProcessing(false); }
-  };
-
-  const formatCurrency = (value: number) => {
-    if (value >= 1000 && value % 1000 === 0) return `R$ ${(value / 1000)}K`;
-    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(value);
-  };
-
-  const openEditModal = (bill: any) => {
-    setProjectToEdit(bill);
-    setEditFinancialValue(bill.amount.toString());
-    setEditPackage(bill.service);
-    setIsEditModalOpen(true);
-  };
-
-  if (isGlobalLoading || isLocalLoading) return <div className="flex min-h-screen items-center justify-center"><Loader2 size={32} className="animate-spin text-[var(--color-atelier-terracota)]" /></div>;
+  const formatBRL = (val: number) =>
+    val.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 
   return (
-    <div className="flex flex-col h-auto min-h-full md:h-full max-w-[1400px] mx-auto relative z-10 pb-4 gap-6 px-4 md:px-0 overflow-y-auto md:overflow-hidden">
-      
-      {/* HEADER DE COMANDO TRIPLO */}
-      <header className="shrink-0 flex flex-col md:flex-row md:items-end justify-end gap-4 mt-6 animate-[fadeInUp_0.5s_ease-out]">
-        
-        <div className="bg-white/60 border border-white p-1.5 rounded-[1.2rem] shadow-sm flex items-center shrink-0">
-           <button onClick={() => setActiveView('overview')} className={`px-4 py-3 rounded-[1rem] font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeView === 'overview' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)] hover:bg-white'}`}>
-             <LayoutDashboard size={14}/> Visão Geral
-           </button>
-           <button onClick={() => setActiveView('finance')} className={`px-4 py-3 rounded-[1rem] font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeView === 'finance' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)] hover:bg-white'}`}>
-             <Wallet size={14}/> Financeiro
-           </button>
-           <button onClick={() => setActiveView('health')} className={`px-4 py-3 rounded-[1rem] font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-2 ${activeView === 'health' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)] hover:bg-white'}`}>
-             <Medal size={14}/> Desempenho
-           </button>
+    <div className="flex flex-col gap-4 w-full">
+      {/* BARRA DE AÇÕES SUTIS */}
+      <div className="flex flex-wrap items-center justify-between gap-3 pb-2 border-b border-black/[0.04]">
+        <div className="flex items-center gap-2">
+          <Calendar size={14} className="text-[var(--color-veronna-bordo)]" />
+          <span className="text-xs font-semibold text-[var(--color-veronna-navy)]">
+            Posição Financeira Consolidada
+          </span>
+          <span className="text-[10px] text-gray-400 font-medium hidden sm:inline">
+            • Tempo real
+          </span>
         </div>
-      </header>
 
-      {/* RENDERIZAÇÃO DOS MÓDULOS (VIEWS) SEM DOUBLE SCROLL */}
-      <div className="flex-1 w-full mt-4">
-        <AnimatePresence mode="wait">
-          {activeView === 'overview' && (
-            <FinancialOverview 
-              overviewData={overviewData}
-              upcomingBillings={upcomingBillings}
-              formatCurrency={formatCurrency}
-              setIsReportModalOpen={setIsReportModalOpen}
-              setActiveView={setActiveView}
-            />
-          )}
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleSyncMonthlyRecurrence}
+            disabled={isSyncingRecurrence}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-gray-200/80 bg-white/60 hover:bg-white text-gray-600 hover:text-[var(--color-veronna-navy)] text-xs font-medium transition shadow-2xs disabled:opacity-50"
+            title="Lê os contratos ativos em projects e provisiona automaticamente as receitas do mês em fin_entries"
+          >
+            {isSyncingRecurrence ? (
+              <Loader2 size={12} className="animate-spin text-[var(--color-veronna-bordo)]" />
+            ) : (
+              <RotateCw size={12} className="text-[var(--color-veronna-bordo)]/80" />
+            )}
+            <span>Sincronizar Recorrência</span>
+          </button>
 
-          {activeView === 'finance' && (
-            <CfoDashboard 
-              metrics={metrics}
-              cfoMetrics={cfoMetrics}
-              upcomingBillings={upcomingBillings}
-              outflows={outflows}
-              closings={closings}
-              closingMonth={closingMonth}
-              setClosingMonth={setClosingMonth}
-              unitEconomics={unitEconomics}
-              formatCurrency={formatCurrency}
-              handleNotifyClient={handleNotifyClient}
-              handleMarkAsPaid={handleMarkAsPaid}
-              handlePayOutflow={handlePayOutflow}
-              handleCloseMonth={handleCloseMonth}
-              setIsOutflowModalOpen={setIsOutflowModalOpen}
-              openEditModal={openEditModal}
-              isProcessing={isProcessing}
-            />
-          )}
-
-          {activeView === 'health' && (
-            <HealthMetrics 
-              overviewData={overviewData}
-              teamHealth={teamHealth}
-              recentNps={recentNps}
-            />
-          )}
-        </AnimatePresence>
+          <button
+            onClick={() => setIsNewEntryOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[var(--color-veronna-navy)] hover:bg-[var(--color-veronna-navy)]/90 text-white text-xs font-medium transition shadow-2xs"
+          >
+            <Plus size={13} strokeWidth={2} />
+            <span>Novo Lançamento</span>
+          </button>
+        </div>
       </div>
 
-      {/* =========================================================================
-          MODAIS E AÇÕES GLOBAIS (Mantidos no Pai para estabilidade)
-          ========================================================================= */}
+      {syncFeedback && (
+        <div className="p-2.5 bg-emerald-50/90 border border-emerald-200/80 text-emerald-800 text-xs font-medium rounded-xl flex items-center gap-2 shadow-2xs">
+          <Check size={14} className="text-emerald-600 shrink-0" />
+          <span>{syncFeedback}</span>
+        </div>
+      )}
 
-      {/* MODAL: NOVA DESPESA (OUTFLOW) */}
-      <AnimatePresence>
-        {isOutflowModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 md:px-8">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsOutflowModalOpen(false)} className="absolute inset-0 bg-black/20 backdrop-blur-md" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 h-full md:h-auto md:max-w-md rounded-none md:rounded-[2.5rem] shadow-2xl relative z-10 w-full border border-[var(--color-atelier-grafite)]/10 flex flex-col gap-6">
-              <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
-                <div>
-                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><ArrowDownRight size={24} className="text-red-500"/> Nova Despesa</h3>
-                  <p className="font-roboto text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1 font-bold">Lançamento no Fluxo de Caixa</p>
-                </div>
-                <button onClick={() => setIsOutflowModalOpen(false)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] shrink-0 bg-gray-50 p-2 rounded-full hover:bg-gray-100 transition-colors"><X size={18}/></button>
-              </div>
+      {/* QUATRO WIDGETS COMPACTOS & DIRETOS */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        {/* 1. DISPONIBILIDADES */}
+        <div className="p-3.5 rounded-2xl bg-white/45 border border-white/70 shadow-2xs backdrop-blur-xs flex flex-col justify-between hover:bg-white/60 transition">
+          <div className="flex items-center justify-between text-gray-500">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-gray-700 flex items-center gap-1.5">
+              <Landmark size={13} className="text-[var(--color-veronna-navy)]/70 shrink-0" />
+              Disponibilidades
+            </span>
+            <span className="text-[10px] text-gray-400 font-medium">
+              {bankAccounts.length} conta(s)
+            </span>
+          </div>
+          <div className="mt-1.5">
+            <div className="text-lg md:text-xl font-bold tracking-tight text-[var(--color-veronna-navy)]">
+              {formatBRL(totalBalance)}
+            </div>
+            <div className="text-[10px] text-gray-400 mt-0.5 truncate">
+              Caixa & bancos ativos
+            </div>
+          </div>
+        </div>
 
-              <form id="outflow-form" onSubmit={handleAddOutflow} className="flex flex-col gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Descrição</span>
-                  <input type="text" required placeholder="Ex: Adobe Creative Cloud..." value={outflowForm.title} onChange={(e) => setOutflowForm({...outflowForm, title: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 font-bold text-[var(--color-atelier-grafite)]" />
-                </div>
+        {/* 2. A RECEBER PENDENTES */}
+        <div className="p-3.5 rounded-2xl bg-white/45 border border-white/70 shadow-2xs backdrop-blur-xs flex flex-col justify-between hover:bg-white/60 transition">
+          <div className="flex items-center justify-between text-gray-500">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+              <TrendingUp size={13} className="text-emerald-700 shrink-0" />
+              A Receber
+            </span>
+            <Link
+              href="/admin/financeiro/receber"
+              className="text-[10px] font-semibold text-emerald-700 hover:underline flex items-center gap-0.5"
+            >
+              Agenda <ArrowRight size={10} />
+            </Link>
+          </div>
+          <div className="mt-1.5">
+            <div className="text-lg md:text-xl font-bold tracking-tight text-emerald-700">
+              {formatBRL(pendingReceivables)}
+            </div>
+            <div className="text-[10px] text-gray-400 mt-0.5 truncate">
+              Títulos pendentes
+            </div>
+          </div>
+        </div>
 
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Categoria</span>
-                  <select value={outflowForm.category} onChange={(e) => setOutflowForm({...outflowForm, category: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 font-bold text-[var(--color-atelier-grafite)] cursor-pointer">
-                    <option>Software & Infra</option>
-                    <option>Impostos & Contabilidade</option>
-                    <option>Salários & Fornecedores</option>
-                    <option>Tráfego Pago</option>
-                    <option>Custos Fixos (Água, Luz, Net)</option>
-                  </select>
-                </div>
+        {/* 3. A PAGAR PENDENTES */}
+        <div className="p-3.5 rounded-2xl bg-white/45 border border-white/70 shadow-2xs backdrop-blur-xs flex flex-col justify-between hover:bg-white/60 transition">
+          <div className="flex items-center justify-between text-gray-500">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-rose-800 flex items-center gap-1.5">
+              <TrendingDown size={13} className="text-rose-700 shrink-0" />
+              A Pagar
+            </span>
+            <Link
+              href="/admin/financeiro/pagar"
+              className="text-[10px] font-semibold text-rose-700 hover:underline flex items-center gap-0.5"
+            >
+              Agenda <ArrowRight size={10} />
+            </Link>
+          </div>
+          <div className="mt-1.5">
+            <div className="text-lg md:text-xl font-bold tracking-tight text-rose-700">
+              {formatBRL(pendingPayables)}
+            </div>
+            <div className="text-[10px] text-gray-400 mt-0.5 truncate">
+              Compromissos pendentes
+            </div>
+          </div>
+        </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Valor (R$)</span>
-                    <div className="relative">
-                      <span className="absolute left-3 top-1/2 -translate-y-1/2 font-bold text-red-500/60">R$</span>
-                      <input type="number" required placeholder="0.00" value={outflowForm.amount} onChange={(e) => setOutflowForm({...outflowForm, amount: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl py-3.5 pl-9 pr-4 text-[13px] outline-none focus:border-red-400 font-bold text-red-600" />
+        {/* 4. RECEITA JÁ LIQUIDADA */}
+        <div className="p-3.5 rounded-2xl bg-white/45 border border-white/70 shadow-2xs backdrop-blur-xs flex flex-col justify-between hover:bg-white/60 transition">
+          <div className="flex items-center justify-between text-gray-500">
+            <span className="text-[11px] font-bold uppercase tracking-wider text-[var(--color-veronna-bordo)] flex items-center gap-1.5">
+              <CheckCircle2 size={13} className="text-[var(--color-veronna-bordo)] shrink-0" />
+              Já Liquidado
+            </span>
+            <span className="text-[10px] text-gray-400 font-medium">
+              Efetivo
+            </span>
+          </div>
+          <div className="mt-1.5">
+            <div className="text-lg md:text-xl font-bold tracking-tight text-[var(--color-veronna-navy)]">
+              {formatBRL(totalPaidRevenueThisMonth)}
+            </div>
+            <div className="text-[10px] text-gray-400 mt-0.5 truncate">
+              Realizado em caixa
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ALERTAS CRÍTICOS & INADIMPLÊNCIA */}
+      {overdueEntries.length > 0 && (
+        <div className="p-4 bg-amber-50 border border-amber-200 rounded-3xl flex items-start gap-3">
+          <AlertTriangle className="text-amber-600 mt-0.5 shrink-0" size={20} />
+          <div className="flex-1">
+            <h4 className="text-xs font-bold text-amber-900">
+              {overdueEntries.length} lançamento(s) vencido(s) aguardando baixa ou cobrança
+            </h4>
+            <p className="text-[11px] text-amber-800/80 mt-0.5">
+              Há títulos em atraso que afetam o fluxo de caixa. Verifique as faturas pendentes de clientes ou fornecedores.
+            </p>
+          </div>
+          <Link
+            href="/admin/financeiro/lancamentos?status=pending"
+            className="text-xs font-bold text-amber-900 underline whitespace-nowrap"
+          >
+            Ver títulos atrasados
+          </Link>
+        </div>
+      )}
+
+      {/* SEÇÃO PRINCIPAL: PRÓXIMOS VENCIMENTOS */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        {/* LISTAGEM DE LANÇAMENTOS RECENTES / PRÓXIMOS */}
+        <div className="lg:col-span-2 p-4 rounded-2xl bg-white/45 border border-white/70 shadow-2xs backdrop-blur-xs flex flex-col gap-3">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-sm font-bold text-[var(--color-veronna-navy)]">
+                Próximos Lançamentos & Vencimentos
+              </h3>
+              <p className="text-[11px] text-gray-500">
+                Acompanhamento operacional do calendário de pagamentos e recebimentos.
+              </p>
+            </div>
+            <Link
+              href="/admin/financeiro/lancamentos"
+              className="text-xs font-semibold text-[var(--color-veronna-navy)] hover:underline flex items-center gap-1"
+            >
+              Ver todos <ArrowRight size={12} />
+            </Link>
+          </div>
+
+          {isLoading ? (
+            <div className="py-8 text-center text-xs text-gray-400">
+              Carregando lançamentos financeiros...
+            </div>
+          ) : upcomingEntries.length === 0 ? (
+            <div className="py-8 text-center text-xs text-gray-400">
+              Nenhum lançamento pendente encontrado para os próximos dias.
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead>
+                  <tr className="border-b border-gray-200/60 text-[11px] font-bold uppercase tracking-wider text-gray-500">
+                    <th className="py-2 px-2">Vencimento</th>
+                    <th className="py-2 px-2">Título / Descrição</th>
+                    <th className="py-2 px-2">Tipo</th>
+                    <th className="py-2 px-2">Valor</th>
+                    <th className="py-2 px-2">Status</th>
+                    <th className="py-2 px-2 text-right">Ação</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {upcomingEntries.map((e) => (
+                    <tr key={e.id} className="hover:bg-white/60 transition group">
+                      <td className="py-2 px-2 whitespace-nowrap text-gray-600 font-medium">
+                        {e.due_date ? e.due_date.split("T")[0] : "-"}
+                      </td>
+                      <td className="py-2 px-2">
+                        <div className="font-semibold text-gray-800">{e.title}</div>
+                        <div className="text-[10px] text-gray-400">
+                          {e.client?.nome || e.supplier?.name || "Lançamento Avulso"}
+                        </div>
+                      </td>
+                      <td className="py-2 px-2">
+                        <span
+                          className={`text-[9px] font-bold px-1.5 py-0.5 rounded-md ${
+                            e.kind === "revenue"
+                              ? "bg-emerald-50 text-emerald-700"
+                              : "bg-red-50 text-red-700"
+                          }`}
+                        >
+                          {e.kind === "revenue" ? "Receita" : "Despesa"}
+                        </span>
+                      </td>
+                      <td className="py-2 px-2 font-bold text-gray-800">
+                        {formatBRL(Number(e.amount))}
+                      </td>
+                      <td className="py-2 px-2">
+                        <span
+                          className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-md ${
+                            e.status === "paid"
+                              ? "bg-emerald-100 text-emerald-800"
+                              : e.status === "partially_paid"
+                              ? "bg-blue-100 text-blue-800"
+                              : "bg-amber-100 text-amber-800"
+                          }`}
+                        >
+                          {e.status === "paid"
+                            ? "Pago"
+                            : e.status === "partially_paid"
+                            ? "Parcial"
+                            : "Pendente"}
+                        </span>
+                      </td>
+                      <td className="py-2 px-2 text-right whitespace-nowrap">
+                        <div className="flex items-center justify-end gap-1">
+                          {e.status !== "paid" && (
+                            <button
+                              onClick={() => setSelectedEntryForSettlement(e)}
+                              className="px-2 py-0.5 text-[10px] font-bold bg-emerald-50 text-emerald-700 hover:bg-emerald-100 rounded-md transition"
+                            >
+                              Baixar
+                            </button>
+                          )}
+                          <button
+                            onClick={() => setSelectedEntryForEdit(e)}
+                            className="px-2 py-0.5 text-[10px] font-medium text-gray-600 hover:bg-gray-100 rounded-md transition"
+                          >
+                            Editar
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+
+        {/* PAINEL LATERAL: CONTAS BANCÁRIAS E ATALHOS */}
+        <div className="flex flex-col gap-4">
+          {/* CONTAS BANCÁRIAS */}
+          <div className="p-4 rounded-2xl bg-white/45 border border-white/70 shadow-2xs backdrop-blur-xs flex flex-col gap-3">
+            <div className="flex justify-between items-center">
+              <h3 className="text-xs font-bold text-[var(--color-veronna-navy)]">
+                Contas Bancárias
+              </h3>
+              <span className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">
+                Saldo Atual
+              </span>
+            </div>
+
+            <div className="flex flex-col gap-2">
+              {bankAccounts.map((b) => (
+                <div
+                  key={b.id}
+                  className="flex justify-between items-center p-2.5 rounded-xl bg-white/60 border border-gray-100/80"
+                >
+                  <div>
+                    <div className="text-xs font-bold text-gray-800">{b.name}</div>
+                    <div className="text-[10px] text-gray-400">
+                      {b.bank_name || "Conta Operacional"}
                     </div>
                   </div>
-                  <div className="flex flex-col gap-1.5">
-                    <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1 flex items-center gap-1"><Calendar size={10}/> Vencimento</span>
-                    <input type="date" required value={outflowForm.due_date} onChange={(e) => setOutflowForm({...outflowForm, due_date: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl px-3 py-3.5 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 font-bold text-[var(--color-atelier-grafite)] cursor-pointer" />
+                  <div className="text-xs font-bold text-[var(--color-veronna-navy)]">
+                    {formatBRL(Number(b.current_balance || 0))}
                   </div>
                 </div>
-              </form>
+              ))}
+            </div>
+          </div>
 
-              <button type="submit" form="outflow-form" disabled={isProcessing} className="w-full bg-red-600 text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-red-700 hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2 mt-2 disabled:opacity-50 disabled:hover:translate-y-0">
-                {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle2 size={16}/>} Registrar Despesa
-              </button>
-            </motion.div>
+          {/* ACESSO RÁPIDO AOS SUBMÓDULOS */}
+          <div className="p-4 rounded-2xl bg-white/45 border border-white/70 shadow-2xs backdrop-blur-xs flex flex-col gap-2">
+            <h3 className="text-xs font-bold text-[var(--color-veronna-navy)]">
+              Módulos Contábeis
+            </h3>
+
+            <Link
+              href="/admin/financeiro/notas-fiscais"
+              className="flex items-center justify-between p-2.5 rounded-xl bg-white/50 hover:bg-white text-xs font-medium text-gray-700 border border-gray-100/80 transition"
+            >
+              <div className="flex items-center gap-2">
+                <FileSpreadsheet size={14} className="text-blue-600" />
+                <span>Notas Fiscais Emitidas & Recebidas</span>
+              </div>
+              <ArrowRight size={12} className="text-gray-400" />
+            </Link>
+
+            <Link
+              href="/admin/financeiro/impostos"
+              className="flex items-center justify-between p-2.5 rounded-xl bg-white/50 hover:bg-white text-xs font-medium text-gray-700 border border-gray-100/80 transition"
+            >
+              <div className="flex items-center gap-2">
+                <Receipt size={14} className="text-amber-600" />
+                <span>Calendário Tributário (DAS/Simples)</span>
+              </div>
+              <ArrowRight size={12} className="text-gray-400" />
+            </Link>
+
+            <Link
+              href="/admin/financeiro/fechamento"
+              className="flex items-center justify-between p-2.5 rounded-xl bg-white/50 hover:bg-white text-xs font-medium text-gray-700 border border-gray-100/80 transition"
+            >
+              <div className="flex items-center gap-2">
+                <Clock size={14} className="text-purple-600" />
+                <span>Fechamento Mensal & Snapshot DRE</span>
+              </div>
+              <ArrowRight size={12} className="text-gray-400" />
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* SEÇÃO: CLIENTES ATIVOS & FATURAMENTO RECORRENTE (MRR) */}
+      <div className="p-4 rounded-2xl bg-white/45 border border-white/70 shadow-2xs backdrop-blur-xs flex flex-col gap-3">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-xl bg-[var(--color-veronna-bordo)]/10 text-[var(--color-veronna-bordo)]">
+              <Users size={15} />
+            </div>
+            <div>
+              <h3 className="text-xs font-bold text-[var(--color-veronna-navy)]">
+                Clientes Ativos & Faturamento Recorrente (MRR)
+              </h3>
+              <p className="text-[11px] text-gray-500">
+                Contratos ativos em <strong>projects</strong> projetados no fluxo de contas.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-4">
+            <div className="text-right">
+              <span className="text-[11px] uppercase font-bold tracking-wider text-gray-500 block">
+                MRR Contratado
+              </span>
+              <span className="text-sm font-extrabold text-emerald-700">
+                {formatBRL(totalMRR)}
+              </span>
+            </div>
+            <Link
+              href="/admin/financeiro/receber"
+              className="text-xs font-semibold text-[var(--color-veronna-navy)] hover:underline flex items-center gap-1"
+            >
+              Agenda A Receber <ArrowRight size={12} />
+            </Link>
+          </div>
+        </div>
+
+        {recurringContracts.length === 0 ? (
+          <div className="py-6 text-center text-xs text-gray-400">
+            Nenhum contrato ativo identificado no banco de dados.
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse text-xs">
+              <thead>
+                <tr className="border-b border-gray-100 text-gray-500 text-[11px] font-bold uppercase tracking-wider">
+                  <th className="py-2 px-2">Cliente / Empresa</th>
+                  <th className="py-2 px-2">Serviço</th>
+                  <th className="py-2 px-2">Recorrência</th>
+                  <th className="py-2 px-2 text-right">Valor Mensal</th>
+                  <th className="py-2 px-2 text-center">Vencimento</th>
+                  <th className="py-2 px-2 text-center">Faturamento do Mês</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-50">
+                {recurringContracts.map((c: any) => {
+                  const isProvisioned = Boolean(c.provisioned_entry_id);
+                  const isPaid = c.provisioned_entry_status === "paid";
+                  const billingDay = c.billing_date ? new Date(c.billing_date).getUTCDate() : 10;
+
+                  return (
+                    <tr key={c.project_id} className="hover:bg-white/80 transition-colors">
+                      <td className="py-2 px-2">
+                        <div className="font-bold text-gray-900">{c.client_name || "Cliente Atelier"}</div>
+                        {c.client_empresa && (
+                          <div className="text-[10px] text-gray-400">{c.client_empresa}</div>
+                        )}
+                      </td>
+                      <td className="py-2 px-2 text-gray-700 font-medium">
+                        {c.service_type || "Gestão Recorrente"}
+                      </td>
+                      <td className="py-2 px-2">
+                        <span className="text-[9px] font-semibold px-1.5 py-0.5 rounded bg-gray-100 text-gray-700">
+                          {c.payment_recurrence || "Único"}
+                        </span>
+                      </td>
+                      <td className="py-2 px-2 text-right font-bold text-gray-900">
+                        {c.financial_value ? formatBRL(Number(c.financial_value)) : "—"}
+                      </td>
+                      <td className="py-2 px-2 text-center text-gray-600 font-medium">
+                        Dia {billingDay}
+                      </td>
+                      <td className="py-2 px-2 text-center">
+                        {isPaid ? (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-emerald-800 bg-emerald-100 px-2 py-0.5 rounded-full">
+                            <CheckCircle2 size={10} /> Liquidado
+                          </span>
+                        ) : isProvisioned ? (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-blue-800 bg-blue-100 px-2 py-0.5 rounded-full">
+                            <Clock size={10} /> Provisionado
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-[9px] font-bold text-gray-500 bg-gray-100 px-2 py-0.5 rounded-full">
+                            Aguardando Sincronização
+                          </span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
           </div>
         )}
-      </AnimatePresence>
+      </div>
 
-      {/* MODAL: EXPORTAR RELATÓRIO */}
-      <AnimatePresence>
-        {isReportModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 md:px-8">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsReportModalOpen(false)} className="absolute inset-0 bg-black/20 backdrop-blur-md" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 h-full md:h-auto md:max-w-md rounded-none md:rounded-[2.5rem] shadow-2xl relative z-10 w-full border border-[var(--color-atelier-grafite)]/10 flex flex-col gap-6">
-              
-              <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
-                <div>
-                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><FileText size={24} className="text-[var(--color-atelier-terracota)]"/> Relatório DRE</h3>
-                  <p className="font-roboto text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1 font-bold">Demonstração de Resultados</p>
-                </div>
-                <button onClick={() => setIsReportModalOpen(false)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] shrink-0 bg-gray-50 p-2 rounded-full hover:bg-gray-100 transition-colors"><X size={18}/></button>
-              </div>
+      {/* MODAL DE NOVO LANÇAMENTO */}
+      <NewEntryModal
+        isOpen={isNewEntryOpen}
+        accounts={accounts}
+        suppliers={suppliers}
+        clients={clients}
+        onClose={() => setIsNewEntryOpen(false)}
+        onSuccess={fetchData}
+      />
 
-              <div className="flex flex-col gap-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex flex-col gap-1.5">
-                    <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Data Inicial</span>
-                    <input type="date" value={reportPeriod.start} onChange={(e) => setReportPeriod({...reportPeriod, start: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl px-3 py-3.5 text-[13px] outline-none font-bold cursor-pointer focus:border-[var(--color-atelier-terracota)]/50" />
-                  </div>
-                  <div className="flex flex-col gap-1.5">
-                    <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Data Final</span>
-                    <input type="date" value={reportPeriod.end} onChange={(e) => setReportPeriod({...reportPeriod, end: e.target.value})} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl px-3 py-3.5 text-[13px] outline-none font-bold cursor-pointer focus:border-[var(--color-atelier-terracota)]/50" />
-                  </div>
-                </div>
-              </div>
+      {/* MODAL DE LIQUIDAÇÃO / BAIXA */}
+      <SettlementModal
+        isOpen={Boolean(selectedEntryForSettlement)}
+        entry={selectedEntryForSettlement}
+        bankAccounts={bankAccounts}
+        onClose={() => setSelectedEntryForSettlement(null)}
+        onSuccess={fetchData}
+      />
 
-              <button 
-                onClick={() => {
-                  if (!reportPeriod.start || !reportPeriod.end) return showToast("Preencha ambas as datas.");
-                  setIsProcessing(true);
-                  setTimeout(() => {
-                    showToast(`📊 Relatório DRE de ${new Date(reportPeriod.start).toLocaleDateString('pt-BR')} a ${new Date(reportPeriod.end).toLocaleDateString('pt-BR')} exportado.`);
-                    setIsProcessing(false);
-                    setIsReportModalOpen(false);
-                  }, 1500);
-                }} 
-                disabled={isProcessing} 
-                className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-black transition-colors flex justify-center items-center gap-2 mt-2 disabled:opacity-50 hover:-translate-y-0.5 disabled:hover:translate-y-0"
-              >
-                {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <Download size={16}/>} Gerar PDF
-              </button>
-
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* MODAL DE EDIÇÃO FINANCEIRA DIRETA (PROJETOS) */}
-      <AnimatePresence>
-        {isEditModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-center justify-center px-4 md:px-8">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setIsEditModalOpen(false)} className="absolute inset-0 bg-black/20 backdrop-blur-md" />
-            <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white p-8 h-full md:h-auto md:max-w-lg rounded-none md:rounded-[2.5rem] shadow-2xl relative z-10 w-full border border-[var(--color-atelier-grafite)]/10 flex flex-col gap-6">
-              
-              <div className="flex justify-between items-start border-b border-[var(--color-atelier-grafite)]/10 pb-4">
-                <div>
-                  <h3 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-2"><Edit3 size={24} className="text-[var(--color-atelier-terracota)]"/> Editar Contrato</h3>
-                  <p className="font-roboto text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 mt-1 font-bold">Ajustes Financeiros e Contratuais</p>
-                </div>
-                <button onClick={() => setIsEditModalOpen(false)} className="text-[var(--color-atelier-grafite)]/40 hover:text-[var(--color-atelier-terracota)] shrink-0 bg-gray-50 p-2 rounded-full hover:bg-gray-100 transition-colors"><X size={18}/></button>
-              </div>
-
-              <div className="flex flex-col gap-4">
-                {projectToEdit?.entityType === 'agency' && (
-                   <div className="bg-blue-50 border border-blue-200 text-blue-700 p-3 rounded-xl text-[11px] font-bold flex items-center gap-2">
-                     <AlertTriangle size={14}/> Agência Parceira (Apenas ajuste de valor mensal disponível)
-                   </div>
-                )}
-
-                <div className="flex flex-col gap-1.5">
-                  <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Valor Contratual / Mensalidade (R$)</span>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 font-bold text-[var(--color-atelier-grafite)]/40">R$</span>
-                    <input type="number" placeholder="0.00" value={editFinancialValue} onChange={(e) => setEditFinancialValue(e.target.value)} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl py-3.5 pl-10 pr-4 text-[14px] outline-none focus:border-[var(--color-atelier-terracota)]/50 font-bold" />
-                  </div>
-                </div>
-
-                {projectToEdit?.entityType !== 'agency' && (
-                  <div className="flex flex-col gap-1.5">
-                    <span className="font-roboto text-[10px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 ml-1">Alterar Pacote / Escopo do Projeto</span>
-                    <select value={editPackage} onChange={(e) => setEditPackage(e.target.value)} className="w-full bg-[var(--color-atelier-creme)]/50 border border-[var(--color-atelier-grafite)]/10 rounded-xl p-3.5 text-[13px] outline-none focus:border-[var(--color-atelier-terracota)]/50 text-[var(--color-atelier-terracota)] font-bold cursor-pointer">
-                      <option value="" disabled>Manter atual</option>
-                      <optgroup label="Gestão de Instagram">
-                        <option>Pacote 1</option>
-                        <option>Pacote 2</option>
-                        <option>Pacote 3</option>
-                        <option>Pacote 4</option>
-                      </optgroup>
-                      <optgroup label="Identidade Visual">
-                        <option>Identidade Visual</option>
-                        <option>Rebranding Pleno</option>
-                      </optgroup>
-                    </select>
-                  </div>
-                )}
-              </div>
-
-              <div className="mt-2 bg-blue-50/50 border border-blue-100 p-4 rounded-xl flex items-start gap-3">
-                <Activity size={16} className="text-blue-500 shrink-0 mt-0.5"/>
-                <p className="text-[11px] text-blue-800 leading-relaxed font-medium">As alterações serão aplicadas ao próximo ciclo de cobrança. Para modificar o plano de execução de tarefas do cliente, aceda ao painel de Projetos.</p>
-              </div>
-
-              <button 
-                onClick={async () => {
-                  if (!projectToEdit) return;
-                  setIsProcessing(true);
-                  try {
-                    const updates: any = {};
-                    if (editFinancialValue) updates.financial_value = parseFloat(editFinancialValue);
-                    
-                    const targetTable = projectToEdit.entityType === 'agency' ? 'agencies' : 'projects';
-
-                    if (targetTable === 'projects' && editPackage.includes('Pacote')) {
-                       updates.instagram_package = editPackage;
-                    }
-                    
-                    await (supabase.from(targetTable as any) as any).update(updates).eq('id', projectToEdit.id);
-                    
-                    // 🔔 NOTIFICAÇÕES: Cliente
-                    if (targetTable === 'projects') {
-                      const { data: proj }: any = await supabase.from('projects').select('client_id').eq('id', projectToEdit.id).single();
-                      if (proj && proj.client_id) {
-                        await NotificationEngine.notifyUser(
-                          proj.client_id,
-                          "💳 Atualização de Contrato",
-                          "As suas condições comerciais foram atualizadas com sucesso.",
-                          "info"
-                        );
-                      }
-                    }
-
-                    showToast("Contrato atualizado com sucesso!");
-                    setIsEditModalOpen(false);
-                    refreshGlobalData();
-                  } catch (e) {
-                    showToast("Erro ao editar contrato.");
-                  } finally {
-                    setIsProcessing(false);
-                  }
-                }} 
-                disabled={isProcessing || !projectToEdit} 
-                className="w-full bg-[var(--color-atelier-grafite)] text-white py-4 rounded-xl text-[11px] font-bold uppercase tracking-widest shadow-md hover:bg-[var(--color-atelier-terracota)] hover:-translate-y-0.5 transition-all flex justify-center items-center gap-2 mt-2 disabled:opacity-50 disabled:hover:translate-y-0"
-              >
-                {isProcessing ? <Loader2 size={16} className="animate-spin"/> : <CheckCircle2 size={16}/>} Salvar Alterações
-              </button>
-
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
+      {/* MODAL DE EDIÇÃO COM JUSTIFICATIVA OBRIGATÓRIA */}
+      <EditEntryModal
+        isOpen={Boolean(selectedEntryForEdit)}
+        entry={selectedEntryForEdit}
+        onClose={() => setSelectedEntryForEdit(null)}
+        onSuccess={fetchData}
+      />
     </div>
   );
 }

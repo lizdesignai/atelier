@@ -16,9 +16,17 @@ interface WorkforceDashboardProps {
   currentUser: any;
   activeTab?: string;
   setActiveTab?: (tab: 'pulse' | 'workforce' | 'economics' | 'demands') => void;
+  hideHeaderNav?: boolean;
+  hideTitle?: boolean;
 }
 
-export default function WorkforceDashboard({ currentUser, activeTab = 'workforce', setActiveTab }: WorkforceDashboardProps) {
+export default function WorkforceDashboard({ 
+  currentUser, 
+  activeTab = 'workforce', 
+  setActiveTab,
+  hideHeaderNav = false,
+  hideTitle = false
+}: WorkforceDashboardProps) {
   const [isLoading, setIsLoading] = useState(true);
   const [teamStats, setTeamStats] = useState<any[]>([]);
   const [selectedMemberId, setSelectedMemberId] = useState<string | null>(null);
@@ -59,13 +67,13 @@ export default function WorkforceDashboard({ currentUser, activeTab = 'workforce
       const { data: mainData, error: profileErr } = await (supabase
         .from('profiles') as any)
         .select('id, nome, role, avatar_url, current_status, last_seen, base_salary, contract_status, deadline_buffer_days')
-        .in('role', ['colaborador', 'gestor', 'admin']);
+        .in('role', ['colaborador', 'gestor', 'admin', 'contador']);
 
       if (profileErr) {
         const fallbackRes = await (supabase
           .from('profiles') as any)
           .select('id, nome, role, avatar_url, current_status, last_seen, base_salary, deadline_buffer_days')
-          .in('role', ['colaborador', 'gestor', 'admin']);
+          .in('role', ['colaborador', 'gestor', 'admin', 'contador']);
         teamData = (fallbackRes.data || []).map((m: any) => ({ ...m, contract_status: 'active' }));
       } else {
         teamData = mainData || [];
@@ -379,55 +387,20 @@ ${qualidadeText}
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-auto md:h-full gap-6 overflow-y-auto md:overflow-hidden relative">
       
-      {/* HEADER DA VISÃO */}
-      <header className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between border-b border-[var(--color-atelier-grafite)]/10 pb-4 gap-4">
-        <div>
-          <div className="inline-flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-full mb-1.5 border border-white shadow-2xs">
-            <Users size={12} strokeWidth={2.5} />
-            <span className="text-[9px] uppercase tracking-widest font-bold">Gestão & Inteligência de RH</span>
+      {/* HEADER DA VISÃO (Oculto em modo integrado; botão de novo colaborador já reside na lista da equipe) */}
+      {!hideTitle && !hideHeaderNav && (
+        <header className="shrink-0 flex flex-col sm:flex-row sm:items-center justify-between border-b border-[var(--color-atelier-grafite)]/10 pb-4 gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-full mb-1.5 border border-white shadow-2xs">
+              <Users size={12} strokeWidth={2.5} />
+              <span className="text-[9px] uppercase tracking-widest font-bold">Gestão & Inteligência de RH</span>
+            </div>
+            <h1 className="font-elegant text-3xl md:text-4xl text-[var(--color-atelier-grafite)] tracking-tight leading-none">
+              Produtividade <span className="text-[var(--color-atelier-terracota)] italic">& Equipe.</span>
+            </h1>
           </div>
-          <h1 className="font-elegant text-3xl md:text-4xl text-[var(--color-atelier-grafite)] tracking-tight leading-none">
-            Produtividade <span className="text-[var(--color-atelier-terracota)] italic">& Equipe.</span>
-          </h1>
-        </div>
-
-        <div className="flex items-center gap-3">
-          {/* BOTÃO ADICIONAR COLABORADOR */}
-          <button
-            onClick={() => setIsNewCollabModalOpen(true)}
-            className="bg-[var(--color-atelier-grafite)] hover:bg-[var(--color-atelier-terracota)] text-white text-xs font-bold uppercase tracking-wider px-4 py-2.5 rounded-2xl transition-all flex items-center gap-2 shadow-sm shrink-0 active:scale-95"
-            title="Cadastrar Novo Colaborador"
-          >
-            <UserPlus size={16} />
-            <span>Novo Colaborador</span>
-          </button>
-
-          {/* NAV HORIZONTAL SOFISTICADA ALINHADA AO HEAD (SUBSTITUI SLA GLOBAL) */}
-          <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0 gap-1">
-            <button 
-              onClick={() => setActiveTab?.('pulse')} 
-              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'pulse' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
-              title="Pulso Live"
-            >
-              <Activity size={16} /> {activeTab === 'pulse' && <span>Pulso Live</span>}
-            </button>
-            <button 
-              onClick={() => setActiveTab?.('workforce')} 
-              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'workforce' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
-              title="Equipe & RH"
-            >
-              <Users size={16} /> {activeTab === 'workforce' && <span>Equipe & RH</span>}
-            </button>
-            <button 
-              onClick={() => setActiveTab?.('economics')} 
-              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'economics' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
-              title="Unit Economics"
-            >
-              <DollarSign size={16} /> {activeTab === 'economics' && <span>Unit Economics</span>}
-            </button>
-          </div>
-        </div>
-      </header>
+        </header>
+      )}
 
       {/* SPLIT VIEW (Lista vs Detalhes) */}
       <div className="flex-1 flex flex-col lg:flex-row gap-6 min-h-0">
@@ -442,7 +415,7 @@ ${qualidadeText}
             <button
               onClick={() => setIsNewCollabModalOpen(true)}
               title="Adicionar Novo Colaborador"
-              className="p-1.5 px-2.5 rounded-xl bg-[var(--color-atelier-terracota)]/10 hover:bg-[var(--color-atelier-terracota)] text-[var(--color-atelier-terracota)] hover:text-white transition-all flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider shadow-2xs"
+              className="p-1.5 px-2.5 rounded-xl bg-[var(--tess-accent)]/[0.08] hover:bg-[var(--tess-accent)] text-[var(--tess-accent)] hover:text-white transition-all flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider shadow-2xs cursor-pointer"
             >
               <UserPlus size={13} />
               <span>Novo</span>
@@ -479,7 +452,17 @@ ${qualidadeText}
                         <span className="text-[8px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-red-100 text-red-800 shrink-0">Demitido</span>
                       )}
                     </div>
-                    <span className="text-[9px] uppercase tracking-widest text-gray-400 truncate">{member.role}</span>
+                    <span className={`text-[9px] uppercase tracking-widest font-bold px-2 py-0.5 rounded-full inline-block truncate w-fit ${
+                      member.role === 'contador'
+                        ? 'bg-purple-100 text-purple-800'
+                        : member.role === 'admin'
+                          ? 'bg-amber-100 text-amber-800'
+                          : member.role === 'gestor'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-gray-100 text-gray-600'
+                    }`}>
+                      {member.role === 'contador' ? 'Contadora (B&P)' : member.role}
+                    </span>
                   </div>
                 </button>
               );
@@ -520,7 +503,17 @@ ${qualidadeText}
                         )}
                       </div>
                       <div className="flex items-center gap-3 mt-1 text-[10px] font-bold uppercase tracking-widest text-gray-400">
-                        <span className="bg-gray-100 px-2 py-1 rounded-md">{selectedMember.role}</span>
+                        <span className={`px-2 py-1 rounded-md font-bold ${
+                          selectedMember.role === 'contador'
+                            ? 'bg-purple-100 text-purple-800'
+                            : selectedMember.role === 'admin'
+                              ? 'bg-amber-100 text-amber-800'
+                              : selectedMember.role === 'gestor'
+                                ? 'bg-blue-100 text-blue-800'
+                                : 'bg-gray-100 text-gray-700'
+                        }`}>
+                          {selectedMember.role === 'contador' ? 'Contadora (B&P + Vêneto)' : selectedMember.role}
+                        </span>
                         <span>•</span>
                         <span>Visto: {selectedMember.last_seen ? new Date(selectedMember.last_seen).toLocaleTimeString('pt-BR', {hour: '2-digit', minute:'2-digit'}) : 'Desconhecido'}</span>
                       </div>

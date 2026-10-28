@@ -47,17 +47,15 @@ export function GlobalStoreProvider({ children }: { children: React.ReactNode })
   const { data: userProfile, isLoading: isProfileLoading, refetch: refetchProfile } = useProfile();
   const { data: activeProjects = [], isLoading: isProjectsLoading, refetch: refetchProjects } = useProjects();
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
-  const [navMode, setNavModeState] = useState<TeamNavMode>("vertical");
+  const [navMode, setNavModeState] = useState<TeamNavMode>("horizontal");
   const [theme, setThemeState] = useState<ThemeMode>("light");
 
   useEffect(() => {
     if (typeof window === "undefined") return;
     
-    // Sincronização do NavMode
-    const savedNav = localStorage.getItem("atelier_nav_mode");
-    if (savedNav === "vertical" || savedNav === "horizontal") {
-      setNavModeState(savedNav);
-    }
+    // Sincronização do NavMode (Modo horizontal ativo como padrão do sistema)
+    setNavModeState("horizontal");
+    localStorage.setItem("atelier_nav_mode", "horizontal");
 
     // Sincronização do Tema Visual Studio Veronna (Nativo: Claro)
     const savedTheme = (localStorage.getItem("veronna_theme") || localStorage.getItem("atelier_theme")) as ThemeMode | null;

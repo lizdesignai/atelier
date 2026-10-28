@@ -40,12 +40,20 @@ const MFA_TOKEN_EXPIRES_IN = '5m';
 const COOKIE_NAME = 'atelier_session';
 const COOKIE_MAX_AGE = 60 * 60 * 24 * 7; // 7 dias em segundos
 
+export function resolveJwtSecretString(
+  env: Record<string, string | undefined> = process.env
+): string {
+  const secret = (env.JWT_SECRET || env.SUPABASE_SERVICE_ROLE_KEY || '').trim();
+  if (!secret || secret.length < 16) {
+    throw new Error(
+      'Configuração crítica ausente: defina JWT_SECRET (mínimo 16 caracteres) nas variáveis de ambiente do servidor.'
+    );
+  }
+  return secret;
+}
+
 function getJwtSecret(): Uint8Array {
-  const secret = process.env.JWT_SECRET
-    || process.env.SUPABASE_SERVICE_ROLE_KEY
-    || process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_DEFAULT_KEY
-    || 'atelier-jwt-secret-production-fallback-2026';
-  return new TextEncoder().encode(secret);
+  return new TextEncoder().encode(resolveJwtSecretString(process.env));
 }
 
 // ============================================

@@ -2,16 +2,21 @@
 
 import { getDb } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth-server';
+import { FINANCE_ROLES, STAFF_ROLES } from '@/lib/dbQueryPolicy';
+
+function sanitizeId(name: string): string {
+  return name.replace(/[^a-zA-Z0-9_]/g, '');
+}
 
 export async function getProjectsAction() {
   const user = await getAuthUser();
-  if (!user) throw new Error("NÃƒÂ£o autenticado");
+  if (!user) throw new Error('Não autenticado');
 
   const sql = getDb();
   let projects;
 
   try {
-    if (user.role === 'admin' || user.role === 'gestor') {
+    if (STAFF_ROLES.has(user.role)) {
       projects = await sql`
         SELECT p.*, json_build_object(
           'id', pr.id,
@@ -55,31 +60,35 @@ export async function getProjectsAction() {
   }
 }
 
-export async function updateProjectAction(id: string, updateData: any) {
+export async function updateProjectAction(id: string, updateData: Record<string, any>) {
   const user = await getAuthUser();
-  if (!user || (user.role !== 'admin' && user.role !== 'gestor')) {
-    throw new Error("NÃƒÂ£o autorizado");
+  if (!user || !FINANCE_ROLES.has(user.role)) {
+    throw new Error('Não autorizado');
   }
 
   const sql = getDb();
   try {
-    const keys = Object.keys(updateData);
+    const keys = Object.keys(updateData || {}).filter((k) => Boolean(sanitizeId(k)));
     if (keys.length === 0) return null;
-    
-    const setQuery = keys.map((k, i) => `"${k}" = $${i + 1}`).join(', ');
-    const values = Object.values(updateData);
-    
-    const result = await (sql as any).query(`UPDATE projects SET ${setQuery} WHERE id = $${keys.length + 1} RETURNING *`, [...values, id]);
-    
+
+    const setQuery = keys.map((k, i) => `"${sanitizeId(k)}" = $${i + 1}`).join(', ');
+    const values = keys.map((k) => updateData[k]);
+
+    const result = await (sql as any).query(
+      `UPDATE projects SET ${setQuery} WHERE id = $${keys.length + 1} RETURNING *`,
+      [...values, id]
+    );
+
     return result[0];
   } catch (error) {
     console.error('[actions/projects] Erro ao atualizar projeto:', error);
     throw new Error('Falha ao atualizar projeto');
   }
 }
+
 export async function getProjectByIdAction(id: string) {
   const user = await getAuthUser();
-  if (!user) throw new Error("Não autenticado");
+  if (!user) throw new Error('Não autenticado');
 
   const sql = getDb();
   try {
@@ -98,7 +107,11 @@ export async function getProjectByIdAction(id: string) {
       LEFT JOIN profiles pr ON p.client_id = pr.id
       WHERE p.id = ${id}
     `;
-    return result[0] || null;
+    const row = result[0] || null;
+    if (row && !STAFF_ROLES.has(user.role) && String(row.client_id) !== String(user.sub)) {
+      throw new Error('Não autorizado');
+    }
+    return row;
   } catch (error) {
     console.error('[actions/projects] Erro ao buscar projeto por ID:', error);
     throw new Error('Falha ao buscar projeto');

@@ -52,13 +52,27 @@ interface DemandsDashboardProps {
   currentUser: any;
   activeTab?: string;
   setActiveTab?: (tab: 'pulse' | 'workforce' | 'economics' | 'demands') => void;
+  hideHeaderNav?: boolean;
+  hideTitle?: boolean;
+  forcedSubTab?: 'overview' | 'log';
+  hideSubTabSwitcher?: boolean;
 }
 
-export default function DemandsDashboard({ currentUser, activeTab = 'demands', setActiveTab }: DemandsDashboardProps) {
+export default function DemandsDashboard({ 
+  currentUser, 
+  activeTab = 'demands', 
+  setActiveTab,
+  hideHeaderNav = false,
+  hideTitle = false,
+  forcedSubTab,
+  hideSubTabSwitcher = false
+}: DemandsDashboardProps) {
   const [isLoading, setIsLoading] = useState(true);
   
   // 🟢 ESTADO DA CHAVINHA DE ALTERNÂNCIA (SUB-TABS)
-  const [activeSubTab, setActiveSubTab] = useState<'overview' | 'log'>('overview');
+  const [internalSubTab, setInternalSubTab] = useState<'overview' | 'log'>(forcedSubTab || 'overview');
+  const activeSubTab = forcedSubTab !== undefined ? forcedSubTab : internalSubTab;
+  const setActiveSubTab = setInternalSubTab;
 
   // Dados Brutos
   const [tasks, setTasks] = useState<any[]>([]);
@@ -231,63 +245,71 @@ export default function DemandsDashboard({ currentUser, activeTab = 'demands', s
     <div className="flex flex-col h-auto md:h-full overflow-y-auto md:overflow-hidden">
       
       {/* 🟢 CABEÇALHO GLOBAL E CHAVINHA DE ALTERNÂNCIA */}
-      <div className="shrink-0 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-6">
-        <div>
-          <div className="flex items-center gap-2 mb-2">
-            <div className="w-8 h-8 rounded-full bg-[var(--color-atelier-terracota)]/10 flex items-center justify-center border border-[var(--color-atelier-terracota)]/20 shadow-inner">
-               <Layers size={14} className="text-[var(--color-atelier-terracota)]" />
+      {!(hideTitle && hideHeaderNav && hideSubTabSwitcher) && (
+        <div className="shrink-0 flex flex-col md:flex-row justify-between items-start md:items-end gap-6 mb-6">
+          {!hideTitle && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-full bg-[var(--color-atelier-terracota)]/10 flex items-center justify-center border border-[var(--color-atelier-terracota)]/20 shadow-inner">
+                   <Layers size={14} className="text-[var(--color-atelier-terracota)]" />
+                </div>
+                <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/60">Análise de Demanda Mensal</span>
+              </div>
+              <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] leading-none tracking-tight">Ecosistema de Tarefas</h2>
             </div>
-            <span className="font-roboto text-[10px] uppercase font-bold tracking-widest text-[var(--color-atelier-grafite)]/60">Análise de Demanda Mensal</span>
-          </div>
-          <h2 className="font-elegant text-4xl text-[var(--color-atelier-grafite)] leading-none tracking-tight">Ecosistema de Tarefas</h2>
-        </div>
+          )}
 
-        <div className="flex flex-wrap items-center gap-3">
-          {/* Segmented Control (Chavinha) */}
-          <div className="bg-white/40 p-1.5 rounded-[1rem] border border-white shadow-sm flex items-center shrink-0 w-full md:w-auto overflow-hidden">
-            <button 
-              onClick={() => setActiveSubTab('overview')} 
-              className={`flex-1 md:flex-none px-4 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeSubTab === 'overview' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/60'}`}
-            >
-              Visão Geral
-            </button>
-            <button 
-              onClick={() => setActiveSubTab('log')} 
-              className={`flex-1 md:flex-none px-4 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeSubTab === 'log' ? 'bg-[var(--color-atelier-terracota)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/60'}`}
-            >
-              Registro Operacional
-            </button>
-          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Segmented Control (Chavinha) */}
+            {!hideSubTabSwitcher && (
+              <div className="tess-surface p-1 rounded-2xl ring-1 ring-[var(--color-atelier-grafite)]/10 flex items-center shrink-0 w-full md:w-auto overflow-hidden">
+                <button 
+                  onClick={() => setActiveSubTab('overview')} 
+                  className={`flex-1 md:flex-none px-4 py-1.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeSubTab === 'overview' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-xs' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)]'}`}
+                >
+                  Visão Geral
+                </button>
+                <button 
+                  onClick={() => setActiveSubTab('log')} 
+                  className={`flex-1 md:flex-none px-4 py-1.5 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all ${activeSubTab === 'log' ? 'bg-[var(--color-atelier-terracota)] text-white shadow-xs' : 'text-[var(--color-atelier-grafite)]/50 hover:text-[var(--color-atelier-grafite)]'}`}
+                >
+                  Registro Operacional
+                </button>
+              </div>
+            )}
 
-          {/* NAV HORIZONTAL COMPACTA E SOFISTICADA ALINHADA AO HEAD */}
-          <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0">
-            <button 
-              onClick={() => setActiveTab?.('pulse')} 
-              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'pulse' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
-            >
-              <Activity size={13} /> Pulso Live
-            </button>
-            <button 
-              onClick={() => setActiveTab?.('demands')} 
-              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'demands' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
-            >
-              <Layers size={13} /> Demandas
-            </button>
-            <button 
-              onClick={() => setActiveTab?.('workforce')} 
-              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'workforce' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
-            >
-              <Users size={13} /> Equipe & RH
-            </button>
-            <button 
-              onClick={() => setActiveTab?.('economics')} 
-              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'economics' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
-            >
-              <DollarSign size={13} /> Unit Economics
-            </button>
+            {/* NAV HORIZONTAL COMPACTA E SOFISTICADA ALINHADA AO HEAD */}
+            {!hideHeaderNav && (
+              <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0">
+                <button 
+                  onClick={() => setActiveTab?.('pulse')} 
+                  className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'pulse' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+                >
+                  <Activity size={13} /> Pulso Live
+                </button>
+                <button 
+                  onClick={() => setActiveTab?.('demands')} 
+                  className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'demands' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+                >
+                  <Layers size={13} /> Demandas
+                </button>
+                <button 
+                  onClick={() => setActiveTab?.('workforce')} 
+                  className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'workforce' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+                >
+                  <Users size={13} /> Equipe & RH
+                </button>
+                <button 
+                  onClick={() => setActiveTab?.('economics')} 
+                  className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center gap-1.5 whitespace-nowrap ${activeTab === 'economics' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50'}`}
+                >
+                  <DollarSign size={13} /> Unit Economics
+                </button>
+              </div>
+            )}
           </div>
         </div>
-      </div>
+      )}
 
       {/* 🟢 RENDERIZAÇÃO CONDICIONAL DAS SUB-TELAS */}
       <div className="flex-1 min-h-0 relative">

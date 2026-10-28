@@ -1,5 +1,6 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env.local') });
 const { neon } = require('@neondatabase/serverless');
-const sql = neon('postgresql://neondb_owner:npg_K0DUPzW4splG@ep-divine-cherry-acjd0tmq-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require');
+const sql = neon(process.env.POSTGRES_URL);
 
 async function main() {
   console.log('=== ATUALIZANDO TRIGGERS E DESBLOQUEANDO ATIVIDADES AUTOMÁTICAS ===\n');

@@ -1,5 +1,6 @@
+require('dotenv').config({ path: require('path').resolve(__dirname, '../.env.local') });
 const { neon } = require('@neondatabase/serverless');
-const sql = neon('postgresql://neondb_owner:npg_K0DUPzW4splG@ep-divine-cherry-acjd0tmq-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require');
+const sql = neon(process.env.POSTGRES_URL);
 
 const ORG_ID = '9e4d0261-e26d-4d92-8097-bb1850c1d958';
 

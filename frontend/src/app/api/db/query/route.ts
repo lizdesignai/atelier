@@ -1,33 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { getDb } from '@/lib/db';
-
-// Whitelist of allowed tables to prevent SQL injection
-const ALLOWED_TABLES = new Set([
-  'profiles', 'projects', 'tasks', 'notifications', 'agencies',
-  'agency_subclients', 'project_assets', 'content_planning',
-  'briefings', 'attendance_logs', 'social_posts', 'asset_missions',
-  'team_performance', 'messages', 'cofre_items', 'brand_identities',
-  'curadoria_items', 'reference_boards', 'reference_items',
-  'channels', 'channel_messages', 'demand_leads', 'financial_records',
-  'brand_assets', 'brand_guidelines', 'instagram_reports',
-  'onboarding_steps', 'user_preferences', 'activity_log',
-  'brand_snapshots', 'territory_evaluations', 'activation_checklists', 'activation_checklist', 'client_briefings', 'studio_diary', 'prospect_meetings', 'leads', 'strategic_answers', 'design_directions',
-  'message_reactions', 'channel_reads',
-  'instagram_profiles', 'instagram_feed_posts', 'storage_objects',
-  'ig_cycles', 'ig_approval_events', 'instagram_briefings',
-  'consultorias_posicionamento', 'briefings_identidade_visual',
-  'orcamentos_gerenciamento_instagram', 'orcamentos_identidade_visual',
-  'pesquisa_satisfacao_idv', 'pesquisa_satisfacao_instagram', 'formularios_rascunhos',
-  'community_groups', 'community_posts', 'post_comments', 'post_likes', 'b2b_pitches',
-  'veneto_saved_posts', 'veneto_connections', 'veneto_recognitions',
-  'veneto_events', 'veneto_event_rsvps', 'veneto_event_messages',
-  'veneto_studio_contents', 'veneto_direct_messages', 'veneto_reports', 'veneto_user_blocks',
-  'tessera_organizations', 'tessera_memberships', 'tessera_workflow_templates',
-  'tessera_work_items', 'tessera_task_dependencies', 'tessera_checklist_items',
-  'tessera_reviews', 'tessera_status_history', 'tessera_audit_events', 'tessera_domain_outbox',
-  'tessera_work_sessions', 'tessera_comments'
-]);
+import {
+  ALLOWED_TABLES,
+  authorizeDbQuery,
+  sanitizeQueryResult,
+  type FilterDef,
+} from '@/lib/dbQueryPolicy';
 
 const PROFILE_JOIN_FK: Record<string, string> = {
   projects: 'client_id',
@@ -36,7 +15,7 @@ const PROFILE_JOIN_FK: Record<string, string> = {
   b2b_pitches: 'author_id',
   veneto_event_messages: 'user_id',
   veneto_recognitions: 'from_user_id',
-  veneto_reports: 'reporter_id'
+  veneto_reports: 'reporter_id',
 };
 
 function sanitizeId(name: string): string {
@@ -52,9 +31,8 @@ function parseSelectCols(selectStr: string): string {
   for (let i = 0; i < selectStr.length; i++) {
     const ch = selectStr[i];
     if (ch === '(') {
-      // Remove preceding identifier (join table name)
       let j = result.length - 1;
-      while (j >= 0 && /[a-zA-Z0-9_]/.test(result[j])) j--;
+      while (j >= 0 && /[a-zA-Z0-9_!:]/i.test(result[j])) j--;
       result = result.substring(0, j + 1);
       depth++;
     } else if (ch === ')') {
@@ -67,19 +45,13 @@ function parseSelectCols(selectStr: string): string {
   result = result.replace(/,(\s*,)+/g, ',').replace(/^[\s,]+/, '').replace(/[\s,]+$/, '').trim();
   if (!result || result === '*') return '*';
 
-  const cols = result.split(',').map(c => c.trim()).filter(Boolean);
+  const cols = result.split(',').map((c) => c.trim()).filter(Boolean);
   if (cols.length === 0 || cols.includes('*')) return '*';
-  return cols.map(c => `"${sanitizeId(c)}"`).join(', ');
-}
-
-interface FilterDef {
-  type: string;
-  column: string;
-  value: any;
+  return cols.map((c) => `"${sanitizeId(c)}"`).join(', ');
 }
 
 function buildWhere(
-  filters: FilterDef[], 
+  filters: FilterDef[],
   startIdxOrPrefix: number | string = 1,
   startIdx: number = 1
 ): { clauses: string[]; params: any[]; nextIdx: number } {
@@ -137,9 +109,17 @@ function buildWhere(
   return { clauses, params, nextIdx: idx };
 }
 
+function formatParamValue(val: any): any {
+  if (val === null || val === undefined) return null;
+  if (typeof val === 'object' && !(val instanceof Date) && !Buffer.isBuffer(val)) {
+    return JSON.stringify(val);
+  }
+  return val;
+}
+
 export async function POST(request: NextRequest) {
   try {
-    // Auth validation
+    // 1. Validação de autenticação JWT
     const cookieStore = await cookies();
     const token = cookieStore.get('atelier_session')?.value;
     if (!token) {
@@ -148,21 +128,52 @@ export async function POST(request: NextRequest) {
 
     const { verifyToken } = await import('@/lib/auth');
     const payload = await verifyToken(token);
-    if (payload.type !== 'session') {
+    if (payload.type !== 'session' || !payload.sub || !payload.role) {
       return NextResponse.json({ data: null, error: { message: 'Invalid token' } }, { status: 401 });
     }
 
+    const userRole = String(payload.role);
+    const userId = String(payload.sub);
+
     const body = await request.json();
     const {
-      table, operation, columns, data,
-      filters = [], orders = [], limit,
-      single, maybeSingle, head, count
+      table,
+      operation,
+      columns,
+      data,
+      filters = [],
+      orders = [],
+      limit,
+      single,
+      maybeSingle,
+      head,
+      count,
     } = body;
 
-    if (!ALLOWED_TABLES.has(table)) {
+    if (!ALLOWED_TABLES.has(table) && !String(table || '').startsWith('fin_')) {
       console.warn(`[db/query] Blocked query to unlisted table: ${table}`);
-      // Return empty instead of error to avoid crashing UI
-      return NextResponse.json({ data: single || maybeSingle ? null : [], error: null });
+      return NextResponse.json(
+        { data: single || maybeSingle ? null : [], error: { message: `Tabela não permitida: ${table}` } },
+        { status: 403 }
+      );
+    }
+
+    // 2. Autorização por tabela × role × operação × colunas
+    const authCheck = authorizeDbQuery({
+      role: userRole,
+      userId,
+      table,
+      operation,
+      columns,
+      data,
+      filters,
+    });
+
+    if (!authCheck.allowed) {
+      return NextResponse.json(
+        { data: null, error: { message: authCheck.reason || 'Acesso negado.' } },
+        { status: authCheck.status }
+      );
     }
 
     const sql = getDb();
@@ -172,15 +183,34 @@ export async function POST(request: NextRequest) {
       case 'select': {
         const joinFk = PROFILE_JOIN_FK[table];
         const wantsProfiles = Boolean(joinFk && typeof columns === 'string' && columns.includes('profiles'));
+        const wantsTeamPerf = Boolean(
+          table === 'profiles' && typeof columns === 'string' && columns.includes('team_performance')
+        );
         const selectCols = parseSelectCols(columns || '*');
-        
+
         let q: string;
         let tablePrefix: string | undefined = undefined;
 
         if (wantsProfiles && joinFk) {
           tablePrefix = table;
-          const baseCols = selectCols === '*' ? `"${table}".*` : selectCols;
+          const baseCols =
+            selectCols === '*'
+              ? `"${table}".*`
+              : selectCols
+                  .split(',')
+                  .map((c) => `"${table}".${c.trim()}`)
+                  .join(', ');
           q = `SELECT ${baseCols}, json_build_object('id', pr.id, 'nome', pr.nome, 'avatar_url', pr.avatar_url, 'role', pr.role, 'username', pr.username, 'empresa', pr.empresa, 'instagram', pr.instagram, 'email', pr.email, 'area_atuacao', pr.area_atuacao, 'segmento', pr.segmento, 'localizacao', pr.localizacao, 'is_founding_member', pr.is_founding_member) as profiles FROM "${table}" LEFT JOIN "profiles" pr ON "${table}"."${joinFk}" = pr.id`;
+        } else if (wantsTeamPerf) {
+          tablePrefix = 'profiles';
+          const baseCols =
+            selectCols === '*'
+              ? `"profiles".*`
+              : selectCols
+                  .split(',')
+                  .map((c) => `"profiles".${c.trim()}`)
+                  .join(', ');
+          q = `SELECT ${baseCols}, CASE WHEN tp.user_id IS NULL THEN '[]'::json ELSE json_build_array(json_build_object('exp_points', tp.exp_points, 'level_name', tp.level_name, 'total_tasks_completed', tp.total_tasks_completed, 'avg_tnps', tp.avg_tnps, 'on_time_rate', 100)) END as team_performance FROM "profiles" LEFT JOIN "team_performance" tp ON "profiles"."id" = tp.user_id`;
         } else {
           q = `SELECT ${selectCols} FROM "${table}"`;
         }
@@ -206,7 +236,6 @@ export async function POST(request: NextRequest) {
 
         if (limit) q += ` LIMIT ${parseInt(String(limit))}`;
 
-        // Count-only query
         if (head && count === 'exact') {
           let cq = `SELECT count(*)::int as count FROM "${table}"`;
           if (filters.length > 0) {
@@ -219,9 +248,9 @@ export async function POST(request: NextRequest) {
           return NextResponse.json({ data: null, error: null, count: cResult[0]?.count || 0 });
         }
 
-        const result = await (sql as any).query(q, allParams);
+        const rawResult = await (sql as any).query(q, allParams);
+        const result = sanitizeQueryResult(table, rawResult, userRole, userId);
 
-        // Count + data
         if (count === 'exact') {
           let cq = `SELECT count(*)::int as cnt FROM "${table}"`;
           if (filters.length > 0) {
@@ -237,7 +266,7 @@ export async function POST(request: NextRequest) {
         if (single) {
           return NextResponse.json({
             data: result[0] || null,
-            error: result.length === 0 ? { message: 'Row not found', code: 'PGRST116' } : null
+            error: result.length === 0 ? { message: 'Row not found', code: 'PGRST116' } : null,
           });
         }
         if (maybeSingle) {
@@ -246,29 +275,25 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ data: result, error: null });
       }
 
-function formatParamValue(val: any): any {
-  if (val === null || val === undefined) return null;
-  if (typeof val === 'object' && !(val instanceof Date) && !Buffer.isBuffer(val)) {
-    return JSON.stringify(val);
-  }
-  return val;
-}
-
       // =================== INSERT ===================
       case 'insert': {
         const rows = Array.isArray(data) ? data : [data];
         if (rows.length === 0) return NextResponse.json({ data: [], error: null });
 
         const keys = Object.keys(rows[0]);
-        const colNames = keys.map(k => `"${sanitizeId(k)}"`).join(', ');
+        const colNames = keys.map((k) => `"${sanitizeId(k)}"`).join(', ');
         const allParams: any[] = [];
-        const valRows = rows.map(row => {
-          const ph = keys.map(k => { allParams.push(formatParamValue(row[k])); return `$${allParams.length}`; });
+        const valRows = rows.map((row) => {
+          const ph = keys.map((k) => {
+            allParams.push(formatParamValue(row[k]));
+            return `$${allParams.length}`;
+          });
           return `(${ph.join(', ')})`;
         });
 
         const q = `INSERT INTO "${table}" (${colNames}) VALUES ${valRows.join(', ')} RETURNING *`;
-        const result = await (sql as any).query(q, allParams);
+        const rawResult = await (sql as any).query(q, allParams);
+        const result = sanitizeQueryResult(table, rawResult, userRole, userId);
         return NextResponse.json({ data: Array.isArray(data) ? result : result[0], error: null });
       }
 
@@ -279,7 +304,7 @@ function formatParamValue(val: any): any {
         }
         const keys = Object.keys(data);
         const allParams: any[] = [];
-        const setClauses = keys.map(k => {
+        const setClauses = keys.map((k) => {
           allParams.push(formatParamValue(data[k]));
           return `"${sanitizeId(k)}" = $${allParams.length}`;
         });
@@ -293,7 +318,8 @@ function formatParamValue(val: any): any {
         }
 
         q += ' RETURNING *';
-        const result = await (sql as any).query(q, allParams);
+        const rawResult = await (sql as any).query(q, allParams);
+        const result = sanitizeQueryResult(table, rawResult, userRole, userId);
         return NextResponse.json({ data: result, error: null });
       }
 
@@ -309,7 +335,8 @@ function formatParamValue(val: any): any {
         }
 
         q += ' RETURNING *';
-        const result = await (sql as any).query(q, allParams);
+        const rawResult = await (sql as any).query(q, allParams);
+        const result = sanitizeQueryResult(table, rawResult, userRole, userId);
         return NextResponse.json({ data: result, error: null });
       }
 
@@ -319,16 +346,23 @@ function formatParamValue(val: any): any {
         if (rows.length === 0) return NextResponse.json({ data: [], error: null });
 
         const keys = Object.keys(rows[0]);
-        const colNames = keys.map(k => `"${sanitizeId(k)}"`).join(', ');
+        const colNames = keys.map((k) => `"${sanitizeId(k)}"`).join(', ');
         const allParams: any[] = [];
-        const valRows = rows.map(row => {
-          const ph = keys.map(k => { allParams.push(row[k]); return `$${allParams.length}`; });
+        const valRows = rows.map((row) => {
+          const ph = keys.map((k) => {
+            allParams.push(formatParamValue(row[k]));
+            return `$${allParams.length}`;
+          });
           return `(${ph.join(', ')})`;
         });
 
-        const updCols = keys.filter(k => k !== 'id').map(k => `"${sanitizeId(k)}" = EXCLUDED."${sanitizeId(k)}"`).join(', ');
+        const updCols = keys
+          .filter((k) => k !== 'id')
+          .map((k) => `"${sanitizeId(k)}" = EXCLUDED."${sanitizeId(k)}"`)
+          .join(', ');
         const q = `INSERT INTO "${table}" (${colNames}) VALUES ${valRows.join(', ')} ON CONFLICT (id) DO UPDATE SET ${updCols} RETURNING *`;
-        const result = await (sql as any).query(q, allParams);
+        const rawResult = await (sql as any).query(q, allParams);
+        const result = sanitizeQueryResult(table, rawResult, userRole, userId);
         return NextResponse.json({ data: Array.isArray(data) ? result : result[0], error: null });
       }
 

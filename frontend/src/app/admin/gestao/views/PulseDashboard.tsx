@@ -14,6 +14,7 @@ interface PulseDashboardProps {
   currentUser: any;
   activeTab?: string;
   setActiveTab?: (tab: 'pulse' | 'workforce' | 'economics' | 'demands') => void;
+  hideHeaderNav?: boolean;
 }
 
 // 🟢 UTILITÁRIO: Extração segura de nós do Supabase (Array vs Object)
@@ -22,7 +23,7 @@ function extractNode(node: any): any {
   return Array.isArray(node) ? node[0] : node;
 }
 
-export default function PulseDashboard({ currentUser, activeTab = 'pulse', setActiveTab }: PulseDashboardProps) {
+export default function PulseDashboard({ currentUser, activeTab = 'pulse', setActiveTab, hideHeaderNav = false }: PulseDashboardProps) {
   const router = useRouter();
   const [isLoading, setIsLoading] = useState(true);
   const [now, setNow] = useState(Date.now()); // O "Tick Engine" Global
@@ -296,29 +297,31 @@ export default function PulseDashboard({ currentUser, activeTab = 'pulse', setAc
         </div>
 
         {/* NAV HORIZONTAL COMPACTA */}
-        <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0 gap-1 ml-4">
-          <button 
-            onClick={() => setActiveTab?.('pulse')} 
-            className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'pulse' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
-            title="Pulso Live"
-          >
-            <Activity size={16} /> {activeTab === 'pulse' && <span>Pulso Live</span>}
-          </button>
-          <button 
-            onClick={() => setActiveTab?.('workforce')} 
-            className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'workforce' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
-            title="Equipe & RH"
-          >
-            <Users size={16} /> {activeTab === 'workforce' && <span>Equipe & RH</span>}
-          </button>
-          <button 
-            onClick={() => setActiveTab?.('economics')} 
-            className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'economics' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
-            title="Unit Economics"
-          >
-            <DollarSign size={16} /> {activeTab === 'economics' && <span>Unit Economics</span>}
-          </button>
-        </div>
+        {!hideHeaderNav && (
+          <div className="bg-white/60 border border-white p-1.5 rounded-2xl shadow-sm flex items-center shrink-0 gap-1 ml-4">
+            <button 
+              onClick={() => setActiveTab?.('pulse')} 
+              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'pulse' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
+              title="Pulso Live"
+            >
+              <Activity size={16} /> {activeTab === 'pulse' && <span>Pulso Live</span>}
+            </button>
+            <button 
+              onClick={() => setActiveTab?.('workforce')} 
+              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'workforce' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
+              title="Equipe & RH"
+            >
+              <Users size={16} /> {activeTab === 'workforce' && <span>Equipe & RH</span>}
+            </button>
+            <button 
+              onClick={() => setActiveTab?.('economics')} 
+              className={`px-3.5 py-2 rounded-xl font-roboto text-[10px] font-bold uppercase tracking-widest transition-all flex items-center justify-center gap-2 whitespace-nowrap ${activeTab === 'economics' ? 'bg-[var(--color-atelier-grafite)] text-white shadow-md' : 'text-[var(--color-atelier-grafite)]/50 hover:bg-white/50 w-10 h-10 p-0'}`}
+              title="Unit Economics"
+            >
+              <DollarSign size={16} /> {activeTab === 'economics' && <span>Unit Economics</span>}
+            </button>
+          </div>
+        )}
       </header>
 
 

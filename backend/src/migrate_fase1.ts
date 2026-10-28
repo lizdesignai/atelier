@@ -1,7 +1,13 @@
 import { neon } from '@neondatabase/serverless';
+import dotenv from 'dotenv';
+
+dotenv.config();
 
 async function migrate() {
-  const connStr = 'postgresql://neondb_owner:npg_K0DUPzW4splG@ep-divine-cherry-acjd0tmq-pooler.sa-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require';
+  const connStr = process.env.POSTGRES_URL || process.env.DATABASE_URL;
+  if (!connStr || connStr.includes('supabase.co')) {
+    throw new Error('Defina POSTGRES_URL no ambiente antes de rodar migrate_fase1.');
+  }
   const sql = neon(connStr);
 
   console.log('Iniciando migração de schema da Fase 1...');

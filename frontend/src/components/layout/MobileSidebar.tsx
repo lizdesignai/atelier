@@ -36,6 +36,22 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
   const isClient = !isTeamMember && !isContador;
 
   const [currentSprint, setCurrentSprint] = useState<number | null>(null);
+  const [isEngaged, setIsEngaged] = useState(false);
+  const engageTimeoutRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  const wakeBar = () => {
+    setIsEngaged(true);
+    if (engageTimeoutRef.current) clearTimeout(engageTimeoutRef.current);
+    engageTimeoutRef.current = setTimeout(() => {
+      setIsEngaged(false);
+    }, 2800);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (engageTimeoutRef.current) clearTimeout(engageTimeoutRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (!session || !projects) return;
@@ -92,10 +108,8 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
                            || projects?.[0];
   const isInstagramClient = isClient && (clientServiceType === "Gestão de Instagram" || getProductTypeFromProject(activeClientProject) === 'instagram');
 
-  if (isClient) return null;
-  if (isClient && isProjectArchived) return null;
-  if (isContador && !isReady) return null;
-  if (isTeamMember && navMode === 'horizontal') return null;
+  // Barra vertical mobile oculta: uso exclusivo da barra horizontal (pílula de navegação)
+  return null;
 
   // Determinar o ícone do Sprint atual (ou fallback)
   const getSprintIcon = (sprintNum: number | null) => {
@@ -150,11 +164,12 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
   ];
 
   const mobileDrawerItems = isContador ? [
-    { href: '/admin/financeiro', icon: <DollarSign size={20} strokeWidth={1.5} />, label: 'Financeiro' },
+    { href: '/admin/financeiro', icon: <DollarSign size={20} strokeWidth={1.5} />, label: 'Bills & Payments (B&P)' },
     { href: '/admin/fio', icon: <MessageCircle size={20} strokeWidth={1.5} />, label: 'Sintonia', badge: globalUnreadCount },
     { href: '/comunidade', icon: <Globe2 size={20} strokeWidth={1.5} />, label: 'Vêneto' }
   ] : isTeamMember ? [
     ...(isManagerOrAdmin ? [{ href: '/tessera', icon: <VeronnaSymbol size={18} fillColor="currentColor" className="text-[var(--color-veronna-bordo)]" />, label: 'Tessera' }] : []),
+    ...(isManagerOrAdmin ? [{ href: '/admin/financeiro', icon: <DollarSign size={20} strokeWidth={1.5} />, label: 'Bills & Payments (B&P)' }] : []),
     { href: '/admin/jtbd', icon: <Crosshair size={20} strokeWidth={1.5} />, label: 'Focus' },
     { href: '/admin/projetos', icon: <FolderKanban size={20} strokeWidth={1.5} />, label: 'Studio Veronna' },
     { href: '/admin/motion-studio', icon: <LayoutDashboard size={20} strokeWidth={1.5} />, label: 'Veronna Motion Studio' },
@@ -185,11 +200,23 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
 
   return (
     <>
-      <div
-        className="md:hidden fixed bottom-4 inset-x-0 mx-auto z-[99999] px-2 py-1.5 bg-white/70 backdrop-blur-3xl border border-white/80 rounded-[2rem] flex items-center justify-around w-[92vw] max-w-[420px] shadow-lg pointer-events-auto"
+      <motion.div
+        initial={false}
+        animate={{
+          opacity: isEngaged ? 1 : 0.40,
+          scale: isEngaged ? 1 : 0.88,
+          y: isEngaged ? 0 : 5,
+        }}
+        whileHover={{ opacity: 1, scale: 1, y: 0 }}
+        whileTap={{ opacity: 1, scale: 0.98, y: 0 }}
+        transition={{ type: "spring", stiffness: 360, damping: 28 }}
+        onMouseEnter={() => setIsEngaged(true)}
+        onMouseLeave={() => setIsEngaged(false)}
+        onTouchStart={wakeBar}
+        className="md:hidden fixed inset-x-0 mx-auto z-[99999] px-2 py-1 bg-white/60 backdrop-blur-2xl border border-white/60 rounded-[2rem] flex items-center justify-around w-[88vw] max-w-[390px] shadow-xs hover:shadow-xl pointer-events-auto transition-shadow"
         style={{
           position: "fixed",
-          bottom: "16px",
+          bottom: "6px",
           left: 0,
           right: 0,
           marginLeft: "auto",
@@ -242,7 +269,7 @@ export default function MobileSidebar({ userRole, handleLogout }: { userRole: st
             </div>
           </button>
         )}
-      </div>
+      </motion.div>
 
       <AnimatePresence>
         {isMobileDrawerOpen && (

@@ -4,23 +4,34 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/lib/supabase';
-import { Loader2, Activity, Users, DollarSign, Layers, ShieldAlert } from 'lucide-react';
-import PulseDashboard from '@/app/admin/gestao/views/PulseDashboard';
-import DemandsDashboard from '@/app/admin/gestao/views/DemandsDashboard';
-import WorkforceDashboard from '@/app/admin/gestao/views/WorkforceDashboard';
-import EconomicsDashboard from '@/app/admin/gestao/views/EconomicsDashboard';
+import { Loader2, Activity, Users, DollarSign, Zap, Layers, FileText, ShieldAlert } from 'lucide-react';
+import TesseraPulseView from '@/components/tessera/productivity/TesseraPulseView';
+import TesseraDemandsOverviewView from '@/components/tessera/productivity/TesseraDemandsOverviewView';
+import TesseraDemandsLogView from '@/components/tessera/productivity/TesseraDemandsLogView';
+import TesseraWorkforceView from '@/components/tessera/productivity/TesseraWorkforceView';
+import TesseraEconomicsView from '@/components/tessera/productivity/TesseraEconomicsView';
 
-const TABS: Array<{ id: 'pulse' | 'demands' | 'workforce' | 'economics'; label: string; icon: React.ComponentType<any> }> = [
-  { id: 'pulse', label: 'Pulso Live', icon: Activity },
-  { id: 'demands', label: 'Demandas & Entregas', icon: Layers },
-  { id: 'workforce', label: 'Equipe & RH', icon: Users },
-  { id: 'economics', label: 'Unit Economics', icon: DollarSign },
+type TabId = 'pulse' | 'demands_overview' | 'demands_log' | 'workforce' | 'economics';
+
+interface TabItem {
+  id: TabId;
+  label: string;
+  icon: React.ComponentType<any>;
+  group: 'ops' | 'mgmt';
+}
+
+const TABS: TabItem[] = [
+  { id: 'pulse', label: 'Pulso Live (Hoje)', icon: Zap, group: 'ops' },
+  { id: 'demands_overview', label: 'Ecosistema Mensal', icon: Layers, group: 'ops' },
+  { id: 'demands_log', label: 'Registro de Demandas', icon: FileText, group: 'ops' },
+  { id: 'workforce', label: 'Equipe & RH', icon: Users, group: 'mgmt' },
+  { id: 'economics', label: 'Unit Economics', icon: DollarSign, group: 'mgmt' },
 ];
 
 export default function TesseraProductivityPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [currentUser, setCurrentUser] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'pulse' | 'workforce' | 'economics' | 'demands'>('pulse');
+  const [activeTab, setActiveTab] = useState<TabId>('pulse');
 
   useEffect(() => {
     const authenticate = async () => {
@@ -66,10 +77,13 @@ export default function TesseraProductivityPage() {
     );
   }
 
+  const opsTabs = TABS.filter(t => t.group === 'ops');
+  const mgmtTabs = TABS.filter(t => t.group === 'mgmt');
+
   return (
     <div className="w-full space-y-6 animate-in fade-in duration-200">
-      {/* Cabeçalho do Módulo de Produtividade dentro do Tessera */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-[var(--color-atelier-grafite)]/10">
+      {/* 🟢 CABEÇALHO PRINCIPAL DO MÓDULO — NAVEGAÇÃO EM LINHA ÚNICA (SEM SEGUNDA LINHA) */}
+      <div className="flex flex-col 2xl:flex-row 2xl:items-center justify-between gap-4 pb-4 border-b border-[var(--color-atelier-grafite)]/10">
         <div>
           <div className="flex items-center gap-2">
             <span className="tess-eyebrow">Tessera Intelligence · Operações</span>
@@ -83,9 +97,10 @@ export default function TesseraProductivityPage() {
           </p>
         </div>
 
-        {/* Seletor de Visões do Módulo */}
-        <div className="inline-flex items-center gap-1 p-1 rounded-2xl tess-surface ring-1 ring-[var(--color-atelier-grafite)]/10 self-start md:self-auto">
-          {TABS.map(tab => {
+        {/* 🟢 MENU UNIFICADO EM UMA LINHA ÚNICA */}
+        <div className="inline-flex items-center gap-1 p-1 rounded-2xl tess-surface ring-1 ring-[var(--color-atelier-grafite)]/10 self-start 2xl:self-auto overflow-x-auto max-w-full flex-nowrap">
+          {/* Submenu Operacional Unificado na Mesma Linha */}
+          {opsTabs.map(tab => {
             const Icon = tab.icon;
             const active = activeTab === tab.id;
             return (
@@ -93,7 +108,7 @@ export default function TesseraProductivityPage() {
                 key={tab.id}
                 type="button"
                 onClick={() => setActiveTab(tab.id)}
-                className={`relative flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                className={`relative flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
                   active
                     ? 'text-[var(--tess-accent-text)]'
                     : 'text-[var(--color-atelier-grafite)]/55 hover:text-[var(--color-atelier-grafite)]'
@@ -106,7 +121,38 @@ export default function TesseraProductivityPage() {
                     transition={{ type: 'spring', stiffness: 400, damping: 35 }}
                   />
                 )}
-                <Icon size={14} />
+                <Icon size={14} className={active ? 'text-[var(--tess-accent-text)]' : 'text-[var(--color-atelier-grafite)]/45'} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+
+          {/* Divisor Visual Sutil (Sem quebra de linha) */}
+          <div className="h-4 w-px bg-[var(--color-atelier-grafite)]/15 mx-1 shrink-0" />
+
+          {/* Gestão & Finanças na Mesma Linha */}
+          {mgmtTabs.map(tab => {
+            const Icon = tab.icon;
+            const active = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                onClick={() => setActiveTab(tab.id)}
+                className={`relative flex items-center gap-2 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap shrink-0 ${
+                  active
+                    ? 'text-[var(--tess-accent-text)]'
+                    : 'text-[var(--color-atelier-grafite)]/55 hover:text-[var(--color-atelier-grafite)]'
+                }`}
+              >
+                {active && (
+                  <motion.div
+                    layoutId="tessera-productivity-tab"
+                    className="absolute inset-0 rounded-xl bg-[var(--color-atelier-creme)] shadow-xs ring-1 ring-[var(--color-atelier-grafite)]/10 -z-10"
+                    transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+                  />
+                )}
+                <Icon size={14} className={active ? 'text-[var(--tess-accent-text)]' : 'text-[var(--color-atelier-grafite)]/45'} />
                 <span>{tab.label}</span>
               </button>
             );
@@ -114,54 +160,66 @@ export default function TesseraProductivityPage() {
         </div>
       </div>
 
-      {/* Renderização do Pilar Selecionado */}
+      {/* 🟢 RENDERIZAÇÃO DIRETA DA VISÃO SELECIONADA */}
       <div className="relative min-h-[500px]">
         <AnimatePresence mode="wait">
           {activeTab === 'pulse' && (
             <motion.div
               key="pulse"
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.18 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.16 }}
             >
-              <PulseDashboard currentUser={currentUser} activeTab={activeTab} setActiveTab={setActiveTab} />
+              <TesseraPulseView currentUser={currentUser} />
             </motion.div>
           )}
 
-          {activeTab === 'demands' && (
+          {activeTab === 'demands_overview' && (
             <motion.div
-              key="demands"
-              initial={{ opacity: 0, y: 8 }}
+              key="demands_overview"
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.18 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.16 }}
             >
-              <DemandsDashboard currentUser={currentUser} activeTab={activeTab} setActiveTab={setActiveTab} />
+              <TesseraDemandsOverviewView currentUser={currentUser} />
+            </motion.div>
+          )}
+
+          {activeTab === 'demands_log' && (
+            <motion.div
+              key="demands_log"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.16 }}
+            >
+              <TesseraDemandsLogView currentUser={currentUser} />
             </motion.div>
           )}
 
           {activeTab === 'workforce' && (
             <motion.div
               key="workforce"
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.18 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.16 }}
             >
-              <WorkforceDashboard currentUser={currentUser} activeTab={activeTab} setActiveTab={setActiveTab} />
+              <TesseraWorkforceView currentUser={currentUser} />
             </motion.div>
           )}
 
           {activeTab === 'economics' && (
             <motion.div
               key="economics"
-              initial={{ opacity: 0, y: 8 }}
+              initial={{ opacity: 0, y: 6 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
-              transition={{ duration: 0.18 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.16 }}
             >
-              <EconomicsDashboard currentUser={currentUser} activeTab={activeTab} setActiveTab={setActiveTab} />
+              <TesseraEconomicsView currentUser={currentUser} />
             </motion.div>
           )}
         </AnimatePresence>

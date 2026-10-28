@@ -292,7 +292,7 @@ export default function AnalyticsPage() {
 
         if (taskData) {
           const mappedTasks = taskData.map((task: any) => {
-            const executor = teamData?.find((t: any) => t.id === task.assigned_to);
+            const executor: any = teamData?.find((t: any) => t.id === task.assigned_to);
             let projectVisualData = task.projects;
             if (task.agency_id && agData && subData) {
               const agency = agData.find((a: any) => a.id === task.agency_id);
