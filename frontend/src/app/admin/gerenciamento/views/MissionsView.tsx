@@ -178,28 +178,18 @@ export default function MissionsView({ activeProjectId, activeSubclientId, curre
 
       if (data) setMissions([data[0], ...missions]);
 
-      // 🔔 NOTIFICAÇÃO: Sino do Cliente
-      await NotificationEngine.notifyUser(
+      // 🔔 NOTIFICAÇÃO + E-MAIL: Sino e E-mail do Cliente
+      await NotificationEngine.notifyUserWithEmail(
         currentProject.client_id,
         "🎯 Nova Solicitação de Material",
-        `A equipe solicitou um novo material: "${newMissionTitle}". Acesse o Meu Espaço para enviar.`,
-        "action",
-        "/meu-espaco"
+        `A equipe solicitou um novo material: "${newMissionTitle}". Acesse o Cofre Digital para enviar.`,
+        "vault_new_asset",
+        {
+          clientName: currentProject.profiles?.nome?.split(' ')[0] || 'Cliente',
+          projectName: currentProject.profiles?.nome || 'Studio Veronna',
+          link: "/cofre"
+        }
       );
-
-      // Notificação por E-mail (Preservado)
-      if (currentProject.profiles?.email) {
-        await fetch('/api/notify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: currentProject.profiles.email,
-            type: 'vault_new_asset', 
-            clientName: currentProject.profiles.nome.split(' ')[0],
-            link: "https://seu-dominio.com/meu-espaco" 
-          })
-        });
-      }
 
       setNewMissionTitle("");
       setNewMissionDesc("");

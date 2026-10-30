@@ -2,9 +2,11 @@
 import { NextResponse } from 'next/server';
 import { Resend } from 'resend';
 import { getDb } from '@/lib/db';
+import { getActiveManagers } from '@/lib/serverNotifications';
+import { isValidRealEmail, STUDIO_VERONNA_FROM } from '@/lib/resend';
 
-const ADMIN_EMAIL = 'lizbranddesign@gmail.com';
-const FROM_EMAIL = 'Studio Veronna <sistema@lizdesign.com.br>'; 
+const ADMIN_EMAIL = 'lizsacramentosa@gmail.com';
+const FROM_EMAIL = STUDIO_VERONNA_FROM; 
 const LOGO_URL = 'https://atelier.lizdesign.com.br/images/simbolo-rosa.png';
 
 interface ProfileData { 
@@ -168,8 +170,18 @@ function buildAppLikeEmail(avatarOrIcon: string, title: string, message: string,
 // Sub-rotina de Disparo com Auditoria Integrada
 async function sendEmailSafely(resend: Resend, to: string, subject: string, html: string, tag: string) {
   try {
-    console.log(`[Resend: ${tag}] Enviando pulso para: ${to}`);
-    const response = await resend.emails.send({ from: FROM_EMAIL, to, subject, html });
+    let recipients: string[] = [to];
+    if (to === ADMIN_EMAIL || to === 'lizbranddesign@gmail.com') {
+      const managers = await getActiveManagers().catch(() => []);
+      if (managers.length > 0) {
+        recipients = managers.map((m) => m.email).filter(Boolean);
+      }
+    }
+    const validRecipients = Array.from(new Set(recipients)).filter(isValidRealEmail);
+    if (validRecipients.length === 0) return;
+
+    console.log(`[Resend: ${tag}] Enviando pulso para: ${validRecipients.join(', ')}`);
+    const response = await resend.emails.send({ from: FROM_EMAIL, to: validRecipients, subject, html });
     if (response.error) {
       console.error(`[Resend: ${tag}] Rejeição da API:`, response.error);
     } else {

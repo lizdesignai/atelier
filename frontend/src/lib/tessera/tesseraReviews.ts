@@ -5,6 +5,7 @@ import { badRequest, conflict, forbidden, isUuid, unprocessable } from './errors
 import {
   type Actor, deliverablesOf, fetchItem, ITEM_SELECT, sqlClient,
 } from './itemQueries';
+import { notifyManagementOnServer, notifyUserOnServer } from '@/lib/serverNotifications';
 import type { TesseraWorkItem } from './types';
 import type { ReviewEligibility, ReviewInboxItem, ReviewReason } from './workTypes';
 
@@ -135,6 +136,75 @@ export async function decideReview(orgId: string, itemId: string, input: Decisio
       [itemId]))[0] as any;
     exceeded = Number(n.n) > (await maxRounds(item));
   }
+
+  try {
+    const projectName = updated.project_title || updated.client_name || 'Studio Veronna';
+    const collabName = updated.owner_name || 'Colaborador';
+    const reasonLabels: Record<string, string> = {
+      info: 'Informação / Escopo',
+      text: 'Texto / Copy',
+      visual: 'Direção Visual / Design',
+      offer: 'Oferta / Estratégia',
+      other: 'Geral',
+    };
+
+    if (input.decision === 'approved') {
+      if (updated.owner_id) {
+        await notifyUserOnServer({
+          userId: updated.owner_id,
+          title: `✅ Entrega Aprovada no QA: ${updated.title}`,
+          message: `Parabéns! Sua entrega "${updated.title}" (${projectName}) foi aprovada pela liderança.`,
+          type: 'success',
+          actionUrl: '/tessera/focus',
+          emailTemplateType: 'review_approved',
+          extraData: {
+            taskName: updated.title,
+            projectName,
+            collaboratorName: collabName,
+            extraInfo: comment || undefined,
+            link: '/tessera/focus',
+          },
+        });
+      }
+    } else if (input.decision === 'request_changes') {
+      const catLabel = category ? reasonLabels[category] || category : 'Ajuste';
+      if (updated.owner_id) {
+        await notifyUserOnServer({
+          userId: updated.owner_id,
+          title: `🛠️ Ajustes Solicitados (${catLabel}): ${updated.title}`,
+          message: `A liderança solicitou ajustes na entrega "${updated.title}" (${projectName}).`,
+          type: 'action',
+          actionUrl: '/tessera/focus',
+          emailTemplateType: 'review_changes_requested',
+          extraData: {
+            taskName: updated.title,
+            projectName,
+            collaboratorName: collabName,
+            extraInfo: `[${catLabel}] ${comment || ''}`,
+            link: '/tessera/focus',
+          },
+        });
+      }
+      if (exceeded) {
+        await notifyManagementOnServer({
+          title: `⚠️ Limite de Revisões Excedido: ${updated.title}`,
+          message: `O item "${updated.title}" (${projectName}) ultrapassou o limite padrão de rodadas de revisão QA.`,
+          type: 'warning',
+          actionUrl: '/tessera/reviews',
+          emailTemplateType: 'fever_chart_alert',
+          extraData: {
+            taskName: updated.title,
+            projectName,
+            extraInfo: `Excedeu o limite de rodadas de revisão QA. Responsável: ${collabName}.`,
+            link: '/tessera/reviews',
+          },
+        });
+      }
+    }
+  } catch (notifyErr) {
+    console.warn('[Tessera:decideReview] Falha ao notificar:', notifyErr);
+  }
+
   return { item: updated, next_status: next, exceeded_revision_limit: exceeded };
 }
 

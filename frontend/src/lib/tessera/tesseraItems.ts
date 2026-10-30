@@ -10,6 +10,7 @@ import {
 } from './itemQueries';
 import { closeOpenSessionsForItem } from './tesseraSessions';
 import { validateTransition } from './stateMachine';
+import { notifyManagementOnServer, notifyUserOnServer } from '@/lib/serverNotifications';
 import type { TesseraChecklistItem, TesseraWorkItem, WorkItemStatus } from './types';
 import type { BoardResponse, TesseraComment, TesseraHistoryRow, TesseraReviewRow, TesseraSession, WorkItemDetail } from './workTypes';
 
@@ -196,7 +197,62 @@ export async function createItem(orgId: string, input: CreateInput, actor: Actor
       typeof input.stage_id === 'string' ? input.stage_id.slice(0, 100) : null,
     ],
   );
-  return fetchItem(orgId, (rows[0] as { id: string }).id);
+  const created = await fetchItem(orgId, (rows[0] as { id: string }).id);
+
+  try {
+    const projectName = created.project_title || created.client_name || 'Studio Veronna';
+    const deadlineStr = created.internal_due_at || created.due_at || undefined;
+    if (created.owner_id) {
+      await notifyUserOnServer({
+        userId: created.owner_id,
+        title: `🎯 Nova Demanda: ${created.title}`,
+        message: `Uma nova demanda foi atribuída a você no projeto ${projectName}.`,
+        type: 'action',
+        actionUrl: '/tessera/focus',
+        emailTemplateType: 'task_assigned',
+        extraData: {
+          taskName: created.title,
+          projectName,
+          collaboratorName: created.owner_name || undefined,
+          deadline: deadlineStr,
+          extraInfo: created.description || undefined,
+          link: '/tessera/focus',
+        },
+      });
+      await notifyManagementOnServer({
+        title: `📋 Demanda Despachada: ${created.title}`,
+        message: `A demanda "${created.title}" (${projectName}) foi atribuída para ${created.owner_name || 'a equipe'}.`,
+        type: 'info',
+        actionUrl: '/tessera',
+        emailTemplateType: 'demand_sent',
+        extraData: {
+          taskName: created.title,
+          projectName,
+          collaboratorName: created.owner_name || undefined,
+          deadline: deadlineStr,
+          link: '/tessera',
+        },
+      });
+    } else {
+      await notifyManagementOnServer({
+        title: `📥 Nova Demanda na Inbox: ${created.title}`,
+        message: `O item "${created.title}" (${projectName}) foi criado na Inbox do Tessera e aguarda atribuição.`,
+        type: 'info',
+        actionUrl: '/tessera',
+        emailTemplateType: 'new_demand',
+        extraData: {
+          taskName: created.title,
+          projectName,
+          deadline: deadlineStr,
+          link: '/tessera',
+        },
+      });
+    }
+  } catch (notifyErr) {
+    console.warn('[Tessera:createItem] Falha ao notificar:', notifyErr);
+  }
+
+  return created;
 }
 
 const MANAGER_FIELDS = new Set(['title', 'type', 'priority', 'owner_id', 'reviewer_id', 'due_at', 'internal_due_at', 'estimate_minutes', 'acceptance_criteria', 'client_visible', 'stage_id']);
@@ -275,7 +331,34 @@ export async function updateItem(orgId: string, id: string, patch: Record<string
   }
   // Mudou de responsável: o cronômetro do antigo dono não pode continuar correndo.
   if ('owner_id' in patch && patch.owner_id !== item.owner_id) await closeOpenSessionsForItem(id);
-  return fetchItem(orgId, id);
+  const updated = await fetchItem(orgId, id);
+
+  try {
+    if ('owner_id' in patch && updated.owner_id && updated.owner_id !== item.owner_id) {
+      const projectName = updated.project_title || updated.client_name || 'Studio Veronna';
+      const deadlineStr = updated.internal_due_at || updated.due_at || undefined;
+      await notifyUserOnServer({
+        userId: updated.owner_id,
+        title: `🎯 Demanda Atribuída: ${updated.title}`,
+        message: `A demanda "${updated.title}" (${projectName}) foi atribuída para sua execução.`,
+        type: 'action',
+        actionUrl: '/tessera/focus',
+        emailTemplateType: 'task_assigned',
+        extraData: {
+          taskName: updated.title,
+          projectName,
+          collaboratorName: updated.owner_name || undefined,
+          deadline: deadlineStr,
+          extraInfo: updated.description || undefined,
+          link: '/tessera/focus',
+        },
+      });
+    }
+  } catch (notifyErr) {
+    console.warn('[Tessera:updateItem] Falha ao notificar:', notifyErr);
+  }
+
+  return updated;
 }
 
 // ---------------------------------------------------------------- transições
@@ -344,7 +427,77 @@ export async function transitionItem(orgId: string, id: string, to: unknown, act
   if (!rows.length) throw conflict('O status do item mudou durante a operação. Recarregue e tente de novo.', 'status_conflict');
 
   if (from === 'in_progress') await closeOpenSessionsForItem(id);
-  return fetchItem(orgId, id);
+  const updated = await fetchItem(orgId, id);
+
+  try {
+    const projectName = updated.project_title || updated.client_name || 'Studio Veronna';
+    const collabName = updated.owner_name || 'O responsável';
+
+    if (target === 'internal_review') {
+      await notifyManagementOnServer({
+        title: `👁️ Revisão QA Pendente: ${updated.title}`,
+        message: `${collabName} enviou "${updated.title}" (${projectName}) para Revisão QA.`,
+        type: 'action',
+        actionUrl: '/tessera/reviews',
+        emailTemplateType: 'internal_review',
+        extraData: {
+          taskName: updated.title,
+          projectName,
+          collaboratorName: collabName,
+          extraInfo: why || undefined,
+          link: '/tessera/reviews',
+        },
+      });
+    } else if (target === 'in_progress' && from === 'ready') {
+      await notifyManagementOnServer({
+        title: `▶️ Em Execução: ${updated.title}`,
+        message: `${collabName} iniciou a execução de "${updated.title}" (${projectName}).`,
+        type: 'info',
+        actionUrl: '/tessera',
+        emailTemplateType: 'task_in_progress',
+        extraData: {
+          taskName: updated.title,
+          projectName,
+          collaboratorName: collabName,
+          link: '/tessera',
+        },
+      });
+    } else if (target === 'done') {
+      await notifyManagementOnServer({
+        title: `🏆 Entrega Concluída: ${updated.title}`,
+        message: `A demanda "${updated.title}" (${projectName}) foi concluída.`,
+        type: 'success',
+        actionUrl: '/tessera',
+        emailTemplateType: 'task_completed',
+        extraData: {
+          taskName: updated.title,
+          projectName,
+          collaboratorName: collabName,
+          link: '/tessera',
+        },
+      });
+      if (updated.owner_id && updated.owner_id !== actor.id) {
+        await notifyUserOnServer({
+          userId: updated.owner_id,
+          title: `🏆 Demanda Concluída: ${updated.title}`,
+          message: `A demanda "${updated.title}" (${projectName}) foi marcada como concluída.`,
+          type: 'success',
+          actionUrl: '/tessera/focus',
+          emailTemplateType: 'task_completed',
+          extraData: {
+            taskName: updated.title,
+            projectName,
+            collaboratorName: collabName,
+            link: '/tessera/focus',
+          },
+        });
+      }
+    }
+  } catch (notifyErr) {
+    console.warn('[Tessera:transitionItem] Falha ao notificar:', notifyErr);
+  }
+
+  return updated;
 }
 
 // ---------------------------------------------------------------- bloqueio
@@ -371,7 +524,49 @@ export async function setBlocked(orgId: string, id: string, blocked: boolean, re
     [id, orgId, blocked, blocked ? why : null, blocked && blockerOwnerId ? blockerOwnerId : null, actor.id],
   );
   if (blocked) await closeOpenSessionsForItem(id);
-  return fetchItem(orgId, id);
+  const updated = await fetchItem(orgId, id);
+
+  try {
+    if (blocked) {
+      const projectName = updated.project_title || updated.client_name || 'Studio Veronna';
+      const collabName = updated.owner_name || 'Colaborador';
+      await notifyManagementOnServer({
+        title: `🚧 Impedimento em: ${updated.title}`,
+        message: `${collabName} sinalizou bloqueio em "${updated.title}" (${projectName}): ${why}`,
+        type: 'warning',
+        actionUrl: '/tessera',
+        emailTemplateType: 'task_blocked',
+        extraData: {
+          taskName: updated.title,
+          projectName,
+          collaboratorName: collabName,
+          extraInfo: why,
+          link: '/tessera',
+        },
+      });
+
+      if (typeof blockerOwnerId === 'string' && blockerOwnerId && blockerOwnerId !== actor.id) {
+        await notifyUserOnServer({
+          userId: blockerOwnerId,
+          title: `🚧 Apoio Solicitado (Bloqueio): ${updated.title}`,
+          message: `Você foi indicado para destravar o item "${updated.title}" (${projectName}): ${why}`,
+          type: 'warning',
+          actionUrl: '/tessera',
+          emailTemplateType: 'task_blocked',
+          extraData: {
+            taskName: updated.title,
+            projectName,
+            extraInfo: why,
+            link: '/tessera',
+          },
+        });
+      }
+    }
+  } catch (notifyErr) {
+    console.warn('[Tessera:setBlocked] Falha ao notificar:', notifyErr);
+  }
+
+  return updated;
 }
 
 // ---------------------------------------------------------------- checklist & comentários
@@ -422,12 +617,52 @@ export async function deleteChecklistItem(orgId: string, checklistId: string, ac
 }
 
 export async function addComment(orgId: string, itemId: string, body: unknown, actor: Actor): Promise<TesseraComment> {
-  await fetchItem(orgId, itemId);
+  const item = await fetchItem(orgId, itemId);
   const b = typeof body === 'string' ? body.trim() : '';
   if (b.length < 1 || b.length > 4000) throw badRequest('O comentário deve ter de 1 a 4000 caracteres.');
   const rows = await sqlClient().query(
     `WITH ins AS (INSERT INTO public.tessera_comments (work_item_id, author_id, body) VALUES ($1::uuid, $2::uuid, $3) RETURNING *)
      SELECT ins.*, p.nome AS author_name FROM ins LEFT JOIN public.profiles p ON p.id = ins.author_id;`,
     [itemId, actor.id, b]);
-  return rows[0] as TesseraComment;
+  const commentRow = rows[0] as TesseraComment;
+
+  try {
+    const projectName = item.project_title || item.client_name || 'Studio Veronna';
+    const authorName = commentRow?.author_name || 'Membro da equipe';
+    if (item.owner_id && item.owner_id !== actor.id) {
+      await notifyUserOnServer({
+        userId: item.owner_id,
+        title: `💬 Novo Comentário: ${item.title}`,
+        message: `${authorName} comentou na demanda "${item.title}" (${projectName}).`,
+        type: 'action',
+        actionUrl: '/tessera/focus',
+        emailTemplateType: 'task_feedback',
+        extraData: {
+          taskName: item.title,
+          projectName,
+          extraInfo: `${authorName}: "${b}"`,
+          link: '/tessera/focus',
+        },
+      });
+    }
+    if (!actor.isManager) {
+      await notifyManagementOnServer({
+        title: `💬 Comentário em "${item.title}"`,
+        message: `${authorName} adicionou um comentário em "${item.title}" (${projectName}).`,
+        type: 'info',
+        actionUrl: '/tessera',
+        emailTemplateType: 'task_feedback',
+        extraData: {
+          taskName: item.title,
+          projectName,
+          extraInfo: `${authorName}: "${b}"`,
+          link: '/tessera',
+        },
+      });
+    }
+  } catch (notifyErr) {
+    console.warn('[Tessera:addComment] Falha ao notificar:', notifyErr);
+  }
+
+  return commentRow;
 }

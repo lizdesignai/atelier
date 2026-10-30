@@ -276,18 +276,22 @@ export default function JTBDPage() {
       }
 
       // Notifica o cliente
-      await NotificationEngine.notifyUser(
+      await NotificationEngine.notifyUserWithEmail(
         clientId,
-        isPlanning ? "ðŸ“… Planejamento DisponÃ­vel" : "ðŸŽ¨ Arte Aguardando AvaliaÃ§Ã£o",
-        `HÃ¡ material referente a "${task.title}" aguardando sua validaÃ§Ã£o no painel.`,
-        "action",
-        "/cockpit"
+        isPlanning ? "📅 Planejamento Disponível" : "🎨 Arte Aguardando Avaliação",
+        `Há material referente a "${task.title}" aguardando sua validação no painel.`,
+        "planning_approval",
+        {
+          taskName: task.title,
+          projectName: task.projects?.profiles?.nome || 'Studio Veronna',
+          link: "/cockpit"
+        }
       );
 
       return 'pending_client_approval'; // Retorna o novo status real
     } catch (e) {
       console.error("Erro no roteamento para o cliente", e);
-      showToast("Erro ao enviar ao cliente. Mantida em revisÃ£o.");
+      showToast("Erro ao enviar ao cliente. Mantida em revisão.");
       return 'review';
     }
   };
@@ -467,16 +471,21 @@ export default function JTBDPage() {
       if (error) throw error;
       
       if (adHocForm.assigneeId !== currentUser.id) {
-         await NotificationEngine.notifyUser(
+         await NotificationEngine.notifyUserWithEmail(
            adHocForm.assigneeId,
-           "ðŸ”¥ Nova Demanda Urgente",
-           `A gestÃ£o atribuiu-lhe a seguinte tarefa com prioridade mÃ¡xima: ${adHocForm.title}`,
-           "warning",
-           "/admin/jtbd"
+           `🔥 Nova Demanda Urgente: ${adHocForm.title}`,
+           `A liderança atribuiu a você uma demanda com prioridade máxima: "${adHocForm.title}".`,
+           "task_forced_today",
+           {
+             taskName: adHocForm.title,
+             deadline: new Date(adHocForm.deadline).toISOString(),
+             extraInfo: adHocForm.description || 'Prioridade máxima (Demanda Urgente)',
+             link: "/admin/jtbd"
+           }
          );
       }
 
-      showToast("ðŸ”¥ Prioridade atribuÃ­da com sucesso!");
+      showToast("🔥 Prioridade atribuída com sucesso!");
       setIsAdHocModalOpen(false);
       setAdHocForm({ title: "", projectId: "", assigneeId: "", estTime: 60, deadline: "", description: "" });
       fetchJTBDData();

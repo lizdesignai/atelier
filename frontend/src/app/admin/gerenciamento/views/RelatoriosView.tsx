@@ -172,24 +172,17 @@ export default function RelatoriosView({ activeProjectId, currentProject }: Rela
       
       setCurrentReport({ ...currentReport, status: 'approved', pdf_url: publicUrl });
 
-      await NotificationEngine.notifyUser(
+      await NotificationEngine.notifyUserWithEmail(
         currentProject.client_id, 
         "📊 Novo Relatório Estratégico",
         "O seu relatório executivo deste mês já está disponível para análise e download.",
-        "success",
-        "/meu-espaco/relatorios" 
+        "vault_new_asset",
+        {
+          clientName: currentProject.profiles?.nome?.split(' ')[0] || 'Cliente',
+          projectName: currentProject.profiles?.nome || 'Studio Veronna',
+          link: publicUrl || "/meu-espaco/relatorios"
+        }
       );
-
-      await fetch('/api/notify', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          to: currentProject.profiles?.email || 'geral@lizdesign.com.br', 
-          type: 'vault_new_asset',
-          clientName: currentProject.profiles?.nome.split(' ')[0],
-          link: publicUrl
-        })
-      });
 
       showToast("✨ Relatório Aprovado e Cliente Notificado!");
 

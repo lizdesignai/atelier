@@ -461,12 +461,18 @@ export default function AnalyticsPage() {
       
       if (editingTask.assigned_to) {
         // Send notification if assignee is explicitly set/updated
-        await NotificationEngine.notifyUser(
+        await NotificationEngine.notifyUserWithEmail(
           editingTask.assigned_to,
-          "Tarefa Atualizada",
-          `A tarefa "${editingTask.title}" foi atribuída a você ou modificada pela gestão.`,
-          "info",
-          "/admin/jtbd"
+          `🎯 Demanda Atualizada: ${editingTask.title}`,
+          `A tarefa "${editingTask.title}" foi atribuída a você ou atualizada pela liderança.`,
+          'task_assigned',
+          {
+            taskName: editingTask.title,
+            projectName: editingTask.projects?.profiles?.nome || 'Studio Veronna',
+            deadline: editingTask.deadline || undefined,
+            extraInfo: editingTask.description || undefined,
+            link: '/admin/jtbd',
+          }
         );
       }
 
@@ -640,35 +646,41 @@ export default function AnalyticsPage() {
       });
       if (error) throw error;
       
-      await NotificationEngine.notifyUser(
+      const assigneeName = team.find((m: any) => m.id === demand.assigneeId)?.nome || 'Colaborador';
+      const targetDeadline = demand.deadline ? new Date(demand.deadline).toISOString() : new Date(Date.now() + 86400000).toISOString();
+
+      await NotificationEngine.notifyUserWithEmail(
         demand.assigneeId,
-        "Nova Demanda Pontual",
-        `Foi atribuída uma nova prioridade: ${demand.title}`,
-        "warning",
-        "/admin/jtbd"
+        `🎯 Nova Demanda Pontual: ${demand.title}`,
+        `Foi atribuída uma nova prioridade na sua mesa: "${demand.title}".`,
+        'task_assigned',
+        {
+          taskName: demand.title,
+          projectName: 'Demanda Pontual',
+          collaboratorName: assigneeName,
+          deadline: targetDeadline,
+          extraInfo: demand.description || undefined,
+          link: '/admin/jtbd',
+        }
       );
 
-      // Disparar e-mail no backend em background se possível
-      (async () => {
-        try {
-          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
-          const { data: collab }: any = await supabase.from('profiles').select('email').eq('id', demand.assigneeId).single();
-          if (collab?.email) {
-            await fetch(`${backendUrl}/api/v1/notifications/email`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                to: collab.email,
-                type: 'task_assigned',
-                taskName: demand.title,
-                projectName: 'Demanda Pontual',
-                extraInfo: demand.description,
-                link: `${process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin/jtbd`
-              })
-            }).catch(() => {});
-          }
-        } catch (e) {}
-      })();
+      await NotificationEngine.notifyManagement(
+        `📋 Demanda Pontual Criada: ${demand.title}`,
+        `A demanda "${demand.title}" foi atribuída para ${assigneeName}.`,
+        'info',
+        '/admin/analytics',
+        {
+          emailTemplateType: 'demand_sent',
+          extraData: {
+            taskName: demand.title,
+            projectName: 'Demanda Pontual',
+            collaboratorName: assigneeName,
+            deadline: targetDeadline,
+            extraInfo: demand.description || undefined,
+            link: '/admin/analytics',
+          },
+        }
+      );
 
       showToast("Demanda adicionada às tarefas do colaborador!");
       
@@ -724,35 +736,39 @@ export default function AnalyticsPage() {
       });
       if (agendaErrC) showToast("Captação criada, mas não foi possível registrá-la na Agenda.");
       
-      await NotificationEngine.notifyUser(
+      const capDateStr = new Date(captacaoForm.date).toLocaleDateString('pt-BR');
+      await NotificationEngine.notifyUserWithEmail(
         captacaoForm.assigneeId,
-        "📸 Nova Captação Agendada",
-        `Data: ${new Date(captacaoForm.date).toLocaleDateString('pt-PT')}. Local: ${captacaoForm.location}`,
-        "action",
-        "/admin/jtbd"
+        `🎥 Nova Captação Agendada: ${captacaoForm.title}`,
+        `Captação agendada para ${capDateStr}. Local: ${captacaoForm.location || 'A definir'}.`,
+        'captacao_reminder',
+        {
+          taskName: `📸 CAPTAÇÃO: ${captacaoForm.title}`,
+          projectName: 'Logística de Captação',
+          collaboratorName: captacaoResp || undefined,
+          deadline: new Date(captacaoForm.date).toISOString(),
+          extraInfo: `Local: ${captacaoForm.location || 'A definir'}\n${captacaoForm.notes || ''}`.trim(),
+          link: '/admin/jtbd',
+        }
       );
 
-      // Disparar e-mail no backend em background se possível
-      (async () => {
-        try {
-          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
-          const { data: collab }: any = await supabase.from('profiles').select('email').eq('id', captacaoForm.assigneeId).single();
-          if (collab?.email) {
-            await fetch(`${backendUrl}/api/v1/notifications/email`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                to: collab.email,
-                type: 'task_assigned',
-                taskName: `📸 CAPTAÇÃO: ${captacaoForm.title}`,
-                projectName: 'Logística de Captação',
-                extraInfo: `Data: ${new Date(captacaoForm.date).toLocaleDateString('pt-BR')}. Local: ${captacaoForm.location}`,
-                link: `${process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin/jtbd`
-              })
-            }).catch(() => {});
-          }
-        } catch (e) {}
-      })();
+      await NotificationEngine.notifyManagement(
+        `🎥 Captação Agendada: ${captacaoForm.title}`,
+        `Captação registrada para ${captacaoResp || 'a equipe'} em ${capDateStr} (${captacaoForm.location || 'Local a definir'}).`,
+        'info',
+        '/admin/agenda',
+        {
+          emailTemplateType: 'captacao_reminder',
+          extraData: {
+            taskName: `📸 CAPTAÇÃO: ${captacaoForm.title}`,
+            projectName: 'Logística de Captação',
+            collaboratorName: captacaoResp || undefined,
+            deadline: new Date(captacaoForm.date).toISOString(),
+            extraInfo: `Responsável: ${captacaoResp}\nLocal: ${captacaoForm.location || 'A definir'}`,
+            link: '/admin/agenda',
+          },
+        }
+      );
 
       showToast("📍 Logística de captação agendada com sucesso!");
       setIsCaptacaoModalOpen(false);
@@ -790,35 +806,39 @@ export default function AnalyticsPage() {
       });
       if (agendaErrR) showToast("Reunião criada, mas não foi possível registrá-la na Agenda.");
       
-      await NotificationEngine.notifyUser(
+      const reuDateStr = new Date(reuniaoForm.date).toLocaleDateString('pt-BR');
+      await NotificationEngine.notifyUserWithEmail(
         reuniaoForm.assigneeId,
-        "🤝 Nova Reunião Agendada",
-        `Data: ${new Date(reuniaoForm.date).toLocaleDateString('pt-PT')}. Link/Local: ${reuniaoForm.link}`,
-        "action",
-        "/admin/jtbd"
+        `📅 Nova Reunião Agendada: ${reuniaoForm.title}`,
+        `Reunião agendada para ${reuDateStr}. Link/Local: ${reuniaoForm.link || 'A definir'}.`,
+        'reuniao_reminder',
+        {
+          taskName: `🤝 REUNIÃO: ${reuniaoForm.title}`,
+          projectName: 'Alinhamento / Reunião',
+          collaboratorName: reuniaoResp || undefined,
+          deadline: new Date(reuniaoForm.date).toISOString(),
+          extraInfo: `Link/Local: ${reuniaoForm.link || 'A definir'}\n${reuniaoForm.notes || ''}`.trim(),
+          link: '/admin/jtbd',
+        }
       );
 
-      // Disparar e-mail no backend em background se possível
-      (async () => {
-        try {
-          const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
-          const { data: collab }: any = await supabase.from('profiles').select('email').eq('id', reuniaoForm.assigneeId).single();
-          if (collab?.email) {
-            await fetch(`${backendUrl}/api/v1/notifications/email`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                to: collab.email,
-                type: 'task_assigned',
-                taskName: `🤝 REUNIÃO: ${reuniaoForm.title}`,
-                projectName: 'Alinhamento / Reunião',
-                extraInfo: `Data: ${new Date(reuniaoForm.date).toLocaleDateString('pt-BR')}. Link/Local: ${reuniaoForm.link}`,
-                link: `${process.env.NEXT_PUBLIC_FRONTEND_URL || 'https://atelier.lizdesign.com.br'}/admin/jtbd`
-              })
-            }).catch(() => {});
-          }
-        } catch (e) {}
-      })();
+      await NotificationEngine.notifyManagement(
+        `📅 Reunião Agendada: ${reuniaoForm.title}`,
+        `Reunião registrada para ${reuniaoResp || 'a equipe'} em ${reuDateStr}.`,
+        'info',
+        '/admin/agenda',
+        {
+          emailTemplateType: 'reuniao_reminder',
+          extraData: {
+            taskName: `🤝 REUNIÃO: ${reuniaoForm.title}`,
+            projectName: 'Alinhamento / Reunião',
+            collaboratorName: reuniaoResp || undefined,
+            deadline: new Date(reuniaoForm.date).toISOString(),
+            extraInfo: `Responsável: ${reuniaoResp}\nLink/Local: ${reuniaoForm.link || 'A definir'}`,
+            link: '/admin/agenda',
+          },
+        }
+      );
 
       showToast("🤝 Reunião agendada com sucesso!");
       setIsReuniaoModalOpen(false);

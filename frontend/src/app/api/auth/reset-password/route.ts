@@ -4,6 +4,7 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
 import { Resend } from 'resend';
+import { buildAppLikeEmail, sendEmailSafely } from '@/lib/resend';
 
 export async function POST(request: Request) {
   try {
@@ -57,28 +58,21 @@ export async function POST(request: Request) {
       const resetUrl = `${origin}/login?reset=${resetToken}`;
 
       try {
-        await resend.emails.send({
-          from: 'Atelier <noreply@lizdesign.com.br>',
-          to: user.email,
-          subject: 'Recuperação de Senha — Atelier',
-          html: `
-            <div style="font-family: 'Roboto', sans-serif; max-width: 500px; margin: 0 auto; padding: 40px 20px;">
-              <h2 style="color: #0D1D30; margin-bottom: 8px;">Olá, ${user.nome || 'Utilizador'}.</h2>
-              <p style="color: #666; font-size: 14px; line-height: 1.6;">
-                Recebemos uma solicitação para redefinir a sua senha no Atelier.
-              </p>
-              <a href="${resetUrl}" 
-                 style="display: inline-block; background: #0D1D30; color: white; text-decoration: none; 
-                        padding: 14px 32px; border-radius: 24px; font-size: 13px; font-weight: 700; 
-                        letter-spacing: 0.1em; text-transform: uppercase; margin: 24px 0;">
-                Redefinir Senha
-              </a>
-              <p style="color: #999; font-size: 12px; margin-top: 24px;">
-                Este link expira em 1 hora. Se não solicitou esta alteração, ignore este e-mail.
-              </p>
-            </div>
-          `,
-        });
+        const htmlContent = buildAppLikeEmail(
+          '🔐',
+          'Recuperação de Senha',
+          `<p>Olá, <strong>${user.nome || 'Utilizador'}</strong>.</p><p>Recebemos uma solicitação para redefinir a sua senha de acesso ao Atelier (Studio Veronna).</p><p style="font-size:12px; color:#71717a;">Este link expira em 1 hora. Caso não tenha solicitado esta alteração, ignore este e-mail com segurança.</p>`,
+          'Redefinir Minha Senha',
+          resetUrl,
+          'SEGURANÇA'
+        );
+        await sendEmailSafely(
+          resend,
+          user.email,
+          'Recuperação de Senha — Studio Veronna',
+          htmlContent,
+          'Auth Reset Password'
+        );
       } catch (emailError) {
         console.error('[Reset Password] Erro ao enviar email:', emailError);
         // Não falhar — o token foi salvo no banco

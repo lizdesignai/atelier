@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getDb } from '@/lib/db';
-import { Resend } from 'resend';
-import { sendEmailSafely, buildAppLikeEmail } from '@/lib/resend';
+import { notifyManagementOnServer } from '@/lib/serverNotifications';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
-const ADMIN_EMAIL = 'lizsacramentosa@gmail.com'; 
-const portalUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'https://atelier-zwlt.onrender.com';
+const portalUrl = process.env.NEXT_PUBLIC_SITE_URL || 'https://atelier.lizdesign.com.br';
 
 export async function GET(request: Request) {
   // Verificação de segurança (Vercel Cron Header)
@@ -119,20 +116,21 @@ export async function GET(request: Request) {
     
     emailContent += `</ul>`;
 
-    // Disparar o Email
-    await sendEmailSafely(
-      resend,
-      ADMIN_EMAIL,
-      `🔔 Novos Formulários e Briefings Recebidos!`,
-      buildAppLikeEmail(
-        "🔔",
-        "Novos Formulários / Briefings",
-        emailContent,
-        "Acessar Painel de Captação",
-        `${portalUrl}/admin`
-      ),
-      "Form Notifications Cron"
-    );
+    // Disparar Notificação (In-App + E-mail para toda a Liderança ativa)
+    await notifyManagementOnServer({
+      title: '🎯 Novos Formulários e Briefings Recebidos!',
+      message: emailContent,
+      type: 'action',
+      actionUrl: `${portalUrl}/admin/crm`,
+      emailTemplateType: 'admin_alert_briefing',
+      extraData: {
+        subject: '🔔 Novos Formulários e Briefings Recebidos — Studio Veronna',
+        body: emailContent,
+        link: `${portalUrl}/admin/crm`,
+        buttonText: 'Acessar Painel de Captação',
+        badgeText: 'CAPTAÇÃO & CRM',
+      },
+    });
 
     // Marcar como notificado
     if (instas.length > 0) {

@@ -128,6 +128,144 @@ export async function PATCH(
     const task = result[0];
 
     // ==========================================
+    // STUDIO VERONNA: NOTIFICAÇÕES OPERACIONAIS (LIDERANÇA, COLABORADOR & CLIENTE)
+    // ==========================================
+    if (requestedStatus !== 'heartbeat' && body.action !== 'heartbeat') {
+      try {
+        const metaRows = await (sql as any).query(
+          `SELECT
+             p.client_id,
+             cp.nome AS client_name,
+             ap.nome AS assignee_name
+           FROM tasks t
+           LEFT JOIN projects p ON p.id = t.project_id
+           LEFT JOIN profiles cp ON cp.id = p.client_id
+           LEFT JOIN profiles ap ON ap.id = t.assigned_to
+           WHERE t.id = $1
+           LIMIT 1`,
+          [task.id]
+        );
+        const meta = metaRows?.[0] || {};
+        const projectName = meta.client_name || 'Operação Interna';
+        const collabName =
+          collaboratorName || meta.assignee_name || 'Colaborador';
+
+        if (requestedStatus === 'in_progress') {
+          await NotificationEngine.notifyManagement(
+            `▶️ Em Execução: ${task.title}`,
+            `${collabName} iniciou a execução da tarefa "${task.title}" (${projectName}).`,
+            'info',
+            `/admin/task/${task.id}`,
+            {
+              emailTemplateType: 'task_in_progress',
+              extraData: {
+                taskName: task.title,
+                projectName,
+                collaboratorName: collabName,
+                link: `/admin/task/${task.id}`,
+              },
+            }
+          );
+        } else if (requestedStatus === 'pending') {
+          await NotificationEngine.notifyManagement(
+            `⏸️ Tarefa Pausada: ${task.title}`,
+            `${collabName} pausou a execução da tarefa "${task.title}" (${projectName}).`,
+            'warning',
+            `/admin/task/${task.id}`,
+            {
+              emailTemplateType: 'task_paused',
+              extraData: {
+                taskName: task.title,
+                projectName,
+                collaboratorName: collabName,
+                link: `/admin/task/${task.id}`,
+              },
+            }
+          );
+        } else if (requestedStatus === 'review') {
+          await NotificationEngine.notifyManagement(
+            `👁️ Revisão Interna Pendente: ${task.title}`,
+            `${collabName} finalizou "${task.title}" (${projectName}) e enviou para curadoria da liderança.`,
+            'action',
+            `/admin/review/${task.id}`,
+            {
+              emailTemplateType: 'internal_review',
+              extraData: {
+                taskName: task.title,
+                projectName,
+                collaboratorName: collabName,
+                link: `/admin/review/${task.id}`,
+              },
+            }
+          );
+        } else if (['completed', 'done', 'approved'].includes(requestedStatus)) {
+          await NotificationEngine.notifyManagement(
+            `🏆 Entrega Concluída: ${task.title}`,
+            `A tarefa "${task.title}" (${projectName}) foi concluída e validada com sucesso.`,
+            'success',
+            `/admin/task/${task.id}`,
+            {
+              emailTemplateType: 'task_completed',
+              extraData: {
+                taskName: task.title,
+                projectName,
+                collaboratorName: collabName,
+                link: `/admin/task/${task.id}`,
+              },
+            }
+          );
+
+          if (task.assigned_to) {
+            await NotificationEngine.notifyUserWithEmail(
+              task.assigned_to,
+              `✅ Entrega Aprovada: ${task.title}`,
+              `Parabéns! Sua entrega "${task.title}" no projeto ${projectName} foi aprovada e concluída.`,
+              'review_approved',
+              {
+                taskName: task.title,
+                projectName,
+                collaboratorName: collabName,
+                link: '/admin/jtbd',
+              }
+            );
+          }
+        } else if (requestedStatus === 'pending_client_approval') {
+          if (task.assigned_to) {
+            await NotificationEngine.notifyUserWithEmail(
+              task.assigned_to,
+              `✅ Aprovada no QA Interno: ${task.title}`,
+              `Sua entrega "${task.title}" (${projectName}) foi aprovada pela liderança e enviada ao cliente.`,
+              'review_approved',
+              {
+                taskName: task.title,
+                projectName,
+                collaboratorName: collabName,
+                link: '/admin/jtbd',
+              }
+            );
+          }
+
+          if (meta.client_id) {
+            await NotificationEngine.notifyUserWithEmail(
+              meta.client_id,
+              `🎨 Peça Pronta para Avaliação: ${task.title}`,
+              `A entrega "${task.title}" passou pela curadoria interna do Studio Veronna e aguarda sua validação.`,
+              'planning_approval',
+              {
+                taskName: task.title,
+                projectName,
+                clientName: meta.client_name,
+                link: '/curadoria',
+              }
+            );
+          }
+        }
+      } catch (notifyErr) {
+        console.warn('[TaskStatusRoute] Falha ao enviar notificação operacional:', notifyErr);
+      }
+    }
+
+    // ==========================================
     // IDV AUTOMATION: PROGRESS & PHASE SYNC
     // ==========================================
     if (['completed', 'done', 'approved'].includes(requestedStatus) && task.project_id) {

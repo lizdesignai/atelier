@@ -221,12 +221,12 @@ export default function SimuladorFeedPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          type: 'custom',
-          to: 'lizbranddesign@gmail.com', // or the admin email
-          data: {
-            subject: 'Revisão Solicitada: Simulador de Feed',
-            body: `O cliente (Projeto ID: ${projectId}) solicitou uma revisão no Simulador de Feed.<br><br><strong>Instruções do Cliente:</strong><br>"${revisionFeedback}"`
-          }
+          mode: 'management',
+          notifyManagement: true,
+          type: 'art_rejected',
+          subject: '🛠️ Revisão Solicitada: Simulador de Feed',
+          body: `O cliente (Projeto ID: ${projectId}) solicitou ajustes no Simulador de Feed.<br/><br/><strong>Instruções do Cliente:</strong><br/>"${revisionFeedback}"`,
+          link: '/admin/gerenciamento',
         })
       });
       

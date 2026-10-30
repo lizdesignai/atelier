@@ -273,14 +273,31 @@ export class NotificationService {
 
       const fromEmail = 'Studio Veronna <sistema@lizdesign.com.br>'; 
 
+      const fakeDomains = ['teste.com', 'example.com', 'atelier.local'];
+      const validRecipients = recipients.filter((email) => {
+        if (!email || typeof email !== 'string') return false;
+        const trimmed = email.trim().toLowerCase();
+        const domain = trimmed.split('@')[1];
+        return Boolean(domain && !fakeDomains.includes(domain));
+      });
+
+      if (validRecipients.length === 0) {
+        return { success: true, skipped: true };
+      }
+
       const data = await resend.emails.send({
         from: fromEmail,
-        to: recipients,
+        to: validRecipients,
         subject: subject,
         html: html,
       });
 
-      console.log(`[NotificationService] E-mail do tipo '${params.type}' disparado com sucesso para ${recipients.length} destinatário(s).`);
+      if ((data as any)?.error) {
+        console.error("[NotificationService] Erro retornado pela API Resend:", (data as any).error);
+        return { success: false, error: (data as any).error.message || 'Erro Resend' };
+      }
+
+      console.log(`[NotificationService] E-mail do tipo '${params.type}' disparado com sucesso para ${validRecipients.length} destinatário(s).`);
       return { success: true, data };
     } catch (error: any) {
       console.error("[NotificationService] Falha Crítica ao enviar e-mail:", error.message);

@@ -2,6 +2,7 @@
 // Motor de Alertas Contábeis, Vencimentos, DAS e Notificações (Fase 7).
 
 import { getDb } from '../db';
+import { sendStudioEmail } from '../serverNotifications';
 import type { FinanceCapability } from '../rbac';
 
 export interface FinancialAlert {
@@ -173,10 +174,10 @@ export async function dispatchFinancialAlertNotifications(
 
   // 1. Busca os líderes e contadora
   const recipients = await sql`
-    SELECT id, email, role
+    SELECT id, email, role, nome
     FROM profiles
     WHERE role IN ('contador', 'gestor', 'admin')
-      AND status = 'active'
+      AND COALESCE(contract_status, 'active') != 'inactive'
   `;
 
   if (recipients.length === 0) {
@@ -184,8 +185,10 @@ export async function dispatchFinancialAlertNotifications(
   }
 
   let dispatchedCount = 0;
+  const newlyDispatchedAlerts: FinancialAlert[] = [];
 
   for (const alert of summary.alerts) {
+    let sentForAlert = false;
     for (const user of recipients) {
       // 2. Deduplicação: verifica se já notificou esse usuário sobre o mesmo título nas últimas 24h
       const existing = await sql`
@@ -212,7 +215,42 @@ export async function dispatchFinancialAlertNotifications(
           )
         `;
         dispatchedCount++;
+        sentForAlert = true;
       }
+    }
+    if (sentForAlert) {
+      newlyDispatchedAlerts.push(alert);
+    }
+  }
+
+  // 3. Dispara e-mail consolidado via Resend para contadora e gestores quando houver novos alertas
+  if (newlyDispatchedAlerts.length > 0) {
+    try {
+      const recipientEmails = recipients
+        .map((r: any) => r.email)
+        .filter(Boolean);
+
+      if (recipientEmails.length > 0) {
+        const alertLines = newlyDispatchedAlerts
+          .map(
+            (a) =>
+              `<div style="background-color:${a.priority === 'urgent' ? '#fef2f2' : '#faf9f6'}; border-left:3px solid ${a.priority === 'urgent' ? '#dc2626' : '#a45037'}; padding:10px 14px; border-radius:8px; margin-bottom:10px; text-align:left;">` +
+              `<strong>${a.title}</strong><br/><span style="font-size:13px; color:#52525b;">${a.message}</span></div>`
+          )
+          .join('');
+
+        await sendStudioEmail({
+          to: recipientEmails,
+          type: 'financial_alert',
+          templateData: {
+            subject: `[Financeiro] ${newlyDispatchedAlerts.length} alerta(s) operacional(is) — Studio Veronna`,
+            body: `Identificamos <strong>${newlyDispatchedAlerts.length} pendência(s) financeira(s)</strong> que requerem acompanhamento da gestão e contabilidade:<br/><br/>${alertLines}`,
+            link: '/admin/financeiro/alertas',
+          },
+        });
+      }
+    } catch (emailErr) {
+      console.warn('[FinanceAlerts] Falha ao enviar e-mail de alerta financeiro:', emailErr);
     }
   }
 

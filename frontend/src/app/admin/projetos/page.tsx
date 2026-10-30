@@ -350,13 +350,13 @@ function PainelIdentidade() {
       refreshGlobalData();
       
       await NotificationEngine.notifyManagement(
-        "Ã°Å¸Â§Â  Assistente Estratégico: Análise Concluída",
-        `O relatório de inteligência estratégica do cliente ${currentProject?.profiles?.nome} está pronto a ser consultado.`,
+        "🧠 Assistente Estratégico: Análise Concluída",
+        `O relatório de inteligência estratégica do cliente ${currentProject?.profiles?.nome} está pronto para ser consultado.`,
         "success",
         "/admin/projetos"
       );
 
-      showToast("Análise Estratégica gerada com sucesso! Ã¢Å“Â¨");
+      showToast("Análise Estratégica gerada com sucesso! ✨");
     } catch (e) {
       showToast("Erro ao processar análise da IA.");
     } finally {
@@ -386,13 +386,13 @@ function PainelIdentidade() {
       refreshGlobalData(); 
       
       await NotificationEngine.notifyManagement(
-        "Ã°Å¸Å½Â¨ Assistente de Design: Análise Concluída",
+        "🎨 Assistente de Design: Análise Concluída",
         `O relatório semiótico para o projeto de ${currentProject?.profiles?.nome} foi compilado.`,
         "success",
         "/admin/projetos"
       );
 
-      showToast("Análise Visual gerada com sucesso! Ã¢Å“Â¨");
+      showToast("Análise Visual gerada com sucesso! ✨");
     } catch (e) {
       showToast("Erro ao processar análise da IA.");
     } finally {
@@ -538,15 +538,19 @@ function PainelIdentidade() {
       if (insertedData) setProjectAssets([insertedData[0], ...projectAssets]);
       
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(
+        await NotificationEngine.notifyUserWithEmail(
           currentProject.client_id,
-          "Ã°Å¸â€œÂ¦ Novo Material Disponível",
-          `A equipe adicionou o arquivo final "${file.name}" ao seu espaço.`,
-          "info",
-          "/"
+          "📦 Novo Material Disponível",
+          `A equipe adicionou o arquivo final "${file.name}" ao seu Cofre Digital.`,
+          "vault_new_asset",
+          {
+            clientName: currentProject?.profiles?.nome || 'Cliente',
+            projectName: currentProject?.profiles?.nome || 'Studio Veronna',
+            link: "/cofre"
+          }
         );
       }
-      showToast("Ã¢Å“Â¨ Arquivo adicionado aos Materiais Finais!");
+      showToast("✨ Arquivo adicionado aos Materiais Finais!");
     } catch (error: any) {
       showToast("Erro ao fazer upload do arquivo.");
     } finally {
@@ -590,12 +594,16 @@ function PainelIdentidade() {
       refreshGlobalData();
       
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(
+        await NotificationEngine.notifyUserWithEmail(
           currentProject.client_id,
-          "Ã°Å¸â€œÅ“ Contrato Disponível",
-          "A cópia digital do seu contrato assinado já está disponível no seu espaço.",
-          "info",
-          "/"
+          "📄 Contrato Disponível",
+          "A cópia digital do seu contrato assinado já está disponível no seu Cofre Digital.",
+          "contract_uploaded",
+          {
+            clientName: currentProject?.profiles?.nome || 'Cliente',
+            projectName: currentProject?.profiles?.nome || 'Studio Veronna',
+            link: "/cofre"
+          }
         );
       }
       showToast("Contrato anexado com sucesso!");
@@ -652,7 +660,17 @@ function PainelIdentidade() {
     try {
       await updateProjectAction(activeProjectId, { status: 'delivered', delivered_at: new Date().toISOString() });
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(currentProject.client_id, "Ã°Å¸Å½â€° Projeto Entregue!", "Você terá 15 dias de acesso ao Meu Espaço para fazer o download final dos seus materiais.", "success", "/");
+        await NotificationEngine.notifyUserWithEmail(
+          currentProject.client_id,
+          "🎉 Projeto Entregue!",
+          "Você terá 15 dias de acesso ao Meu Espaço para fazer o download final dos seus materiais.",
+          "project_delivered",
+          {
+            clientName: currentProject?.profiles?.nome || 'Cliente',
+            projectName: currentProject?.profiles?.nome || 'Studio Veronna',
+            link: "/cofre"
+          }
+        );
       }
       showToast("Projeto marcado como Entregue! A contagem regressiva de 15 dias começou.");
       refreshGlobalData();
@@ -773,7 +791,17 @@ function PainelIdentidade() {
       }
       
       if (currentProject?.client_id) {
-        await NotificationEngine.notifyUser(currentProject.client_id, "Ã°Å¸Â§Â­ Nova Direção Visual (Moodboard)", "A equipe enviou referências e um novo caminho criativo para a sua marca. Analise e compartilhe a sua opinião no Meu Espaço.", "action", "/");
+        await NotificationEngine.notifyUserWithEmail(
+          currentProject.client_id,
+          "🧭 Nova Direção Visual (Moodboard)",
+          "A equipe enviou referências e um novo caminho criativo para a sua marca. Analise e compartilhe a sua opinião no Meu Espaço.",
+          "new_direction",
+          {
+            clientName: currentProject?.profiles?.nome || 'Cliente',
+            projectName: currentProject?.profiles?.nome || 'Studio Veronna',
+            link: "/curadoria"
+          }
+        );
       }
 
       showToast("Direção visual enviada com sucesso!");

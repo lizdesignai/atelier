@@ -11,6 +11,7 @@ import {
   type Actor, fetchItem, getOrgSettings, ITEM_SELECT, sqlClient,
 } from './itemQueries';
 import { planFocus, type PlannerItem } from './focusPlanner';
+import { notifyUserOnServer } from '@/lib/serverNotifications';
 import type { TesseraWorkItem } from './types';
 import type { FocusBoardResponse, TesseraSession } from './workTypes';
 
@@ -254,8 +255,33 @@ export async function forceToday(orgId: string, itemId: string, reason: string, 
   );
   if (!rows.length) throw conflict('Item mudou durante a operação.');
 
+  const updated = await fetchItem(orgId, itemId);
+
+  try {
+    if (updated.owner_id) {
+      const projectName = updated.project_title || updated.client_name || 'Studio Veronna';
+      await notifyUserOnServer({
+        userId: updated.owner_id,
+        title: `⚡ Prioridade para Hoje: ${updated.title}`,
+        message: `A liderança destacou "${updated.title}" (${projectName}) como prioridade imediata para o seu dia.`,
+        type: 'action',
+        actionUrl: '/tessera/focus',
+        emailTemplateType: 'task_forced_today',
+        extraData: {
+          taskName: updated.title,
+          projectName,
+          collaboratorName: updated.owner_name || undefined,
+          extraInfo: why,
+          link: '/tessera/focus',
+        },
+      });
+    }
+  } catch (notifyErr) {
+    console.warn('[Tessera:forceToday] Falha ao notificar:', notifyErr);
+  }
+
   return {
-    item: await fetchItem(orgId, itemId),
+    item: updated,
     displaced,
     overload_minutes: after.overloadMinutes,
   };

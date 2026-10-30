@@ -136,29 +136,18 @@ export default function BrandIdentity({ activeProjectId, currentProject }: Brand
         
       if (error) throw error;
 
-      // DISPARO DE E-MAIL
-      const clientEmail = currentProject?.profiles?.email;
-      if (clientEmail) {
-        await fetch('/api/notify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            to: clientEmail,
-            type: 'briefing_returned',
-            clientName: currentProject.profiles.nome?.split(' ')[0] || 'Cliente',
-            projectName: currentProject.profiles.nome || 'o seu projeto'
-          })
-        });
-      }
-
-      // 🔔 NOTIFICAÇÃO: Tocar sino do Cliente (In-App)
+      // 🔔 NOTIFICAÇÃO + E-MAIL (In-App + Resend unificados)
       if (currentProject?.client_id) {
-         await NotificationEngine.notifyUser(
+         await NotificationEngine.notifyUserWithEmail(
            currentProject.client_id,
            "⚠️ Briefing Devolvido (Revisão Necessária)",
            "O Studio Veronna solicita mais profundidade nas suas respostas. Por favor, reveja e reenvie o seu Dossiê de Marca.",
-           "action",
-           "/meu-espaco"
+           "briefing_returned",
+           {
+             clientName: currentProject.profiles?.nome?.split(' ')[0] || 'Cliente',
+             projectName: currentProject.profiles?.nome || 'o seu projeto',
+             link: "/meu-espaco"
+           }
          );
       }
       
