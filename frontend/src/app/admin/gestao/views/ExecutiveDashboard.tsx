@@ -71,7 +71,10 @@ export default function ExecutiveDashboard({ currentUser }: ExecutiveDashboardPr
         const clientName = safeProfile?.nome || 'Desconhecido';
 
         const projTasks = (tasks as any[])?.filter((t: any) => t.project_id === proj.id) || [];
-        const totalMinutesSpent = projTasks.reduce((acc, t) => acc + (t.actual_time || t.estimated_time || 0), 0);
+        const totalMinutesSpent = projTasks.reduce((acc, t) => {
+          const taskMins = (t.actual_time && t.actual_time > 0) ? Math.min(t.actual_time, 480) : (t.estimated_time || 60);
+          return acc + taskMins;
+        }, 0);
         const totalHoursSpent = totalMinutesSpent / 60;
         const fee = Number(proj.financial_value || 0);
 

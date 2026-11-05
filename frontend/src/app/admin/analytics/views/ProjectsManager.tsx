@@ -8,11 +8,11 @@ import {
   Layers, CheckSquare, Square, Flame, Edit3, Check, CheckCircle2, X, Search, Grid,
   ArrowRight, Trello, ExternalLink, PanelRightClose, PanelRightOpen, ListTodo,
   AlertCircle, AlignLeft, MessageSquare, ChevronLeft, ChevronRight, FolderUp,
-  ChevronDown, Paperclip, UploadCloud, FileText, Image as ImageIcon, Eye, Calendar, Download, RefreshCw
+  ChevronDown, Paperclip, UploadCloud, FileText, Image as ImageIcon, Eye, Calendar, Download, RefreshCw, Compass
 } from "lucide-react";
 import { ALL_SKILLS } from "../constants";
 import ClientAssetsModal from "../../../../components/ClientAssetsModal";
-import { IdvBriefingModal, IdvCuradoriaModal } from "../components/IdvClientModals";
+import { IdvBriefingModal, IdvCuradoriaModal, IdvDirecionamentoModal } from "../components/IdvClientModals";
 import { formatForDateTimeLocal, parseFromDateTimeLocal } from "../../../../lib/dateUtils";
 import { normalizeImageUrl, handleAvatarError, handleImageFallbackError } from "../../../../lib/imageUtils";
 
@@ -512,6 +512,7 @@ export default function ProjectsManager({
   const [taskStatusFilter, setTaskStatusFilter] = useState<'pending' | 'completed' | 'all'>('pending');
   const [isBriefingModalOpen, setIsBriefingModalOpen] = useState(false);
   const [isCuradoriaModalOpen, setIsCuradoriaModalOpen] = useState(false);
+  const [isDirecionamentoModalOpen, setIsDirecionamentoModalOpen] = useState(false);
 
   const isSubclientView = selectedEntityType === 'subclient';
   const displayData = isSubclientView 
@@ -847,6 +848,9 @@ export default function ProjectsManager({
                          </button>
                          <button onClick={() => setIsCuradoriaModalOpen(true)} className="flex items-center gap-2 bg-white text-[var(--color-atelier-grafite)] border border-[var(--color-atelier-grafite)]/20 px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-sm hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)] transition-colors">
                             <ImageIcon size={12}/> Referências Visuais
+                         </button>
+                         <button onClick={() => setIsDirecionamentoModalOpen(true)} className="flex items-center gap-2 bg-white text-[var(--color-atelier-grafite)] border border-[var(--color-atelier-grafite)]/20 px-4 py-2 rounded-full text-[10px] font-bold uppercase tracking-widest shadow-sm hover:border-[var(--color-atelier-terracota)] hover:text-[var(--color-atelier-terracota)] transition-colors">
+                            <Compass size={12}/> 003 Direcionamento Criativo
                          </button>
                          <button onClick={async () => {
                            if (confirm('Deseja dar este projeto e todas as suas demandas como encerrados? Ele deixará de aparecer na Carteira e na Fila de Tarefas.')) {
@@ -2335,6 +2339,7 @@ export default function ProjectsManager({
       
       <IdvBriefingModal isOpen={isBriefingModalOpen} onClose={() => setIsBriefingModalOpen(false)} project={displayData} />
       <IdvCuradoriaModal isOpen={isCuradoriaModalOpen} onClose={() => setIsCuradoriaModalOpen(false)} project={displayData} />
+      <IdvDirecionamentoModal isOpen={isDirecionamentoModalOpen} onClose={() => setIsDirecionamentoModalOpen(false)} project={displayData} onUpdate={refreshGlobalData} />
 
 
     </>

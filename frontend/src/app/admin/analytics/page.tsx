@@ -38,7 +38,7 @@ const groupTasksByStage = (projectTasks: any[], isIdv: boolean = false) => {
   if (isIdv) {
       const stageTitles: Record<string, string> = {
         'discover': 'Fase 1: Discover (Briefing & Pesquisa)',
-        'define': 'Fase 2: Define (Direção Criativa)',
+        'define': 'Fase 2: Define (Curadoria & Direcionamento)',
         'develop': 'Fase 3: Develop (Exploração & Sistema Visual)',
         'qa': 'Fase 4: QA (Revisão Criativa)',
         'present': 'Fase 5: Present (Apresentação Oficial)',
@@ -54,7 +54,16 @@ const groupTasksByStage = (projectTasks: any[], isIdv: boolean = false) => {
       stages['Outras Demandas'] = [];
       
       filteredTasks.forEach(t => {
-        const sName = stageTitles[t.stage] || t.stage || 'Outras Demandas';
+        let matchedStageKey = t.stage;
+        const lowerTitle = (t.title || '').toLowerCase();
+        if (!matchedStageKey || !stageTitles[matchedStageKey]) {
+          if (lowerTitle.includes('direcionamento') || lowerTitle.includes('curadoria') || lowerTitle.includes('território') || lowerTitle.includes('territorio') || lowerTitle.includes('direção')) {
+            matchedStageKey = 'define';
+          } else if (lowerTitle.includes('briefing') || lowerTitle.includes('pesquisa') || lowerTitle.includes('estratégia')) {
+            matchedStageKey = 'discover';
+          }
+        }
+        const sName = stageTitles[matchedStageKey] || t.stage || 'Outras Demandas';
         if (!stages[sName]) stages[sName] = [];
         stages[sName].push(t);
       });

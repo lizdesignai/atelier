@@ -98,13 +98,22 @@ export default function WorkforceDashboard({
         const memberSessions = (sessions as any[])?.filter((s: any) => s.user_id === member.id) || [];
         const memberTasks = (tasks as any[])?.filter((t: any) => t.assigned_to === member.id) || [];
 
-        // A. Cálculos de Tempo (Hoje, Semana, Mês)
+        // A. Cálculos de Tempo (Hoje, Semana, Mês) com suporte a sessões ativas
         const todayStart = startOfDay(now).toISOString();
         const weekStart = startOfWeek(now, { weekStartsOn: 1 }).toISOString();
 
-        const minutesToday = memberSessions.filter(s => s.start_time >= todayStart).reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
-        const minutesWeek = memberSessions.filter(s => s.start_time >= weekStart).reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
-        const minutesMonth = memberSessions.reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
+        const getSessionMinutes = (s: any) => {
+          if (s.duration_minutes !== null && s.duration_minutes > 0) return Math.min(s.duration_minutes, 240);
+          if (s.end_time === null && s.start_time) {
+            const el = Math.floor((now.getTime() - new Date(s.start_time).getTime()) / 60000);
+            return Math.min(240, Math.max(0, el));
+          }
+          return s.duration_minutes || 0;
+        };
+
+        const minutesToday = memberSessions.filter(s => s.start_time >= todayStart).reduce((acc, curr) => acc + getSessionMinutes(curr), 0);
+        const minutesWeek = memberSessions.filter(s => s.start_time >= weekStart).reduce((acc, curr) => acc + getSessionMinutes(curr), 0);
+        const minutesMonth = memberSessions.reduce((acc, curr) => acc + getSessionMinutes(curr), 0);
 
         const hoursToday = minutesToday / 60;
         const hoursWeek = minutesWeek / 60;

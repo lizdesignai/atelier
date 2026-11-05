@@ -64,6 +64,7 @@ export default function ViewTaskPage() {
       const payload: any = { 
         requestedStatus: finalStatus, 
         task: updatedTask || task,
+        userId: currentUser?.id,
         collaboratorName: currentUser?.nome?.split(' ')[0] || 'Desconhecido'
       };
 

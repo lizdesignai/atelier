@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { FileText, X, Loader2, AlertCircle, Image as ImageIcon, UploadCloud, Check } from 'lucide-react';
+import { FileText, X, Loader2, AlertCircle, Image as ImageIcon, UploadCloud, Check, Compass } from 'lucide-react';
 import { uploadFile, dbInsert, dbSelect, dbUpdate } from '@/lib/dbClient';
 import { normalizeBriefingAnswers } from '@/lib/briefingConstants';
+import { AdminDirecionamentoManager } from '@/components/admin/AdminDirecionamentoManager';
 
 export function IdvBriefingModal({ isOpen, onClose, project }: { isOpen: boolean; onClose: () => void; project: any }) {
   const [data, setData] = useState<any>(null);
@@ -203,6 +204,34 @@ export function IdvCuradoriaModal({ isOpen, onClose, project }: { isOpen: boolea
                </div>
              </div>
            )}
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+export function IdvDirecionamentoModal({ isOpen, onClose, project, onUpdate }: { isOpen: boolean; onClose: () => void; project: any; onUpdate?: () => void }) {
+  if (!isOpen || !project) return null;
+  return (
+    <div className="fixed inset-0 z-[100000] flex items-center justify-center p-4 md:p-8">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <motion.div initial={{ scale: 0.95, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 20 }} className="bg-white rounded-[2rem] shadow-2xl relative z-10 w-full max-w-4xl h-full max-h-[90vh] flex flex-col overflow-hidden border border-[var(--color-atelier-grafite)]/10">
+        <div className="flex justify-between items-center p-6 border-b border-gray-100 bg-[#faf9f8]">
+          <h2 className="font-elegant text-2xl text-[var(--color-atelier-grafite)] flex items-center gap-3">
+            <Compass size={24} className="text-[var(--color-atelier-terracota)]" /> 003 • Direcionamento Criativo Oficial
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 flex items-center justify-center bg-gray-200/50 rounded-full text-gray-500 hover:bg-gray-200 hover:text-gray-800 transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+        <div className="flex-1 w-full bg-white relative p-6 overflow-y-auto custom-scrollbar">
+          <AdminDirecionamentoManager 
+            projectId={project.id} 
+            onTaskUpdate={() => {
+              onUpdate?.();
+              window.dispatchEvent(new CustomEvent('refreshGlobalData'));
+            }} 
+          />
         </div>
       </motion.div>
     </div>

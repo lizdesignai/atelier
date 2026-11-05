@@ -334,12 +334,12 @@ export default function Home() {
       id: "direcionar", 
       number: "02", 
       label: "Direcionar", 
-      sublabel: "Curadoria Visual & Territórios",
-      tags: ["3 Territórios", "Moodboards", "Cores"],
+      sublabel: "Curadoria, Territórios & Direcionamento",
+      tags: ["Curadoria", "Territórios", "Direcionamento PDF"],
       phases: ["define"], 
       icon: Compass, 
       action: () => setIsDirecionarModalOpen(true),
-      actionLabel: "Abrir Curadoria Visual",
+      actionLabel: "Abrir Direcionar",
       isFoundationDone: false
     },
     { 

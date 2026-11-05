@@ -207,7 +207,8 @@ export default function DemandsDashboard({
           };
         }
         sourceMap[key].count += 1;
-        sourceMap[key].hours += (t.estimated_time || 60) / 60; 
+        const taskMinutes = (t.actual_time && t.actual_time > 0) ? Math.min(t.actual_time, 480) : (t.estimated_time || 60);
+        sourceMap[key].hours += taskMinutes / 60; 
         if (sourceMap[key].hours > localMaxHours) localMaxHours = sourceMap[key].hours;
       }
     });

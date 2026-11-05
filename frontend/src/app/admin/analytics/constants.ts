@@ -4,6 +4,7 @@ export const TASK_TYPES_IDV = [
   { id: 'setup', label: 'Administrativo & Contratos' },
   { id: 'reuniao', label: 'Reuniões & Apresentações' },
   { id: 'copy', label: 'Pesquisa & Estratégia' },
+  { id: 'planning', label: 'Planejamento & Direcionamento' },
   { id: 'design', label: 'Design & Direção Visual' },
   { id: 'community', label: 'Diário de Bordo & Comunidade' },
   { id: 'presentation', label: 'Mockups e Apresentação' },
@@ -41,9 +42,10 @@ export const IDV_FLOW_PIPELINE: Record<string, any[]> = {
     { phase: 'discover', type: 'copy', title: 'Análise de Briefing e Mercado', day: 1, estTime: 120, isGate: false },
     { phase: 'discover', type: 'copy', title: 'Estratégia de Marca', day: 2, estTime: 90, isGate: false },
     
-    // FASE 2 - DEFINE (D3-D4)
+    // FASE 2 - DEFINE (D3-D5)
     { phase: 'define', type: 'design', title: 'Curadoria Visual', day: 3, estTime: 120, isGate: false },
-    { phase: 'define', type: 'design', title: 'Direção Criativa', day: 4, estTime: 180, isGate: false },
+    { phase: 'define', type: 'design', title: 'Territórios Conceituais', day: 4, estTime: 120, isGate: false },
+    { phase: 'define', type: 'planning', title: 'Direcionamento Criativo', day: 5, estTime: 180, isGate: false },
     
     // FASE 3 - DEVELOP (D5-D8)
     { phase: 'develop', type: 'design', title: 'Exploração Visual', day: 5, estTime: 240, isGate: false },
@@ -63,7 +65,8 @@ export const IDV_FLOW_PIPELINE: Record<string, any[]> = {
   ],
   'IDV-ESS': [
     { phase: 'discover', type: 'reuniao', title: 'Reunião de Briefing Express', day: 1, estTime: 45, isGate: false },
-    { phase: 'define', type: 'design', title: 'Direção Criativa e Moodboard', day: 2, estTime: 120, isGate: false },
+    { phase: 'define', type: 'design', title: 'Curadoria Visual e Territórios', day: 2, estTime: 120, isGate: false },
+    { phase: 'define', type: 'planning', title: 'Direcionamento Criativo', day: 3, estTime: 120, isGate: false },
     { phase: 'develop', type: 'design', title: 'Desenvolvimento do Sistema Visual', day: 4, estTime: 240, isGate: false },
     { phase: 'develop', type: 'design', title: 'Mockups e Aplicações', day: 5, estTime: 120, isGate: false },
     { phase: 'present', type: 'presentation', title: 'Apresentação Essencial', day: 7, estTime: 60, isGate: false },

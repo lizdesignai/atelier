@@ -23,7 +23,7 @@ export default function DailySummary({ allUserTasks }: DailySummaryProps) {
     let time = task.actual_time || 0;
     if (task.status === 'in_progress' && task.started_at) {
       const diff = Math.floor((new Date().getTime() - new Date(task.started_at).getTime()) / 60000);
-      time += Math.max(0, diff);
+      time += Math.min(Math.max(0, diff), 240);
     }
     return time;
   };

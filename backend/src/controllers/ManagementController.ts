@@ -66,7 +66,8 @@ export class ManagementController {
 
       let totalMinutesToday = closedSessions.reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
       activeSessions.forEach(s => {
-        totalMinutesToday += Math.floor((now - new Date(s.start_time).getTime()) / 60000);
+        const elapsed = Math.floor((now - new Date(s.start_time).getTime()) / 60000);
+        totalMinutesToday += Math.min(240, Math.max(0, elapsed));
       });
 
       const avgFocusMinutes = closedSessions.length > 0 ? Math.round(closedSessions.reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0) / closedSessions.length) : 0;

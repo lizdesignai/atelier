@@ -323,7 +323,8 @@ export default function JTBDPage() {
             body: JSON.stringify({ 
               requestedStatus: finalStatus, 
               task,
-              user: currentUser
+              userId: currentUser?.id,
+              collaboratorName: currentUser?.nome?.split(' ')[0] || 'Gestão'
             })
           });
         } catch (e) {
@@ -359,8 +360,19 @@ export default function JTBDPage() {
         finalStatus = await handleClientApprovalRouting(task);
       }
 
-      // ðŸŸ¢ AtualizaÃ§Ã£o Otimista na UI
-      setAllTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: finalStatus } : t));
+      // 🟢 Atualização Otimista Inteligente na UI (Garante regra de foco único na tela)
+      if (finalStatus === 'in_progress') {
+        const targetAssignee = task.assigned_to || currentUser?.id;
+        setAllTasks(prev => prev.map(t => {
+          if (t.id === task.id) return { ...t, status: 'in_progress', started_at: new Date().toISOString() };
+          if (t.status === 'in_progress' && t.assigned_to === targetAssignee) {
+            return { ...t, status: 'pending', started_at: null };
+          }
+          return t;
+        }));
+      } else {
+        setAllTasks(prev => prev.map(t => t.id === task.id ? { ...t, status: finalStatus, started_at: null } : t));
+      }
 
       // ðŸŸ¢ Chamada ao nosso novo Backend UltrarrÃ¡pido
       const response = await fetch(`/api/tasks/${task.id}/status`, {

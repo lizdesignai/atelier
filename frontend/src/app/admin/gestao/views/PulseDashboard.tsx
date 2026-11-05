@@ -139,7 +139,8 @@ export default function PulseDashboard({ currentUser, activeTab = 'pulse', setAc
     // Total de horas logadas hoje (Fechadas + Ativas até o momento)
     let totalMinutesToday = closedSessions.reduce((acc, curr) => acc + (curr.duration_minutes || 0), 0);
     activeSessions.forEach(s => {
-      totalMinutesToday += Math.floor((now - new Date(s.start_time).getTime()) / 60000);
+      const elapsed = Math.floor((now - new Date(s.start_time).getTime()) / 60000);
+      totalMinutesToday += Math.min(240, Math.max(0, elapsed));
     });
 
     // Foco Médio (Tempo médio das sessões fechadas)
@@ -158,7 +159,8 @@ export default function PulseDashboard({ currentUser, activeTab = 'pulse', setAc
     });
     activeSessions.forEach(s => {
       if (memberData[s.user_id]) {
-        memberData[s.user_id].minutes += Math.floor((now - new Date(s.start_time).getTime()) / 60000);
+        const elapsed = Math.floor((now - new Date(s.start_time).getTime()) / 60000);
+        memberData[s.user_id].minutes += Math.min(240, Math.max(0, elapsed));
       }
     });
     tasksDueOrActive.forEach(t => {

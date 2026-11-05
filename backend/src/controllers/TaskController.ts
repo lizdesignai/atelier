@@ -152,9 +152,27 @@ export class TaskController {
 
       if (task.status === 'in_progress' && task.started_at && finalStatus !== 'in_progress') {
         const startTime = new Date(task.started_at).getTime();
-        const diffMinutes = Math.floor((now.getTime() - startTime) / 60000);
+        const rawMins = Math.floor((now.getTime() - startTime) / 60000);
+        const diffMinutes = Math.min(Math.max(1, rawMins), 240); // Teto de segurança: 4h máx
         updates.actual_time = (task.actual_time || 0) + diffMinutes;
         updates.started_at = null;
+
+        // Fechar sessões abertas correspondentes
+        try {
+          await (sql as any).query(`
+            UPDATE work_sessions 
+            SET end_time = NOW(), duration_minutes = $1 
+            WHERE task_id = $2 AND end_time IS NULL
+          `, [diffMinutes, id]);
+
+          await (sql as any).query(`
+            UPDATE tessera_work_sessions 
+            SET ended_at = NOW(), minutes = $1 
+            WHERE work_item_id = $2 AND ended_at IS NULL
+          `, [diffMinutes, id]);
+        } catch (sErr) {
+          console.warn('[TaskController] Falha ao fechar work_sessions:', sErr);
+        }
       }
 
       if (finalStatus === 'review' || finalStatus === 'completed' || finalStatus === 'pending_client_approval') {

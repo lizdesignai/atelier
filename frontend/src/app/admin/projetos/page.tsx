@@ -1,6 +1,7 @@
 "use client";
 import { ProjectAssetsManager } from '../../../components/admin/ProjectAssetsManager';
 import { AdminTerritoriesManager } from "../../../components/admin/AdminTerritoriesManager";
+import { AdminDirecionamentoManager } from "../../../components/admin/AdminDirecionamentoManager";
 // src/app/admin/projetos/page.tsx
 
 import { useState, useEffect, Suspense } from "react";
@@ -709,7 +710,7 @@ function PainelIdentidade() {
 
   // PAINEL DE CURADORIA & TERRITÓRIOS
   const [showTerritoriesPanel, setShowTerritoriesPanel] = useState(false);
-  const [direcionarTab, setDirecionarTab] = useState<'curadoria' | 'territorios'>('curadoria');
+  const [direcionarTab, setDirecionarTab] = useState<'curadoria' | 'territorios' | 'direcionamento'>('curadoria');
   const [clientMoodboard, setClientMoodboard] = useState<string[]>([]);
   const [adminRefs, setAdminRefs] = useState<any[]>([]);
   const [activeEvalIndex, setActiveEvalIndex] = useState(0);
@@ -1309,7 +1310,7 @@ function PainelIdentidade() {
                 <div>
                   <h2 className="font-elegant text-3xl text-[var(--color-atelier-grafite)] flex items-center gap-3">
                     <Compass size={24} className="text-[var(--color-atelier-terracota)]" /> 
-                    {direcionarTab === 'curadoria' ? 'Curadoria Visual' : 'Territórios Visuais'}
+                    {direcionarTab === 'curadoria' ? '001 • Curadoria Visual' : direcionarTab === 'territorios' ? '002 • Territórios Visuais' : '003 • Direcionamento Criativo'}
                   </h2>
                   <p className="font-roboto text-[11px] text-[var(--color-atelier-grafite)]/50 uppercase tracking-widest font-bold mt-1">
                     Projeto: {currentProject?.profiles?.nome} {direcionarTab === 'curadoria' && `• ${adminRefs.length} Direções`}
@@ -1327,7 +1328,7 @@ function PainelIdentidade() {
                           : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
                       }`}
                     >
-                      <ImageIcon size={13} /> Curadoria
+                      <ImageIcon size={13} /> 001 Curadoria
                     </button>
                     <button
                       onClick={() => setDirecionarTab('territorios')}
@@ -1337,7 +1338,17 @@ function PainelIdentidade() {
                           : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
                       }`}
                     >
-                      <Palette size={13} /> Territórios
+                      <Palette size={13} /> 002 Territórios
+                    </button>
+                    <button
+                      onClick={() => setDirecionarTab('direcionamento')}
+                      className={`px-3 py-1.5 rounded-xl text-[10px] font-bold uppercase tracking-widest font-roboto transition-all flex items-center gap-1.5 ${
+                        direcionarTab === 'direcionamento'
+                          ? 'bg-white text-[var(--color-atelier-terracota)] shadow-sm'
+                          : 'text-[var(--color-atelier-grafite)]/60 hover:text-[var(--color-atelier-grafite)]'
+                      }`}
+                    >
+                      <FileText size={13} /> 003 Direcionamento
                     </button>
                   </div>
 
@@ -1371,7 +1382,11 @@ function PainelIdentidade() {
                 </div>
               </div>
 
-              {direcionarTab === 'territorios' ? (
+              {direcionarTab === 'direcionamento' ? (
+                <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
+                  <AdminDirecionamentoManager projectId={activeProjectId} currentUser={null} onTaskUpdate={refreshGlobalData} />
+                </div>
+              ) : direcionarTab === 'territorios' ? (
                 <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                   <AdminTerritoriesManager projectId={activeProjectId} currentUser={null} />
                 </div>

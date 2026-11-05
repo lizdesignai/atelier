@@ -77,6 +77,7 @@ export default function ReviewTaskPage() {
       const payload: any = { 
         requestedStatus: finalStatus, 
         task: updatedTask || task,
+        userId: currentUser?.id,
         collaboratorName: currentUser?.nome?.split(' ')[0] || 'Desconhecido'
       };
 

@@ -17,105 +17,223 @@ export async function PATCH(
 
     const sql = getDb();
     
-    // Begin transaction-like execution
+    // 0. Buscar dados atuais da tarefa para garantir integridade e resolver assigned_to
+    const existingRows = await (sql as any).query(`SELECT * FROM tasks WHERE id = $1 LIMIT 1`, [taskId]);
+    if (!existingRows || existingRows.length === 0) {
+      return NextResponse.json({ error: 'Task not found' }, { status: 404 });
+    }
+    const existingTask = existingRows[0];
+    const targetUserId = body.userId || existingTask.assigned_to;
+    const MAX_SESSION_MINUTES = 240; // Teto de segurança: 4h máx por sessão contínua
+
     let result;
 
     if (requestedStatus === 'heartbeat' || body.action === 'heartbeat') {
-      // Periodic heartbeat while task is actively running - persists elapsed time
-      const minutesToAdd = Math.max(1, Number(body.minutes) || 1);
-      const updateQuery = `
-        UPDATE tasks 
-        SET actual_time = COALESCE(actual_time, 0) + $1,
-            started_at = NOW(),
-            updated_at = NOW()
-        WHERE id = $2 AND status = 'in_progress'
-        RETURNING *
-      `;
-      result = await (sql as any).query(updateQuery, [minutesToAdd, taskId]);
+      // Periodic heartbeat enquanto a tarefa está ativamente em execução no navegador
+      const openSessionRes = await (sql as any).query(`
+        SELECT id, start_time, duration_minutes FROM work_sessions 
+        WHERE task_id = $1 AND end_time IS NULL
+        ORDER BY start_time DESC LIMIT 1
+      `, [taskId]);
 
-      if (body.userId) {
+      if (openSessionRes && openSessionRes.length > 0) {
+        const openSession = openSessionRes[0];
+        const rawMins = Math.round((Date.now() - new Date(openSession.start_time).getTime()) / 60000);
+        const elapsedMins = Math.min(Math.max(1, rawMins), MAX_SESSION_MINUTES);
+
         await (sql as any).query(`
           UPDATE work_sessions 
-          SET duration_minutes = COALESCE(duration_minutes, 0) + $1
-          WHERE id = (
-            SELECT id FROM work_sessions 
-            WHERE task_id = $2 AND user_id = $3 AND end_time IS NULL
-            ORDER BY start_time DESC LIMIT 1
-          )
-        `, [minutesToAdd, taskId, body.userId]);
+          SET duration_minutes = GREATEST(COALESCE(duration_minutes, 0) + 1, $1)
+          WHERE id = $2
+        `, [elapsedMins, openSession.id]);
+
+        await (sql as any).query(`
+          UPDATE tessera_work_sessions 
+          SET minutes = GREATEST(COALESCE(minutes, 0) + 1, $1)
+          WHERE work_item_id = $2 AND ended_at IS NULL
+        `, [elapsedMins, taskId]);
+      }
+
+      // No heartbeat, NÃO resetamos started_at = NOW() para não distorcer o cálculo do cronômetro ao vivo
+      result = await (sql as any).query(`
+        UPDATE tasks 
+        SET updated_at = NOW()
+        WHERE id = $1 AND status = 'in_progress'
+        RETURNING *
+      `, [taskId]);
+
+      if (!result || result.length === 0) {
+        result = [existingTask];
       }
 
     } else if (requestedStatus === 'in_progress') {
-      // Starting the task - if starting fresh, started_at is NOW()
+      // 1. REGRA DO FOCO ÚNICO: Se este colaborador já tiver outra tarefa in_progress, pausamos automaticamente
+      if (targetUserId) {
+        const otherActiveTasks = await (sql as any).query(`
+          SELECT id, started_at, actual_time FROM tasks 
+          WHERE assigned_to = $1 AND status = 'in_progress' AND id != $2
+        `, [targetUserId, taskId]);
+
+        for (const otherTask of (otherActiveTasks || [])) {
+          let otherElapsed = 0;
+          if (otherTask.started_at) {
+            const rawOther = Math.round((Date.now() - new Date(otherTask.started_at).getTime()) / 60000);
+            otherElapsed = Math.min(Math.max(1, rawOther), MAX_SESSION_MINUTES);
+          }
+
+          await (sql as any).query(`
+            UPDATE tasks 
+            SET status = 'pending',
+                actual_time = COALESCE(actual_time, 0) + $1,
+                started_at = NULL,
+                updated_at = NOW()
+            WHERE id = $2
+          `, [otherElapsed, otherTask.id]);
+
+          await (sql as any).query(`
+            UPDATE work_sessions 
+            SET end_time = NOW(),
+                duration_minutes = CASE 
+                  WHEN duration_minutes IS NOT NULL AND duration_minutes > 0 THEN duration_minutes 
+                  ELSE $1 
+                END
+            WHERE task_id = $2 AND end_time IS NULL
+          `, [otherElapsed, otherTask.id]);
+
+          await (sql as any).query(`
+            UPDATE tessera_work_sessions 
+            SET ended_at = NOW(),
+                minutes = CASE 
+                  WHEN minutes IS NOT NULL AND minutes > 0 THEN minutes 
+                  ELSE $1 
+                END
+            WHERE work_item_id = $2 AND ended_at IS NULL
+          `, [otherElapsed, otherTask.id]);
+        }
+      }
+
+      // 2. Iniciar a tarefa solicitada
+      const isAlreadyRunning = existingTask.status === 'in_progress' && existingTask.started_at !== null;
+      
       const updateQuery = `
         UPDATE tasks 
-        SET status = $1,
+        SET status = 'in_progress',
             updated_at = NOW(),
             started_at = CASE 
               WHEN status = 'in_progress' AND started_at IS NOT NULL THEN started_at 
               ELSE NOW() 
             END
-        WHERE id = $2 RETURNING *
+        WHERE id = $1 RETURNING *
       `;
-      result = await (sql as any).query(updateQuery, [requestedStatus, taskId]);
+      result = await (sql as any).query(updateQuery, [taskId]);
 
-      if (body.userId) {
-        // Close any stale open sessions first to prevent duplicates
+      if (!isAlreadyRunning) {
+        // Fechar qualquer sessão aberta residual nesta tarefa
         await (sql as any).query(`
           UPDATE work_sessions 
           SET end_time = NOW() 
-          WHERE task_id = $1 AND user_id = $2 AND end_time IS NULL
-        `, [taskId, body.userId]);
+          WHERE task_id = $1 AND end_time IS NULL
+        `, [taskId]);
 
-        // Insert new open work_session
         await (sql as any).query(`
-          INSERT INTO work_sessions (task_id, user_id, start_time)
-          VALUES ($1, $2, NOW())
-        `, [taskId, body.userId]);
+          UPDATE tessera_work_sessions 
+          SET ended_at = NOW() 
+          WHERE work_item_id = $1 AND ended_at IS NULL
+        `, [taskId]);
+
+        // Inserir nova sessão ativa em work_sessions
+        if (targetUserId) {
+          await (sql as any).query(`
+            INSERT INTO work_sessions (task_id, user_id, start_time, duration_minutes, data_log)
+            VALUES ($1, $2, NOW(), 0, CURRENT_DATE)
+          `, [taskId, targetUserId]);
+
+          await (sql as any).query(`
+            INSERT INTO tessera_work_sessions (work_item_id, user_id, started_at, minutes, source)
+            VALUES ($1, $2, NOW(), 0, 'focus_timer')
+            ON CONFLICT DO NOTHING
+          `, [taskId, targetUserId]);
+        }
       }
 
     } else if (['pending', 'review', 'completed', 'pending_client_approval'].includes(requestedStatus)) {
-      // Stopping, pausing, or completing the task - compute and save actual_time
+      // Parar, pausar ou concluir tarefa: calcular e salvar com teto de segurança
+      const openSessionRes = await (sql as any).query(`
+        SELECT id, start_time, duration_minutes FROM work_sessions 
+        WHERE task_id = $1 AND end_time IS NULL
+        ORDER BY start_time DESC LIMIT 1
+      `, [taskId]);
+
+      const openSession = openSessionRes?.[0] || null;
+      const refStartTime = openSession?.start_time || existingTask.started_at;
+
+      let sessionMinutes = 0;
+      if (refStartTime) {
+        const rawMinutes = Math.round((Date.now() - new Date(refStartTime).getTime()) / 60000);
+        // Pelo menos 1 minuto se tiver passado mais de 15 segundos; capped no teto de 4h
+        sessionMinutes = Math.min(Math.max(rawMinutes >= 0.25 ? 1 : 0, rawMinutes), MAX_SESSION_MINUTES);
+      }
+
+      // Se havia sessão aberta, fechamos com a duração calculada
+      if (openSession) {
+        await (sql as any).query(`
+          UPDATE work_sessions 
+          SET end_time = NOW(),
+              duration_minutes = $1
+          WHERE id = $2
+        `, [sessionMinutes, openSession.id]);
+
+        await (sql as any).query(`
+          UPDATE tessera_work_sessions 
+          SET ended_at = NOW(),
+              minutes = $1
+          WHERE work_item_id = $2 AND ended_at IS NULL
+        `, [sessionMinutes, taskId]);
+      } else if (sessionMinutes > 0 && targetUserId) {
+        // Se por algum motivo a sessão não foi aberta anteriormente, registramos para manter paridade contábil
+        await (sql as any).query(`
+          INSERT INTO work_sessions (task_id, user_id, start_time, end_time, duration_minutes, data_log)
+          VALUES ($1, $2, COALESCE($3, NOW()), NOW(), $4, CURRENT_DATE)
+        `, [taskId, targetUserId, refStartTime, sessionMinutes]);
+
+        await (sql as any).query(`
+          INSERT INTO tessera_work_sessions (work_item_id, user_id, started_at, ended_at, minutes, source)
+          VALUES ($1, $2, COALESCE($3, NOW()), NOW(), $4, 'focus_timer')
+          ON CONFLICT DO NOTHING
+        `, [taskId, targetUserId, refStartTime, sessionMinutes]);
+      }
+
+      // Atualizar a tarefa consolidando actual_time
       let updateQuery = `
         UPDATE tasks 
         SET status = $1,
-            actual_time = COALESCE(actual_time, 0) + CASE 
-              WHEN started_at IS NOT NULL AND EXTRACT(EPOCH FROM (NOW() - started_at)) >= 15 
-              THEN GREATEST(1, ROUND(EXTRACT(EPOCH FROM (NOW() - started_at)) / 60))
-              ELSE 0 
-            END,
+            actual_time = COALESCE(actual_time, 0) + $2,
             started_at = NULL,
             updated_at = NOW()
       `;
       if (requestedStatus === 'completed' || requestedStatus === 'pending_client_approval') {
         updateQuery += `, completed_at = NOW()`;
       }
-      updateQuery += ` WHERE id = $2 RETURNING *`;
-      result = await (sql as any).query(updateQuery, [requestedStatus, taskId]);
+      updateQuery += ` WHERE id = $3 RETURNING *`;
+      result = await (sql as any).query(updateQuery, [requestedStatus, sessionMinutes, taskId]);
 
-      if (body.userId) {
-        // Find open session and close it
-        const openSessionRes = await (sql as any).query(`
-          SELECT id, start_time FROM work_sessions 
-          WHERE task_id = $1 AND user_id = $2 AND end_time IS NULL
-          ORDER BY start_time DESC LIMIT 1
-        `, [taskId, body.userId]);
-
-        if (openSessionRes && openSessionRes.length > 0) {
-          const openSession = openSessionRes[0];
-          await (sql as any).query(`
-            UPDATE work_sessions 
-            SET end_time = NOW(),
-                duration_minutes = GREATEST(1, ROUND(EXTRACT(EPOCH FROM (NOW() - start_time)) / 60))
-            WHERE id = $1
-          `, [openSession.id]);
-        }
-      }
     } else {
-      // Other status updates (fallback)
+      // Demais alterações de status (ex: archived, draft): fecha sessões abertas
+      await (sql as any).query(`
+        UPDATE work_sessions 
+        SET end_time = NOW(), duration_minutes = COALESCE(duration_minutes, 0)
+        WHERE task_id = $1 AND end_time IS NULL
+      `, [taskId]);
+
+      await (sql as any).query(`
+        UPDATE tessera_work_sessions 
+        SET ended_at = NOW(), minutes = COALESCE(minutes, 0)
+        WHERE work_item_id = $1 AND ended_at IS NULL
+      `, [taskId]);
+
       const updateQuery = `
         UPDATE tasks 
-        SET status = $1, updated_at = NOW()
+        SET status = $1, started_at = NULL, updated_at = NOW()
         WHERE id = $2 RETURNING *
       `;
       result = await (sql as any).query(updateQuery, [requestedStatus, taskId]);

@@ -86,6 +86,15 @@ export default function EconomicsDashboard({
 
       const enrichedData: any[] = [];
 
+      const getSafeSessionMinutes = (s: any) => {
+        if (s.duration_minutes !== null && s.duration_minutes > 0) return Math.min(s.duration_minutes, 240);
+        if (s.end_time === null && s.start_time) {
+          const el = Math.floor((now.getTime() - new Date(s.start_time).getTime()) / 60000);
+          return Math.min(240, Math.max(0, el));
+        }
+        return s.duration_minutes || 0;
+      };
+
       allProjects.forEach((proj: any) => {
         if (proj.isLead || proj.status !== 'active') return;
 
@@ -98,8 +107,8 @@ export default function EconomicsDashboard({
               const safeTask = extractNode(s.tasks);
               return safeTask?.project_id === proj.id;
           }) || [];
-          
-          const totalMinutes = projectSessions.reduce((acc, s) => acc + (s.duration_minutes || 0), 0);
+
+          const totalMinutes = projectSessions.reduce((acc, s) => acc + getSafeSessionMinutes(s), 0);
           const totalHours = totalMinutes / 60;
           const operationalCost = totalHours * CUSTO_HORA_AGENCIA;
           const fee = Number(proj.financial_value || 0);
@@ -169,7 +178,7 @@ export default function EconomicsDashboard({
               return belongsToAgency || belongsToSubclientOfAgency;
           }) || [];
           
-          const totalMinutes = agencySessions.reduce((acc, s) => acc + (s.duration_minutes || 0), 0);
+          const totalMinutes = agencySessions.reduce((acc, s) => acc + getSafeSessionMinutes(s), 0);
           const totalHours = totalMinutes / 60;
           const operationalCost = totalHours * CUSTO_HORA_AGENCIA;
           const fee = Number(ag.financial_value || 0);

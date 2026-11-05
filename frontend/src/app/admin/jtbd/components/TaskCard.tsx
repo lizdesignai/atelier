@@ -2,6 +2,7 @@
 import { AdminTerritoriesManager } from "../../../../components/admin/AdminTerritoriesManager";
 import { AdminCuradoriaManager } from "../../../../components/admin/AdminCuradoriaManager";
 import { AdminCalendarioManager } from "../../../../components/admin/AdminCalendarioManager";
+import { AdminDirecionamentoManager } from "../../../../components/admin/AdminDirecionamentoManager";
 import RevealCeremonyAdmin from "../../../../components/admin/RevealCeremonyAdmin";
 import { getProjectByIdAction } from "../../../../app/actions/projects";
 
@@ -190,11 +191,12 @@ export default function TaskCard({
 
     if (task.status === 'in_progress' && task.started_at) {
       const startTimestamp = new Date(task.started_at).getTime();
+      const MAX_LIVE_SECONDS = 240 * 60; // Teto de 4h
       
       const updateTimer = () => {
         const now = Date.now();
         const diff = Math.floor((now - startTimestamp) / 1000);
-        setLiveSeconds(diff > 0 ? diff : 0);
+        setLiveSeconds(diff > 0 ? Math.min(diff, MAX_LIVE_SECONDS) : 0);
       };
 
       updateTimer(); // Atualiza instantaneamente ao renderizar
@@ -214,7 +216,7 @@ export default function TaskCard({
 
     const heartbeatTimer = setInterval(async () => {
       try {
-        const res = await fetch(`/api/tasks/${task.id}/status`, {
+        await fetch(`/api/tasks/${task.id}/status`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ 
@@ -223,12 +225,6 @@ export default function TaskCard({
             userId: currentUser?.id 
           })
         });
-        if (res.ok) {
-          const { data } = await res.json();
-          if (data && typeof data.actual_time === 'number') {
-            task.actual_time = data.actual_time;
-          }
-        }
       } catch (err) {
         console.warn("Heartbeat time sync error:", err);
       }
@@ -243,9 +239,10 @@ export default function TaskCard({
 
   const isCuradoriaTask = !!task.title?.toLowerCase().includes('curadoria');
   const isTerritoriesTask = !!(task.title?.toLowerCase().includes('território') || task.title?.toLowerCase().includes('territorio') || task.title?.toLowerCase().includes('caminho'));
+  const isDirecionamentoTask = !!(task.title?.toLowerCase().includes('direcionamento') || (task.title?.toLowerCase().includes('direção') && !task.title?.toLowerCase().includes('arte')));
   const isCalendarioTask = !!(task.title?.toLowerCase().includes('calendário') || task.title?.toLowerCase().includes('calendario'));
   const isCeremonyTask = !!(task.title?.toLowerCase().includes('cerimônia') || task.title?.toLowerCase().includes('cerimonia') || task.title?.toLowerCase().includes('apresentação') || task.title?.toLowerCase().includes('apresentacao')) && !!taskProject;
-  const hasSpecializedManager = isCuradoriaTask || isTerritoriesTask || isCalendarioTask || isCeremonyTask;
+  const hasSpecializedManager = isCuradoriaTask || isTerritoriesTask || isDirecionamentoTask || isCalendarioTask || isCeremonyTask;
 
   const badgeColor = isCompleted ? 'bg-green-500/90' : isReview ? 'bg-purple-500/90' : 'bg-[var(--color-atelier-terracota)]/90';
   const badgeText = isCompleted ? 'Aprovado' : isReview ? 'Em Revisão' : 'Anexado';
@@ -837,6 +834,19 @@ export default function TaskCard({
                       projectId={task.project_id}
                       taskId={task.id}
                       currentUser={currentUser}
+                    />
+                  </div>
+                )}
+
+                {isDirecionamentoTask && (
+                  <div className="order-0">
+                    <AdminDirecionamentoManager
+                      projectId={task.project_id}
+                      taskId={task.id}
+                      currentUser={currentUser}
+                      onTaskUpdate={() => {
+                        window.dispatchEvent(new CustomEvent('reloadTasks'));
+                      }}
                     />
                   </div>
                 )}
