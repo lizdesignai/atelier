@@ -270,8 +270,8 @@ export async function PATCH(
 
         if (requestedStatus === 'in_progress') {
           await NotificationEngine.notifyManagement(
-            `▶️ Em Execução: ${task.title}`,
-            `${collabName} iniciou a execução da tarefa "${task.title}" (${projectName}).`,
+            `▶️ Foco total em: ${task.title}`,
+            `${collabName} ligou os motores e começou a produzir "${task.title}" (${projectName}).`,
             'info',
             `/admin/task/${task.id}`,
             {
@@ -286,8 +286,8 @@ export async function PATCH(
           );
         } else if (requestedStatus === 'pending') {
           await NotificationEngine.notifyManagement(
-            `⏸️ Tarefa Pausada: ${task.title}`,
-            `${collabName} pausou a execução da tarefa "${task.title}" (${projectName}).`,
+            `⏸️ Pausa rápida em: ${task.title}`,
+            `${collabName} deu uma pausinha estratégica em "${task.title}" (${projectName}).`,
             'warning',
             `/admin/task/${task.id}`,
             {
@@ -302,8 +302,8 @@ export async function PATCH(
           );
         } else if (requestedStatus === 'review') {
           await NotificationEngine.notifyManagement(
-            `👁️ Revisão Interna Pendente: ${task.title}`,
-            `${collabName} finalizou "${task.title}" (${projectName}) e enviou para curadoria da liderança.`,
+            `👁️ Pronta pra curadoria: ${task.title}`,
+            `${collabName} finalizou "${task.title}" (${projectName}) e mandou pro seu olhar de águia!`,
             'action',
             `/admin/review/${task.id}`,
             {
@@ -318,8 +318,8 @@ export async function PATCH(
           );
         } else if (['completed', 'done', 'approved'].includes(requestedStatus)) {
           await NotificationEngine.notifyManagement(
-            `🏆 Entrega Concluída: ${task.title}`,
-            `A tarefa "${task.title}" (${projectName}) foi concluída e validada com sucesso.`,
+            `🏆 Mais uma no cofre: ${task.title}`,
+            `A tarefa "${task.title}" (${projectName}) foi concluída com louvor!`,
             'success',
             `/admin/task/${task.id}`,
             {
@@ -336,8 +336,8 @@ export async function PATCH(
           if (task.assigned_to) {
             await NotificationEngine.notifyUserWithEmail(
               task.assigned_to,
-              `✅ Entrega Aprovada: ${task.title}`,
-              `Parabéns! Sua entrega "${task.title}" no projeto ${projectName} foi aprovada e concluída.`,
+              `🎉 Mandou muito bem! ${task.title} aprovada`,
+              `Coisa linda! Sua entrega "${task.title}" no projeto ${projectName} foi aprovada com louvor.`,
               'review_approved',
               {
                 taskName: task.title,
@@ -351,8 +351,8 @@ export async function PATCH(
           if (task.assigned_to) {
             await NotificationEngine.notifyUserWithEmail(
               task.assigned_to,
-              `✅ Aprovada no QA Interno: ${task.title}`,
-              `Sua entrega "${task.title}" (${projectName}) foi aprovada pela liderança e enviada ao cliente.`,
+              `✨ Passou no QA! ${task.title} tá com o cliente`,
+              `Luz verde da liderança! Sua entrega "${task.title}" (${projectName}) foi aprovada no QA e enviada pro cliente dar o aval final.`,
               'review_approved',
               {
                 taskName: task.title,
@@ -366,8 +366,8 @@ export async function PATCH(
           if (meta.client_id) {
             await NotificationEngine.notifyUserWithEmail(
               meta.client_id,
-              `🎨 Peça Pronta para Avaliação: ${task.title}`,
-              `A entrega "${task.title}" passou pela curadoria interna do Studio Veronna e aguarda sua validação.`,
+              `🎨 Tem coisa linda pronta: vem ver ${task.title}!`,
+              `A entrega "${task.title}" passou no nosso crivo de qualidade e tá prontinha esperando seu olhar no portal.`,
               'planning_approval',
               {
                 taskName: task.title,
