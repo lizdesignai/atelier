@@ -23,6 +23,7 @@ import { fetchCockpitTasks } from "./actions";
 import { ADJUST_TYPES, PULSE_QUESTIONS, PILLARS, OBJECTIVE_KINDS, isPieceTask } from "@/lib/presenca/constants";
 import { classifyDemand, getClientTaskDate, parseSafeLocalDate, isDemandPermittedInCycle, isClientVisibleTask, DemandCategory, DemandMeta } from "@/lib/presenca/demandTypes";
 import { getProductTypeFromProject } from "@/lib/productHelper";
+import { resolveExternalLink } from "@/lib/linkUtils";
 
 import { pdf } from '@react-pdf/renderer';
 import DirecionamentoEstrategicoPDF from "@/components/pdf/DirecionamentoEstrategicoPDF";
@@ -2185,16 +2186,22 @@ export default function CockpitPage() {
                       {allPosts[activeCarouselIndex]?.external_links && allPosts[activeCarouselIndex]?.external_links.length > 0 && (
                         <div className="mt-4 flex flex-col gap-2">
                           <span className="font-bold text-[11px] uppercase tracking-widest text-[var(--color-atelier-grafite)]">Links de Apoio / Referência</span>
-                          {allPosts[activeCarouselIndex].external_links.map((link: string, idx: number) => (
-                            <div key={idx} className="flex items-center gap-3 bg-[var(--color-atelier-creme)] p-3 rounded-[1rem] border border-[var(--color-atelier-grafite)]/10">
-                              <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-[var(--color-atelier-terracota)] shrink-0 shadow-sm"><Target size={14}/></div>
-                              <div className="flex flex-col flex-1 overflow-hidden">
-                                <a href={link} target="_blank" rel="noreferrer" className="text-[12px] text-[var(--color-atelier-terracota)] truncate hover:underline">
-                                  {link}
-                                </a>
+                          {allPosts[activeCarouselIndex].external_links.map((link: any, idx: number) => {
+                            const resolved = resolveExternalLink(link);
+                            if (!resolved.url) return null;
+                            return (
+                              <div key={idx} className="flex items-center gap-3 bg-[var(--color-atelier-creme)] p-3 rounded-[1rem] border border-[var(--color-atelier-grafite)]/10">
+                                <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center text-[var(--color-atelier-terracota)] shrink-0 shadow-sm"><Target size={14}/></div>
+                                <div className="flex flex-col flex-1 overflow-hidden">
+                                  <a href={resolved.url} target="_blank" rel="noopener noreferrer" className="text-[12px] font-bold text-[var(--color-atelier-terracota)] truncate hover:underline flex items-center gap-1.5" title={`Abrir ${resolved.title} (${resolved.url})`}>
+                                    <span>{resolved.title}</span>
+                                    <ExternalLink size={12} className="shrink-0" />
+                                  </a>
+                                  <span className="text-[10px] text-[var(--color-atelier-grafite)]/50 truncate">{resolved.url}</span>
+                                </div>
                               </div>
-                            </div>
-                          ))}
+                            );
+                          })}
                         </div>
                       )}
 

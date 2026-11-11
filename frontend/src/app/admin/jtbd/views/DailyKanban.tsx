@@ -385,13 +385,20 @@ export default function DailyKanban({
              </div>
           )}
           
-          {/* O Cartão - Agora com botões 100% funcionais */}
+          {/* O Cartão - Agora com botões e links de atalho 100% funcionais */}
           <div 
             className="relative z-10 w-full"
             onClick={(e) => {
-              if ((e.target as HTMLElement).tagName !== 'BUTTON' && !(e.target as HTMLElement).closest('button')) {
-                setActiveTaskModal({ task, isFocus: isLive, isReview, isCompleted });
+              const target = e.target as HTMLElement;
+              if (
+                target.tagName === 'BUTTON' ||
+                target.closest('button') ||
+                target.tagName === 'A' ||
+                target.closest('a')
+              ) {
+                return;
               }
+              setActiveTaskModal({ task, isFocus: isLive, isReview, isCompleted });
             }}
           >
             <TaskCard 

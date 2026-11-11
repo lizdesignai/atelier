@@ -6,9 +6,10 @@ import { motion, AnimatePresence } from "framer-motion";
 import { 
   Flame, Briefcase, FolderKanban, CheckCircle2, Clock, Activity,
   AlertTriangle, Search, ChevronLeft, ChevronRight, PlayCircle, PauseCircle,
-  MessageSquare, UserCircle2, ArrowRight, X 
+  MessageSquare, UserCircle2, ArrowRight, X, ExternalLink 
 } from "lucide-react";
 import TaskCard from "../components/TaskCard";
+import { resolveExternalLink } from "@/lib/linkUtils";
 
 interface JTBDMobileViewProps {
   currentUser: any;
@@ -341,7 +342,13 @@ export default function JTBDMobileView({
                 return (
                   <div 
                     key={task.id} 
-                    onClick={() => handleTaskClick(task, isLive, task.status === 'review', false)}
+                    onClick={(e) => {
+                      const target = e.target as HTMLElement;
+                      if (target.tagName === 'BUTTON' || target.closest('button') || target.tagName === 'A' || target.closest('a')) {
+                        return;
+                      }
+                      handleTaskClick(task, isLive, task.status === 'review', false);
+                    }}
                     className={`shrink-0 w-[85vw] max-w-[320px] snap-center rounded-[1.6rem] p-4 border flex flex-col justify-between gap-3 active:scale-[0.98] transition-all cursor-pointer shadow-xs ${
                       hasFeedback 
                         ? 'bg-orange-50/90 border-orange-500 shadow-md ring-2 ring-orange-400/30' 
@@ -357,6 +364,29 @@ export default function JTBDMobileView({
                         <span className="font-roboto font-bold text-[13px] text-[var(--color-atelier-grafite)] leading-snug line-clamp-2">
                           {task.title}
                         </span>
+                        {task.external_links && task.external_links.length > 0 && (
+                          <div className="flex flex-wrap gap-1 mt-2 pointer-events-auto relative z-20">
+                            {task.external_links.map((link: any, i: number) => {
+                              const resolved = resolveExternalLink(link);
+                              if (!resolved.url) return null;
+                              return (
+                                <a 
+                                  key={i} 
+                                  href={resolved.url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer" 
+                                  onClick={(e) => e.stopPropagation()} 
+                                  onMouseDown={(e) => e.stopPropagation()}
+                                  className="group/link inline-flex items-center gap-1 text-[9px] font-bold text-[var(--color-atelier-terracota)] hover:text-white bg-[var(--color-atelier-terracota)]/10 hover:bg-[var(--color-atelier-terracota)] px-2 py-0.5 rounded-md border border-[var(--color-atelier-terracota)]/20 transition-all shadow-2xs active:scale-95"
+                                  title={`Atalho: Abrir ${resolved.title} (${resolved.url})`}
+                                >
+                                  <ExternalLink size={9} className="shrink-0" />
+                                  <span className="truncate max-w-[110px]">{resolved.title}</span>
+                                </a>
+                              );
+                            })}
+                          </div>
+                        )}
                       </div>
 
                       {hasFeedback && (
@@ -493,7 +523,13 @@ export default function JTBDMobileView({
                   allUserTasks.filter(t => t.project_id === expandedClientInline.id || t.subclient_id === expandedClientInline.id || t.projects?.id === expandedClientInline.id).map(task => (
                     <div 
                       key={task.id} 
-                      onClick={() => handleTaskClick(task, task.status === 'in_progress', isReviewStatus(task.status), isCompletedStatus(task.status))} 
+                      onClick={(e) => {
+                        const target = e.target as HTMLElement;
+                        if (target.tagName === 'BUTTON' || target.closest('button') || target.tagName === 'A' || target.closest('a')) {
+                          return;
+                        }
+                        handleTaskClick(task, task.status === 'in_progress', isReviewStatus(task.status), isCompletedStatus(task.status));
+                      }} 
                       className="bg-white rounded-xl p-3 border border-gray-100 flex flex-col gap-2 cursor-pointer active:scale-[0.99] transition-transform shadow-2xs"
                     >
                       <div className="flex justify-between items-start gap-2">
@@ -504,6 +540,29 @@ export default function JTBDMobileView({
                           {isCompletedStatus(task.status) ? 'Concluída' : task.status === 'in_progress' ? 'Em Andamento' : 'Pendente'}
                         </span>
                       </div>
+                      {task.external_links && task.external_links.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pointer-events-auto relative z-20">
+                          {task.external_links.map((link: any, i: number) => {
+                            const resolved = resolveExternalLink(link);
+                            if (!resolved.url) return null;
+                            return (
+                              <a 
+                                key={i} 
+                                href={resolved.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                onClick={(e) => e.stopPropagation()} 
+                                onMouseDown={(e) => e.stopPropagation()}
+                                className="group/link inline-flex items-center gap-1 text-[9px] font-bold text-[var(--color-atelier-terracota)] hover:text-white bg-[var(--color-atelier-terracota)]/10 hover:bg-[var(--color-atelier-terracota)] px-1.5 py-0.5 rounded border border-[var(--color-atelier-terracota)]/20 transition-all shadow-2xs active:scale-95"
+                                title={`Atalho: Abrir ${resolved.title} (${resolved.url})`}
+                              >
+                                <ExternalLink size={8} className="shrink-0" />
+                                <span className="truncate max-w-[100px]">{resolved.title}</span>
+                              </a>
+                            );
+                          })}
+                        </div>
+                      )}
                       <div className="flex items-center justify-between pt-1.5 border-t border-gray-50">
                         <span className="text-[9px] font-bold text-[var(--color-atelier-terracota)]">{(task.internal_deadline || task.deadline) ? new Date(task.internal_deadline || task.deadline).toLocaleDateString('pt-BR') : 'Sem Prazo'}</span>
                         <span className="text-[9px] font-bold text-gray-400">Ver Taskcard</span>

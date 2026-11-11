@@ -14,11 +14,13 @@ import ClientAssetsModal from "../../../../components/ClientAssetsModal";
 import { NotificationEngine } from "../../../../lib/NotificationEngine";
 import { formatForDateTimeLocal, parseFromDateTimeLocal } from "../../../../lib/dateUtils";
 import { normalizeImageUrl, handleAvatarError } from "../../../../lib/imageUtils";
+import { resolveExternalLink, normalizeUrl } from "../../../../lib/linkUtils";
 import { 
   Clock, Target, Activity, Flame, ArrowRight, 
   Loader2, PlayCircle, PauseCircle, ChevronRight, 
   CheckCircle2, X, Save, AlignLeft, Paperclip, UploadCloud, Eye,
-  Image as ImageIcon, ZoomIn, RotateCcw, MessageSquare, Send, FileText, Timer, PlusCircle, UserCircle2, Trash2, ExternalLink, Zap
+  Image as ImageIcon, ZoomIn, RotateCcw, MessageSquare, Send, FileText, Timer, PlusCircle, UserCircle2, Trash2, ExternalLink, Zap,
+  Copy, Check
 } from "lucide-react";
 
 interface TaskCardProps {
@@ -88,6 +90,11 @@ export default function TaskCard({
   const [newLinkTitle, setNewLinkTitle] = useState("");
   const [newLinkInput, setNewLinkInput] = useState("");
   const [isSavingLink, setIsSavingLink] = useState(false);
+  const [copiedLinkIndex, setCopiedLinkIndex] = useState<number | null>(null);
+
+  useEffect(() => {
+    setLocalExternalLinks(task.external_links || []);
+  }, [task.external_links]);
 
   const handleSaveCaption = async () => {
     setIsSavingCaption(true);
@@ -103,18 +110,59 @@ export default function TaskCard({
     }
   };
 
-  const handleSaveLinks = async () => {
+  const handleSaveLinks = async (linksOverride?: any[]) => {
+    const targetLinks = linksOverride !== undefined ? linksOverride : localExternalLinks;
     setIsSavingLink(true);
     try {
-      await (supabase.from('tasks') as any).update({ external_links: localExternalLinks }).eq('id', task.id);
-      await (supabase.from('social_posts') as any).update({ external_links: localExternalLinks }).eq('task_id', task.id);
-      task.external_links = localExternalLinks;
-      window.dispatchEvent(new CustomEvent("showToast", { detail: "Links salvos com sucesso!" }));
+      await (supabase.from('tasks') as any).update({ external_links: targetLinks }).eq('id', task.id);
+      await (supabase.from('social_posts') as any).update({ external_links: targetLinks }).eq('task_id', task.id);
+      task.external_links = targetLinks;
+      setLocalExternalLinks(targetLinks);
+      window.dispatchEvent(new CustomEvent("showToast", { detail: "Atalhos atualizados com sucesso!" }));
+      window.dispatchEvent(new CustomEvent("jtbdRefreshNeeded"));
     } catch (e) {
       window.dispatchEvent(new CustomEvent("showToast", { detail: "Erro ao atualizar links." }));
     } finally {
       setIsSavingLink(false);
     }
+  };
+
+  const handleAddLink = async () => {
+    const rawUrl = newLinkInput.trim();
+    if (!rawUrl) return;
+
+    const resolved = resolveExternalLink({
+      url: rawUrl,
+      title: newLinkTitle.trim() || undefined
+    });
+
+    if (!resolved.url) return;
+
+    const newEntry = {
+      title: resolved.title,
+      url: resolved.url
+    };
+
+    const updatedLinks = [...localExternalLinks, newEntry];
+    setLocalExternalLinks(updatedLinks);
+    setNewLinkInput("");
+    setNewLinkTitle("");
+    await handleSaveLinks(updatedLinks);
+  };
+
+  const handleRemoveLink = async (indexToRemove: number) => {
+    const updatedLinks = localExternalLinks.filter((_, idx) => idx !== indexToRemove);
+    setLocalExternalLinks(updatedLinks);
+    await handleSaveLinks(updatedLinks);
+  };
+
+  const handleCopyLink = (url: string, index: number, e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    navigator.clipboard.writeText(url);
+    setCopiedLinkIndex(index);
+    setTimeout(() => setCopiedLinkIndex(null), 2000);
+    window.dispatchEvent(new CustomEvent("showToast", { detail: "Link copiado para a área de transferência!" }));
   };
 
   const handleDeleteAsset = async (assetIndex: number) => {
@@ -547,19 +595,26 @@ export default function TaskCard({
               </span>
               
               {task.external_links && task.external_links.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2 pointer-events-auto relative z-20">
-                  {task.external_links.map((link: any, i: number) => (
-                    <a 
-                      key={i} 
-                      href={typeof link === 'string' ? link : link.url} 
-                      target="_blank" 
-                      rel="noreferrer" 
-                      onClick={(e) => e.stopPropagation()} 
-                      className="text-[9px] font-bold text-[var(--color-atelier-terracota)] hover:text-white bg-[var(--color-atelier-terracota)]/10 hover:bg-[var(--color-atelier-terracota)] px-2 py-0.5 rounded flex items-center gap-1 w-fit border border-[var(--color-atelier-terracota)]/20 transition-colors shadow-sm"
-                    >
-                       {typeof link === 'string' ? "Link de Referência" : link.title}
-                    </a>
-                  ))}
+                <div className="flex flex-wrap gap-1.5 mt-2.5 pointer-events-auto relative z-30">
+                  {task.external_links.map((link: any, i: number) => {
+                    const resolved = resolveExternalLink(link);
+                    if (!resolved.url) return null;
+                    return (
+                      <a 
+                        key={i} 
+                        href={resolved.url} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        onClick={(e) => e.stopPropagation()} 
+                        onMouseDown={(e) => e.stopPropagation()}
+                        className="group/link inline-flex items-center gap-1.5 text-[10px] font-bold text-[var(--color-atelier-terracota)] hover:text-white bg-[var(--color-atelier-terracota)]/10 hover:bg-[var(--color-atelier-terracota)] px-2.5 py-1 rounded-lg border border-[var(--color-atelier-terracota)]/20 transition-all shadow-2xs hover:shadow-xs active:scale-95"
+                        title={`Atalho: Abrir ${resolved.title} (${resolved.url})`}
+                      >
+                        <ExternalLink size={10} className="shrink-0 transition-transform group-hover/link:translate-x-0.5 group-hover/link:-translate-y-0.5" />
+                        <span className="truncate max-w-[130px]">{resolved.title}</span>
+                      </a>
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -1230,10 +1285,10 @@ export default function TaskCard({
                     <div className="flex flex-col gap-2 mt-2 sm:mt-4 pt-4 border-t border-gray-100 order-2">
                       <div className="flex items-center justify-between">
                         <h4 className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]/50 flex items-center gap-2">
-                          <Target size={14}/> Links Externos (Referência)
+                          <Target size={14}/> Atalhos Externos (Figma, Docs, Canva, etc.)
                         </h4>
                         {JSON.stringify(localExternalLinks) !== JSON.stringify(task.external_links || []) && (
-                          <button onClick={handleSaveLinks} disabled={isSavingLink} className="bg-[var(--color-atelier-terracota)] text-white hover:bg-[#234E80] px-2 py-0.5 rounded text-[9px] font-bold uppercase tracking-widest transition-colors flex items-center gap-1">
+                          <button onClick={() => handleSaveLinks()} disabled={isSavingLink} className="bg-[var(--color-atelier-terracota)] text-white hover:bg-[#234E80] px-2.5 py-1 rounded-md text-[9px] font-bold uppercase tracking-widest transition-colors flex items-center gap-1 shadow-2xs">
                             {isSavingLink ? <Loader2 size={10} className="animate-spin"/> : <Save size={10}/>} Salvar Links
                           </button>
                         )}
@@ -1243,48 +1298,89 @@ export default function TaskCard({
                           type="text"
                           value={newLinkTitle}
                           onChange={(e) => setNewLinkTitle(e.target.value)}
-                          placeholder="Nome do Link (Ex: Figma)"
-                          className="w-1/3 bg-white p-3 rounded-xl border border-gray-200 text-[12px] text-[var(--color-atelier-grafite)] focus:outline-none focus:border-[var(--color-atelier-terracota)] shadow-sm transition-colors"
+                          placeholder="Nome do Atalho (Opcional, ex: Figma)"
+                          className="w-full sm:w-1/3 bg-white p-3 rounded-xl border border-gray-200 text-[12px] text-[var(--color-atelier-grafite)] focus:outline-none focus:border-[var(--color-atelier-terracota)] shadow-xs transition-colors"
                         />
                         <input 
                           type="url"
                           value={newLinkInput}
                           onChange={(e) => setNewLinkInput(e.target.value)}
                           onKeyDown={(e) => {
-                            if (e.key === 'Enter' && newLinkInput.trim() && newLinkTitle.trim()) {
+                            if (e.key === 'Enter') {
                               e.preventDefault();
-                              setLocalExternalLinks([...localExternalLinks, { title: newLinkTitle.trim(), url: newLinkInput.trim() }]);
-                              setNewLinkTitle("");
-                              setNewLinkInput("");
+                              handleAddLink();
                             }
                           }}
-                          placeholder="https://exemplo.com/material"
-                          className="flex-1 bg-white p-3 rounded-xl border border-gray-200 text-[12px] text-[var(--color-atelier-grafite)] focus:outline-none focus:border-[var(--color-atelier-terracota)] shadow-sm transition-colors"
+                          placeholder="Cole o link aqui (ex: figma.com/file/...)"
+                          className="flex-1 min-w-[200px] bg-white p-3 rounded-xl border border-gray-200 text-[12px] text-[var(--color-atelier-grafite)] focus:outline-none focus:border-[var(--color-atelier-terracota)] shadow-xs transition-colors"
                         />
                         <button 
+                          type="button"
                           onClick={(e) => {
                             e.preventDefault();
-                            if (newLinkInput.trim() && newLinkTitle.trim()) {
-                              setLocalExternalLinks([...localExternalLinks, { title: newLinkTitle.trim(), url: newLinkInput.trim() }]);
-                              setNewLinkTitle("");
-                              setNewLinkInput("");
-                            }
+                            handleAddLink();
                           }}
-                          className="bg-[var(--color-atelier-grafite)] text-white px-4 rounded-xl flex items-center justify-center hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-sm"
+                          disabled={!newLinkInput.trim() || isSavingLink}
+                          className="bg-[var(--color-atelier-grafite)] text-white px-4 rounded-xl flex items-center justify-center hover:bg-[var(--color-atelier-terracota)] transition-colors shadow-xs disabled:opacity-40"
+                          title="Adicionar Atalho"
                         >
-                          <PlusCircle size={16} />
+                          {isSavingLink ? <Loader2 size={16} className="animate-spin" /> : <PlusCircle size={16} />}
                         </button>
                       </div>
                       {localExternalLinks.length > 0 && (
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {localExternalLinks.map((link: any, i: number) => (
-                            <div key={i} className="flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg border border-[var(--color-atelier-terracota)]/20 text-[11px] font-medium">
-                              <span className="max-w-[150px] truncate">{typeof link === 'string' ? link : link.title}</span>
-                              <button onClick={() => setLocalExternalLinks(localExternalLinks.filter((_, idx) => idx !== i))} className="hover:text-red-500">
-                                <X size={12} />
-                              </button>
-                            </div>
-                          ))}
+                        <div className="flex flex-col gap-2 mt-2">
+                          {localExternalLinks.map((link: any, i: number) => {
+                            const resolved = resolveExternalLink(link);
+                            return (
+                              <div 
+                                key={i} 
+                                className="group/item flex items-center justify-between gap-3 bg-white hover:bg-[var(--color-atelier-champagne)]/25 p-2.5 sm:p-3 rounded-xl border border-gray-200 hover:border-[var(--color-atelier-terracota)]/40 transition-all shadow-2xs"
+                              >
+                                <a
+                                  href={resolved.url}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="flex items-center gap-2.5 flex-1 min-w-0"
+                                  title={`Abrir atalho em nova aba: ${resolved.title} (${resolved.url})`}
+                                >
+                                  <div className="w-8 h-8 rounded-lg bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] flex items-center justify-center shrink-0 group-hover/item:bg-[var(--color-atelier-terracota)] group-hover/item:text-white transition-colors">
+                                    <ExternalLink size={14} />
+                                  </div>
+                                  <div className="flex flex-col min-w-0">
+                                    <span className="text-[12px] font-bold text-[var(--color-atelier-grafite)] group-hover/item:text-[var(--color-atelier-terracota)] truncate transition-colors flex items-center gap-1.5">
+                                      {resolved.title}
+                                    </span>
+                                    <span className="text-[10px] text-gray-400 truncate max-w-[240px] sm:max-w-[340px]">
+                                      {resolved.url}
+                                    </span>
+                                  </div>
+                                </a>
+
+                                <div className="flex items-center gap-1 shrink-0">
+                                  <button
+                                    type="button"
+                                    onClick={(e) => handleCopyLink(resolved.url, i, e)}
+                                    className="p-1.5 rounded-lg text-gray-400 hover:text-[var(--color-atelier-grafite)] hover:bg-gray-100 transition-colors"
+                                    title="Copiar link"
+                                  >
+                                    {copiedLinkIndex === i ? (
+                                      <Check size={14} className="text-emerald-600" />
+                                    ) : (
+                                      <Copy size={14} />
+                                    )}
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleRemoveLink(i)}
+                                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 transition-colors"
+                                    title="Remover atalho"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </div>

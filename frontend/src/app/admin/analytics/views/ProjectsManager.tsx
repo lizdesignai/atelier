@@ -15,6 +15,7 @@ import ClientAssetsModal from "../../../../components/ClientAssetsModal";
 import { IdvBriefingModal, IdvCuradoriaModal, IdvDirecionamentoModal } from "../components/IdvClientModals";
 import { formatForDateTimeLocal, parseFromDateTimeLocal } from "../../../../lib/dateUtils";
 import { normalizeImageUrl, handleAvatarError, handleImageFallbackError } from "../../../../lib/imageUtils";
+import { resolveExternalLink } from "@/lib/linkUtils";
 
 // 🟢 TIPAGEM ESTRITA BLINDADA
 interface ProjectsManagerProps {
@@ -1456,10 +1457,13 @@ export default function ProjectsManager({
                 {adHocDemand.external_links && adHocDemand.external_links.length > 0 && (
                   <div className="flex flex-wrap gap-2">
                     {adHocDemand.external_links.map((link: any, i: number) => {
-                      const linkStr = typeof link === "string" ? link : (link.url || link.title || "");
+                      const resolved = resolveExternalLink(link);
                       return (
                         <div key={i} className="flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg border border-[var(--color-atelier-terracota)]/20 text-[11px] font-medium">
-                          <span className="max-w-[150px] truncate">{linkStr}</span>
+                          <a href={resolved.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:underline max-w-[150px] truncate font-bold" title={`Abrir atalho: ${resolved.title} (${resolved.url})`}>
+                            <ExternalLink size={11} className="shrink-0" />
+                            <span className="truncate">{resolved.title}</span>
+                          </a>
                           <button type="button" onClick={() => setAdHocDemand({...adHocDemand, external_links: adHocDemand.external_links.filter((_: any, idx: number) => idx !== i)})} className="hover:text-red-500">
                             <X size={12} />
                           </button>
@@ -1787,14 +1791,20 @@ export default function ProjectsManager({
                                 </div>
                                 {adHocDemand.external_links && adHocDemand.external_links.length > 0 && (
                                   <div className="flex flex-wrap gap-1.5">
-                                    {adHocDemand.external_links.map((link: any, i: number) => (
-                                      <div key={i} className="flex items-center gap-1.5 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-2.5 py-1 rounded-lg border border-[var(--color-atelier-terracota)]/20 text-[10px]">
-                                        <span className="max-w-[120px] truncate">{typeof link === 'string' ? link : link.title}</span>
-                                        <button type="button" onClick={(e) => { e.preventDefault(); setAdHocDemand({...adHocDemand, external_links: adHocDemand.external_links?.filter((_: any, idx: number) => idx !== i)}); }} className="hover:text-red-500">
-                                          <X size={10} />
-                                        </button>
-                                      </div>
-                                    ))}
+                                    {adHocDemand.external_links.map((link: any, i: number) => {
+                                      const resolved = resolveExternalLink(link);
+                                      return (
+                                        <div key={i} className="flex items-center gap-1.5 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-2.5 py-1 rounded-lg border border-[var(--color-atelier-terracota)]/20 text-[10px]">
+                                          <a href={resolved.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 hover:underline max-w-[120px] truncate font-bold" title={`Abrir atalho: ${resolved.title} (${resolved.url})`}>
+                                            <ExternalLink size={10} className="shrink-0" />
+                                            <span className="truncate">{resolved.title}</span>
+                                          </a>
+                                          <button type="button" onClick={(e) => { e.preventDefault(); setAdHocDemand({...adHocDemand, external_links: adHocDemand.external_links?.filter((_: any, idx: number) => idx !== i)}); }} className="hover:text-red-500">
+                                            <X size={10} />
+                                          </button>
+                                        </div>
+                                      );
+                                    })}
                                   </div>
                                 )}
                               </motion.div>

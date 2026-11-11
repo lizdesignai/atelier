@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import { ALL_SKILLS } from "../constants";
 import { formatForDateTimeLocal, parseFromDateTimeLocal } from "../../../../lib/dateUtils";
+import { resolveExternalLink } from "@/lib/linkUtils";
 
 interface AnalyticsModalsProps {
   // Bulk Mode
@@ -393,14 +394,20 @@ export default function AnalyticsModals({
                       </div>
                       {editingTask.external_links && editingTask.external_links.length > 0 && (
                         <div className="flex flex-wrap gap-2">
-                          {editingTask.external_links.map((link: string, i: number) => (
-                            <div key={i} className="flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg border border-[var(--color-atelier-terracota)]/20 text-[11px] font-medium">
-                              <span className="max-w-[150px] truncate">{link}</span>
-                              <button type="button" onClick={() => setEditingTask({...editingTask, external_links: editingTask.external_links.filter((_: string, idx: number) => idx !== i)})} className="hover:text-red-500">
-                                <X size={12} />
-                              </button>
-                            </div>
-                          ))}
+                          {editingTask.external_links.map((link: any, i: number) => {
+                            const resolved = resolveExternalLink(link);
+                            return (
+                              <div key={i} className="flex items-center gap-2 bg-[var(--color-atelier-terracota)]/10 text-[var(--color-atelier-terracota)] px-3 py-1.5 rounded-lg border border-[var(--color-atelier-terracota)]/20 text-[11px] font-medium">
+                                <a href={resolved.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 hover:underline max-w-[150px] truncate font-bold" title={`Abrir atalho: ${resolved.title} (${resolved.url})`}>
+                                  <ExternalLink size={11} className="shrink-0" />
+                                  <span className="truncate">{resolved.title}</span>
+                                </a>
+                                <button type="button" onClick={() => setEditingTask({...editingTask, external_links: editingTask.external_links.filter((_: any, idx: number) => idx !== i)})} className="hover:text-red-500">
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            );
+                          })}
                         </div>
                       )}
                     </motion.div>
