@@ -18,10 +18,10 @@ export class NotificationService {
 
     switch (type) {
       case 'internal_review':
-        subject = `[REVISÃO] ${projectName} - ${taskName}`;
+        subject = `[Revisão] ${projectName} - ${taskName}`;
         icon = "👀";
-        title = "Pronto para Revisão";
-        message = `A tarefa <strong>${taskName}</strong> do projeto <strong>${projectName}</strong> foi enviada para revisão interna por <strong>${collaboratorName || 'Colaborador'}</strong>.`;
+        title = "Revisão Pendente";
+        message = `A tarefa <strong>${taskName}</strong> (${projectName}) aguarda revisão de <strong>${collaboratorName || 'Colaborador'}</strong>.`;
         buttonText = "Avaliar no Cockpit";
         
         const backendUrl = process.env.BACKEND_URL || 'https://atelier-zwlt.onrender.com';
@@ -37,110 +37,110 @@ export class NotificationService {
               ✅ APROVAR IMEDIATAMENTE
             </a>
             <a href="${frontendUrl}/admin/review/${taskId}" style="display: block; width: 100%; box-sizing: border-box; background-color: #18181b; color: #ffffff; text-decoration: none; padding: 18px 24px; border-radius: 14px; font-size: 14px; font-weight: bold; text-align: center; text-transform: uppercase; letter-spacing: 1px;">
-              👀 ABRIR PARA REVISÃO (MOBILE)
+              👀 ABRIR PARA REVISÃO
             </a>
           </div>
         `;
         break;
 
       case 'task_in_progress':
-        subject = `[WORK] Iniciada: ${taskName}`;
+        subject = `[Produção] ${taskName}`;
         icon = "▶️";
-        title = "Trabalho Iniciado";
-        message = `A tarefa <strong>${taskName}</strong> (${projectName}) está agora em progresso.`;
+        title = "Produção Iniciada";
+        message = `A tarefa <strong>${taskName}</strong> (${projectName}) está em produção.`;
         buttonText = "Ver Tarefa";
         break;
 
       case 'task_paused':
-        subject = `[PAUSA] Pausada: ${taskName}`;
+        subject = `[Pausa] ${taskName}`;
         icon = "⏸️";
-        title = "Trabalho Pausado";
+        title = "Demanda Pausada";
         message = `A tarefa <strong>${taskName}</strong> (${projectName}) foi pausada.`;
         buttonText = "Ver Tarefa";
         break;
 
       case 'task_completed':
-        subject = `[CONCLUÍDA] Tarefa: ${taskName}`;
+        subject = `[Concluída] ${taskName}`;
         icon = "✅";
         title = "Tarefa Concluída";
-        message = `A tarefa <strong>${taskName}</strong> do projeto <strong>${projectName}</strong> foi aprovada e finalizada.`;
+        message = `A tarefa <strong>${taskName}</strong> (${projectName}) foi finalizada com sucesso.`;
         buttonText = "Ver no Cockpit";
         break;
 
       case 'task_assigned':
-        subject = `[NOVA TAREFA] ${taskName}`;
+        subject = `[Nova Demanda] ${taskName}`;
         icon = "📋";
-        title = "Nova Tarefa Atribuída";
-        message = `Você foi atribuído(a) à tarefa <strong>${taskName}</strong> do projeto <strong>${projectName || 'Projeto'}</strong>.`;
+        title = "Demanda Atribuída";
+        message = `Você assumiu a tarefa <strong>${taskName}</strong> em <strong>${projectName || 'Projeto'}</strong>.`;
         if (extraInfo) {
           message += `<br/><br/><strong>Instruções:</strong> ${extraInfo}`;
         }
-        buttonText = "👁️ Acessar Tarefa";
+        buttonText = "Abrir no Kanban";
         break;
 
       case 'demand_sent':
-        subject = `[DEMANDA ENVIADA] ${taskName}`;
+        subject = `[Demanda] ${taskName}`;
         icon = "🚀";
-        title = "Demanda Enviada";
-        message = `A tarefa <strong>${taskName}</strong> para o projeto <strong>${projectName || 'Projeto'}</strong> foi enviada e atribuída a <strong>${collaboratorName || 'Colaborador'}</strong> com sucesso.`;
+        title = "Demanda na Esteira";
+        message = `A tarefa <strong>${taskName}</strong> (${projectName || 'Projeto'}) foi atribuída a <strong>${collaboratorName || 'Colaborador'}</strong>.`;
         buttonText = "Acessar Painel";
         break;
 
       case 'captacao_reminder':
-        subject = `[CAPTAÇÃO] ${taskName}`;
+        subject = `[Captação] ${taskName}`;
         icon = "📸";
-        title = "Lembrete de Captação";
-        message = extraInfo || `Lembrete: captação agendada para <strong>${taskName}</strong> (${projectName}).`;
-        buttonText = "Ver Detalhes";
+        title = "Captação de Conteúdo";
+        message = extraInfo || `Captação agendada para <strong>${taskName}</strong> (${projectName}).`;
+        buttonText = "Ver Roteiro";
         break;
 
       case 'reuniao_reminder':
-        subject = `[REUNIÃO] ${taskName}`;
+        subject = `[Reunião] ${taskName}`;
         icon = "🤝";
-        title = "Lembrete de Reunião";
-        message = extraInfo || `Lembrete: reunião agendada para <strong>${taskName}</strong> (${projectName}).`;
-        buttonText = "Ver Detalhes";
+        title = "Reunião Agendada";
+        message = extraInfo || `Reunião confirmada para <strong>${taskName}</strong> (${projectName}).`;
+        buttonText = "Acessar Reunião";
         break;
 
       case 'contract_ending':
-        subject = `[CONTRATO] Vencimento Próximo - ${clientName}`;
+        subject = `[Contrato] Renovação Próxima - ${clientName}`;
         icon = "⚠️";
-        title = "Aviso de Fim de Contrato";
-        message = `O contrato do cliente <strong>${clientName}</strong> vence em breve (Data Final: <strong>${extraInfo}</strong>). Verifique a necessidade de renovação ou encerramento.`;
-        buttonText = "Acessar Visão de Projetos";
+        title = "Vencimento de Contrato";
+        message = `O contrato de <strong>${clientName}</strong> vence em breve (${extraInfo}). Inicie o alinhamento de renovação.`;
+        buttonText = "Ver Contrato";
         break;
 
       case 'deadline_24h':
-        subject = `[URGENTE - 24H] Faltam 24h para entregar: ${taskName}`;
+        subject = `[Prazo 24h] ${taskName}`;
         icon = "⏳";
         title = "Entrega em 24 Horas";
-        message = `Atenção: restam 24 horas para a entrega da tarefa <strong>${taskName}</strong> (${projectName || 'Projeto'}).`;
+        message = `Faltam 24 horas para o prazo de entrega de <strong>${taskName}</strong> (${projectName || 'Projeto'}).`;
         if (extraInfo) message += `<br/><br/>${extraInfo}`;
-        buttonText = "Acessar o Focus";
+        buttonText = "Abrir Tarefa";
         break;
 
       case 'deadline_12h':
-        subject = `[ALERTA CRÍTICO - 12H] Faltam 12h para entregar: ${taskName}`;
+        subject = `[Prazo Crítico 12h] ${taskName}`;
         icon = "🔥";
         title = "Entrega em 12 Horas";
-        message = `Alerta de prazo! Restam apenas 12 horas para a entrega da tarefa <strong>${taskName}</strong> (${projectName || 'Projeto'}).`;
+        message = `Faltam 12 horas para a entrega de <strong>${taskName}</strong> (${projectName || 'Projeto'}).`;
         if (extraInfo) message += `<br/><br/>${extraInfo}`;
-        buttonText = "Acessar o Focus Agora";
+        buttonText = "Finalizar Entrega";
         break;
 
       case 'custom':
-        subject = customSubject || "Aviso do Sistema";
+        subject = customSubject || "Notificação — Studio Veronna";
         icon = "⚡";
         title = customSubject || "Notificação";
-        message = customBody || "Existem novas métricas ou alertas a necessitar da sua atenção.";
-        buttonText = "Acessar Sistema";
+        message = customBody || "Existem novas atualizações na sua mesa de trabalho.";
+        buttonText = "Acessar Painel";
         break;
 
       case 'new_demand':
-        subject = `[NOVA DEMANDA] ${clientName || 'Cliente'}`;
+        subject = `[Nova Demanda] ${clientName || 'Cliente'}`;
         icon = "📥";
-        title = "Nova Demanda do Trello";
-        message = `O Trello sincronizou uma nova demanda: <strong>${taskName}</strong> para <strong>${clientName || 'o projeto'}</strong>. Por favor, acesse o sistema para atribuir o colaborador e definir o prazo.`;
+        title = "Nova Demanda";
+        message = `Nova demanda sincronizada: <strong>${taskName}</strong> para <strong>${clientName || 'o projeto'}</strong>.`;
         if (extraInfo) message += `<br/><br/>${extraInfo}`;
         buttonText = "Atribuir Demanda";
         break;

@@ -14,7 +14,11 @@ import { supabase } from "../../../lib/supabase";
 import { NotificationEngine } from "../../../lib/NotificationEngine";
 import { normalizeImageUrl } from "../../../lib/imageUtils";
 
-export default function DirecionarPage() {
+interface DirecionarPageProps {
+  initialTab?: 'curadoria' | 'territorios' | 'direcionamento';
+}
+
+export default function DirecionarPage({ initialTab }: DirecionarPageProps = {}) {
   const [isLoading, setIsLoading] = useState(true);
   const [project, setProject] = useState<any>(null);
   const [profile, setProfile] = useState<any>(null);
@@ -33,7 +37,13 @@ export default function DirecionarPage() {
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
 
   // Navegação entre Etapas
-  const [activeTab, setActiveTab] = useState<'curadoria' | 'territorios' | 'direcionamento'>('curadoria');
+  const [activeTab, setActiveTab] = useState<'curadoria' | 'territorios' | 'direcionamento'>(initialTab || 'curadoria');
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab]);
 
   const fetchPageData = async () => {
     setIsLoading(true);
@@ -81,9 +91,18 @@ export default function DirecionarPage() {
         setCreativeDirections(finalPlans);
 
         // Ajusta aba padrão inteligente
-        const hasPendingDirecionamento = finalPlans.some((p: any) => p.status === 'awaiting_approval');
-        if (hasPendingDirecionamento) {
+        const hasPendingDirecionamento = finalPlans.some((p: any) => p.status === 'awaiting_approval' || p.status === 'pending');
+        const hasPendingCuradoriaDirs = safeDirs.length > 0 && safeDirs.some((d: any) => !d.score || d.score === 0);
+        const hasPendingTerritoryEval = !!(evalData && evalData.status === 'pending');
+
+        if (initialTab) {
+          setActiveTab(initialTab);
+        } else if (hasPendingDirecionamento) {
           setActiveTab('direcionamento');
+        } else if (hasPendingCuradoriaDirs) {
+          setActiveTab('curadoria');
+        } else if (hasPendingTerritoryEval) {
+          setActiveTab('territorios');
         } else if (safeDirs.length > 0) {
           setActiveTab('curadoria');
         } else if (evalData && evalData.territories && evalData.territories.length > 0 && evalData.status !== 'draft') {
@@ -316,6 +335,9 @@ export default function DirecionarPage() {
                 >
                   <Palette size={12} />
                   001 • Curadoria ({directions.length})
+                  {directions.some((d: any) => !d.score || d.score === 0) && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  )}
                 </button>
               )}
 
@@ -331,6 +353,9 @@ export default function DirecionarPage() {
                 >
                   <Layers size={12} />
                   002 • Territórios ({evaluation.territories.length})
+                  {evaluation.status === 'pending' && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  )}
                 </button>
               )}
 
@@ -345,6 +370,9 @@ export default function DirecionarPage() {
               >
                 <FileText size={12} />
                 003 • Direcionamento Criativo {hasCreativeDirections && `(${creativeDirections.length})`}
+                {creativeDirections.some((p: any) => p.status === 'awaiting_approval' || p.status === 'pending') && (
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                )}
               </button>
             </div>
           ) : (

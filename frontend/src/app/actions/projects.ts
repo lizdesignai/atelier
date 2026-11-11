@@ -2,7 +2,7 @@
 
 import { getDb } from '@/lib/db';
 import { getAuthUser } from '@/lib/auth-server';
-import { FINANCE_ROLES, STAFF_ROLES } from '@/lib/dbQueryPolicy';
+import { FINANCE_ROLES, STAFF_ROLES, PROJECT_FINANCIAL_WRITE_COLUMNS } from '@/lib/dbQueryPolicy';
 
 function sanitizeId(name: string): string {
   return name.replace(/[^a-zA-Z0-9_]/g, '');
@@ -62,15 +62,20 @@ export async function getProjectsAction() {
 
 export async function updateProjectAction(id: string, updateData: Record<string, any>) {
   const user = await getAuthUser();
-  if (!user || !FINANCE_ROLES.has(user.role)) {
+  if (!user || !STAFF_ROLES.has(user.role)) {
     throw new Error('Não autorizado');
+  }
+
+  const keys = Object.keys(updateData || {}).filter((k) => Boolean(sanitizeId(k)));
+  if (keys.length === 0) return null;
+
+  const hasFinancialCol = keys.some((k) => PROJECT_FINANCIAL_WRITE_COLUMNS.has(k));
+  if (hasFinancialCol && !FINANCE_ROLES.has(user.role)) {
+    throw new Error('Apenas o financeiro/gestão pode alterar dados contratuais e financeiros do projeto.');
   }
 
   const sql = getDb();
   try {
-    const keys = Object.keys(updateData || {}).filter((k) => Boolean(sanitizeId(k)));
-    if (keys.length === 0) return null;
-
     const setQuery = keys.map((k, i) => `"${sanitizeId(k)}" = $${i + 1}`).join(', ');
     const values = keys.map((k) => updateData[k]);
 

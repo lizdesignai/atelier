@@ -114,22 +114,22 @@ export class ReminderSchedulerService {
         const projName = Array.isArray(projProfiles) ? projProfiles[0]?.nome : projProfiles?.nome;
         const entityName = subclientName || projName || 'Atelier';
         
-        let notificationTitle = `[LEMBRETE] Tarefa: ${task.title}`;
-        let notificationMessage = `Olá ${collab.nome || 'colaborador'}, a tarefa "${task.title}" (${entityName}) está agendada para entrega ${reminderToTrigger.label}.`;
+        let notificationTitle = `Lembrete: ${task.title}`;
+        let notificationMessage = `A tarefa "${task.title}" (${entityName}) está prevista para ${reminderToTrigger.label}.`;
 
         if (reminderToTrigger.key === '24h') {
-          notificationTitle = `⏳ [24H] Faltam 24h para: ${task.title}`;
-          notificationMessage = `Atenção ${collab.nome || 'colaborador'}, faltam 24h para o prazo de entrega da tarefa "${task.title}" (${entityName}).`;
+          notificationTitle = `⏳ [24h] Prazo de entrega: ${task.title}`;
+          notificationMessage = `Faltam 24h para o prazo de entrega de "${task.title}" (${entityName}).`;
         } else if (reminderToTrigger.key === '12h') {
-          notificationTitle = `🔥 [12H URGENTE] Faltam 12h para: ${task.title}`;
-          notificationMessage = `Alerta urgente ${collab.nome || 'colaborador'}, faltam apenas 12h para a entrega de "${task.title}" (${entityName})!`;
+          notificationTitle = `🚨 [12h] Prazo crítico: ${task.title}`;
+          notificationMessage = `Faltam 12h para o prazo de entrega de "${task.title}" (${entityName}).`;
         } else if (reminderToTrigger.isExact) {
           if (isCaptacao) {
-            notificationTitle = `📸 BOA CAPTAÇÃO! ${task.title}`;
-            notificationMessage = `Chegou a hora! Boa captação para o cliente ${entityName}. Que a sessão seja um excelente sucesso! 📸✨`;
+            notificationTitle = `📸 Captação agora: ${task.title}`;
+            notificationMessage = `Horário de captação de conteúdo para ${entityName}: "${task.title}".`;
           } else if (isReuniao) {
-            notificationTitle = `🤝 BOA REUNIÃO! ${task.title}`;
-            notificationMessage = `Chegou a hora! Boa reunião para o projeto ${entityName}. Excelente alinhamento para todos! 🤝✨`;
+            notificationTitle = `🤝 Reunião agora: ${task.title}`;
+            notificationMessage = `Horário de reunião para ${entityName}: "${task.title}".`;
           }
         }
 

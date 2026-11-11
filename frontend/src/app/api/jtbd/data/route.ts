@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { Pool } from '@neondatabase/serverless';
 import { verifyToken } from '@/lib/auth';
+import { isFocusOperationalTask, FOCUS_OPERATIONAL_SQL_FILTER } from '@/lib/focusRules';
 
 export async function GET(request: NextRequest) {
   let pool;
@@ -76,9 +77,11 @@ export async function GET(request: NextRequest) {
         LEFT JOIN "agency_subclients" asb ON t.subclient_id = asb.id
         LEFT JOIN "profiles" assignee ON t.assigned_to = assignee.id
         WHERE t.assigned_to IN (${ph})
+          AND t.status != 'archived'
+          ${FOCUS_OPERATIONAL_SQL_FILTER}
         ORDER BY t.priority_score DESC NULLS LAST, t.deadline ASC
       `, teamIds);
-      tasksData = tasksQuery.rows;
+      tasksData = tasksQuery.rows.filter(isFocusOperationalTask);
     }
 
     await pool.end();

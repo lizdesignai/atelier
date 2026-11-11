@@ -91,44 +91,46 @@ export function getStudioEmailTemplate(
     // -------------------------------------------------------------
     case 'sintonia_mention':
       badge = 'SINTONIA';
-      subject = `Psst! ${clientName || 'Alguém'} chamou você na Sintonia 👀`;
+      subject = `${clientName || 'Colega'} mencionou você na Sintonia 💬`;
       icon = '💬';
-      title = `${clientName || 'Alguém'} chamou você!`;
+      title = `${clientName || 'Colega'} mencionou você`;
       message =
         customBody ||
-        `<strong>${clientName || 'Alguém da equipe'}</strong> te marcou no papo:<br/><br/><div style="background-color:#faf9f6; border-left:3px solid #a45037; padding:12px 16px; border-radius:8px; font-style:italic; color:#3f3f46;">"${extraInfo || 'Dá uma espiada no painel!'}"</div>`;
-      buttonText = 'Bora responder';
+        `<strong>${clientName || 'Um membro da equipe'}</strong> mencionou você na Sintonia${extraInfo ? `: "${extraInfo}"` : '.'}`;
+      buttonText = 'Responder na Sintonia';
       break;
 
     case 'sintonia_dm':
       badge = 'SINTONIA';
-      subject = `Mensagem nova de ${clientName || 'alguém'} na área ✉️`;
+      subject = `Mensagem de ${clientName || 'Colega'} ✉️`;
       icon = '✉️';
-      title = 'Chegou DM pra você!';
+      title = 'Nova Mensagem Direta';
       message =
         customBody ||
-        `<strong>${clientName || 'Um colega'}</strong> mandou uma DM:<br/><br/><div style="background-color:#faf9f6; border-left:3px solid #a45037; padding:12px 16px; border-radius:8px; font-style:italic; color:#3f3f46;">"${extraInfo || 'Entra lá pra conferir'}"</div>`;
-      buttonText = 'Abrir conversa';
+        `<strong>${clientName || 'Colega'}</strong> te enviou uma mensagem direta${extraInfo ? `: "${extraInfo}"` : '.'}`;
+      buttonText = 'Abrir Conversa';
       break;
 
     case 'sintonia_channel':
       badge = 'SINTONIA';
-      subject = `Movimentação quente em #${projectName || 'operacao-atelier'} 📢`;
+      subject = `Nova mensagem em #${projectName || 'geral'} 📢`;
       icon = '📢';
-      title = `Canal #${projectName || 'operacao-atelier'}`;
-      message = customBody || 'Tem novidade fresquinha no canal da galera. Não fica de fora!';
-      buttonText = 'Espiar o canal';
+      title = `Canal #${projectName || 'geral'}`;
+      message =
+        customBody ||
+        `Nova atualização no canal <strong>#${projectName || 'geral'}</strong>${extraInfo ? `: "${extraInfo}"` : '.'}`;
+      buttonText = 'Ver no Canal';
       break;
 
     case 'chat_activity':
       badge = 'SINTONIA';
-      subject = `Opa! ${clientName || 'A equipe'} mandou mensagem 💬`;
+      subject = `Nova mensagem de ${clientName || 'equipe'} 💬`;
       icon = '💬';
-      title = 'Papo rolando na Sintonia';
+      title = 'Nova Mensagem';
       message =
         customBody ||
-        'Tem mensagem nova te esperando na Sintonia. Vem conferir!';
-      buttonText = 'Ver mensagem';
+        `<strong>${clientName || 'A equipe'}</strong> enviou nova mensagem na conversa${extraInfo ? `: "${extraInfo}"` : '.'}`;
+      buttonText = 'Ver Mensagem';
       break;
 
     // -------------------------------------------------------------
@@ -136,227 +138,201 @@ export function getStudioEmailTemplate(
     // -------------------------------------------------------------
     case 'task_assigned':
       badge = 'OPERAÇÃO & TAREFAS';
-      subject = customSubject || `Demanda nova na sua mesa: ${taskName || 'Bora produzir'}! 🎯`;
+      subject = customSubject || `Nova demanda: ${taskName || 'Tarefa'} (${projectName || 'Studio Veronna'}) 🎯`;
       icon = '🎯';
-      title = 'Chegou missão pra você!';
+      title = 'Nova Demanda Atribuída';
       message =
         customBody ||
-        `Fala${collaboratorName ? `, <strong>${collaboratorName}</strong>` : ''}! Uma nova missão acabou de aterrissar na sua mesa no projeto <strong>${projectName || 'Studio Veronna'}</strong>.<br/><br/>` +
-          `<div style="background-color:#faf9f6; border:1px solid #ebe8e2; padding:14px 16px; border-radius:12px; text-align:left;">` +
-          `<strong>📌 O que é:</strong> ${taskName || 'Nova Demanda'}<br/>` +
-          (deadline ? `<strong>📅 Até quando:</strong> ${formattedDeadline}<br/>` : '') +
-          (extraInfo ? `<strong>📝 Contexto:</strong> ${extraInfo}` : '') +
-          `</div><br/>Bora fazer acontecer com aquela qualidade Veronna? ✨`;
-      buttonText = 'Pegar pra fazer';
+        `${collaboratorName ? `<strong>${collaboratorName}</strong>: ` : ''}você assumiu <strong>${taskName || 'Nova Demanda'}</strong> em <strong>${projectName || 'Studio Veronna'}</strong>${deadline ? ` até <strong>${formattedDeadline}</strong>` : ''}${extraInfo ? ` &bull; ${extraInfo}` : '.'}`;
+      buttonText = 'Abrir no Kanban';
       break;
 
     case 'demand_sent':
     case 'new_demand':
       badge = 'GESTÃO DE OPERAÇÕES';
-      subject = customSubject || `Mais uma na esteira: ${taskName || projectName || 'Nova Demanda'} 📋`;
+      subject = customSubject || `Demanda na esteira: ${taskName || projectName || 'Nova Demanda'} 📋`;
       icon = '📋';
-      title = 'Missão na esteira!';
+      title = 'Demanda em Produção';
       message =
         customBody ||
-        `A demanda <strong>${taskName || 'Nova Tarefa'}</strong> (${projectName || 'Studio Veronna'}) já tá sob os cuidados de <strong>${collaboratorName || clientName || 'alguém da equipe'}</strong>.` +
-          (deadline ? `<br/><br/><strong>📅 Prazo combinado:</strong> ${formattedDeadline}` : '') +
-          (extraInfo ? `<br/><strong>Contexto rápido:</strong> ${extraInfo}` : '');
-      buttonText = 'Ver como tá indo';
+        `<strong>${collaboratorName || clientName || 'Equipe'}</strong> assumiu <strong>${taskName || 'Demanda'}</strong> (${projectName || 'Studio Veronna'})${deadline ? ` até <strong>${formattedDeadline}</strong>` : '.'}`;
+      buttonText = 'Acompanhar Entrega';
       break;
 
     case 'task_in_progress':
       badge = 'OPERAÇÃO EM CURSO';
-      subject = customSubject || `Mão na massa! ${taskName || 'Tarefa'} entrou em ação ▶️`;
+      subject = customSubject || `Em produção: ${taskName || 'Tarefa'} iniciada ▶️`;
       icon = '▶️';
-      title = 'Foco ativado!';
+      title = 'Produção Iniciada';
       message =
         customBody ||
-        `<strong>${collaboratorName || clientName || 'O colaborador'}</strong> ligou os motores e começou a produzir <strong>${taskName || 'a tarefa'}</strong> (${projectName || 'Studio Veronna'}).`;
-      buttonText = 'Acompanhar produção';
+        `<strong>${collaboratorName || clientName || 'Colaborador'}</strong> iniciou a execução de <strong>${taskName || 'tarefa'}</strong> em <strong>${projectName || 'Studio Veronna'}</strong>.`;
+      buttonText = 'Ver no Kanban';
       break;
 
     case 'task_paused':
       badge = 'OPERAÇÃO & TAREFAS';
-      subject = customSubject || `Hora do respiro: ${taskName || 'Tarefa'} pausada ⏸️`;
+      subject = customSubject || `Pausada: ${taskName || 'Tarefa'} ⏸️`;
       icon = '⏸️';
-      title = 'Pausinha rápida';
+      title = 'Demanda Pausada';
       message =
         customBody ||
-        `A demanda <strong>${taskName || 'Tarefa'}</strong> (${projectName || 'Studio Veronna'}) deu uma respirada por conta de <strong>${collaboratorName || clientName || 'um colaborador'}</strong>.` +
-          (extraInfo ? `<br/><br/><strong>Motivo:</strong> ${extraInfo}` : '');
-      buttonText = 'Ver detalhes';
+        `<strong>${collaboratorName || clientName || 'Colaborador'}</strong> pausou <strong>${taskName || 'tarefa'}</strong> (${projectName || 'Studio Veronna'})${extraInfo ? `: ${extraInfo}` : '.'}`;
+      buttonText = 'Ver Detalhes';
       break;
 
     case 'internal_review':
       badge = 'CURADORIA & QA';
-      subject = customSubject || `Obra de arte pronta pra curadoria: ${taskName || 'Entrega'} 👁️`;
+      subject = customSubject || `Revisão interna: ${taskName || 'Entrega'} aguarda aprovação 👁️`;
       icon = '👁️';
-      title = 'Olhar afiado da liderança!';
+      title = 'Revisão Pendente';
       message =
         customBody ||
-        `<strong>${collaboratorName || clientName || 'A equipe'}</strong> finalizou o trampo em <strong>${taskName || 'uma entrega'}</strong> (${projectName || 'Studio Veronna'}) e mandou praquele crivo fino da liderança.` +
-          (extraInfo ? `<br/><br/><div style="background-color:#faf9f6; border-left:3px solid #a45037; padding:10px 14px; border-radius:8px; text-align:left;">${extraInfo}</div>` : '');
-      buttonText = 'Dar aquela olhada';
+        `<strong>${collaboratorName || clientName || 'A equipe'}</strong> concluiu <strong>${taskName || 'uma entrega'}</strong> (${projectName || 'Studio Veronna'}) e aguarda sua curadoria${extraInfo ? `: ${extraInfo}` : '.'}`;
+      buttonText = 'Revisar no Kanban';
       break;
 
     case 'review_approved':
       badge = 'CURADORIA & QA';
-      subject = customSubject || `Mandou bem demais! ${taskName || 'Entrega'} aprovada ✅`;
+      subject = customSubject || `Aprovado no QA: ${taskName || 'Entrega'} ✅`;
       icon = '🎉';
-      title = 'Aprovadíssimo!';
+      title = 'Entrega Aprovada';
       message =
         customBody ||
-        `Coisa linda! A liderança deu luz verde total pra <strong>${taskName || 'sua entrega'}</strong> no projeto <strong>${projectName || 'Studio Veronna'}</strong>. Qualidade no teto! ✨` +
-          (extraInfo ? `<br/><br/><strong>Nota da liderança:</strong> ${extraInfo}` : '');
-      buttonText = 'Comemorar no painel';
+        `Sua entrega em <strong>${taskName || 'tarefa'}</strong> (${projectName || 'Studio Veronna'}) foi aprovada pela liderança${extraInfo ? `: "${extraInfo}"` : '.'}`;
+      buttonText = 'Ver no Kanban';
       break;
 
     case 'review_changes_requested':
       badge = 'CURADORIA & QA';
-      subject = customSubject || `Ajuste fino na rota: ${taskName || 'Tarefa'} 🛠️`;
+      subject = customSubject || `Ajuste solicitado: ${taskName || 'Tarefa'} 🛠️`;
       icon = '🛠️';
-      title = 'Quase lá! Só mais um toque';
+      title = 'Ajuste Necessário';
       message =
         customBody ||
-        `A liderança curtiu, mas pediu um polimento a mais em <strong>${taskName || 'sua entrega'}</strong> (${projectName || 'Studio Veronna'}) pra ficar nível arte.` +
-          (extraInfo
-            ? `<br/><br/><div style="background-color:#fff7ed; border-left:3px solid #ea580c; padding:12px 16px; border-radius:8px; text-align:left; color:#7c2d12;"><strong>O que precisa afinar:</strong><br/>${extraInfo}</div>`
-            : '');
-      buttonText = 'Ver os toques';
+        `Foram solicitados ajustes em <strong>${taskName || 'sua entrega'}</strong> (${projectName || 'Studio Veronna'})${extraInfo ? `: <strong>${extraInfo}</strong>` : '.'}`;
+      buttonText = 'Ver Apontamentos';
       break;
 
     case 'task_completed':
       badge = 'OPERAÇÃO & TAREFAS';
-      subject = customSubject || `Check! Mais uma entrega no cofre: ${taskName || 'Finalizada'} 🏆`;
+      subject = customSubject || `Concluída: ${taskName || 'Entrega'} finalizada 🏆`;
       icon = '🏆';
-      title = 'Tá feito e entregue!';
+      title = 'Demanda Concluída';
       message =
         customBody ||
-        `Pode riscar da lista! <strong>${taskName || 'A entrega'}</strong> do projeto <strong>${projectName || 'Studio Veronna'}</strong> foi concluída com louvor.`;
-      buttonText = 'Ver como ficou';
+        `A entrega <strong>${taskName || 'A entrega'}</strong> (${projectName || 'Studio Veronna'}) foi aprovada e arquivada como concluída.`;
+      buttonText = 'Ver Entrega';
       break;
 
     case 'task_blocked':
       badge = 'ALERTA DE OPERAÇÃO';
-      subject = customSubject || `Ops, travou ali: ${taskName || 'Demanda'} tá bloqueada 🚧`;
+      subject = customSubject || `Bloqueio sinalizado: ${taskName || 'Demanda'} 🚧`;
       icon = '🚧';
-      title = 'Alguém dá uma forcinha?';
+      title = 'Impedimento Operacional';
       message =
         customBody ||
-        `A demanda <strong>${taskName || 'Tarefa'}</strong> (${projectName || 'Studio Veronna'}) bateu num obstáculo e precisa de um empurrãozinho pra destravar.` +
-          (extraInfo
-            ? `<br/><br/><div style="background-color:#fef2f2; border-left:3px solid #dc2626; padding:12px 16px; border-radius:8px; text-align:left; color:#7f1d1d;"><strong>O que tá pegando:</strong><br/>${extraInfo}</div>`
-            : '');
-      buttonText = 'Destravar agora';
+        `A entrega <strong>${taskName || 'Tarefa'}</strong> (${projectName || 'Studio Veronna'}) está bloqueada${extraInfo ? `: <strong>${extraInfo}</strong>` : '.'}`;
+      buttonText = 'Destravar no Kanban';
       break;
 
     case 'task_forced_today':
       badge = 'PRIORIDADE IMEDIATA';
-      subject = customSubject || `Radar quente: ${taskName || 'Essa é pra hoje'}! ⚡`;
+      subject = customSubject || `Prioridade do dia: ${taskName || 'Foco imediato'} ⚡`;
       icon = '⚡';
-      title = 'Prioridade máxima hoje!';
+      title = 'Foco Imediato';
       message =
         customBody ||
-        `A liderança colocou um holofote em <strong>${taskName || 'essa entrega'}</strong> (${projectName || 'Studio Veronna'}). Foco nela que o dia é dela!` +
-          (extraInfo
-            ? `<br/><br/><div style="background-color:#faf9f6; border-left:3px solid #a45037; padding:12px 16px; border-radius:8px; text-align:left;"><strong>Recado da chefia:</strong><br/>${extraInfo}</div>`
-            : '');
-      buttonText = 'Entrar em foco';
+        `A liderança priorizou a entrega <strong>${taskName || 'esta entrega'}</strong> (${projectName || 'Studio Veronna'}) para hoje${extraInfo ? `: ${extraInfo}` : '.'}`;
+      buttonText = 'Abrir no Kanban';
       break;
 
     case 'task_feedback':
       badge = 'OPERAÇÃO & TAREFAS';
-      subject = customSubject || `Novo pitaco construtivo em ${taskName || 'sua tarefa'} 💬`;
+      subject = customSubject || `Novo apontamento: ${taskName || 'Tarefa'} 💬`;
       icon = '💬';
-      title = 'Comentário fresco na mesa!';
+      title = 'Novo Feedback';
       message =
         customBody ||
-        `Alguém deixou um apontamento carinhoso na tarefa <strong>${taskName || 'Tarefa'}</strong> (${projectName || 'Studio Veronna'}):` +
-          (extraInfo
-            ? `<br/><br/><div style="background-color:#faf9f6; border-left:3px solid #a45037; padding:12px 16px; border-radius:8px; text-align:left;">${extraInfo}</div>`
-            : '');
-      buttonText = 'Ver apontamento';
+        `Novo apontamento em <strong>${taskName || 'Tarefa'}</strong> (${projectName || 'Studio Veronna'})${extraInfo ? `: "${extraInfo}"` : '.'}`;
+      buttonText = 'Ver no Kanban';
       break;
 
     case 'task_overdue':
       badge = 'ALERTA DE PRAZO';
-      subject = customSubject || `Eita! O relógio correu em ${taskName || 'uma tarefa'} ⏰`;
+      subject = customSubject || `Prazo expirado: ${taskName || 'Entrega'} ⏰`;
       icon = '⏰';
-      title = 'Passou do ponto!';
+      title = 'Tarefa em Atraso';
       message =
         customBody ||
-        `A entrega <strong>${taskName || 'Entrega'}</strong> (${projectName || 'Studio Veronna'}) passou da data meta. Dá uma olhada pra gente recalcular a rota!`;
-      buttonText = 'Ajustar agora';
+        `A entrega <strong>${taskName || 'Entrega'}</strong> (${projectName || 'Studio Veronna'}) ultrapassou o prazo planejado.`;
+      buttonText = 'Ajustar no Kanban';
       break;
 
     case 'deadline_24h':
       badge = 'LEMBRETE DE PRAZO';
-      subject = customSubject || `Últimas 24h! ${taskName} vence amanhã ⏳`;
+      subject = customSubject || `Prazo em 24h: ${taskName} ⏳`;
       icon = '⏳';
-      title = 'Amanhã é o dia!';
+      title = 'Entrega em 24 Horas';
       message =
         customBody ||
-        `Fala${collaboratorName ? `, <strong>${collaboratorName}</strong>` : ''}! O relógio tá contando menos de 24h pra entregar <strong>${taskName}</strong> (${projectName || 'Studio Veronna'}). Força na reta final!`;
-      buttonText = 'Revisar entrega';
+        `${collaboratorName ? `<strong>${collaboratorName}</strong>: ` : ''}Faltam 24h para o prazo de entrega de <strong>${taskName}</strong> (${projectName || 'Studio Veronna'}).`;
+      buttonText = 'Ver no Kanban';
       break;
 
     case 'deadline_12h':
       badge = 'PRAZO CRÍTICO';
-      subject = customSubject || `Corre que tá no fim: menos de 12h pra ${taskName} 🚨`;
+      subject = customSubject || `Prazo crítico em 12h: ${taskName} 🚨`;
       icon = '🚨';
-      title = 'Reta finalíssima!';
+      title = 'Entrega em 12 Horas';
       message =
         customBody ||
-        `Segura o leme! Falta menos de 12h pro prazo de <strong>${taskName}</strong> (${projectName || 'Studio Veronna'}). Se precisar de ajuda, solta o grito na Sintonia!`;
-      buttonText = 'Finalizar logo';
+        `${collaboratorName ? `<strong>${collaboratorName}</strong>: ` : ''}Faltam menos de 12h para finalizar <strong>${taskName}</strong> (${projectName || 'Studio Veronna'}).`;
+      buttonText = 'Finalizar Entrega';
       break;
 
     case 'captacao_reminder':
       badge = 'AGENDA EXTERNA';
-      subject = customSubject || `Câmeras a postos! Amanhã tem captação de ${projectName} 🎥`;
+      subject = customSubject || `Captação agendada: ${taskName || 'Gravação'} (${projectName}) 🎥`;
       icon = '🎥';
-      title = 'Luz, câmera e ação!';
+      title = 'Captação de Conteúdo';
       message =
         customBody ||
-        `Bateria carregada e lente limpa? Temos gravação marcada pra <strong>${taskName || 'Sessão de Captação'}</strong> no projeto <strong>${projectName || 'Cliente'}</strong>.` +
-          (deadline ? `<br/><br/><strong>📅 Quando:</strong> ${formattedDeadline}` : '') +
-          (extraInfo ? `<br/><strong>📍 Onde / Roteiro:</strong><br/>${extraInfo}` : '');
-      buttonText = 'Ver roteiro completo';
+        `Captação de <strong>${taskName || 'Conteúdo'}</strong> (${projectName || 'Cliente'})${deadline ? ` agendada para <strong>${formattedDeadline}</strong>` : ''}${extraInfo ? ` &bull; ${extraInfo}` : '.'}`;
+      buttonText = 'Ver Roteiro';
       break;
 
     case 'reuniao_reminder':
       badge = 'AGENDA EXECUTIVA';
-      subject = customSubject || `Café e alinhamento: temos papo marcado sobre ${taskName || projectName} ☕`;
+      subject = customSubject || `Reunião agendada: ${taskName || projectName || 'Alinhamento'} 📅`;
       icon = '📅';
-      title = 'Papo bom vindo aí!';
+      title = 'Reunião Agendada';
       message =
         customBody ||
-        `Passando pra te lembrar daquele papo sobre <strong>${taskName || projectName || 'Alinhamento'}</strong>.` +
-          (deadline ? `<br/><br/><strong>📅 Horário:</strong> ${formattedDeadline}` : '') +
-          (extraInfo ? `<br/><strong>📝 Pauta / Link da sala:</strong><br/>${extraInfo}` : '');
-      buttonText = 'Entrar na reunião';
+        `Reunião de <strong>${taskName || projectName || 'Alinhamento'}</strong>${deadline ? ` confirmada para <strong>${formattedDeadline}</strong>` : ''}${extraInfo ? ` &bull; ${extraInfo}` : '.'}`;
+      buttonText = 'Acessar Reunião';
       break;
 
     case 'contract_ending':
       badge = 'GESTÃO DE CONTRATOS';
-      subject = customSubject || `Hora de renovar o amor: contrato de ${clientName || projectName} tá vencendo 📑`;
+      subject = customSubject || `Renovação de contrato: ${clientName || projectName} em ${daysLeft ?? 15} dias 📑`;
       icon = '📑';
-      title = 'Ciclo terminando, renovação chamando!';
+      title = 'Vencimento de Contrato';
       message =
         customBody ||
-        `O ciclo com <strong>${clientName || projectName}</strong> encerra em <strong>${daysLeft ?? 15} dias</strong> (${formattedDeadline}). Bora garantir a continuidade dessa parceria linda?`;
-      buttonText = 'Bater um papo comercial';
+        `O contrato de <strong>${clientName || projectName}</strong> vence em <strong>${daysLeft ?? 15} dias</strong> (${formattedDeadline}). Inicie o alinhamento de renovação.`;
+      buttonText = 'Ver Contrato';
       break;
 
     case 'financial_alert':
       badge = 'FINANCEIRO';
-      subject = customSubject || `Alerta no radar do dindin — Studio Veronna 💰`;
+      subject = customSubject || `Alerta financeiro: ${extraInfo || 'Pendência operacional'} 💰`;
       icon = '💰';
-      title = customSubject || 'Radar financeiro apitou!';
+      title = 'Atenção Financeira';
       message =
         customBody ||
-        `Temos um ponto de atenção nas contas pra liderança ou contabilidade dar uma espiada.${extraInfo ? `<br/><br/>${extraInfo}` : ''}`;
-      buttonText = 'Conferir números';
+        `Pendência identificada em <strong>${projectName || 'Studio Veronna'}</strong>${extraInfo ? `: ${extraInfo}` : '.'}`;
+      buttonText = 'Ver Financeiro';
       break;
 
     // -------------------------------------------------------------
@@ -364,90 +340,90 @@ export function getStudioEmailTemplate(
     // -------------------------------------------------------------
     case 'briefing_returned':
       badge = 'PORTAL DO CLIENTE';
-      subject = 'Precisamos do seu brilho: dá uma olhadinha no briefing? 📝';
+      subject = `Briefing de ${projectName || 'sua marca'}: ajustes necessários 📝`;
       icon = '📝';
-      title = 'Seu briefing precisa de mais tempero!';
+      title = 'Ajuste no Briefing';
       message =
         customBody ||
-        `Nossa equipe adorou o começo do seu briefing pra <strong>${projectName || 'sua marca'}</strong>! Mas pra gente acertar na mosca na identidade, precisamos que você aprofunde uns detalhezinhos mágicos com a gente. Bora?`;
-      buttonText = 'Dar aquele brilho no briefing';
+        `Precisamos de informações complementares no briefing de <strong>${projectName || 'sua marca'}</strong> para prosseguir.`;
+      buttonText = 'Completar Briefing';
       break;
 
     case 'contract_uploaded':
       badge = 'COFRE DIGITAL';
-      subject = 'Oficialíssimo! Seu contrato tá no cofre 📄✨';
+      subject = 'Contrato disponível no Cofre Digital 📄✨';
       icon = '📄';
-      title = 'Contrato seguro e assinado!';
+      title = 'Contrato Disponível';
       message =
         customBody ||
-        `Tudo nos conformes e pronto pra brilhar! O documento do projeto <strong>${projectName || 'Studio Veronna'}</strong> já tá trancadinho no seu Cofre Digital.`;
-      buttonText = 'Espiar meu contrato';
+        `O contrato do projeto <strong>${projectName || 'Studio Veronna'}</strong> está assinado e arquivado no seu Cofre Digital.`;
+      buttonText = 'Acessar Cofre';
       break;
 
     case 'new_direction':
       badge = 'CURADORIA VISUAL';
-      subject = 'Tem rota visual nova saindo do forno! Vem ver 🎨';
+      subject = `Direção Criativa: rotas visuais de ${projectName || 'sua marca'} 🎨`;
       icon = '🎨';
-      title = 'Caminhos visuais fresquinhos!';
+      title = 'Rotas Visuais Disponíveis';
       message =
         customBody ||
-        `Nossa Direção de Arte preparou opções incríveis pro futuro da sua marca. Entra lá no seu espaço, escolhe a sua favorita e conta pra gente o que achou!`;
-      buttonText = 'Ver e opinar';
+        `As rotas conceituais de <strong>${projectName || 'sua marca'}</strong> estão prontas para sua avaliação no Cockpit.`;
+      buttonText = 'Avaliar Rotas';
       break;
 
     case 'planning_approval':
       badge = 'PRESENÇA DIGITAL';
-      subject = `O mapa tá traçado! Dá o seu OK no planejamento de ${taskName || 'conteúdo'} ✍️`;
+      subject = `Planejamento de conteúdo pronto para aprovação ✍️`;
       icon = '✍️';
-      title = 'Seu OK pra voarmos!';
+      title = 'Planejamento de Conteúdo';
       message =
         customBody ||
-        `A estratégia de <strong>${taskName || 'conteúdo'}</strong> tá pronta, linda e alinhada. Dá aquele check esperto pra nossa esteira de design começar a produzir!`;
-      buttonText = 'Dar a luz verde';
+        `O planejamento de <strong>${taskName || 'conteúdo'}</strong> (${projectName || 'sua marca'}) aguarda sua aprovação no Cockpit.`;
+      buttonText = 'Aprovar no Cockpit';
       break;
 
     case 'project_delivered':
       badge = 'ENTREGA OFICIAL';
-      subject = 'É seu! Projeto prontíssimo e no capricho 📦🎉';
+      subject = `Entrega final: seu projeto de marca está pronto! 📦🎉`;
       icon = '📦';
-      title = 'O grande momento chegou!';
+      title = 'Identidade Visual Entregue';
       message =
         customBody ||
-        `Que orgulho desse projeto! A identidade de <strong>${projectName || 'sua marca'}</strong> tá 100% finalizada e todos os arquivos em alta resolução já estão prontos pra você brilhar no mundo.`;
-      buttonText = 'Baixar meus arquivos';
+        `A identidade de <strong>${projectName || 'sua marca'}</strong> foi concluída e todos os arquivos estão disponíveis para download.`;
+      buttonText = 'Baixar Arquivos';
       break;
 
     case 'vault_new_asset':
       badge = 'COFRE DIGITAL';
-      subject = customSubject || 'Presente novo no seu Cofre Digital! 💎';
+      subject = customSubject || 'Novo ativo liberado no seu Cofre Digital 💎';
       icon = '💎';
-      title = customSubject ? stripLeadingEmoji(customSubject).cleanText : 'Arquivo novinho liberado!';
+      title = customSubject ? stripLeadingEmoji(customSubject).cleanText : 'Novo Ativo no Cofre';
       message =
         customBody ||
-        `Subimos um material fresquinho no seu cofre no Studio Veronna. Entra lá pra dar uma espiada e usar à vontade!`;
-      buttonText = 'Abrir meu cofre';
+        `Novo arquivo adicionado ao Cofre Digital de <strong>${projectName || 'seu projeto'}</strong>${extraInfo ? `: ${extraInfo}` : ' para download'}.`;
+      buttonText = 'Abrir Cofre';
       break;
 
     case 'project_archived':
       badge = 'PORTAL DO CLIENTE';
-      subject = 'Missão cumprida com amor! Projeto arquivado 🔒';
+      subject = `Projeto ${projectName || 'sua marca'} concluído e arquivado 🔒`;
       icon = '🔒';
-      title = 'Obrigado por confiar na gente!';
+      title = 'Projeto Arquivado';
       message =
         customBody ||
-        `Nosso ciclo operacional oficial foi concluído, mas o legado de <strong>${projectName || 'sua marca'}</strong> tá só começando. Foi uma delícia construir isso com você!`;
-      buttonText = 'Visitar meu espaço';
+        `O projeto <strong>${projectName || 'sua marca'}</strong> foi concluído com sucesso e seus arquivos seguem disponíveis no Cofre.`;
+      buttonText = 'Acessar Cofre';
       break;
 
     case 'project_reactivated':
       badge = 'PORTAL DO CLIENTE';
-      subject = 'Estamos de volta! Operação reativada a todo vapor 🔓🚀';
+      subject = `Projeto ${projectName || 'sua marca'} reativado 🔓🚀`;
       icon = '🔓';
-      title = 'Que bom te ter de volta!';
+      title = 'Projeto Reativado';
       message =
         customBody ||
-        `A esteira do projeto <strong>${projectName || 'sua marca'}</strong> voltou a rodar a mil por hora. Teu acesso tá 100% livre pra gente criar mais coisas lindas juntos!`;
-      buttonText = 'Entrar no Cockpit';
+        `A esteira do projeto <strong>${projectName || 'sua marca'}</strong> foi reativada com acesso operacional liberado.`;
+      buttonText = 'Acessar Cockpit';
       break;
 
     // -------------------------------------------------------------
@@ -455,35 +431,35 @@ export function getStudioEmailTemplate(
     // -------------------------------------------------------------
     case 'community_approved_post':
       badge = 'COMUNIDADE VÊNETO';
-      subject = 'Tá na vitrine! Seu post foi aprovado na Vêneto ✅';
+      subject = 'Publicação aprovada na Comunidade Vêneto ✅';
       icon = '🎉';
-      title = 'Seu conteúdo tá no ar!';
+      title = 'Publicação Aprovada';
       message =
         customBody ||
-        `A curadoria amou a sua partilha! Ela já tá brilhando no feed da Comunidade Vêneto pra todo mundo ver e trocar ideia.`;
-      buttonText = 'Ver na comunidade';
+        `Sua publicação foi aprovada e já está visível na <strong>Comunidade Vêneto</strong>.`;
+      buttonText = 'Ver na Comunidade';
       break;
 
     case 'community_interaction':
       badge = 'COMUNIDADE VÊNETO';
-      subject = 'Tem gente falando com você na Vêneto! 💬';
+      subject = 'Nova interação na sua publicação na Vêneto 💬';
       icon = '💬';
-      title = 'Networking esquentou!';
+      title = 'Nova Interação';
       message =
         customBody ||
-        `Alguém da comunidade acabou de reagir ou comentar na sua publicação. Vai lá bater um papo!`;
-      buttonText = 'Ver interação';
+        `<strong>${clientName || 'Um membro'}</strong> interagiu com a sua publicação na <strong>Comunidade Vêneto</strong>.`;
+      buttonText = 'Ver Interação';
       break;
 
     case 'b2b_interest':
       badge = 'HUB DE NEGÓCIOS';
-      subject = 'Opa! Chegou interesse no seu Pitch B2B 🤝';
+      subject = 'Novo interesse comercial no seu pitch B2B 🤝';
       icon = '🤝';
-      title = 'Parceria na mira!';
+      title = 'Interesse Comercial';
       message =
         customBody ||
-        `Seu pitch de negócios chamou atenção no Hub! Alguém quer trocar uma ideia sobre parceria. Não perde o timing!`;
-      buttonText = 'Conhecer a oportunidade';
+        `Um parceiro demonstrou interesse no seu pitch no <strong>Hub B2B</strong>${extraInfo ? `: ${extraInfo}` : '.'}`;
+      buttonText = 'Ver Oportunidade';
       break;
 
     // -------------------------------------------------------------
@@ -491,68 +467,68 @@ export function getStudioEmailTemplate(
     // -------------------------------------------------------------
     case 'admin_alert_briefing':
       badge = 'GESTÃO & LIDERANÇA';
-      subject = `Briefing quentinho na mesa: ${clientName || projectName || 'Cliente'} 🎯`;
+      subject = `Briefing preenchido: ${clientName || projectName || 'Cliente'} 🎯`;
       icon = '🎯';
-      title = 'Dossiê preenchido na área!';
+      title = 'Briefing Recebido';
       message =
         customBody ||
-        `O cliente <strong>${clientName || projectName}</strong> acabou de entregar o briefing todo bonitinho. Bora desvendar essa marca?`;
-      buttonText = 'Ver briefing';
+        `<strong>${clientName || projectName}</strong> concluiu o preenchimento do briefing${extraInfo ? ` (${extraInfo})` : ''}. Pronto para triagem.`;
+      buttonText = 'Ver Briefing';
       break;
 
     case 'upsell_accepted':
       badge = 'EXPANSÃO COMERCIAL';
-      subject = `Cheirinho de expansão: ${clientName || 'Cliente'} quer mais! 🔥`;
+      subject = `Expansão comercial: ${clientName || 'Cliente'} aceitou proposta 🔥`;
       icon = '🔥';
-      title = 'Cliente querendo crescer!';
+      title = 'Proposta Aceita';
       message =
         customBody ||
-        `<strong>${clientName || 'O cliente'}</strong> demonstrou interesse em contratar novos serviços. Bora aproveitar o momento!`;
-      buttonText = 'Ver proposta';
+        `<strong>${clientName || 'O cliente'}</strong> aceitou a expansão de escopo${extraInfo ? `: ${extraInfo}` : '.'}`;
+      buttonText = 'Ver Proposta';
       break;
 
     case 'art_approved':
       badge = 'CURADORIA & CLIENTE';
-      subject = `Luz verde do cliente! ${clientName || projectName || 'Arte aprovada'} 🟢🎉`;
+      subject = `Arte aprovada pelo cliente: ${clientName || projectName || 'Projeto'} 🟢`;
       icon = '🟢';
-      title = 'Cliente adorou e aprovou!';
+      title = 'Arte Aprovada';
       message =
         customBody ||
-        `Pode comemorar! <strong>${clientName || projectName}</strong> bateu o martelo e deu o aval na peça criativa. Rumo ao próximo passo!`;
-      buttonText = 'Seguir produção';
+        `<strong>${clientName || projectName}</strong> aprovou a arte final${extraInfo ? `: "${extraInfo}"` : '.'}`;
+      buttonText = 'Ver no Kanban';
       break;
 
     case 'art_rejected':
       badge = 'CURADORIA & CLIENTE';
-      subject = `Cliente pediu um ajuste em ${clientName || projectName || 'uma entrega'} 🛑`;
+      subject = `Ajuste solicitado pelo cliente em ${clientName || projectName || 'arte'} 🛑`;
       icon = '🛑';
-      title = 'Ajustezinho pedido pelo cliente!';
+      title = 'Ajuste Solicitado';
       message =
         customBody ||
-        `<strong>${clientName || projectName}</strong> viu a arte e pediu alguns ajustes específicos. Entra pra ver o que ele comentou!`;
-      buttonText = 'Ver pedidos do cliente';
+        `<strong>${clientName || projectName}</strong> solicitou alterações na arte${extraInfo ? `: <strong>${extraInfo}</strong>` : '.'}`;
+      buttonText = 'Ver Solicitação';
       break;
 
     case 'visual_pin_added':
       badge = 'CURADORIA VISUAL';
-      subject = `Novo pino de feedback de ${clientName || 'Cliente'} na peça 📍`;
+      subject = `Feedback visual adicionado por ${clientName || 'Cliente'} 📍`;
       icon = '📍';
-      title = 'Comentário direto na arte!';
+      title = 'Pin Visual Adicionado';
       message =
         customBody ||
-        `<strong>${clientName || 'O cliente'}</strong> colocou um pin com feedback em cima da peça. Corre pra conferir!`;
-      buttonText = 'Espiar o pin';
+        `<strong>${clientName || 'Cliente'}</strong> adicionou um pin com feedback na peça${extraInfo ? `: "${extraInfo}"` : '.'}`;
+      buttonText = 'Ver Feedback';
       break;
 
     case 'fever_chart_alert':
       badge = 'RISCO OPERACIONAL';
-      subject = `Olho no relógio: buffer apertado em ${projectName || 'Projeto'} ⚠️`;
+      subject = `Alerta de prazo: ${projectName || 'Projeto'} em risco operacional ⚠️`;
       icon = '⚠️';
-      title = 'Atenção ao ritmo da esteira!';
+      title = 'Risco de Prazo';
       message =
         customBody ||
-        `O tempo de produção de <strong>${projectName}</strong> tá chegando perto da margem de segurança.<br/><br/><span style="color:#ea580c; font-size:13px;">${extraInfo || ''}</span>`;
-      buttonText = 'Intervir no fluxo';
+        `O projeto <strong>${projectName || 'Projeto'}</strong> atingiu margem crítica de buffer na esteira${extraInfo ? `: <strong>${extraInfo}</strong>` : '.'}`;
+      buttonText = 'Ver no Kanban';
       break;
 
     // -------------------------------------------------------------
@@ -572,7 +548,7 @@ export function getStudioEmailTemplate(
       subject = customSubject || 'Notificação — Studio Veronna';
       message =
         customBody ||
-        'Existem novas atualizações ou ações pendentes aguardando sua atenção na plataforma.';
+        'Você tem novas atualizações na sua mesa de trabalho no Atelier.';
       if (!customBadge) {
         if (link?.includes('/tessera') || link?.includes('/jtbd') || link?.includes('/review')) {
           badge = 'OPERAÇÃO & TAREFAS';

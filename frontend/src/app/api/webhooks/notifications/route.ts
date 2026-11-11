@@ -18,89 +18,66 @@ interface ProfileData {
 }
 
 // ============================================================================
-// 🧠 MOTOR NEURO-SEMÂNTICO (Variações de Copy - iFood / Spotify Style)
-// Sorteia uma variação para combater a "Cegueira de Notificação"
+// 🧠 MOTOR DE NOTIFICAÇÕES (Mensagens Diretas, Assertivas e Afetuosas)
 // ============================================================================
 const getRandomCopy = (options: string[]) => options[Math.floor(Math.random() * options.length)];
 
 // 🎯 PARA CLIENTES: APROVAÇÕES E SOLICITAÇÕES
 const copyClientPostReady = (name: string) => getRandomCopy([
-  `Sua nova arte está na mesa, ${name}! ✨ Corre no painel para conferir o que a equipe preparou.`,
-  `${name}, tem novidade no seu Cockpit! 🚀 Acesse para aprovar a peça criativa mais recente.`,
-  `Ficou incrível! 🤩 ${name}, liberamos um novo material para sua avaliação. Dá uma olhada?`,
-  `Tudo quase pronto do nosso lado, ${name} 🎯 Só falta o seu "OK" na nova direção visual.`
+  `Oi, ${name}! Sua nova arte está pronta no Cockpit para aprovação. ✨`,
+  `${name}, liberamos uma nova peça para sua avaliação no painel. 🎨`,
+  `Nova arte disponível, ${name}! Acesse o Cockpit para conferir e aprovar. 🚀`
 ]);
 
 const copyClientPlanReady = (name: string) => getRandomCopy([
-  `O mapa do mês tá traçado, ${name}! 🗺️ O planejamento estratégico aguarda sua aprovação.`,
-  `Bora dominar as redes? 📈 A estratégia do mês foi liberada no seu painel, ${name}.`,
-  `${name}, nosso time acabou de enviar a rota de conteúdo. Falta só o seu aval! 🎯`,
-  `Próximos passos desenhados, ${name}. 🧠 Confira o planejamento no Cockpit e nos dê a luz verde.`
+  `Oi, ${name}! O planejamento de conteúdo do mês está pronto para sua aprovação. 🗺️`,
+  `${name}, seu calendário estratégico está disponível para revisão no Cockpit. 🎯`
 ]);
 
 const copyClientNeedBriefing = (name: string) => getRandomCopy([
-  `Precisamos mergulhar na sua visão, ${name}! 🤿 O seu Briefing Estratégico está pendente.`,
-  `A sua marca está prestes a nascer, ${name} ✨ Para começarmos, preencha o seu Dossiê no painel.`,
-  `Oi, ${name}! ☕ Que tal tirar uns minutinhos para preencher as diretrizes do seu projeto?`,
-  `Sem bússola não há destino, ${name}. 🧭 Acesse o painel e nos conte mais sobre o seu negócio!`
+  `Oi, ${name}! Seu briefing estratégico aguarda preenchimento no painel. 📝`,
+  `${name}, precisamos das suas respostas no briefing para iniciar a criação. ✨`
 ]);
 
 const copyClientReminder2H = (name: string) => getRandomCopy([
-  `Opa, ${name}! 🚦 A sua aprovação está pendente há algumas horas. Que tal darmos andamento?`,
-  `Sua marca não pode parar, ${name}! ⚡ O seu projeto aguarda uma validação rápida no painel.`,
-  `E aí, ${name}, teve um tempinho para ver o material que enviamos? 👀`,
-  `Estamos ansiosos pela sua resposta, ${name}. O seu "OK" é o que falta para seguirmos! 🚀`
+  `Lembrete rápido, ${name}: você tem uma aprovação pendente no Cockpit. ⏱️`,
+  `Oi, ${name}! Falta só a sua validação no painel para seguirmos com a produção. 🚀`
 ]);
 
 // 🛠️ PARA EQUIPE: TAREFAS, ATRASOS, CELEBRAÇÕES E FEEDBACKS
 const copyTeamTaskUrgent = (title: string) => getRandomCopy([
-  `🔥 Prioridade Máxima! A demanda "${title}" acabou de cair no seu colo. Bora pra cima!`,
-  `Alerta Vermelho 🚨 Temos uma missão urgente: "${title}". Acelera!`,
-  `Pausa o que tá fazendo! 🛑 Demanda expressa na mesa: "${title}".`,
-  `⚡ Foco total! A tarefa "${title}" entrou com urgência. A equipe conta com você.`
+  `Demanda urgente na sua fila: "${title}". Prioridade máxima no Kanban. 🔥`,
+  `Atenção: a tarefa "${title}" entrou com prioridade alta para hoje. ⚡`
 ]);
 
 const copyTeamTaskNew = (title: string) => getRandomCopy([
-  `🎯 Nova missão atribuída a você: "${title}". Quando puder, dá uma conferida.`,
-  `Mais um passo para a excelência! ✨ A tarefa "${title}" está na sua fila de produção.`,
-  `Tem trabalho novo na mesa: "${title}". 🛠️ Organize seu tempo e vamos nessa.`,
-  `A sua próxima etapa chegou: "${title}". A magia do design aguarda! 🎨`
+  `Nova tarefa atribuída a você: "${title}". Confira no Kanban. 🎯`,
+  `Você tem uma nova entrega na esteira: "${title}". 🛠️`
 ]);
 
 const copyTeamOverdue = (title: string) => getRandomCopy([
-  `Ei, notamos que a tarefa "${title}" passou um pouquinho do prazo. Precisa de um help da equipe? 🤝`,
-  `Pausa para o café! ☕ A demanda "${title}" está atrasada. Há algum bloqueio que possamos ajudar?`,
-  `Alinhamento de Rota 🔄 A entrega de "${title}" expirou. Atualize o status no Kanban, por favor.`,
-  `Acontece com os melhores! 😅 A tarefa "${title}" atrasou. Vamos reorganizar as prioridades?`
+  `A tarefa "${title}" ultrapassou o prazo. Atualize o status ou sinalize bloqueios. ⏰`,
+  `Prazo expirado em "${title}". Ajuste a previsão de entrega no Kanban. 🔄`
 ]);
 
 const copyTeamPraise = (title: string) => getRandomCopy([
-  `Voando alto! 🦅 A tarefa "${title}" foi entregue e aprovada com sucesso. Bom trabalho!`,
-  `Mais uma pra conta! 🎯 Você destruiu na entrega de "${title}". Continue assim!`,
-  `Excelente entrega! ✨ O material de "${title}" foi validado sem ressalvas.`,
-  `A consistência cria o mestre. 🏆 Obrigado pelo empenho na conclusão de "${title}".`
+  `Entrega de "${title}" aprovada e finalizada com sucesso. Parabéns! 🏆`,
+  `A entrega de "${title}" foi validada pela liderança. Ótimo trabalho! ✨`
 ]);
 
-// 🟢 FIX APLICADO: Cópia dinâmica com rastreamento de autoria do colaborador
 const copyTeamReview = (title: string, assigneeName: string) => getRandomCopy([
-  `👀 Bora revisar? ${assigneeName} enviou a tarefa "${title}" para o seu olhar crítico.`,
-  `A bola tá com a revisão! ⚽ Arte de "${title}" produzida por ${assigneeName} aguardando validação interna.`,
-  `Hora do pente fino 🕵️‍♂️ Dá uma olhada na entrega de "${title}" movida por ${assigneeName} no Kanban.`,
-  `Quase lá! 🏁 Falta só o seu aval na peça "${title}" (${assigneeName}) para avançar com a produção.`
+  `${assigneeName} enviou a tarefa "${title}" para sua revisão interna. 👁️`,
+  `Revisão pendente: "${title}" (${assigneeName}) aguarda seu aval no Kanban. 📋`
 ]);
 
 const copyTeamRevision = (title: string) => getRandomCopy([
-  `Ajuste na rota 🔄 Precisamos de uma pequena refação na peça "${title}". Confere o feedback.`,
-  `Opa, temos apontamentos! 📝 Novas instruções de ajuste para "${title}" já estão no card.`,
-  `Voltou pra prancheta 🎨 Temos detalhes a lapidar na entrega de "${title}".`,
-  `Correção solicitada! 🛠️ Confere as observações que a gestão (ou cliente) deixou em "${title}".`
+  `Ajuste solicitado em "${title}". Veja as instruções no card. 🛠️`,
+  `Há novos apontamentos na entrega de "${title}". Confira no Kanban. 📝`
 ]);
 
 const copyClientFeedback = (projectName: string) => getRandomCopy([
-  `Ajuste na rota 🔄 O cliente do projeto ${projectName} pediu uma alteração na peça.`,
-  `Opa, temos um feedback! 📝 Novas instruções do cliente de ${projectName} já estão no card.`,
-  `Voltou pra prancheta 🎨 ${projectName} solicitou ajustes na aprovação.`,
-  `Correção solicitada! 🛠️ Confira as observações que ${projectName} deixou.`
+  `O cliente de ${projectName} solicitou ajustes na peça. Veja os apontamentos no card. 📝`,
+  `Novo feedback do cliente em ${projectName}: ajustes solicitados. 🔄`
 ]);
 
 // ============================================================================
@@ -250,9 +227,9 @@ export async function POST(request: Request) {
       
       if (user?.email) {
         if (reminderType === 'client_2h_approval') {
-          await sendEmailSafely(resend, user.email, `Lembrete Rápido: Aprovação Pendente ⏱️`, buildAppLikeEmail(LOGO_URL, "Aguardando Você", copyClientReminder2H(user.nome.split(' ')[0]), "Acessar Painel", portalUrl), "Cron Client 2H");
+          await sendEmailSafely(resend, user.email, `Lembrete: Aprovação Pendente ⏱️`, buildAppLikeEmail(LOGO_URL, "Aprovação Pendente", copyClientReminder2H(user.nome.split(' ')[0]), "Abrir Cockpit", portalUrl), "Cron Client 2H");
         } else if (reminderType === 'team_task_overdue') {
-          await sendEmailSafely(resend, user.email, `⚠️ Tarefa Atrasada: ${title}`, buildAppLikeEmail("⚠️", "Atenção ao Prazo", copyTeamOverdue(title), "Atualizar Kanban", `${portalUrl}/admin/jtbd`), "Cron Team Overdue");
+          await sendEmailSafely(resend, user.email, `Prazo Expirado: ${title} ⏰`, buildAppLikeEmail("⏰", "Tarefa em Atraso", copyTeamOverdue(title), "Ver no Kanban", `${portalUrl}/admin/jtbd`), "Cron Team Overdue");
         }
       }
       return NextResponse.json({ success: true, message: "Lembretes processados." });
@@ -278,14 +255,14 @@ export async function POST(request: Request) {
         : "[Enviou um anexo]";
 
       const emailSubject = `💬 ${senderName}: ${msgSnippet}`;
-      const emailBody = `<strong>${senderName}</strong> enviou uma mensagem:<br><br><span style="font-size: 16px; color: #18181b;">${msgSnippet}</span>`;
+      const emailBody = `<strong>${senderName}</strong>: ${msgSnippet}`;
       const avatar = sender.avatar_url || LOGO_URL;
 
       if (channel.type === 'dm') {
         const recipientId = channel.name.replace('dm_', '').split('_').find((id: string) => id !== record.sender_id);
         const recipient = await getUserProfile(recipientId!);
         if (recipient?.email) {
-          await sendEmailSafely(resend, recipient.email, emailSubject, buildAppLikeEmail(avatar, "Mensagem Direta", emailBody, "Responder agora", `${portalUrl}/admin/inbox`), "Chat DM");
+          await sendEmailSafely(resend, recipient.email, emailSubject, buildAppLikeEmail(avatar, "Mensagem Direta", emailBody, "Responder", `${portalUrl}/admin/inbox`), "Chat DM");
         }
       } else if (channel.type === 'corporate_global' && sender.role !== 'admin') {
         await sendEmailSafely(resend, ADMIN_EMAIL, emailSubject, buildAppLikeEmail(avatar, "Studio Veronna", emailBody, "Ir para o Chat", `${portalUrl}/admin/inbox`), "Chat");
@@ -294,7 +271,7 @@ export async function POST(request: Request) {
         const isSenderTeam = ['admin', 'gestor', 'colaborador'].includes(sender.role?.toLowerCase() || '');
         
         if (!isSenderTeam) {
-          await sendEmailSafely(resend, ADMIN_EMAIL, emailSubject, buildAppLikeEmail(avatar, "Canal do Projeto", emailBody, "Abrir Workspace", `${portalUrl}/admin/inbox`), "Chat Cliente->Agencia");
+          await sendEmailSafely(resend, ADMIN_EMAIL, emailSubject, buildAppLikeEmail(avatar, "Canal do Projeto", emailBody, "Abrir Conversa", `${portalUrl}/admin/inbox`), "Chat Cliente->Agencia");
         } else if (client?.email) {
           await sendEmailSafely(resend, client.email, emailSubject, buildAppLikeEmail(avatar, "Nova Atualização", emailBody, "Acessar Painel", `${portalUrl}/canais`), "Chat Agencia->Cliente");
         }
@@ -312,12 +289,12 @@ export async function POST(request: Request) {
         if (assignee?.email) {
           const copy = record.urgency ? copyTeamTaskUrgent(taskTitle) : copyTeamTaskNew(taskTitle);
           const icon = record.urgency ? "🔥" : LOGO_URL;
-          await sendEmailSafely(resend, assignee.email, record.urgency ? `🔥 Prioridade: ${taskTitle}` : `🎯 Nova Tarefa: ${taskTitle}`, buildAppLikeEmail(icon, "Missão Atribuída", copy, "Abrir Kanban", `${portalUrl}/admin/jtbd`), "Task Insert");
+          await sendEmailSafely(resend, assignee.email, record.urgency ? `🔥 Urgente: ${taskTitle}` : `🎯 Nova Demanda: ${taskTitle}`, buildAppLikeEmail(icon, "Demanda Atribuída", copy, "Abrir no Kanban", `${portalUrl}/admin/jtbd`), "Task Insert");
         }
       }
 
       if (type === 'UPDATE' && old_record) {
-        // 🟢 FIX: Movida para Revisão Interna (Com Autoria Rastreável)
+        // Movida para Revisão Interna
         if (old_record.status !== 'review' && record.status === 'review') {
           let assigneeName = "O Colaborador";
           if (record.assigned_to) {
@@ -329,31 +306,29 @@ export async function POST(request: Request) {
             resend, 
             ADMIN_EMAIL, 
             `👀 Revisão Pendente: ${taskTitle}`, 
-            buildAppLikeEmail(LOGO_URL, "Aprovação Interna", copyTeamReview(taskTitle, assigneeName), "Revisar Peça no Kanban", `${portalUrl}/admin/jtbd`), 
+            buildAppLikeEmail(LOGO_URL, "Revisão Interna", copyTeamReview(taskTitle, assigneeName), "Revisar no Kanban", `${portalUrl}/admin/jtbd`), 
             "Task Review"
           );
         }
         
-        // 🟢 FIX: Tarefa Concluída / Aprovada (Celebração ao Colaborador + Recibo ao Admin)
+        // Tarefa Concluída / Aprovada
         if (old_record.status !== 'completed' && record.status === 'completed') {
-          
-          // 1. Notifica o assignee com elogio (se não for o próprio Admin a executar a tarefa)
           if (record.assigned_to) {
             const assignee = await getUserProfile(record.assigned_to);
             if (assignee?.email && assignee.email !== ADMIN_EMAIL) {
-              await sendEmailSafely(resend, assignee.email, `🏆 Sucesso: ${taskTitle}`, buildAppLikeEmail("🏆", "Entrega Validada", copyTeamPraise(taskTitle), "Ver Minha Fila", `${portalUrl}/admin/jtbd`), "Task Completed Praise");
+              await sendEmailSafely(resend, assignee.email, `🏆 Concluída: ${taskTitle}`, buildAppLikeEmail("🏆", "Entrega Validada", copyTeamPraise(taskTitle), "Ver Minha Fila", `${portalUrl}/admin/jtbd`), "Task Completed Praise");
             }
           }
 
-          // 2. Confirmação de Segurança para o Admin
+          // Confirmação para o Admin
           await sendEmailSafely(
             resend, 
             ADMIN_EMAIL, 
-            `✅ Status: Concluída - ${taskTitle}`, 
+            `✅ Concluída: ${taskTitle}`, 
             buildAppLikeEmail(
               "✅", 
-              "Tarefa Concluída", 
-              `Confirmação de sistema: A tarefa <strong>"${taskTitle}"</strong> foi aprovada/revisada com sucesso e arquivada como concluída na base de dados.`, 
+              "Tarefa Finalizada", 
+              `A tarefa <strong>"${taskTitle}"</strong> foi aprovada e arquivada como concluída.`, 
               "Acessar Kanban", 
               `${portalUrl}/admin/jtbd`
             ), 
@@ -365,7 +340,7 @@ export async function POST(request: Request) {
         if (old_record.admin_feedback !== record.admin_feedback && record.admin_feedback && record.assigned_to) {
           const assignee = await getUserProfile(record.assigned_to);
           if (assignee?.email) {
-            await sendEmailSafely(resend, assignee.email, `⚠️ Feedback: ${taskTitle}`, buildAppLikeEmail("⚠️", "Ajuste Necessário", copyTeamRevision(taskTitle) + `<br><br><strong>Instrução:</strong> "${record.admin_feedback}"`, "Ajustar Peça", `${portalUrl}/admin/jtbd`), "Task Feedback");
+            await sendEmailSafely(resend, assignee.email, `🛠️ Ajuste Solicitado: ${taskTitle}`, buildAppLikeEmail("🛠️", "Ajuste Necessário", copyTeamRevision(taskTitle) + `<br><br><strong>Instrução:</strong> "${record.admin_feedback}"`, "Ajustar no Kanban", `${portalUrl}/admin/jtbd`), "Task Feedback");
           }
         }
       }
@@ -379,7 +354,7 @@ export async function POST(request: Request) {
       const clientName = client?.nome.split(' ')[0] || 'Cliente';
 
       if (old_record.status !== 'pending_approval' && record.status === 'pending_approval' && client?.email) {
-        await sendEmailSafely(resend, client.email, `Sua nova arte está pronta! ✨`, buildAppLikeEmail(LOGO_URL, "Aprovação de Arte", copyClientPostReady(clientName), "Avaliar no Cockpit", portalUrl), "Post Pending");
+        await sendEmailSafely(resend, client.email, `Nova arte disponível para aprovação ✨`, buildAppLikeEmail(LOGO_URL, "Aprovação de Arte", copyClientPostReady(clientName), "Avaliar no Cockpit", portalUrl), "Post Pending");
       }
 
       if (old_record.status !== 'needs_revision' && record.status === 'needs_revision') {
@@ -389,11 +364,11 @@ export async function POST(request: Request) {
         );
         const pName = projResult?.[0]?.nome || null;
         
-        await sendEmailSafely(resend, ADMIN_EMAIL, `🔄 Ajuste Solicitado: ${pName}`, buildAppLikeEmail("📝", "Ajuste Solicitado", copyClientFeedback(pName || "Cliente"), "Ver Detalhes", `${portalUrl}/admin/jtbd`), "Post Rejected");
+        await sendEmailSafely(resend, ADMIN_EMAIL, `🔄 Ajuste Solicitado: ${pName || 'Cliente'}`, buildAppLikeEmail("📝", "Ajuste pelo Cliente", copyClientFeedback(pName || "Cliente"), "Ver Detalhes", `${portalUrl}/admin/jtbd`), "Post Rejected");
       }
 
       if (old_record.status !== 'approved' && record.status === 'approved') {
-        await sendEmailSafely(resend, ADMIN_EMAIL, `✅ Peça Aprovada pelo Cliente!`, buildAppLikeEmail("🎉", "Aprovação Concluída", `O cliente aprovou a peça gráfica no Cockpit. Excelente trabalho da equipe!`, "Ver Gestão", `${portalUrl}/admin/gestao`), "Post Approved");
+        await sendEmailSafely(resend, ADMIN_EMAIL, `✅ Arte aprovada pelo cliente!`, buildAppLikeEmail("🎉", "Peça Aprovada", `O cliente aprovou a arte final no Cockpit.`, "Ver no Kanban", `${portalUrl}/admin/gestao`), "Post Approved");
       }
     }
 
@@ -405,10 +380,10 @@ export async function POST(request: Request) {
       const clientName = client?.nome.split(' ')[0] || 'Cliente';
 
       if (old_record.status !== 'awaiting_approval' && record.status === 'awaiting_approval' && client?.email) {
-        await sendEmailSafely(resend, client.email, `Planejamento Estratégico Disponível 🗺️`, buildAppLikeEmail(LOGO_URL, "Plano Mensal", copyClientPlanReady(clientName), "Acessar Cockpit", portalUrl), "Plan Pending");
+        await sendEmailSafely(resend, client.email, `Planejamento disponível para aprovação 🗺️`, buildAppLikeEmail(LOGO_URL, "Planejamento Mensal", copyClientPlanReady(clientName), "Revisar no Cockpit", portalUrl), "Plan Pending");
       }
       if (old_record.status !== 'needs_revision' && record.status === 'needs_revision') {
-        await sendEmailSafely(resend, ADMIN_EMAIL, `🔄 Ajuste no Planejamento`, buildAppLikeEmail("📝", "Plano Recusado", `O cliente solicitou revisão no planejamento mensal:<br><br>"${record.feedback}"`, "Ver Ajustes", `${portalUrl}/admin/analytics`), "Plan Rejected");
+        await sendEmailSafely(resend, ADMIN_EMAIL, `🔄 Ajuste no Planejamento: ${clientName}`, buildAppLikeEmail("📝", "Ajuste no Planejamento", `O cliente solicitou revisão no planejamento mensal:<br><br>"${record.feedback}"`, "Ver Ajustes", `${portalUrl}/admin/analytics`), "Plan Rejected");
       }
     }
 
@@ -417,14 +392,14 @@ export async function POST(request: Request) {
       const clientEmail = record.answers?.email;
 
       if (type === 'INSERT') {
-        await sendEmailSafely(resend, ADMIN_EMAIL, `🔥 Novo Briefing Finalizado: ${clientName}`, buildAppLikeEmail("🎯", "Diagnóstico Concluído", `O cliente <strong>${clientName}</strong> preencheu o Dossiê Estratégico integralmente.`, "Ver Mesa de Trabalho", `${portalUrl}/admin`), "Briefing Admin");
-        if (clientEmail) await sendEmailSafely(resend, clientEmail, `Brienfing Recebido - Studio Veronna`, buildAppLikeEmail("📝", "Passo Importante!", `Recebemos as suas respostas estratégicas. A nossa equipe de planejamento já foi acionada.`, "Acessar Painel", portalUrl), "Briefing Cliente");
+        await sendEmailSafely(resend, ADMIN_EMAIL, `🎯 Briefing Preenchido: ${clientName}`, buildAppLikeEmail("🎯", "Briefing Recebido", `O cliente <strong>${clientName}</strong> concluiu o preenchimento do briefing.`, "Ver Briefing", `${portalUrl}/admin`), "Briefing Admin");
+        if (clientEmail) await sendEmailSafely(resend, clientEmail, `Briefing Recebido — Studio Veronna`, buildAppLikeEmail("📝", "Briefing Recebido", `Recebemos suas respostas estratégicas. A equipe já iniciou o planejamento do seu projeto.`, "Acessar Painel", portalUrl), "Briefing Cliente");
       }
 
       if (type === 'UPDATE' && old_record && old_record.is_completed !== record.is_completed && record.is_completed === false) {
         const clientProfile = await getClientProfile(record.project_id);
         if (clientProfile?.email) {
-          await sendEmailSafely(resend, clientProfile.email, `Precisamos de mais detalhes 🔍`, buildAppLikeEmail(LOGO_URL, "Revisão de Briefing", copyClientNeedBriefing(clientProfile.nome.split(' ')[0]), "Preencher Diretrizes", portalUrl), "Briefing Review Needed");
+          await sendEmailSafely(resend, clientProfile.email, `Briefing: precisamos de detalhes complementares 🔍`, buildAppLikeEmail(LOGO_URL, "Ajuste no Briefing", copyClientNeedBriefing(clientProfile.nome.split(' ')[0]), "Completar Briefing", portalUrl), "Briefing Review Needed");
         }
       }
     }
@@ -435,15 +410,15 @@ export async function POST(request: Request) {
     if (table === 'asset_missions' && type === 'INSERT') {
       const client = await getClientProfile(record.project_id);
       if (client?.email) {
-        await sendEmailSafely(resend, client.email, `Temos uma nova solicitação para o projeto 📸`, buildAppLikeEmail(LOGO_URL, "Material Solicitado", `A equipe precisa de um material para prosseguir: <strong>${record.title}</strong>.`, "Enviar Arquivos", `${portalUrl}/cofre-missoes`), "Asset Mission Client");
+        await sendEmailSafely(resend, client.email, `Novo material solicitado para o projeto 📸`, buildAppLikeEmail(LOGO_URL, "Envio de Arquivos", `A equipe precisa de um material para avançar: <strong>${record.title}</strong>.`, "Enviar Arquivos", `${portalUrl}/cofre-missoes`), "Asset Mission Client");
       }
     }
 
     if (table === 'b2b_pitches' && type === 'INSERT') {
-      await sendEmailSafely(resend, ADMIN_EMAIL, `🤝 Nova Oportunidade B2B no Hub`, buildAppLikeEmail("🤝", "Networking", `Uma nova oportunidade foi publicada na comunidade. Título: "${record.title}".`, "Moderar / Acessar Hub", `${portalUrl}/comunidade/hub`), "B2B Pitch Admin");
+      await sendEmailSafely(resend, ADMIN_EMAIL, `🤝 Nova Oportunidade no Hub B2B`, buildAppLikeEmail("🤝", "Pitch Publicado", `Nova oportunidade publicada na comunidade: "${record.title}".`, "Ver Oportunidade", `${portalUrl}/comunidade/hub`), "B2B Pitch Admin");
     }
 
-    console.log("[WEBHOOK AUDIT] Disparos Neurais Concluídos.");
+    console.log("[WEBHOOK AUDIT] Disparos Concluídos.");
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('------- ERRO CRÍTICO NO MOTOR DE NOTIFICAÇÕES -------', error);

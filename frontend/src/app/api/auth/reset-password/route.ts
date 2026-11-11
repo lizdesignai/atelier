@@ -61,8 +61,8 @@ export async function POST(request: Request) {
         const htmlContent = buildAppLikeEmail(
           '🔐',
           'Recuperação de Senha',
-          `<p>Olá, <strong>${user.nome || 'Utilizador'}</strong>.</p><p>Recebemos uma solicitação para redefinir a sua senha de acesso ao Atelier (Studio Veronna).</p><p style="font-size:12px; color:#71717a;">Este link expira em 1 hora. Caso não tenha solicitado esta alteração, ignore este e-mail com segurança.</p>`,
-          'Redefinir Minha Senha',
+          `<p>Olá, <strong>${user.nome || 'Utilizador'}</strong>!</p><p>Recebemos sua solicitação para redefinir a senha de acesso ao Atelier.</p><p style="font-size:12px; color:#71717a;">O link expira em 1 hora. Se você não solicitou esta redefinição, desconsidere este e-mail.</p>`,
+          'Redefinir Senha',
           resetUrl,
           'SEGURANÇA'
         );

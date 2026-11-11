@@ -134,13 +134,13 @@ export async function POST(request: Request) {
               const emailHtml = buildAppLikeEmail(
                 '✨',
                 'Seu Acesso ao Atelier',
-                `<p>Olá <strong>${targetName}</strong>,</p>
-                 <p>Seu acesso exclusivo à plataforma do Atelier foi atualizado. A partir de agora, você acompanhará todo o desenvolvimento do seu projeto por aqui.</p>
-                 <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0;">
-                   <p style="margin: 0 0 10px 0;"><strong>Seu E-mail:</strong> ${cleanEmail}</p>
-                   <p style="margin: 0;"><strong>Sua Senha de Acesso:</strong> ${newPassword}</p>
+                `<p>Olá, <strong>${targetName}</strong>!</p>
+                 <p>Seu acesso ao Atelier foi atualizado com sucesso. Utilize as credenciais abaixo para entrar:</p>
+                 <div style="background-color: #f9f9f9; padding: 14px 18px; border-radius: 12px; margin: 18px 0; border: 1px solid #f0f0f0;">
+                   <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>E-mail:</strong> ${cleanEmail}</p>
+                   <p style="margin: 0; font-size: 14px;"><strong>Nova Senha:</strong> ${newPassword}</p>
                  </div>
-                 <p><em>Recomendamos que você altere esta senha no seu primeiro acesso nas configurações.</em></p>`,
+                 <p style="font-size: 12px; color: #71717a; margin-top: 12px;">Recomendamos alterar sua senha no primeiro acesso nas configurações.</p>`,
                 'Acessar Meu Painel',
                 loginUrl
               );
@@ -452,13 +452,13 @@ export async function POST(request: Request) {
         const emailHtml = buildAppLikeEmail(
           '✨',
           'Bem-vindo ao Atelier',
-          `<p>Olá <strong>${nome.trim()}</strong>,</p>
-           <p>Seu acesso exclusivo à plataforma do Atelier foi liberado. A partir de agora, você acompanhará todo o desenvolvimento do seu projeto por aqui.</p>
-           <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin: 20px 0;">
-             <p style="margin: 0 0 10px 0;"><strong>Seu E-mail:</strong> ${cleanEmail}</p>
-             <p style="margin: 0;"><strong>Sua Senha:</strong> ${chosenPassword}</p>
+          `<p>Olá, <strong>${nome.trim()}</strong>!</p>
+           <p>Seu acesso ao Atelier está liberado. Utilize as credenciais abaixo para entrar:</p>
+           <div style="background-color: #f9f9f9; padding: 14px 18px; border-radius: 12px; margin: 18px 0; border: 1px solid #f0f0f0;">
+             <p style="margin: 0 0 8px 0; font-size: 14px;"><strong>E-mail:</strong> ${cleanEmail}</p>
+             <p style="margin: 0; font-size: 14px;"><strong>Senha:</strong> ${chosenPassword}</p>
            </div>
-           <p><em>Recomendamos que você altere esta senha no seu primeiro acesso.</em></p>`,
+           <p style="font-size: 12px; color: #71717a; margin-top: 12px;">Recomendamos alterar sua senha no primeiro acesso nas configurações.</p>`,
           'Acessar Meu Painel',
           loginUrl
         );

@@ -49,7 +49,7 @@ describe('Studio Veronna Notification & Email Templates', () => {
     });
     expect(review.subject).toContain('Key Visual Campanha');
     expect(review.html).toContain('CURADORIA & QA');
-    expect(review.html).toContain('Dar aquela olhada');
+    expect(review.html).toContain('Revisar no Kanban');
 
     const changes = getStudioEmailTemplate('review_changes_requested', {
       taskName: 'Key Visual Campanha',

@@ -19,6 +19,7 @@ import { format, addBusinessDays, isWeekend } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { syncTaskCompletionToTrello } from "../../../lib/trelloSync";
 import JTBDModals from "./components/JTBDModals";
+import { isFocusOperationalTask } from "../../../lib/focusRules";
 
 const showToast = (message: string) => {
   window.dispatchEvent(new CustomEvent("showToast", { detail: message }));
@@ -130,7 +131,9 @@ export default function JTBDPage() {
       setTeam(data.teamData);
       if (data.projectsData) setProjects(data.projectsData);
 
-      const tasksData = data.tasksData;
+      // Triagem Operacional Absoluta: Relatório de Desempenho, Aprovações e Agendamentos não sobem para o Focus
+      const rawTasksData = data.tasksData || [];
+      const tasksData = rawTasksData.filter(isFocusOperationalTask);
 
       if (tasksData) {
         // Ordenação rigorosa em memória pelo prazo mais apertado (considerando a brevidade)

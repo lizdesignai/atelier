@@ -223,12 +223,12 @@ export default function InstagramClientNavPill() {
         icon: Globe2,
         active: pathname === "/comunidade" || pathname.startsWith("/comunidade/"),
       },
-      {
+      ...(isManagerOrAdmin ? [{
         href: "/admin/analytics",
         label: "Analytics",
         icon: Briefcase,
         active: pathname === "/admin/analytics",
-      },
+      }] : []),
       ...(isManagerOrAdmin ? [{
         href: "/admin/financeiro",
         label: "B&P",

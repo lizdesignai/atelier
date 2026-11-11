@@ -8,7 +8,7 @@ import {
   Package, Search, Compass, FileText, FolderOpen, ArrowRight,
   Calendar, Download, TrendingUp, Lock,
   ChevronDown, X, ExternalLink, Check,
-  Activity, Clock, CheckCircle2, ShieldCheck, Layers, Cpu, Palette, Eye
+  Activity, Clock, CheckCircle2, ShieldCheck, Layers, Cpu, Palette, Eye, Sparkles
 } from "lucide-react";
 import { supabase } from "../lib/supabase"; 
 import { IDV_FLOW_PIPELINE } from "./admin/analytics/constants";
@@ -143,6 +143,11 @@ export default function Home() {
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const [prodTab, setProdTab] = useState<'bancada' | 'timeline'>('bancada');
   const [hasTerritoriesReady, setHasTerritoriesReady] = useState(false);
+  const [latestDirecionamento, setLatestDirecionamento] = useState<any>(null);
+  const [hasPendingCuradoria, setHasPendingCuradoria] = useState(false);
+  const [isTerritoryPending, setIsTerritoryPending] = useState(false);
+  const [isDirecionamentoPending, setIsDirecionamentoPending] = useState(false);
+  const [direcionarInitialTab, setDirecionarInitialTab] = useState<'curadoria' | 'territorios' | 'direcionamento'>('direcionamento');
 
   // Estado do mosaico animado de fundo
   const [portfolioGrid, setPortfolioGrid] = useState<string[]>([]);
@@ -244,7 +249,31 @@ export default function Home() {
               .eq('project_id', proj.id);
             const hasPendingDirs = Array.isArray(dirs) && dirs.length > 0 && dirs.some((d: any) => (!d.score || d.score === 0));
 
-            setHasTerritoriesReady(isTerritoryReady || hasPendingDirs);
+            // Buscar Direcionamento Criativo em content_planning
+            const { data: plannings } = await (supabase
+              .from('content_planning') as any)
+              .select('*')
+              .eq('project_id', proj.id)
+              .order('created_at', { ascending: false });
+
+            const dirItem = Array.isArray(plannings)
+              ? plannings.find((p: any) => 
+                  p.pillar === 'Direcionamento Criativo' || 
+                  (p.title && p.title.toLowerCase().includes('direcionamento'))
+                )
+              : null;
+
+            setLatestDirecionamento(dirItem);
+            const isDirPending = !!(
+              dirItem && 
+              dirItem.planning_file_url && 
+              (dirItem.status === 'pending' || dirItem.status === 'awaiting_approval')
+            );
+
+            setIsDirecionamentoPending(isDirPending);
+            setIsTerritoryPending(isTerritoryReady);
+            setHasPendingCuradoria(hasPendingDirs);
+            setHasTerritoriesReady(isTerritoryReady || hasPendingDirs || isDirPending);
           } catch {
             setHasTerritoriesReady(false);
           }
@@ -264,6 +293,15 @@ export default function Home() {
         fetchDashboardData();
       })
       .on('postgres_changes', { event: '*', schema: 'public', table: 'projects' }, () => {
+        fetchDashboardData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'content_planning' }, () => {
+        fetchDashboardData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'design_directions' }, () => {
+        fetchDashboardData();
+      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'territory_evaluations' }, () => {
         fetchDashboardData();
       })
       .subscribe();
@@ -338,7 +376,13 @@ export default function Home() {
       tags: ["Curadoria", "Territórios", "Direcionamento PDF"],
       phases: ["define"], 
       icon: Compass, 
-      action: () => setIsDirecionarModalOpen(true),
+      action: () => {
+        if (isDirecionamentoPending) setDirecionarInitialTab('direcionamento');
+        else if (isTerritoryPending) setDirecionarInitialTab('territorios');
+        else if (hasPendingCuradoria) setDirecionarInitialTab('curadoria');
+        else setDirecionarInitialTab('direcionamento');
+        setIsDirecionarModalOpen(true);
+      },
       actionLabel: "Abrir Direcionar",
       isFoundationDone: false
     },
@@ -412,25 +456,97 @@ export default function Home() {
 
   const currentStageInfo = IDV_STAGES.find(s => s.phases.includes(currentPhaseNormalized)) || IDV_STAGES[1];
 
-  // Ação necessária do cliente (Aparece SOMENTE se houver ação pendente para o cliente)
-  const needsClientAction = (currentPhaseNormalized === 'define' && hasTerritoriesReady) 
-    || (['present', 'client_review'].includes(currentPhaseNormalized));
-  
-  const clientActionInfo = (currentPhaseNormalized === 'define' && hasTerritoriesReady) ? {
-    badge: "Fase 02 • Direcionar",
-    title: "Curadoria Visual & Territórios",
-    description: "A equipe do Studio Veronna enviou os materiais da Fase 02. Analise a curadoria e compartilhe suas avaliações.",
-    buttonLabel: "Abrir Curadoria Visual",
-    action: () => setIsDirecionarModalOpen(true),
-    icon: Compass
-  } : (['present', 'client_review'].includes(currentPhaseNormalized)) ? {
-    badge: "Fase 04 • Momento da Decisão",
-    title: "Revelação da Marca & Parecer Oficial",
-    description: "A sua Identidade Visual foi concebida! Assista à cerimônia de revelação da marca e aprove.",
-    buttonLabel: "Assistir Revelação",
-    action: () => setIsRevelarModalOpen(true),
-    icon: Presentation
-  } : null;
+  // Lista unificada de ações prioritárias que demandam a atenção imediata do cliente
+  const pendingActions: Array<{
+    id: string;
+    stageId: string;
+    stageNumber: string;
+    badge: string;
+    title: string;
+    description: string;
+    stepLocation: string;
+    whatToDo: string;
+    buttonLabel: string;
+    icon: any;
+    action: () => void;
+  }> = [];
+
+  if (isDirecionamentoPending) {
+    pendingActions.push({
+      id: 'direcionamento',
+      stageId: 'direcionar',
+      stageNumber: '02',
+      badge: 'Etapa 02 • Direcionamento Criativo',
+      title: 'Aprovação do Direcionamento Criativo',
+      description: 'O PDF com o direcionamento criativo, atmosfera estética e diretrizes visuais da sua marca foi disponibilizado pelo estúdio.',
+      stepLocation: "Etapa 02 • Direcionar → Aba 'Direcionamento Criativo'",
+      whatToDo: "Abra o documento em PDF para revisar as diretrizes e clique em 'Aprovar Direcionamento' ou envie seus comentários/ajustes.",
+      buttonLabel: 'Revisar & Aprovar Direcionamento',
+      icon: Compass,
+      action: () => {
+        setDirecionarInitialTab('direcionamento');
+        setIsDirecionarModalOpen(true);
+      }
+    });
+  }
+
+  if (isTerritoryPending) {
+    pendingActions.push({
+      id: 'territorios',
+      stageId: 'direcionar',
+      stageNumber: '02',
+      badge: 'Etapa 02 • Territórios Visuais',
+      title: 'Escolha do Território Conceitual',
+      description: '3 territórios conceituais com universos estéticos distintos foram criados especialmente para a sua marca.',
+      stepLocation: "Etapa 02 • Direcionar → Aba 'Territórios Visuais'",
+      whatToDo: "Explore as 3 propostas conceituais e selecione o território que melhor sintetiza a personalidade da sua marca.",
+      buttonLabel: 'Escolher Território Visual',
+      icon: Compass,
+      action: () => {
+        setDirecionarInitialTab('territorios');
+        setIsDirecionarModalOpen(true);
+      }
+    });
+  }
+
+  if (hasPendingCuradoria) {
+    pendingActions.push({
+      id: 'curadoria',
+      stageId: 'direcionar',
+      stageNumber: '02',
+      badge: 'Etapa 02 • Curadoria Visual',
+      title: 'Avaliação da Curadoria de Referências',
+      description: 'A curadoria estética foi preparada para calibrar seu gosto em relação à paleta cromática, tipografia e elementos visuais.',
+      stepLocation: "Etapa 02 • Direcionar → Aba 'Curadoria Visual'",
+      whatToDo: "Avalie cada referência respondendo às perguntas sobre paleta, fontes e elementos gráficos, atribuindo sua nota.",
+      buttonLabel: 'Responder Curadoria Visual',
+      icon: Palette,
+      action: () => {
+        setDirecionarInitialTab('curadoria');
+        setIsDirecionarModalOpen(true);
+      }
+    });
+  }
+
+  if (['present', 'client_review'].includes(currentPhaseNormalized)) {
+    pendingActions.push({
+      id: 'revelar',
+      stageId: 'revelar',
+      stageNumber: '04',
+      badge: 'Etapa 04 • Momento da Decisão',
+      title: 'Cerimônia de Revelação da Marca',
+      description: 'A nova Identidade Visual da sua marca foi concebida e está pronta para apresentação oficial pelo estúdio.',
+      stepLocation: "Etapa 04 • Revelar → Cerimônia e Keynote Executivo",
+      whatToDo: "Assista à apresentação executiva da marca, conheça o sistema visual em ação e emita seu parecer de aprovação.",
+      buttonLabel: 'Assistir Cerimônia de Revelação',
+      icon: Presentation,
+      action: () => setIsRevelarModalOpen(true)
+    });
+  }
+
+  const primaryAction = pendingActions[0] || null;
+  const needsClientAction = pendingActions.length > 0;
+  const clientActionInfo = primaryAction;
 
   const pipeline = IDV_FLOW_PIPELINE[activeProject?.idv_product || 'IDV-CORE'] || [];
 
@@ -452,7 +568,7 @@ export default function Home() {
 
             {needsClientAction && (
               <span className="px-2.5 py-0.5 bg-amber-500 text-white rounded-full text-[9.5px] font-roboto font-bold uppercase tracking-widest shadow-2xs animate-pulse flex items-center gap-1">
-                Ação Solicitada
+                Ação Solicitada ({pendingActions.length})
               </span>
             )}
           </div>
@@ -469,6 +585,9 @@ export default function Home() {
             <span className="font-roboto text-[11px] font-bold uppercase tracking-widest text-[var(--color-atelier-grafite)]">
               Meus Arquivos
             </span>
+            {isDirecionamentoPending && (
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
+            )}
             <ChevronDown size={13} className={`text-gray-400 transition-transform duration-300 ${isFilesMenuOpen ? "rotate-180" : ""}`} />
           </button>
 
@@ -479,14 +598,18 @@ export default function Home() {
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, y: 8, scale: 0.95 }}
                 transition={{ duration: 0.18 }}
-                className="absolute right-0 top-full mt-2 w-64 bg-white/95 backdrop-blur-2xl border border-white/80 rounded-2xl shadow-[0_20px_40px_rgba(40,30,25,0.14)] p-1.5 z-50 flex flex-col gap-0.5 ring-1 ring-black/5"
+                className="absolute right-0 top-full mt-2 w-72 bg-white/95 backdrop-blur-2xl border border-white/80 rounded-2xl shadow-[0_20px_40px_rgba(40,30,25,0.14)] p-1.5 z-50 flex flex-col gap-0.5 ring-1 ring-black/5"
               >
-                <div className="px-2.5 py-1.5 border-b border-gray-100">
+                <div className="px-2.5 py-1.5 border-b border-gray-100 flex items-center justify-between">
                   <span className="text-[9px] font-roboto uppercase font-bold tracking-widest text-gray-400">
                     Documentação Oficial
                   </span>
+                  <span className="text-[8.5px] font-roboto text-[var(--color-atelier-terracota)] font-semibold truncate max-w-[120px]">
+                    {activeProject?.name || "Projeto"}
+                  </span>
                 </div>
 
+                {/* 1. CONTRATO ASSINADO */}
                 {activeProject?.contract_url ? (
                   <a
                     href={activeProject.contract_url}
@@ -511,10 +634,61 @@ export default function Home() {
                   </div>
                 )}
 
+                {/* 2. DIRECIONAMENTO CRIATIVO */}
+                {latestDirecionamento?.planning_file_url ? (
+                  <div className="p-2 rounded-xl hover:bg-[var(--color-atelier-creme)]/60 transition-colors flex items-center justify-between group">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsFilesMenuOpen(false);
+                        setDirecionarInitialTab('direcionamento');
+                        setIsDirecionarModalOpen(true);
+                      }}
+                      className="flex items-center gap-2 flex-1 text-left cursor-pointer min-w-0"
+                    >
+                      <FileText size={14} className="text-[var(--color-atelier-terracota)] shrink-0" />
+                      <div className="flex flex-col min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[11px] font-bold text-[var(--color-atelier-grafite)] truncate">Direcionamento Criativo</span>
+                          {latestDirecionamento.status === 'approved' ? (
+                            <span className="px-1.5 py-0.2 rounded-full bg-green-100 text-green-700 text-[8px] font-bold uppercase">Aprovado</span>
+                          ) : (
+                            <span className="px-1.5 py-0.2 rounded-full bg-amber-100 text-amber-700 text-[8px] font-bold uppercase animate-pulse">Aprovar</span>
+                          )}
+                        </div>
+                        <span className="text-[9px] text-gray-400 truncate">Documento PDF Oficial</span>
+                      </div>
+                    </button>
+                    <a
+                      href={latestDirecionamento.planning_file_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      title="Abrir / Baixar PDF"
+                      className="p-1 rounded-lg hover:bg-black/5 text-gray-400 hover:text-[var(--color-atelier-terracota)] transition-colors shrink-0"
+                    >
+                      <Download size={12} />
+                    </a>
+                  </div>
+                ) : (
+                  <div className="p-2 rounded-xl opacity-60 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <FileText size={14} className="text-gray-400" />
+                      <div className="flex flex-col">
+                        <span className="text-[11px] font-medium text-gray-600">Direcionamento Criativo</span>
+                        <span className="text-[9px] text-gray-400">Em elaboração pelo estúdio</span>
+                      </div>
+                    </div>
+                    <Clock size={11} className="text-gray-300" />
+                  </div>
+                )}
+
+                {/* 3. TERRITÓRIOS VISUAIS */}
                 <button
                   type="button"
                   onClick={() => {
                     setIsFilesMenuOpen(false);
+                    setDirecionarInitialTab('territorios');
                     setIsDirecionarModalOpen(true);
                   }}
                   className="p-2 rounded-xl hover:bg-[var(--color-atelier-creme)]/60 transition-colors flex items-center justify-between group text-left cursor-pointer"
@@ -523,27 +697,33 @@ export default function Home() {
                     <Compass size={14} className="text-[var(--color-atelier-terracota)]" />
                     <div className="flex flex-col">
                       <span className="text-[11px] font-bold text-[var(--color-atelier-grafite)]">Territórios Visuais</span>
-                      <span className="text-[9px] text-gray-400">Diretrizes estéticas</span>
+                      <span className="text-[9px] text-gray-400">Diretrizes conceituais</span>
                     </div>
                   </div>
                   <ArrowRight size={11} className="text-gray-300 group-hover:text-[var(--color-atelier-terracota)]" />
                 </button>
 
-                <Link
-                  href="/referencias"
-                  onClick={() => setIsFilesMenuOpen(false)}
-                  className="p-2 rounded-xl hover:bg-[var(--color-atelier-creme)]/60 transition-colors flex items-center justify-between group text-left"
+                {/* 4. CURADORIA VISUAL */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsFilesMenuOpen(false);
+                    setDirecionarInitialTab('curadoria');
+                    setIsDirecionarModalOpen(true);
+                  }}
+                  className="p-2 rounded-xl hover:bg-[var(--color-atelier-creme)]/60 transition-colors flex items-center justify-between group text-left cursor-pointer"
                 >
                   <div className="flex items-center gap-2">
-                    <Compass size={14} className="text-[var(--color-atelier-terracota)]" />
+                    <Palette size={14} className="text-[var(--color-atelier-terracota)]" />
                     <div className="flex flex-col">
                       <span className="text-[11px] font-bold text-[var(--color-atelier-grafite)]">Curadoria Visual</span>
                       <span className="text-[9px] text-gray-400">Referências do projeto</span>
                     </div>
                   </div>
                   <ArrowRight size={11} className="text-gray-300 group-hover:text-[var(--color-atelier-terracota)]" />
-                </Link>
+                </button>
 
+                {/* 5. BRAND STARTER KIT */}
                 {activeProject?.brand_os_url ? (
                   <a
                     href={activeProject.brand_os_url}
@@ -665,26 +845,81 @@ export default function Home() {
                 </div>
               </div>
 
-              {/* CARD DE AÇÃO COMPACTO (Apenas quando houver ação solicitada) */}
-              {needsClientAction && clientActionInfo && (
+              {/* 🟢 CENTRAL DE ORIENTAÇÃO & AÇÃO DO CLIENTE */}
+              {needsClientAction && primaryAction && (
                 <motion.div
-                  initial={{ opacity: 0, scale: 0.98 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  className="p-3 px-4 rounded-xl bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-amber-500/10 border border-[var(--color-atelier-terracota)]/30 flex items-center justify-between gap-3 shadow-2xs shrink-0"
+                  initial={{ opacity: 0, y: -6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="rounded-2xl bg-gradient-to-br from-amber-50/95 via-orange-50/75 to-white/95 border-2 border-[var(--color-atelier-terracota)]/40 p-3.5 sm:p-4 shadow-[0_10px_25px_rgba(182,128,104,0.12)] flex flex-col gap-2.5 shrink-0 relative overflow-hidden"
                 >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-2 h-2 rounded-full bg-[var(--color-atelier-terracota)] animate-ping shrink-0" />
-                    <span className="text-[11.5px] font-roboto font-bold text-[var(--color-atelier-grafite)] truncate">
-                      {clientActionInfo.title}: <span className="font-normal text-[var(--color-atelier-grafite)]/75">{clientActionInfo.description}</span>
-                    </span>
+                  <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-[var(--color-atelier-terracota)] via-amber-500 to-[var(--color-atelier-terracota)]" />
+
+                  <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                    <div className="flex items-start gap-3 min-w-0">
+                      <div className="w-9 h-9 rounded-xl bg-[var(--color-atelier-terracota)] text-white flex items-center justify-center shrink-0 shadow-sm mt-0.5">
+                        <primaryAction.icon size={18} />
+                      </div>
+                      <div className="flex flex-col gap-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="px-2 py-0.5 rounded-full bg-[var(--color-atelier-terracota)] text-white text-[8.5px] font-roboto font-bold uppercase tracking-wider flex items-center gap-1 shadow-2xs">
+                            <span className="w-1.5 h-1.5 rounded-full bg-white animate-ping" />
+                            Ação do Cliente Necessária
+                          </span>
+                          <span className="text-[10px] font-roboto font-bold text-[var(--color-atelier-terracota)]">
+                            {primaryAction.badge}
+                          </span>
+                          {pendingActions.length > 1 && (
+                            <span className="text-[9px] font-roboto px-2 py-0.5 rounded-full bg-black/5 text-[var(--color-atelier-grafite)]/70 font-semibold">
+                              +{pendingActions.length - 1} {pendingActions.length - 1 === 1 ? 'outra ação pendente' : 'outras ações pendentes'}
+                            </span>
+                          )}
+                        </div>
+                        <h4 className="font-elegant text-base sm:text-lg text-[var(--color-atelier-grafite)] font-bold leading-tight">
+                          {primaryAction.title}
+                        </h4>
+                        <p className="text-[11px] font-roboto text-[var(--color-atelier-grafite)]/80 leading-relaxed">
+                          {primaryAction.description}
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="sm:self-center shrink-0">
+                      <button
+                        type="button"
+                        onClick={primaryAction.action}
+                        className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-[var(--color-atelier-terracota)] hover:bg-[#963f27] text-white text-[11px] font-roboto font-bold uppercase tracking-wider transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 cursor-pointer flex items-center justify-center gap-2 group"
+                      >
+                        <span>{primaryAction.buttonLabel}</span>
+                        <ArrowRight size={13} className="group-hover:translate-x-0.5 transition-transform" />
+                      </button>
+                    </div>
                   </div>
-                  <button
-                    type="button"
-                    onClick={clientActionInfo.action}
-                    className="px-3.5 py-1.5 rounded-lg bg-[var(--color-atelier-terracota)] hover:bg-[#234E80] text-white text-[10px] font-roboto font-bold uppercase tracking-wider shrink-0 transition-all shadow-2xs hover:shadow-xs cursor-pointer flex items-center gap-1"
-                  >
-                    {clientActionInfo.buttonLabel} <ArrowRight size={11} />
-                  </button>
+
+                  {/* Bloco explicativo: ONDE IR e COMO FAZER */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 pt-2 border-t border-[var(--color-atelier-terracota)]/15">
+                    <div className="flex items-start gap-2 bg-white/70 rounded-xl p-2 border border-[var(--color-atelier-terracota)]/15">
+                      <span className="text-base leading-none">📍</span>
+                      <div className="flex flex-col">
+                        <span className="text-[9.5px] font-roboto font-bold uppercase tracking-wider text-[var(--color-atelier-grafite)]">
+                          Onde ir:
+                        </span>
+                        <span className="text-[10.5px] font-roboto text-[var(--color-atelier-grafite)]/85">
+                          {primaryAction.stepLocation}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="flex items-start gap-2 bg-white/70 rounded-xl p-2 border border-[var(--color-atelier-terracota)]/15">
+                      <span className="text-base leading-none">👉</span>
+                      <div className="flex flex-col">
+                        <span className="text-[9.5px] font-roboto font-bold uppercase tracking-wider text-[var(--color-atelier-grafite)]">
+                          Como fazer:
+                        </span>
+                        <span className="text-[10.5px] font-roboto text-[var(--color-atelier-grafite)]/85">
+                          {primaryAction.whatToDo}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
                 </motion.div>
               )}
 
@@ -697,13 +932,17 @@ export default function Home() {
                 const isCompleted = status === 'completed';
                 const isCurrent = status === 'current';
                 const StageIcon = stage.icon;
+                const stageAction = pendingActions.find(pa => pa.stageId === stage.id);
+                const isActionRequired = Boolean(stageAction);
 
                 return (
                   <motion.div
                     key={stage.id}
                     whileHover={{ y: -2 }}
                     className={`p-3.5 rounded-2xl border transition-all duration-300 flex flex-col justify-between relative overflow-hidden min-w-[240px] max-w-[280px] shrink-0 snap-center sm:min-w-0 sm:max-w-none sm:shrink sm:w-auto ${
-                      isCurrent 
+                      isActionRequired
+                        ? 'bg-gradient-to-b from-orange-50/50 to-white shadow-[0_10px_25px_rgba(182,128,104,0.22)] border-[var(--color-atelier-terracota)] ring-2 ring-[var(--color-atelier-terracota)]/40'
+                        : isCurrent 
                         ? 'bg-white shadow-[0_8px_20px_rgba(20, 44, 72,0.12)] border-[var(--color-atelier-terracota)]/50 ring-1 ring-[var(--color-atelier-terracota)]/20' 
                         : isCompleted 
                         ? 'bg-white/85 border-green-200/70 shadow-2xs' 
@@ -716,7 +955,11 @@ export default function Home() {
                           0{stage.number}
                         </span>
 
-                        {isCompleted ? (
+                        {isActionRequired ? (
+                          <span className="px-1.5 py-0.5 bg-[var(--color-atelier-terracota)] text-white rounded-full text-[8.5px] font-roboto font-bold uppercase tracking-wider flex items-center gap-1 shadow-2xs animate-pulse">
+                            <Sparkles size={8} /> Sua Ação Aqui
+                          </span>
+                        ) : isCompleted ? (
                           <span className="px-1.5 py-0.5 bg-green-50 text-green-700 rounded-full text-[8.5px] font-roboto font-bold uppercase tracking-wider flex items-center gap-1 border border-green-200">
                             <Check size={9} strokeWidth={3} /> Concluída
                           </span>
@@ -732,7 +975,7 @@ export default function Home() {
                       </div>
 
                       <div className="flex items-center gap-1.5 mb-0.5">
-                        <StageIcon size={14} className={isCurrent ? "text-[var(--color-atelier-terracota)]" : isCompleted ? "text-green-600" : "text-gray-400"} />
+                        <StageIcon size={14} className={isActionRequired || isCurrent ? "text-[var(--color-atelier-terracota)]" : isCompleted ? "text-green-600" : "text-gray-400"} />
                         <h4 className="font-elegant text-sm md:text-base text-[var(--color-atelier-grafite)] font-bold">{stage.label}</h4>
                       </div>
                       
@@ -751,7 +994,15 @@ export default function Home() {
                     </div>
 
                     <div className="pt-2 border-t border-[var(--color-atelier-grafite)]/5 flex items-center justify-between mt-2">
-                      {stage.action ? (
+                      {isActionRequired && stageAction ? (
+                        <button
+                          type="button"
+                          onClick={stageAction.action}
+                          className="px-2.5 py-1 rounded-lg bg-[var(--color-atelier-terracota)] hover:bg-[#963f27] text-white text-[9px] font-roboto font-bold uppercase tracking-wider flex items-center gap-1 transition-all shadow-2xs hover:shadow-xs cursor-pointer w-full justify-between"
+                        >
+                          <span>Fazer Ação Agora</span> <ArrowRight size={10} />
+                        </button>
+                      ) : stage.action ? (
                         <button
                           type="button"
                           onClick={stage.action}
@@ -1060,7 +1311,7 @@ export default function Home() {
                 </button>
               </div>
               <div className="flex-1 overflow-auto relative z-[205]">
-                <DirecionarPage />
+                <DirecionarPage initialTab={direcionarInitialTab} />
               </div>
             </motion.div>
           </div>

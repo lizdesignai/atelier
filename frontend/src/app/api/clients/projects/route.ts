@@ -31,25 +31,25 @@ const IG_PACKAGES: Record<string, any[]> = {
   "Pacote 1": [
     { stage: "Copywriting", type: "copy", title: "Roteirização de 6 Vídeos", daysOffset: 10, estTime: 120 },
     ...Array.from({ length: 6 }).map((_, i) => ({ stage: "Produção de Vídeo", type: "video", title: `Edição de Vídeo ${i + 1} + Capa`, daysOffset: 12 + i, estTime: 60 })),
-    { stage: "Aprovação", type: "setup", title: "Aprovação do Cliente & Agendamento", daysOffset: 18, estTime: 45 }
+    { stage: "Aprovação", type: "aprovacao", title: "Aprovação do Cliente & Agendamento", daysOffset: 18, estTime: 45 }
   ],
   "Pacote 2": [
     { stage: "Copywriting", type: "copy", title: "Revisão de Texto enviado pelo Cliente", daysOffset: 10, estTime: 30 },
     ...Array.from({ length: 4 }).map((_, i) => ({ stage: "Design Gráfico", type: "design", title: `Design de Post/Carrossel ${i + 1}`, daysOffset: 12 + i, estTime: 60 })),
-    { stage: "Aprovação", type: "setup", title: "Aprovação & Agendamento", daysOffset: 16, estTime: 45 }
+    { stage: "Aprovação", type: "aprovacao", title: "Aprovação & Agendamento", daysOffset: 16, estTime: 45 }
   ],
   "Pacote 3": [
     { stage: "Estratégia", type: "copy", title: "Calendário Editorial de Conteúdos", daysOffset: 10, estTime: 90 },
     ...Array.from({ length: 8 }).map((_, i) => ({ stage: "Produção de Arte", type: "design", title: `Design & Copy: Post ${i + 1}`, daysOffset: 12 + (i * 0.5), estTime: 60 })),
-    { stage: "Aprovação", type: "setup", title: "Agendamento Sistêmico", daysOffset: 18, estTime: 60 },
-    { stage: "Relatório", type: "setup", title: "Geração de Relatório Mensal", daysOffset: 30, estTime: 60 }
+    { stage: "Aprovação", type: "aprovacao", title: "Agendamento Sistêmico", daysOffset: 18, estTime: 60 },
+    { stage: "Relatório", type: "relatorio", title: "Geração de Relatório Mensal", daysOffset: 30, estTime: 60 }
   ],
   "Pacote 4": [
     { stage: "Estratégia", type: "copy", title: "Calendário Editorial & Organização de Perfil", daysOffset: 10, estTime: 120 },
     { stage: "Estratégia", type: "setup", title: "Análise de Perfil", daysOffset: 12, estTime: 60 },
     ...Array.from({ length: 12 }).map((_, i) => ({ stage: "Produção de Arte", type: "design", title: `Design & Copy: Post ${i + 1}`, daysOffset: 13 + (i * 0.5), estTime: 60 })),
     { stage: "Produção Contínua", type: "copy", title: "Criação de Roteiros Diários de Stories", daysOffset: 20, estTime: 180 },
-    { stage: "Relatório", type: "setup", title: "Relatório Mensal Profundo", daysOffset: 30, estTime: 90 }
+    { stage: "Relatório", type: "relatorio", title: "Relatório Mensal Profundo", daysOffset: 30, estTime: 90 }
   ]
 };
 
@@ -228,8 +228,8 @@ export async function POST(req: NextRequest) {
           pipeline.push(...IG_PACKAGES[project_package]);
         }
 
-        pipeline.push({ stage: "Aprovação", type: "setup", title: "Agendamento Sistêmico & Aprovação do Cliente", daysOffset: 15, estTime: 60 });
-        pipeline.push({ stage: "Relatório", type: "setup", title: "Geração de Relatório Mensal", daysOffset: 25, estTime: 60 });
+        pipeline.push({ stage: "Aprovação", type: "aprovacao", title: "Agendamento Sistêmico & Aprovação do Cliente", daysOffset: 15, estTime: 60 });
+        pipeline.push({ stage: "Relatório", type: "relatorio", title: "Geração de Relatório Mensal", daysOffset: 25, estTime: 60 });
 
       // Regras de roteamento para atribuição inteligente
       const routingRules = await sql`
@@ -245,7 +245,9 @@ export async function POST(req: NextRequest) {
         setup: '55a1f766-bd50-45bd-b0bc-9af8309faa58',   // Liz Oliveira
         design: '55a1f766-bd50-45bd-b0bc-9af8309faa58',  // Liz Oliveira
         copy: 'b6b7db2f-cf71-4281-80a0-1d61edbed5fb',    // Igor Oliveira
-        video: 'dbeedf1a-e3cb-4951-bba4-35b7d28d19b4'   // Emmanuel
+        video: 'dbeedf1a-e3cb-4951-bba4-35b7d28d19b4',   // Emmanuel
+        aprovacao: 'b6b7db2f-cf71-4281-80a0-1d61edbed5fb', // Igor Oliveira (Liderança)
+        relatorio: 'b6b7db2f-cf71-4281-80a0-1d61edbed5fb'  // Igor Oliveira (Liderança)
       };
 
       const COMPLETED_IDV_TASKS = [
@@ -267,7 +269,10 @@ export async function POST(req: NextRequest) {
         const isIgPiece = service_type === 'Gestão de Instagram' && (t.type === 'design' || t.type === 'video');
         const igFormat = isIgPiece ? (t.type === 'video' ? 'Reels' : 'Carrossel / Post') : null;
 
-        const assignee = rulesMap[t.type] || DEFAULT_ASSIGNEES[t.type] || '55a1f766-bd50-45bd-b0bc-9af8309faa58';
+        const isGovernance = t.stage === 'Aprovação' || t.stage === 'Relatório' || t.type === 'aprovacao' || t.type === 'relatorio';
+        const assignee = isGovernance
+          ? 'b6b7db2f-cf71-4281-80a0-1d61edbed5fb'
+          : (rulesMap[t.type] || DEFAULT_ASSIGNEES[t.type] || '55a1f766-bd50-45bd-b0bc-9af8309faa58');
 
         await sql`
           INSERT INTO tasks (

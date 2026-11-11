@@ -46,6 +46,29 @@ export class FocusController {
             AND t.deadline >= ${now.toISOString()} 
             AND t.deadline <= ${next24h.toISOString()}
             AND t.assigned_to = ${collaboratorId}
+            AND NOT (
+              t.stage ILIKE '%relat%'
+              OR t.stage ILIKE '%aprov%'
+              OR t.stage ILIKE '%agend%'
+              OR t.task_type ILIKE '%agend%'
+              OR t.task_type IN ('relatorio', 'report', 'aprovacao', 'approval')
+              OR t.title ILIKE 'Relatório de Desempenho%'
+              OR t.title ILIKE 'Relatorio de Desempenho%'
+              OR t.title ILIKE '%Relatório & Inteligência%'
+              OR t.title ILIKE '%Relatorio & Inteligencia%'
+              OR t.title ILIKE 'Geração de Relatório%'
+              OR t.title ILIKE 'Geracao de Relatorio%'
+              OR t.title ILIKE 'Relatório Mensal%'
+              OR t.title ILIKE 'Relatorio Mensal%'
+              OR t.title ILIKE 'Aprovação de Conteúdo%'
+              OR t.title ILIKE 'Aprovacao de Conteudo%'
+              OR t.title ILIKE 'Aprovação do Cliente%'
+              OR t.title ILIKE 'Aprovacao do Cliente%'
+              OR t.title ILIKE '%& Agendamento%'
+              OR t.title ILIKE 'Agendamento Sistêmico%'
+              OR t.title ILIKE 'Agendamento Sistemico%'
+              OR t.title ILIKE 'Enviar Planejamento para Aprovação%'
+            )
           ORDER BY t.deadline ASC
         `;
       } else {
@@ -75,6 +98,29 @@ export class FocusController {
           WHERE t.status != 'completed' 
             AND t.deadline >= ${now.toISOString()} 
             AND t.deadline <= ${next24h.toISOString()}
+            AND NOT (
+              t.stage ILIKE '%relat%'
+              OR t.stage ILIKE '%aprov%'
+              OR t.stage ILIKE '%agend%'
+              OR t.task_type ILIKE '%agend%'
+              OR t.task_type IN ('relatorio', 'report', 'aprovacao', 'approval')
+              OR t.title ILIKE 'Relatório de Desempenho%'
+              OR t.title ILIKE 'Relatorio de Desempenho%'
+              OR t.title ILIKE '%Relatório & Inteligência%'
+              OR t.title ILIKE '%Relatorio & Inteligencia%'
+              OR t.title ILIKE 'Geração de Relatório%'
+              OR t.title ILIKE 'Geracao de Relatorio%'
+              OR t.title ILIKE 'Relatório Mensal%'
+              OR t.title ILIKE 'Relatorio Mensal%'
+              OR t.title ILIKE 'Aprovação de Conteúdo%'
+              OR t.title ILIKE 'Aprovacao de Conteudo%'
+              OR t.title ILIKE 'Aprovação do Cliente%'
+              OR t.title ILIKE 'Aprovacao do Cliente%'
+              OR t.title ILIKE '%& Agendamento%'
+              OR t.title ILIKE 'Agendamento Sistêmico%'
+              OR t.title ILIKE 'Agendamento Sistemico%'
+              OR t.title ILIKE 'Enviar Planejamento para Aprovação%'
+            )
           ORDER BY t.deadline ASC
         `;
       }
@@ -138,6 +184,29 @@ export class FocusController {
           AND (${pId}::uuid IS NULL OR t.project_id = ${pId}::uuid)
           AND (${sId}::uuid IS NULL OR t.subclient_id = ${sId}::uuid)
           AND (${assignedTo}::uuid IS NULL OR t.assigned_to = ${assignedTo}::uuid)
+          AND NOT (
+            t.stage ILIKE '%relat%'
+            OR t.stage ILIKE '%aprov%'
+            OR t.stage ILIKE '%agend%'
+            OR t.task_type ILIKE '%agend%'
+            OR t.task_type IN ('relatorio', 'report', 'aprovacao', 'approval')
+            OR t.title ILIKE 'Relatório de Desempenho%'
+            OR t.title ILIKE 'Relatorio de Desempenho%'
+            OR t.title ILIKE '%Relatório & Inteligência%'
+            OR t.title ILIKE '%Relatorio & Inteligencia%'
+            OR t.title ILIKE 'Geração de Relatório%'
+            OR t.title ILIKE 'Geracao de Relatorio%'
+            OR t.title ILIKE 'Relatório Mensal%'
+            OR t.title ILIKE 'Relatorio Mensal%'
+            OR t.title ILIKE 'Aprovação de Conteúdo%'
+            OR t.title ILIKE 'Aprovacao de Conteudo%'
+            OR t.title ILIKE 'Aprovação do Cliente%'
+            OR t.title ILIKE 'Aprovacao do Cliente%'
+            OR t.title ILIKE '%& Agendamento%'
+            OR t.title ILIKE 'Agendamento Sistêmico%'
+            OR t.title ILIKE 'Agendamento Sistemico%'
+            OR t.title ILIKE 'Enviar Planejamento para Aprovação%'
+          )
         ORDER BY t.deadline ASC
       `;
 

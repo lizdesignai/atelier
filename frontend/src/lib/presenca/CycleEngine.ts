@@ -81,6 +81,10 @@ export class CycleEngine {
   // 1. GARANTIR CICLO CORRENTE
   // ==========================================================================
   static async ensureCurrentCycle(projectId: string) {
+    if (typeof window !== 'undefined') {
+      console.warn('[CycleEngine] ensureCurrentCycle chamado no navegador - use rota de API do servidor.');
+      return null as any;
+    }
     const db = sql();
     await ensurePresencaSchema(db);
 
@@ -208,6 +212,10 @@ export class CycleEngine {
   // 3. AVANÇAR / RENOVAR CICLO (fecha atual, abre próximo com geração de demandas)
   // ==========================================================================
   static async advanceCycle(projectId: string, learnings?: string, nextDecision?: string) {
+    if (typeof window !== 'undefined') {
+      console.warn('[CycleEngine] advanceCycle chamado no navegador - use rota de API do servidor.');
+      return null as any;
+    }
     const db = sql();
     await ensurePresencaSchema(db);
 
@@ -763,7 +771,7 @@ export class CycleEngine {
       title: `Aprovação de Conteúdos & Agendamento • Ciclo #${cycleNumber}`,
       description: `Validação interna e envio do lote completo para aprovação do cliente no Cockpit Atelier, com posterior agendamento.`,
       stage: 'Aprovação',
-      task_type: 'setup',
+      task_type: 'aprovacao',
       status: 'pending',
       priority_score: 600,
       deadline: calcDeadline(18),
@@ -778,7 +786,7 @@ export class CycleEngine {
       title: `Relatório de Desempenho & Inteligência • Ciclo #${cycleNumber}`,
       description: `Consolidação das métricas do ciclo, levantamento de aprendizados e recomendações estratégicas para o próximo mês.`,
       stage: 'Relatório',
-      task_type: 'management',
+      task_type: 'relatorio',
       status: 'pending',
       priority_score: 550,
       deadline: periodEnd.toISOString(),
@@ -790,7 +798,12 @@ export class CycleEngine {
 
     // Inserir todas as demandas vinculadas ao novo ciclo com atribuição inteligente
     for (const t of tasksToCreate) {
-      const assignedTo = rulesMap[t.task_type] || (t.task_type === 'copy' || t.task_type === 'management' || t.task_type === 'reuniao' ? adminId : null);
+      // Tarefas estratégicas de governança (Aprovação de Conteúdos, Agendamento e Relatório de Desempenho)
+      // são direcionadas à gestão/admin (adminId) e não à esteira operacional de designers.
+      const isGovernance = t.stage === 'Aprovação' || t.stage === 'Relatório' || t.task_type === 'aprovacao' || t.task_type === 'relatorio' || t.task_type === 'management';
+      const assignedTo = isGovernance
+        ? adminId
+        : (rulesMap[t.task_type] || (t.task_type === 'copy' || t.task_type === 'reuniao' ? adminId : null));
 
       await db`
         INSERT INTO tasks (

@@ -13,6 +13,7 @@ import {
 } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { NotificationEngine } from './NotificationEngine';
+import { isFocusOperationalTask } from './focusRules';
 
 // ============================================================================
 // UTILITÁRIO DE BLINDAGEM TYPE-SAFE
@@ -211,6 +212,17 @@ export class AtelierPMEngine {
    */
   static async runRecurrenceHotCheck(projectId: string, adminId?: string) {
     try {
+      if (typeof window !== 'undefined') {
+        // No browser: aciona a rota segura do servidor que possui acesso ao Neon DB
+        await fetch(`/api/presenca/sync?projectId=${encodeURIComponent(projectId)}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': 'Bearer atelier_cron_internal'
+          }
+        }).catch(() => {});
+        return;
+      }
       const { CycleEngine } = await import('@/lib/presenca/CycleEngine');
       await CycleEngine.ensureCurrentCycle(projectId);
     } catch (error) {
@@ -230,6 +242,24 @@ export class AtelierPMEngine {
         posts_quantity: postsQty,
         videos_quantity: videosQty,
       }).eq('id', projectId);
+
+      if (typeof window !== 'undefined') {
+        const res = await fetch('/api/presenca/cycle', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ projectId, action: 'advance' })
+        });
+        if (!res.ok) {
+          await fetch(`/api/presenca/sync?projectId=${encodeURIComponent(projectId)}`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer atelier_cron_internal'
+            }
+          });
+        }
+        return;
+      }
 
       const { CycleEngine } = await import('@/lib/presenca/CycleEngine');
       await CycleEngine.advanceCycle(projectId);
@@ -413,14 +443,16 @@ export class AtelierPMEngine {
     try {
       const { data: myTasks } = await (supabase
         .from('tasks') as any)
-        .select('id, urgency, deadline, estimated_time, is_blocked, projects(financial_value)')
+        .select('id, title, stage, task_type, urgency, deadline, estimated_time, is_blocked, projects(financial_value)')
         .eq('assigned_to', collaboratorId)
         .in('status', ['pending', 'in_progress']);
 
       if (!myTasks) return;
+      // Focus é estritamente operacional: não ranquear tarefas de governança/relatórios/agendamento
+      const operationalTasks = (myTasks as any[]).filter(isFocusOperationalTask);
       const now = new Date();
 
-      for (const task of myTasks as any[]) {
+      for (const task of operationalTasks) {
         if (task.is_blocked) {
           await (supabase.from('tasks') as any).update({ priority_score: -9999 }).eq('id', task.id);
           continue;

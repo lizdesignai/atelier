@@ -103,16 +103,16 @@ export function AdminDirecionamentoManager({
 
       // Upload para storage bucket 'references'
       let publicUrl = '';
-      const { error: uploadError } = await supabase.storage.from('references').upload(filePath, selectedFile);
+      const { data: uploadData, error: uploadError } = await supabase.storage.from('references').upload(filePath, selectedFile);
       if (uploadError) {
         // Fallback para 'moodboard'
-        const { error: fbError } = await supabase.storage.from('moodboard').upload(filePath, selectedFile);
+        const { data: fbData, error: fbError } = await supabase.storage.from('moodboard').upload(filePath, selectedFile);
         if (fbError) throw fbError;
         const { data: pubData } = supabase.storage.from('moodboard').getPublicUrl(filePath);
-        publicUrl = pubData.publicUrl;
+        publicUrl = (fbData as any)?.publicUrl || pubData?.publicUrl || `/api/storage/file/moodboard/${filePath}`;
       } else {
         const { data: pubData } = supabase.storage.from('references').getPublicUrl(filePath);
-        publicUrl = pubData.publicUrl;
+        publicUrl = (uploadData as any)?.publicUrl || pubData?.publicUrl || `/api/storage/file/references/${filePath}`;
       }
 
       const title = docTitle.trim() || `Direcionamento Criativo - ${projectName || 'Identidade Visual'}`;

@@ -34,7 +34,32 @@ export async function GET(request: Request) {
       }
     }
 
-    return NextResponse.json(data);
+    const targetProjId = searchParams.get('validProjId') || projectId;
+    let planningAssets: any[] = [];
+    if (targetProjId) {
+      try {
+        planningAssets = await (sql as any).query(
+          `SELECT 
+            id, 
+            project_id, 
+            subclient_id, 
+            hook as file_name, 
+            planning_file_url as file_url, 
+            'PDF Oficial' as file_size, 
+            'pdf' as file_type,
+            created_at
+          FROM content_planning 
+          WHERE (project_id = $1 OR project_id = $2) AND planning_file_url IS NOT NULL
+          ORDER BY created_at DESC`,
+          [targetProjId, projectId]
+        );
+      } catch (err) {
+        console.warn("Erro ao buscar planning assets:", err);
+      }
+    }
+
+    const combined = [...(planningAssets || []), ...(data || [])];
+    return NextResponse.json(combined);
   } catch (error: any) {
     console.error("API /api/assets error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
