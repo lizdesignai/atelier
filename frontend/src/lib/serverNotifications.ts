@@ -83,14 +83,12 @@ export function getStudioEmailTemplate(
   let message = customBody || 'Existem novas atualizações na sua mesa de trabalho.';
   let buttonText = customButtonText || 'Acessar o Atelier';
   let icon = '🔔';
-  let badge = customBadge || 'ATELIER';
 
   switch (type) {
     // -------------------------------------------------------------
     // 0. SINTONIA & COMUNICAÇÃO CORPORATIVA
     // -------------------------------------------------------------
     case 'sintonia_mention':
-      badge = 'SINTONIA';
       subject = `${clientName || 'Colega'} mencionou você na Sintonia 💬`;
       icon = '💬';
       title = `${clientName || 'Colega'} mencionou você`;
@@ -101,7 +99,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'sintonia_dm':
-      badge = 'SINTONIA';
       subject = `Mensagem de ${clientName || 'Colega'} ✉️`;
       icon = '✉️';
       title = 'Nova Mensagem Direta';
@@ -112,7 +109,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'sintonia_channel':
-      badge = 'SINTONIA';
       subject = `Nova mensagem em #${projectName || 'geral'} 📢`;
       icon = '📢';
       title = `Canal #${projectName || 'geral'}`;
@@ -123,7 +119,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'chat_activity':
-      badge = 'SINTONIA';
       subject = `Nova mensagem de ${clientName || 'equipe'} 💬`;
       icon = '💬';
       title = 'Nova Mensagem';
@@ -137,7 +132,6 @@ export function getStudioEmailTemplate(
     // 1. OPERAÇÃO, TAREFAS & TESSERA (COLABORADORES & LIDERANÇA)
     // -------------------------------------------------------------
     case 'task_assigned':
-      badge = 'OPERAÇÃO & TAREFAS';
       subject = customSubject || `Nova demanda: ${taskName || 'Tarefa'} (${projectName || 'Studio Veronna'}) 🎯`;
       icon = '🎯';
       title = 'Nova Demanda Atribuída';
@@ -149,7 +143,6 @@ export function getStudioEmailTemplate(
 
     case 'demand_sent':
     case 'new_demand':
-      badge = 'GESTÃO DE OPERAÇÕES';
       subject = customSubject || `Demanda na esteira: ${taskName || projectName || 'Nova Demanda'} 📋`;
       icon = '📋';
       title = 'Demanda em Produção';
@@ -160,7 +153,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'task_in_progress':
-      badge = 'OPERAÇÃO EM CURSO';
       subject = customSubject || `Em produção: ${taskName || 'Tarefa'} iniciada ▶️`;
       icon = '▶️';
       title = 'Produção Iniciada';
@@ -171,7 +163,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'task_paused':
-      badge = 'OPERAÇÃO & TAREFAS';
       subject = customSubject || `Pausada: ${taskName || 'Tarefa'} ⏸️`;
       icon = '⏸️';
       title = 'Demanda Pausada';
@@ -182,7 +173,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'internal_review':
-      badge = 'CURADORIA & QA';
       subject = customSubject || `Revisão interna: ${taskName || 'Entrega'} aguarda aprovação 👁️`;
       icon = '👁️';
       title = 'Revisão Pendente';
@@ -193,7 +183,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'review_approved':
-      badge = 'CURADORIA & QA';
       subject = customSubject || `Aprovado no QA: ${taskName || 'Entrega'} ✅`;
       icon = '🎉';
       title = 'Entrega Aprovada';
@@ -204,7 +193,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'review_changes_requested':
-      badge = 'CURADORIA & QA';
       subject = customSubject || `Ajuste solicitado: ${taskName || 'Tarefa'} 🛠️`;
       icon = '🛠️';
       title = 'Ajuste Necessário';
@@ -215,7 +203,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'task_completed':
-      badge = 'OPERAÇÃO & TAREFAS';
       subject = customSubject || `Concluída: ${taskName || 'Entrega'} finalizada 🏆`;
       icon = '🏆';
       title = 'Demanda Concluída';
@@ -226,7 +213,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'task_blocked':
-      badge = 'ALERTA DE OPERAÇÃO';
       subject = customSubject || `Bloqueio sinalizado: ${taskName || 'Demanda'} 🚧`;
       icon = '🚧';
       title = 'Impedimento Operacional';
@@ -237,7 +223,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'task_forced_today':
-      badge = 'PRIORIDADE IMEDIATA';
       subject = customSubject || `Prioridade do dia: ${taskName || 'Foco imediato'} ⚡`;
       icon = '⚡';
       title = 'Foco Imediato';
@@ -248,7 +233,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'task_feedback':
-      badge = 'OPERAÇÃO & TAREFAS';
       subject = customSubject || `Novo apontamento: ${taskName || 'Tarefa'} 💬`;
       icon = '💬';
       title = 'Novo Feedback';
@@ -259,7 +243,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'task_overdue':
-      badge = 'ALERTA DE PRAZO';
       subject = customSubject || `Prazo expirado: ${taskName || 'Entrega'} ⏰`;
       icon = '⏰';
       title = 'Tarefa em Atraso';
@@ -270,7 +253,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'deadline_24h':
-      badge = 'LEMBRETE DE PRAZO';
       subject = customSubject || `Prazo em 24h: ${taskName} ⏳`;
       icon = '⏳';
       title = 'Entrega em 24 Horas';
@@ -281,7 +263,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'deadline_12h':
-      badge = 'PRAZO CRÍTICO';
       subject = customSubject || `Prazo crítico em 12h: ${taskName} 🚨`;
       icon = '🚨';
       title = 'Entrega em 12 Horas';
@@ -292,7 +273,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'captacao_reminder':
-      badge = 'AGENDA EXTERNA';
       subject = customSubject || `Captação agendada: ${taskName || 'Gravação'} (${projectName}) 🎥`;
       icon = '🎥';
       title = 'Captação de Conteúdo';
@@ -303,7 +283,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'reuniao_reminder':
-      badge = 'AGENDA EXECUTIVA';
       subject = customSubject || `Reunião agendada: ${taskName || projectName || 'Alinhamento'} 📅`;
       icon = '📅';
       title = 'Reunião Agendada';
@@ -314,7 +293,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'contract_ending':
-      badge = 'GESTÃO DE CONTRATOS';
       subject = customSubject || `Renovação de contrato: ${clientName || projectName} em ${daysLeft ?? 15} dias 📑`;
       icon = '📑';
       title = 'Vencimento de Contrato';
@@ -325,7 +303,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'financial_alert':
-      badge = 'FINANCEIRO';
       subject = customSubject || `Alerta financeiro: ${extraInfo || 'Pendência operacional'} 💰`;
       icon = '💰';
       title = 'Atenção Financeira';
@@ -339,7 +316,6 @@ export function getStudioEmailTemplate(
     // 2. NOTIFICAÇÕES PARA O CLIENTE (PORTAL DO CLIENTE)
     // -------------------------------------------------------------
     case 'briefing_returned':
-      badge = 'PORTAL DO CLIENTE';
       subject = `Briefing de ${projectName || 'sua marca'}: ajustes necessários 📝`;
       icon = '📝';
       title = 'Ajuste no Briefing';
@@ -350,7 +326,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'contract_uploaded':
-      badge = 'COFRE DIGITAL';
       subject = 'Contrato disponível no Cofre Digital 📄✨';
       icon = '📄';
       title = 'Contrato Disponível';
@@ -361,7 +336,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'new_direction':
-      badge = 'CURADORIA VISUAL';
       subject = `Direção Criativa: rotas visuais de ${projectName || 'sua marca'} 🎨`;
       icon = '🎨';
       title = 'Rotas Visuais Disponíveis';
@@ -372,7 +346,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'planning_approval':
-      badge = 'PRESENÇA DIGITAL';
       subject = `Planejamento de conteúdo pronto para aprovação ✍️`;
       icon = '✍️';
       title = 'Planejamento de Conteúdo';
@@ -383,7 +356,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'project_delivered':
-      badge = 'ENTREGA OFICIAL';
       subject = `Entrega final: seu projeto de marca está pronto! 📦🎉`;
       icon = '📦';
       title = 'Identidade Visual Entregue';
@@ -394,7 +366,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'vault_new_asset':
-      badge = 'COFRE DIGITAL';
       subject = customSubject || 'Novo ativo liberado no seu Cofre Digital 💎';
       icon = '💎';
       title = customSubject ? stripLeadingEmoji(customSubject).cleanText : 'Novo Ativo no Cofre';
@@ -405,7 +376,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'project_archived':
-      badge = 'PORTAL DO CLIENTE';
       subject = `Projeto ${projectName || 'sua marca'} concluído e arquivado 🔒`;
       icon = '🔒';
       title = 'Projeto Arquivado';
@@ -416,7 +386,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'project_reactivated':
-      badge = 'PORTAL DO CLIENTE';
       subject = `Projeto ${projectName || 'sua marca'} reativado 🔓🚀`;
       icon = '🔓';
       title = 'Projeto Reativado';
@@ -430,7 +399,6 @@ export function getStudioEmailTemplate(
     // 3. COMUNIDADE VÊNETO & HUB B2B
     // -------------------------------------------------------------
     case 'community_approved_post':
-      badge = 'COMUNIDADE VÊNETO';
       subject = 'Publicação aprovada na Comunidade Vêneto ✅';
       icon = '🎉';
       title = 'Publicação Aprovada';
@@ -441,7 +409,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'community_interaction':
-      badge = 'COMUNIDADE VÊNETO';
       subject = 'Nova interação na sua publicação na Vêneto 💬';
       icon = '💬';
       title = 'Nova Interação';
@@ -452,7 +419,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'b2b_interest':
-      badge = 'HUB DE NEGÓCIOS';
       subject = 'Novo interesse comercial no seu pitch B2B 🤝';
       icon = '🤝';
       title = 'Interesse Comercial';
@@ -466,7 +432,6 @@ export function getStudioEmailTemplate(
     // 4. ALERTAS DE GESTÃO & LIDERANÇA
     // -------------------------------------------------------------
     case 'admin_alert_briefing':
-      badge = 'GESTÃO & LIDERANÇA';
       subject = `Briefing preenchido: ${clientName || projectName || 'Cliente'} 🎯`;
       icon = '🎯';
       title = 'Briefing Recebido';
@@ -477,7 +442,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'upsell_accepted':
-      badge = 'EXPANSÃO COMERCIAL';
       subject = `Expansão comercial: ${clientName || 'Cliente'} aceitou proposta 🔥`;
       icon = '🔥';
       title = 'Proposta Aceita';
@@ -488,7 +452,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'art_approved':
-      badge = 'CURADORIA & CLIENTE';
       subject = `Arte aprovada pelo cliente: ${clientName || projectName || 'Projeto'} 🟢`;
       icon = '🟢';
       title = 'Arte Aprovada';
@@ -499,7 +462,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'art_rejected':
-      badge = 'CURADORIA & CLIENTE';
       subject = `Ajuste solicitado pelo cliente em ${clientName || projectName || 'arte'} 🛑`;
       icon = '🛑';
       title = 'Ajuste Solicitado';
@@ -510,7 +472,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'visual_pin_added':
-      badge = 'CURADORIA VISUAL';
       subject = `Feedback visual adicionado por ${clientName || 'Cliente'} 📍`;
       icon = '📍';
       title = 'Pin Visual Adicionado';
@@ -521,7 +482,6 @@ export function getStudioEmailTemplate(
       break;
 
     case 'fever_chart_alert':
-      badge = 'RISCO OPERACIONAL';
       subject = `Alerta de prazo: ${projectName || 'Projeto'} em risco operacional ⚠️`;
       icon = '⚠️';
       title = 'Risco de Prazo';
@@ -549,19 +509,6 @@ export function getStudioEmailTemplate(
       message =
         customBody ||
         'Você tem novas atualizações na sua mesa de trabalho no Atelier.';
-      if (!customBadge) {
-        if (link?.includes('/tessera') || link?.includes('/jtbd') || link?.includes('/review')) {
-          badge = 'OPERAÇÃO & TAREFAS';
-        } else if (link?.includes('/fio') || link?.includes('/canais')) {
-          badge = 'SINTONIA';
-        } else if (link?.includes('/financeiro')) {
-          badge = 'FINANCEIRO';
-        } else if (link?.includes('/admin')) {
-          badge = 'GESTÃO & LIDERANÇA';
-        } else {
-          badge = 'STUDIO VERONNA';
-        }
-      }
       buttonText = customButtonText || 'Acessar Plataforma';
       break;
     }
@@ -589,25 +536,9 @@ export function getStudioEmailTemplate(
             
             <table width="100%" border="0" cellspacing="0" cellpadding="0" style="max-width: 460px; background-color: #ffffff; border-radius: 28px; box-shadow: 0 16px 40px rgba(0,0,0,0.06); border: 1px solid #ebe8e2; overflow: hidden;">
               
-              <!-- Top Branding Bar -->
-              <tr>
-                <td style="padding: 24px 32px 0; border-bottom: 1px solid #f4f2ee;">
-                  <table width="100%" border="0" cellspacing="0" cellpadding="0">
-                    <tr>
-                      <td align="left" style="padding-bottom: 16px;">
-                        <span style="font-size: 11px; font-weight: 800; letter-spacing: 2px; text-transform: uppercase; color: #a45037;">STUDIO VERONNA</span>
-                      </td>
-                      <td align="right" style="padding-bottom: 16px;">
-                        <span style="font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: #71717a; background-color: #f4f2ee; padding: 4px 10px; border-radius: 10px;">${badge}</span>
-                      </td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-
               <!-- Card Header & Icon -->
               <tr>
-                <td align="center" style="padding: 36px 32px 16px;">
+                <td align="center" style="padding: 40px 32px 16px;">
                   <div style="display: inline-block; width: 60px; height: 60px; border-radius: 20px; background-color: #fdf5f2; border: 1px solid #f6ded5; font-size: 28px; line-height: 60px; text-align: center; margin-bottom: 18px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02);">
                     ${icon}
                   </div>
@@ -640,7 +571,7 @@ export function getStudioEmailTemplate(
                 <td align="center" style="padding: 20px 32px; background-color: #fcfbfa; border-top: 1px solid #f4f2ee;">
                   <p style="margin: 0; font-size: 11px; color: #a1a1aa; line-height: 1.5;">
                     Esta é uma comunicação oficial da central de operações Atelier.<br/>
-                    <strong style="color: #71717a;">Studio Veronna</strong> &bull; Design Estratégico &amp; Identidade
+                    <strong style="color: #71717a;">Studio Veronna</strong> &bull; Atelier
                   </p>
                 </td>
               </tr>

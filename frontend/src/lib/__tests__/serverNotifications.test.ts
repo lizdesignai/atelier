@@ -37,8 +37,8 @@ describe('Studio Veronna Notification & Email Templates', () => {
       link: '/tessera/focus',
     });
     expect(assigned.subject).toContain('Identidade Visual — Conceito');
-    expect(assigned.html).toContain('STUDIO VERONNA');
-    expect(assigned.html).toContain('OPERAÇÃO & TAREFAS');
+    expect(assigned.html).toContain('Studio Veronna');
+    expect(assigned.html).not.toContain('OPERAÇÃO & TAREFAS');
     expect(assigned.html).toContain('Júlia');
 
     const review = getStudioEmailTemplate('internal_review', {
@@ -48,7 +48,7 @@ describe('Studio Veronna Notification & Email Templates', () => {
       link: '/tessera/reviews',
     });
     expect(review.subject).toContain('Key Visual Campanha');
-    expect(review.html).toContain('CURADORIA & QA');
+    expect(review.html).not.toContain('CURADORIA & QA');
     expect(review.html).toContain('Revisar no Kanban');
 
     const changes = getStudioEmailTemplate('review_changes_requested', {
@@ -72,6 +72,6 @@ describe('Studio Veronna Notification & Email Templates', () => {
 
     const appLike = buildAppLikeEmail('🔔', 'Aviso', rawBody, 'Abrir', '/admin');
     expect(appLike).toContain('[Imagem Ocultada no E-mail]');
-    expect(appLike).toContain('STUDIO VERONNA');
+    expect(appLike).toContain('Studio Veronna');
   });
 });
